@@ -665,4 +665,4 @@ async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: s
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, workers=2)  # Use 2 workers for t2.micro

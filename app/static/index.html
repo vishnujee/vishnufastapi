@@ -171,7 +171,9 @@
     <script>
 
       
-
+        const BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                        ? 'http://127.0.0.1:8000'
+                        : 'http://13.200.162.52:8000';  // or use a domain if you have one
         // All your existing JavaScript functions remain exactly the same
         async function processPDF(endpoint, formId) {
             const form = document.getElementById(formId);
@@ -196,9 +198,10 @@
                 progressDiv.querySelector('progress').value = progress;
                 progressText.textContent = `Uploading... ${progress}%`;
             }, 200);
+           
 
             try {
-                const response = await fetch(`http://127.0.0.1:8000/${endpoint}`, {
+                const response = await fetch(`${BASE_URL}/${endpoint}`, {
                     method: 'POST',
                     body: formData
                 });
@@ -1203,7 +1206,8 @@
             }
 
             // Connect to SSE endpoint
-            const eventSource = new EventSource('/memory-usage');
+            // const eventSource = new EventSource('/memory-usage');
+            const eventSource = new EventSource(`${BASE_URL}/memory-usage`);
             
             eventSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
