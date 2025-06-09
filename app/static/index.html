@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vishnu AI & PDF Tools</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+
+        .blinking-cursor {
+            animation: blink 1s step-end infinite;
+            color: #4a90e2;
+            font-weight: bold;
+        }
+        @keyframes blink {
+            from, to { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+       .ai-response table {
+            width: 100%;
+            margin: 1rem 0;
+            border-collapse: collapse;
+        }
+
+        .ai-response th {
+            background-color: #f3f4f6;
+            font-weight: bold;
+        }
+
+        .ai-response th,
+        .ai-response td {
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            text-align: left;
+        }
+
+        .ai-response {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .ai-response ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin: 0.5rem 0;
+        }
+
+        .ai-response li {
+            margin: 0.25rem 0;
+        }
+
+        .progress {
+            display: none;
+        }
+
+        .progress-text {
+            font-size: 0.875rem;
+            color: #4a5568;
+        }
+
+        #chatOutput p {
+            margin: 0.5rem 0;
+        }
+
+        .tool-card {
+            transition: all 0.3s ease;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-link {
+            position: relative;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -2px;
+            left: 0;
+            background-color: #10b981;
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-content {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            min-width: 200px;
+            z-index: 10;
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-radius: 0.375rem;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+        }
+
+        .dropdown:hover > .dropdown-content,
+        .dropdown-content:hover {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            .dropdown-content {
+                position: static;
+                opacity: 1;
+                visibility: visible;
+                transform: none;
+            }
+        }
+
+
+        .memory-container {
+            display: flex;
+            gap: 20px;
+            margin: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .memory-card {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f9f9f9;
+        }
+        .progress-container {
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #4CAF50;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .memory-stats {
+            margin-top: 10px;
+            font-family: monospace;
+        }
+    </style>
+    <script>
+
+      
+
+        // All your existing JavaScript functions remain exactly the same
+        async function processPDF(endpoint, formId) {
+            const form = document.getElementById(formId);
+            const formData = new FormData(form);
+            const resultDiv = document.getElementById(`result-${formId}`);
+            const submitButton = form.querySelector('button');
+            const progressDiv = document.getElementById(`progress-${formId}`);
+            const progressText = document.getElementById(`progress-text-${formId}`);
+
+            // Validate form
+            if (!validateForm(form, endpoint, resultDiv)) {
+                return;
+            }
+
+            // Disable button and show progress
+            submitButton.disabled = true;
+            progressDiv.style.display = 'block';
+            progressText.textContent = 'Preparing files...';
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress = Math.min(progress + 10, 90);
+                progressDiv.querySelector('progress').value = progress;
+                progressText.textContent = `Uploading... ${progress}%`;
+            }, 200);
+
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/${endpoint}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                clearInterval(progressInterval);
+                progressDiv.querySelector('progress').value = 100;
+                progressText.textContent = 'Processing complete!';
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'downloaded_file';
+                    if (contentDisposition) {
+                        const match = contentDisposition.match(/filename="(.+)"|filename=([^;]+)/i);
+                        if (match) filename = match[1] || match[2];
+                    }
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    resultDiv.textContent = `${endpoint.replace('_pdf', '').replace('_', ' ').toUpperCase()} successful!`;
+                    resultDiv.classList.remove('text-red-600');
+                    resultDiv.classList.add('text-green-600');
+                } else {
+                    const error = await response.json();
+                    resultDiv.textContent = `Error: ${error.detail}`;
+                    resultDiv.classList.remove('text-green-600');
+                    resultDiv.classList.add('text-red-600');
+                }
+            } catch (e) {
+                clearInterval(progressInterval);
+                resultDiv.textContent = `Error: ${e.message}`;
+                resultDiv.classList.remove('text-green-600');
+                resultDiv.classList.add('text-red-600');
+            } finally {
+                submitButton.disabled = false;
+                setTimeout(() => {
+                    progressDiv.style.display = 'none';
+                    progressText.textContent = '';
+                }, 2000);
+            }
+        }
+
+        //  
+        // First define the formatResponse function (move this to the top of your script)
+        function formatResponse(text) {
+            if (!text) return '';
+            
+            // Convert markdown tables to HTML tables
+            text = text.replace(/(\|[^\n]+\|\r?\n\|[-: |]+\|\r?\n)((?:\|[^\n]+\|\r?\n?)+)/g, function(match, header, body) {
+                let html = '<div class="overflow-x-auto"><table class="w-full border-collapse my-3">';
+                
+                // Process header
+                const headers = header.split('|').slice(1, -1).map(h => h.trim());
+                html += '<thead><tr class="bg-gray-100">';
+                headers.forEach(h => {
+                    html += `<th class="p-2 border text-left">${h}</th>`;
+                });
+                html += '</tr></thead><tbody>';
+                
+                // Process body
+                const rows = body.trim().split('\n');
+                rows.forEach(row => {
+                    const cells = row.split('|').slice(1, -1).map(c => c.trim());
+                    html += '<tr>';
+                    cells.forEach(cell => {
+                        html += `<td class="p-2 border">${formatMarkdownInline(cell)}</td>`;
+                    });
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table></div>';
+                return html;
+            });
+            
+            // Convert markdown lists
+            text = text.replace(/^([*-]|\d+\.)\s+(.+)$/gm, function(match, bullet, content) {
+                return `<li class="ml-5">${formatMarkdownInline(content)}</li>`;
+            });
+            
+            // Wrap consecutive list items in ul/ol
+            text = text.replace(/(<li>.*<\/li>)+/g, function(match) {
+                const listType = match.includes('<li class="ml-5">') ? 'ul' : 'ol';
+                return `<${listType} class="list-disc pl-5 my-2">${match}</${listType}>`;
+            });
+            
+            // Convert markdown bold/italic
+            text = formatMarkdownInline(text);
+            
+            // Convert line breaks to <br> for non-table, non-list content
+            text = text.replace(/\n/g, function(match, offset, fullText) {
+                if (!fullText.substring(offset).match(/^\n*(<table|<ul|<ol)/) && 
+                    !fullText.substring(0, offset).match(/(<\/table|<\/ul|<\/ol>)\n*$/)) {
+                    return '<br>';
+                }
+                return match;
+            });
+            
+            // Convert markdown links
+            text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank">$1</a>');
+            
+            return text;
+        }
+
+        function formatMarkdownInline(text) {
+            if (!text) return '';
+            
+            // Bold
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // Italic
+            text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            // Inline code
+            text = text.replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>');
+            
+            return text;
+        }
+
+        // Then define the typewriter-related functions
+        async function typewriterEffect(element, text, speed = 20) {
+            // First format the response to handle markdown
+            const formattedText = formatResponse(text);
+            
+            // Create a temporary element to parse the HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = formattedText;
+            
+            // Process each node for typewriter effect
+            element.innerHTML = '';
+            await typewriterProcessNodes(element, tempDiv.childNodes, speed);
+        }
+
+        async function typewriterProcessNodes(parent, nodes, speed) {
+            for (const node of nodes) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    await typewriterAddText(parent, node.textContent, speed);
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    // For tables, add them immediately
+                    if (node.tagName === 'TABLE') {
+                        const clone = node.cloneNode(true);
+                        parent.appendChild(clone);
+                    } else {
+                        const newElement = document.createElement(node.tagName);
+                        
+                        // Copy all attributes
+                        for (const attr of node.attributes) {
+                            newElement.setAttribute(attr.name, attr.value);
+                        }
+                        
+                        // Copy classes
+                        if (node.className) {
+                            newElement.className = node.className;
+                        }
+                        
+                        parent.appendChild(newElement);
+                        
+                        // Process child nodes recursively
+                        await typewriterProcessNodes(newElement, node.childNodes, speed);
+                    }
+                }
+            }
+        }
+
+        async function typewriterAddText(element, text, speed) {
+            for (let i = 0; i < text.length; i++) {
+                // Add the next character
+                element.textContent += text[i];
+                
+                // Add blinking cursor (except for the last character)
+                if (i < text.length - 1) {
+                    const cursor = document.createElement('span');
+                    cursor.className = 'blinking-cursor';
+                    cursor.textContent = '|';
+                    element.appendChild(cursor);
+                    
+                    // Wait for a bit
+                    await new Promise(resolve => setTimeout(resolve, speed));
+                    
+                    // Remove the cursor
+                    element.removeChild(cursor);
+                }
+            }
+        }
+
+        // Finally, your sendChat function
+        async function sendChat() {
+            const chatInput = document.getElementById('chatInput').value.trim();
+            const chatOutput = document.getElementById('chatOutput');
+            const progressDiv = document.getElementById('progress-chat');
+            const progressText = document.getElementById('progress-text-chat');
+
+            if (!chatInput) {
+                chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
+                return;
+            }
+
+            progressDiv.style.display = 'block';
+            progressText.textContent = 'Processing query...';
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `query=${encodeURIComponent(chatInput)}&typewriter=true`
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Chat error');
+                }
+
+                const data = await response.json();
+                
+                // Create new message element
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'mb-4';
+                
+                // Add user query
+                const userQuery = document.createElement('p');
+                userQuery.className = 'font-semibold text-blue-600';
+                userQuery.textContent = `You: ${chatInput}`;
+                messageDiv.appendChild(userQuery);
+                
+                // Add AI response container
+                const aiResponse = document.createElement('div');
+                aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
+                messageDiv.appendChild(aiResponse);
+                
+                // Insert at the top of chat output
+                chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
+                
+                // Clear input
+                document.getElementById('chatInput').value = '';
+                
+                // Apply typewriter effect
+                await typewriterEffect(aiResponse, data.answer);
+
+            } catch (error) {
+                console.error("Chat error:", error);
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'text-red-600 mb-4';
+                errorDiv.innerHTML = `
+                    <p>Error: ${error.message}</p>
+                    <p class="text-sm text-gray-500">Please try again or refresh the page.</p>
+                `;
+                chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
+            } finally {
+                progressDiv.style.display = 'none';
+                progressText.textContent = '';
+            }
+        }
+
+
+
+
+        function validateForm(form, endpoint, resultDiv) {
+            const filesInput = form.querySelector('input[type="file"]');
+            const files = filesInput.files;
+            const password = form.querySelector('input[type="password"]');
+            const pages = form.querySelector('input[name="pages"]');
+
+            // File validation
+            if (!files.length) {
+                resultDiv.textContent = 'Please select a file.';
+                return false;
+            }
+
+            if (endpoint === 'merge_pdf') {
+                if (files.length < 2) {
+                    resultDiv.textContent = 'Please select at least 2 PDF files.';
+                    return false;
+                }
+                let totalSize = 0;
+                for (let file of files) {
+                    const sizeMB = file.size / (1024 * 1024);
+                    totalSize += sizeMB;
+                    if (sizeMB > 30) {
+                        resultDiv.textContent = `File ${file.name} exceeds 30MB limit.`;
+                        return false;
+                    }
+                }
+                const method = form.querySelector('select[name="method"]').value;
+                const maxFiles = method === 'PyPDF2' ? 51 : 30;
+                const maxSizeMB = method === 'PyPDF2' ? 90 : 50;
+                if (files.length > maxFiles) {
+                    resultDiv.textContent = `Too many files. Maximum is ${maxFiles} for ${method}.`;
+                    return false;
+                }
+                if (totalSize > maxSizeMB) {
+                    resultDiv.textContent = `Total file size (${totalSize.toFixed(1)}MB) exceeds ${maxSizeMB}MB limit.`;
+                    return false;
+                }
+            } else {
+                const maxSizeMB = endpoint === 'compress_pdf' ? 55 : endpoint === 'split_pdf' ? 100 : 50;
+                const file = files[0];
+                const sizeMB = file.size / (1024 * 1024);
+                if (sizeMB > maxSizeMB) {
+                    resultDiv.textContent = `File ${file.name} exceeds ${maxSizeMB}MB limit.`;
+                    return false;
+                }
+                if (endpoint === 'convert_image_to_pdf' && !['image/png', 'image/jpeg'].includes(file.type)) {
+                    resultDiv.textContent = `File ${file.name} must be PNG or JPEG.`;
+                    return false;
+                }
+            }
+
+            // Password validation
+            if ((endpoint === 'encrypt_pdf' || endpoint === 'remove_pdf_password') && (!password || !password.value)) {
+                resultDiv.textContent = 'Please enter a password.';
+                return false;
+            }
+
+            // Pages validation for delete_pdf_pages
+            if (endpoint === 'delete_pdf_pages' && pages) {
+                const pageNumbers = pages.value.split(',').map(p => p.trim());
+                if (!pageNumbers.every(p => /^[1-9]\d*$/.test(p))) {
+                    resultDiv.textContent = 'Invalid page numbers. Use comma-separated positive integers (e.g., 2,5,7).';
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+
+
+
+
+        // New function to show/hide tool sections
+        function showTool(toolId) {
+            // Hide all tool sections
+            document.querySelectorAll('.tool-section').forEach(section => {
+                section.style.display = 'none';
+            });
+
+            // Show selected tool
+            document.getElementById(toolId).style.display = 'block';
+
+            // Update active nav item
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('text-green-600', 'font-bold');
+            });
+            event.currentTarget.classList.add('text-green-600', 'font-bold');
+
+            // Scroll to the tool section
+            document.getElementById(toolId).scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-lg sticky top-0 z-10">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-2xl font-bold text-blue-600 hover:text-green-600">
+                        Vishnu Tools
+                    </a>
+                </div>
+
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#chat" class="nav-link text-xl text-gray-700 hover:text-green-600"
+                        onclick="showTool('chat-section')">AI Chat</a>
+                    <div class="dropdown relative">
+                        <button class="nav-link text-xl text-gray-700 hover:text-green-600 flex items-center">
+                            PDF Tools <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                        </button>
+                        <div class="dropdown-content bg-white shadow-lg rounded-md mt-2 py-2 w-48">
+                            <a href="#merge" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('merge-section')">Merge PDFs</a>
+                            <a href="#compress" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('compress-section')">Compress PDF</a>
+                            <a href="#encrypt" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('encrypt-section')">Encrypt PDF</a>
+                            <a href="#pdf-to-images" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('pdfToImages-section')">PDF to Images</a>
+                            <a href="#split" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('split-section')">Split PDF</a>
+                            <a href="#delete-pages" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('deletePages-section')">Delete Pages</a>
+                            <a href="#pdf-to-word" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('pdfToWord-section')">PDF to Word</a>
+                            <a href="#pdf-to-excel" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('pdfToExcel-section')">PDF to Excel</a>
+                            <a href="#image-to-pdf" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('imageToPdf-section')">Image to PDF</a>
+                            <a href="#remove-password" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('removePassword-section')">Remove Password</a>
+                        </div>
+                    </div>
+                </div>
+                <button class="md:hidden text-gray-700" id="mobile-menu-button">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Mobile menu -->
+            <div class="md:hidden hidden bg-white py-2 px-4" id="mobile-menu">
+                <a href="#chat" class="block py-2 text-gray-700 hover:text-green-600"
+                    onclick="showTool('chat-section')">AI Chat</a>
+                <div class="py-2">
+                    <button class="flex items-center justify-between w-full text-gray-700 hover:text-green-600"
+                        onclick="toggleMobileSubmenu()">
+                        PDF Tools <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                    </button>
+                    <div class="hidden bg-gray-50 pl-4 mt-1" id="mobile-submenu">
+                        <a href="#merge" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('merge-section')">Merge PDFs</a>
+                        <a href="#compress" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('compress-section')">Compress PDF</a>
+                        <a href="#encrypt" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('encrypt-section')">Encrypt PDF</a>
+                        <a href="#pdf-to-images" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('pdfToImages-section')">PDF to Images</a>
+                        <a href="#split" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('split-section')">Split PDF</a>
+                        <a href="#delete-pages" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('deletePages-section')">Delete Pages</a>
+                        <a href="#pdf-to-word" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('pdfToWord-section')">PDF to Word</a>
+                        <a href="#pdf-to-excel" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('pdfToExcel-section')">PDF to Excel</a>
+                        <a href="#image-to-pdf" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('imageToPdf-section')">Image to PDF</a>
+                        <a href="#remove-password" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('removePassword-section')">Remove Password</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Hero Section -->
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-800 mb-4">Vishnu AI & PDF Tools</h1>
+            <p class="text-xl text-gray-600 max-w-3xl mx-auto">Your all-in-one solution for PDF operations and
+                AI-powered assistance</p>
+        </div>
+        <h1>System Memory Usage</h1>
+        <div class="memory-container">
+            <div class="memory-card">
+                <h2>RAM Usage</h2>
+                <div class="progress-container">
+                    <div class="progress-bar" id="ram-bar"></div>
+                </div>
+                <div class="memory-stats" id="ram-stats"></div>
+            </div>
+            <div class="memory-card">
+                <h2>ROM (Swap) Usage</h2>
+                <div class="progress-container">
+                    <div class="progress-bar" id="rom-bar"></div>
+                </div>
+                <div class="memory-stats" id="rom-stats"></div>
+            </div>
+        </div>
+        <!-- Chat Section -->
+        <div id="chat-section" class="tool-section mb-12">
+            <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                <div class="flex items-center mb-4">
+                    <div class="bg-green-100 p-2 rounded-full mr-3">
+                        <i class="fas fa-robot text-green-600 text-xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-semibold text-gray-800">Vishnu AI Assistant</h2>
+                </div>
+                <div class="space-y-4">
+                    <div class="flex space-x-2">
+                        <input type="text" id="chatInput" placeholder="Ask me anything about Vishnu..." maxlength="250"
+                            class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        <button onclick="sendChat()"
+                            class="bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors flex items-center">
+                            <i class="fas fa-paper-plane mr-2"></i> Send
+                        </button>
+                    </div>
+                    <div id="chatOutput" class="text-gray-700 bg-gray-50 p-4 rounded-lg min-h-32"></div>
+                    <div class="progress" id="progress-chat">
+                        <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                        <div class="progress-text" id="progress-text-chat"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PDF Tools Sections -->
+        <div class="grid grid-cols-1 gap-8">
+            <!-- Merge PDFs -->
+            <div id="merge-section" class="tool-section">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-blue-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-object-group text-blue-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Merge PDFs</h2>
+                    </div>
+                    <form id="mergeForm" class="space-y-4">
+                        <div>
+                            <label for="merge-files" class="block text-sm font-medium text-gray-600 mb-1">Select PDF
+                                Files</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose Files
+                                    <input type="file" id="merge-files" name="files" multiple accept=".pdf" required
+                                        class="hidden">
+                                </label>
+                                <span id="merge-files-count" class="ml-3 text-sm text-gray-500">No files selected</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="merge-method" class="block text-sm font-medium text-gray-600 mb-1">Merge
+                                Method</label>
+                            <select id="merge-method" name="method"
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="PyPDF2">PyPDF2 (Fast, up to 51 files)</option>
+                                <option value="Ghostscript">Ghostscript (Slower, up to 30 files)</option>
+                            </select>
+                        </div>
+                        <button type="button" onclick="processPDF('merge_pdf', 'mergeForm')"
+                            class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-object-group mr-2"></i> Merge PDFs
+                        </button>
+                        <div class="progress" id="progress-mergeForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-mergeForm"></div>
+                        </div>
+                        <p id="result-mergeForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Compress PDF -->
+            <div id="compress-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-purple-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-compress-alt text-purple-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Compress PDF</h2>
+                    </div>
+                    <form id="compressForm" class="space-y-4">
+                        <div>
+                            <label for="compress-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF
+                                File</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                                    <input type="file" id="compress-file" name="file" accept=".pdf" required
+                                        class="hidden">
+                                </label>
+                                <span id="compress-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="compress-preset"
+                                class="block text-sm font-medium text-gray-600 mb-1">Compression Level</label>
+                            <select id="compress-preset" name="preset"
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <option value="High">High Compression (Smallest Size)</option>
+                                <option value="Medium">Medium Compression (Balanced)</option>
+                                <option value="Low">Low Compression (Better Quality)</option>
+                                <option value="Custom">Custom (High Quality)</option>
+                            </select>
+                        </div>
+                        <button type="button" onclick="processPDF('compress_pdf', 'compressForm')"
+                            class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-compress-alt mr-2"></i> Compress PDF
+                        </button>
+                        <div class="progress" id="progress-compressForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-compressForm"></div>
+                        </div>
+                        <p id="result-compressForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Encrypt PDF -->
+            <div id="encrypt-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-yellow-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-lock text-yellow-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Encrypt PDF</h2>
+                    </div>
+                    <form id="encryptForm" class="space-y-4">
+                        <div>
+                            <label for="encrypt-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF
+                                File</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                                    <input type="file" id="encrypt-file" name="file" accept=".pdf" required
+                                        class="hidden">
+                                </label>
+                                <span id="encrypt-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="encrypt-password"
+                                class="block text-sm font-medium text-gray-600 mb-1">Password</label>
+                            <input type="password" id="encrypt-password" name="password" placeholder="Enter password"
+                                required
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent">
+                        </div>
+                        <button type="button" onclick="processPDF('encrypt_pdf', 'encryptForm')"
+                            class="w-full bg-yellow-600 text-white p-3 rounded-lg hover:bg-yellow-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-lock mr-2"></i> Encrypt PDF
+                        </button>
+                        <div class="progress" id="progress-encryptForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-encryptForm"></div>
+                        </div>
+                        <p id="result-encryptForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Convert PDF to Images -->
+            <div id="pdfToImages-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-pink-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-file-image text-pink-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Convert PDF to Images</h2>
+                    </div>
+                    <form id="pdfToImagesForm" class="space-y-4">
+                        <div>
+                            <label for="pdfToImages-file" class="block text-sm font-medium text-gray-600 mb-1">Select
+                                PDF File</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                                    <input type="file" id="pdfToImages-file" name="file" accept=".pdf" required
+                                        class="hidden">
+                                </label>
+                                <span id="pdfToImages-file-name" class="ml-3 text-sm text-gray-500">No file
+                                    selected</span>
+                            </div>
+                        </div>
+                        <button type="button" onclick="processPDF('convert_pdf_to_images', 'pdfToImagesForm')"
+                            class="w-full bg-pink-600 text-white p-3 rounded-lg hover:bg-pink-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-file-image mr-2"></i> Convert to Images
+                        </button>
+                        <div class="progress" id="progress-pdfToImagesForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-pdfToImagesForm"></div>
+                        </div>
+                        <p id="result-pdfToImagesForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Split PDF -->
+            <div id="split-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-indigo-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-cut text-indigo-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Split PDF</h2>
+                    </div>
+                    <form id="splitForm" class="space-y-4">
+                        <div>
+                            <label for="split-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF
+                                File</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                                    <input type="file" id="split-file" name="file" accept=".pdf" required
+                                        class="hidden">
+                                </label>
+                                <span id="split-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+                            </div>
+                        </div>
+                        <button type="button" onclick="processPDF('split_pdf', 'splitForm')"
+                            class="w-full bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-cut mr-2"></i> Split PDF
+                        </button>
+                        <div class="progress" id="progress-splitForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-splitForm"></div>
+                        </div>
+                        <p id="result-splitForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Delete PDF Pages -->
+            <div id="deletePages-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-red-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-trash-alt text-red-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Delete PDF Pages</h2>
+                    </div>
+                    <form id="deletePagesForm" class="space-y-4">
+                        <div>
+                            <label for="deletePages-file" class="block text-sm font-medium text-gray-600 mb-1">Select
+                                PDF File</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                                    <input type="file" id="deletePages-file" name="file" accept=".pdf" required
+                                        class="hidden">
+                                </label>
+                                <span id="deletePages-file-name" class="ml-3 text-sm text-gray-500">No file
+                                    selected</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="deletePages-pages" class="block text-sm font-medium text-gray-600 mb-1">Pages to
+                                Delete (e.g., 2,5,7)</label>
+                            <input type="text" id="deletePages-pages" name="pages"
+                                placeholder="Pages to delete (e.g., 2,5,7)" required
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        </div>
+                        <button type="button" onclick="processPDF('delete_pdf_pages', 'deletePagesForm')"
+                            class="w-full bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-trash-alt mr-2"></i> Delete Pages
+                        </button>
+                        <div class="progress" id="progress-deletePagesForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-deletePagesForm"></div>
+                        </div>
+                        <p id="result-deletePagesForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Convert PDF to Word -->
+            <div id="pdfToWord-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-blue-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-file-word text-blue-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Convert PDF to Word</h2>
+                    </div>
+                    <form id="pdfToWordForm" class="space-y-4">
+                        <div>
+                            <label for="pdfToWord-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF
+                                File</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                                    <input type="file" id="pdfToWord-file" name="file" accept=".pdf" required
+                                        class="hidden">
+                                </label>
+                                <span id="pdfToWord-file-name" class="ml-3 text-sm text-gray-500">No file
+                                    selected</span>
+                            </div>
+                        </div>
+                        <button type="button" onclick="processPDF('convert_pdf_to_word', 'pdfToWordForm')"
+                            class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-file-word mr-2"></i> Convert to Word
+                        </button>
+                        <div class="progress" id="progress-pdfToWordForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-pdfToWordForm"></div>
+                        </div>
+                        <p id="result-pdfToWordForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+
+
+            <!-- Convert PDF to Excel -->
+            <div id="pdfToExcel-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-green-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-file-excel text-green-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Convert PDF to Excel</h2>
+                    </div>
+                    <form id="pdfToExcelForm" class="space-y-4">
+                        <div>
+                            <label for="pdfToExcel-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF
+                                File
+
+
+                                <div class="flex items-center">
+                                    <label
+                                        class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                        <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                                        <input type="file" id="pdfToExcel-file" name="file" accept=".pdf" required
+                                            class="hidden">
+                                    </label>
+                                    <span id="pdfToExcel-file-name" class="ml-3 text-sm text-gray-500">No file
+                                        selected</span>
+                                </div>
+                        </div>
+                        <button type="button" onclick="processPDF('convert_pdf_to_excel', 'pdfToExcelForm')"
+                            class="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-file-excel mr-2"></i> Convert to Excel
+                        </button>
+                        <div class="progress" id="progress-pdfToExcelForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-pdfToExcelForm"></div>
+                        </div>
+                        <p id="result-pdfToExcelForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Image to PDF -->
+            <div id="imageToPdf-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-teal-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-image text-teal-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Convert Image to PDF</h2>
+                    </div>
+                    <form id="imageToPdfForm" class="space-y-4">
+                        <div>
+                            <label for="imageToPdf-file" class="block text-sm font-medium text-gray-600 mb-1">Select
+                                Image File</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-image mr-2 text-teal-500"></i> Choose File
+                                    <input type="file" id="imageToPdf-file" name="file" accept="image/png,image/jpeg"
+                                        required class="hidden">
+                                </label>
+                                <span id="imageToPdf-file-name" class="ml-3 text-sm text-gray-500">No file
+                                    selected</span>
+                            </div>
+                        </div>
+                        <button type="button" onclick="processPDF('convert_image_to_pdf', 'imageToPdfForm')"
+                            class="w-full bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-image mr-2"></i> Convert to PDF
+                        </button>
+                        <div class="progress" id="progress-imageToPdfForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-imageToPdfForm"></div>
+                        </div>
+                        <p id="result-imageToPdfForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Remove Password -->
+            <div id="removePassword-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-orange-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-unlock text-orange-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Remove PDF Password</h2>
+                    </div>
+                    <form id="removePasswordForm" class="space-y-4">
+                        <div>
+                            <label for="removePassword-file" class="block text-sm font-medium text-gray-600 mb-1">Select
+                                PDF File</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                                    <input type="file" id="removePassword-file" name="file" accept=".pdf" required
+                                        class="hidden">
+                                </label>
+                                <span id="removePassword-file-name" class="ml-3 text-sm text-gray-500">No file
+                                    selected</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="removePassword-password"
+                                class="block text-sm font-medium text-gray-600 mb-1">Password</label>
+                            <input type="password" id="removePassword-password" name="password"
+                                placeholder="Enter password" required
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+                        </div>
+                        <button type="button" onclick="processPDF('remove_pdf_password', 'removePasswordForm')"
+                            class="w-full bg-orange-600 text-white p-3 rounded-lg hover:bg-orange-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-unlock mr-2"></i> Remove Password
+                        </button>
+                        <div class="progress" id="progress-removePasswordForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-removePasswordForm"></div>
+                        </div>
+                        <p id="result-removePasswordForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-6">
+        <div class="container mx-auto px-4 text-center">
+            <p>&copy; 2025 Vishnu Tools. All rights reserved.</p>
+            <p class="mt-2 text-sm">Built with <i class="fas fa-heart text-red-500"></i> for efficient PDF processing
+                and AI assistance</p>
+        </div>
+    </footer>
+
+    <!-- Additional JavaScript for Mobile Menu and File Input Handling -->
+    <script>
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            const menuButton = document.getElementById('mobile-menu-button');
+            mobileMenu.classList.toggle('hidden');
+            menuButton.querySelector('i').classList.toggle('fa-bars');
+            menuButton.querySelector('i').classList.toggle('fa-times');
+        }
+
+        function toggleMobileSubmenu() {
+            const mobileSubmenu = document.getElementById('mobile-submenu');
+            mobileSubmenu.classList.toggle('hidden');
+        }
+
+        document.getElementById('mobile-menu-button').addEventListener('click', toggleMobileMenu);
+
+        // Update file input labels with selected file names
+        function updateFileLabel(inputId, labelId) {
+            const input = document.getElementById(inputId);
+            const label = document.getElementById(labelId);
+            input.addEventListener('change', () => {
+                if (input.files.length > 1) {
+                    label.textContent = `${input.files.length} files selected`;
+                } else if (input.files.length === 1) {
+                    label.textContent = input.files[0].name;
+                } else {
+                    label.textContent = 'No file selected';
+                }
+            });
+        }
+
+        // Initialize file input listeners
+        updateFileLabel('merge-files', 'merge-files-count');
+        updateFileLabel('compress-file', 'compress-file-name');
+        updateFileLabel('encrypt-file', 'encrypt-file-name');
+        updateFileLabel('pdfToImages-file', 'pdfToImages-file-name');
+        updateFileLabel('split-file', 'split-file-name');
+        updateFileLabel('deletePages-file', 'deletePages-file-name');
+        updateFileLabel('pdfToWord-file', 'pdfToWord-file-name');
+        updateFileLabel('pdfToExcel-file', 'pdfToExcel-file-name');
+        updateFileLabel('imageToPdf-file', 'imageToPdf-file-name');
+        updateFileLabel('removePassword-file', 'removePassword-file-name');
+
+        // Show chat section by default
+        document.getElementById('chat-section').style.display = 'block';
+
+
+
+        // memory
+        // Memory Monitoring Code
+        document.addEventListener('DOMContentLoaded', function() {
+            const ramBar = document.getElementById('ram-bar');
+            const ramStats = document.getElementById('ram-stats');
+            const romBar = document.getElementById('rom-bar');
+            const romStats = document.getElementById('rom-stats');
+
+            function formatBytes(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            function updateMemoryUI(data) {
+                // Update RAM
+                const ramPercent = data.ram.percent;
+                if (ramBar) {
+                    ramBar.style.width = `${ramPercent}%`;
+                    ramBar.style.backgroundColor = ramPercent > 80 ? '#f44336' : '#4CAF50';
+                }
+                if (ramStats) {
+                    ramStats.innerHTML = `
+                        <div>Used: ${formatBytes(data.ram.used)} / ${formatBytes(data.ram.total)}</div>
+                        <div>Free: ${formatBytes(data.ram.free)}</div>
+                        <div>Usage: ${ramPercent.toFixed(1)}%</div>
+                    `;
+                }
+
+                // Update ROM (Swap)
+                const romPercent = data.rom.percent;
+                if (romBar) {
+                    romBar.style.width = `${romPercent}%`;
+                    romBar.style.backgroundColor = romPercent > 80 ? '#f44336' : '#4CAF50';
+                }
+                if (romStats) {
+                    romStats.innerHTML = `
+                        <div>Used: ${formatBytes(data.rom.used)} / ${formatBytes(data.rom.total)}</div>
+                        <div>Free: ${formatBytes(data.rom.free)}</div>
+                        <div>Usage: ${romPercent.toFixed(1)}%</div>
+                    `;
+                }
+            }
+
+            // Connect to SSE endpoint
+            const eventSource = new EventSource('/memory-usage');
+            
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateMemoryUI(data);
+            };
+
+            eventSource.onerror = () => {
+                console.error('EventSource failed');
+                // Attempt to reconnect after 2 seconds
+                setTimeout(() => {
+                    eventSource.close();
+                    new EventSource('/memory-usage');
+                }, 2000);
+            };
+        });
+
+
+
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,668 @@
+from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form
+from fastapi.responses import HTMLResponse, FileResponse,StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+import os
+import boto3
+import io
+import logging
+import pdfplumber
+import tempfile
+import requests
+import psutil
+import time
+import json
+import asyncio
+
+#langchain
+# LangChain & Embeddings
+from langchain_community.document_loaders import PyPDFLoader, WebBaseLoader,PyMuPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_chroma import Chroma
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.documents import Document
+#### for openai
+from langchain_openai import OpenAIEmbeddings
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+from app.pdf_operations import  (
+    upload_to_s3, download_from_s3, cleanup_s3_file, get_memory_info,
+    merge_pdfs_pypdf2, merge_pdfs_ghostscript, safe_compress_pdf, encrypt_pdf,
+    convert_pdf_to_images, split_pdf, delete_pdf_pages, convert_pdf_to_word,
+    convert_pdf_to_excel, convert_image_to_pdf, remove_pdf_password
+)
+from typing import List
+import gc
+
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+os.makedirs("logs", exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    filename="logs/main.log",
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+
+# AWS S3 Configuration
+BUCKET_NAME = os.getenv("BUCKET_NAME")
+AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# PDF_S3_KEY = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"  # Ensure case consistency
+PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"
+
+
+def download_from_url(url: str) -> bytes:
+    """Download file from a URL"""
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.content
+    except Exception as e:
+        logger.error(f"Failed to download from URL {url}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to download PDF from URL: {str(e)}")
+
+BASE_DIR = Path(__file__).parent.parent
+PERSIST_DIRECTORY = str(BASE_DIR / "chroma_db")  # Will create in your project root
+
+# Ensure directory exists
+os.makedirs(PERSIST_DIRECTORY, exist_ok=True)
+
+
+s3_client = boto3.client(
+    "s3",
+    aws_access_key_id=AWS_ACCESS_KEY,
+    aws_secret_access_key=AWS_SECRET_KEY,
+)
+
+# Initialize Vector Store from S3 PDF
+
+def initialize_vectorstore():
+    try:
+        # Download PDF from URL
+        pdf_bytes = download_from_url(PDF_URL)
+        
+        # Debug: Save local copy
+        with open("debug_pdf.pdf", "wb") as f:
+            f.write(pdf_bytes)
+        logger.info(f"Downloaded PDF from {PDF_URL}, size: {len(pdf_bytes)} bytes")
+
+        # Process PDF
+        documents = []
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            for page_num, page in enumerate(pdf.pages):
+                text = page.extract_text(layout=True) or ""
+                tables = page.extract_tables()
+                
+                table_content = ""
+                if tables:
+                    for table in tables:
+                        table_content += "\n" + "\n".join(" | ".join(str(cell) for cell in row) for row in table)
+                
+                content = text + table_content
+                if content.strip():
+                    documents.append(Document(
+                        page_content=content,
+                        metadata={
+                            "source": PDF_URL,
+                            "page": page_num + 1,
+                            "content_type": "text_and_tables",
+                            "document_type": "education_records"
+                        }
+                    ))
+
+        # Text splitting
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=10000,
+            chunk_overlap=300,
+            length_function=len,
+            add_start_index=True
+        )
+        splits = text_splitter.split_documents(documents)
+
+        # Initialize embeddings
+        embeddings = OpenAIEmbeddings(
+            model="text-embedding-3-large",
+            dimensions=1024,
+            api_key=OPENAI_API_KEY
+        )
+
+        # Create ChromaDB instance - persistence is automatic with persist_directory
+        vectorstore = Chroma.from_documents(
+            documents=splits,
+            embedding=embeddings,
+            persist_directory=str(PERSIST_DIRECTORY),  # Convert to string if Path object
+            collection_name="vishnu_ai_docs"
+        )
+        
+        logger.info(f"ChromaDB initialized with {vectorstore._collection.count()} documents")
+        return vectorstore
+        
+    except Exception as e:
+        logger.error(f"Vectorstore initialization failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to initialize vectorstore: {str(e)}")
+
+
+
+# Initialize LLM
+def get_llm():
+    return ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        temperature=0.3,
+        max_tokens=800,
+        timeout=None,
+        api_key=GOOGLE_API_KEY
+    )
+
+# Cache vectorstore and retriever
+vectorstore = initialize_vectorstore()
+retriever = vectorstore.as_retriever(
+    search_type="mmr",
+    search_kwargs={
+        "k": 6,
+        "fetch_k": 12,
+        "lambda_mult": 0.5,
+        "score_threshold": 0.85,
+        "filter": {
+            "$or": [
+                {"source": PDF_URL},
+                {"content_type": {"$in": ["mixed_text_and_tables", "structured_table", "text", "mixed_text"]}}
+            ]
+        }
+    }
+)
+
+llm = get_llm()
+
+# System Prompt
+system_prompt = (
+    "You are Vishnu AI assistant providing precise and relevant answers.\n\n"
+    "When responding:\n"
+    "1. Prioritize the most recent data (latest date) unless the user specifies otherwise.\n"
+    "2. Extract key information from the context.\n"
+    "3. Never say in response- Based on the provided context/portfolio...\n"
+    "4. Summarize main points concisely.\n"
+    "5. Provide general information apart from provided pdf.\n\n"
+    "**For tables**:\n"
+    "- Always create complete & full table whenever asked to create table\n"
+    "**Response style**:\n"
+    "- Concise, professional, and friendly.\n"
+    "Context:\n{context}"
+)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", system_prompt),
+    ("human", "{input}"),
+])
+
+
+# @app.get("/memory-usage")
+# async def memory_usage_stream(request: Request):
+#     """Stream memory usage data every second"""
+#     async def event_stream():
+#         while True:
+#             if await request.is_disconnected():
+#                 break
+            
+#             # Get memory info
+#             mem = psutil.virtual_memory()
+#             swap = psutil.swap_memory()
+            
+#             data = {
+#                 "ram": {
+#                     "total": mem.total,
+#                     "used": mem.used,
+#                     "free": mem.free,
+#                     "percent": mem.percent
+#                 },
+#                 "rom": {
+#                     "total": swap.total,
+#                     "used": swap.used,
+#                     "free": swap.free,
+#                     "percent": swap.percent
+#                 }
+#             }
+            
+#             yield f"data: {json.dumps(data)}\n\n"
+#             time.sleep(1)
+    
+#     return StreamingResponse(
+#         event_stream(),
+#         media_type="text/event-stream",
+#         headers={
+#             "Cache-Control": "no-cache",
+#             "Connection": "keep-alive",
+#         }
+#     )
+
+@app.get("/memory-usage")
+async def memory_usage_stream(request: Request):
+    """Stream memory usage data every second"""
+    async def event_stream():
+        while True:
+            if await request.is_disconnected():
+                break
+            
+            # Get memory info
+            mem = psutil.virtual_memory()
+            swap = psutil.swap_memory()
+            
+            data = {
+                "ram": {
+                    "total": mem.total,
+                    "used": mem.used,
+                    "free": mem.free,
+                    "percent": mem.percent
+                },
+                "rom": {
+                    "total": swap.total,
+                    "used": swap.used,
+                    "free": swap.free,
+                    "percent": swap.percent
+                }
+            }
+            
+            yield f"data: {json.dumps(data)}\n\n"
+            await asyncio.sleep(1)  # Non-blocking sleep
+    
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_index():
+    with open("app/static/index.html", "r") as f:
+        return HTMLResponse(content=f.read())
+
+chat_history = []
+
+
+@app.post("/chat")
+async def chat(query: str = Form(...), typewriter: bool = Form(False)):
+    if not query.strip() or len(query) > 250:
+        raise HTTPException(status_code=400, detail="Invalid query length")
+    
+    try:
+        raw_docs = retriever.invoke(query)
+        if not raw_docs:
+            answer = "No relevant information found in the PDF."
+        else:
+            question_answer_chain = create_stuff_documents_chain(llm, prompt)
+            rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+            response = rag_chain.invoke({
+                "input": query,
+                "context": raw_docs
+            })
+            answer = response.get("answer", "").strip() or "No relevant information found."
+
+        chat_history.insert(0, f"You: {query}\nAI: {answer}")
+        chat_history[:] = chat_history[:10]
+        full_history = "\n\n".join(chat_history)
+
+        return {
+            "answer": answer,
+            "history": full_history,
+            "typewriter": typewriter  # Flag to indicate typewriter effect should be used
+        }
+
+    except Exception as e:
+        logger.error(f"Chat error: {e}")
+        raise HTTPException(status_code=500, detail="Chat processing failed")
+    finally:
+        gc.collect()
+
+@app.post("/merge_pdf")
+async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("PyPDF2")):
+    logger.info(f"Received merge request with {len(files)} files, method: {method}")
+    if len(files) < 2:
+        raise HTTPException(status_code=400, detail="At least 2 PDF files required")
+    
+    total_size_mb = sum(file.size for file in files) / (1024 * 1024)
+    if method == "PyPDF2" and (len(files) > 51 or total_size_mb > 90):
+        raise HTTPException(status_code=400, detail="PyPDF2 limits: 51 files, 90MB total")
+    if method == "Ghostscript" and (len(files) > 30 or total_size_mb > 50):
+        raise HTTPException(status_code=400, detail="Ghostscript limits: 30 files, 50MB total")
+
+    s3_keys = []
+    try:
+        file_contents = []
+        for file in files:
+            file_content = await file.read()
+            s3_key = upload_to_s3(file_content, file.filename)
+            s3_keys.append(s3_key)
+            file_contents.append(file_content)
+        
+        merged_pdf = None
+        if method == "PyPDF2":
+            logger.info("Merging with PyPDF2")
+            merged_pdf = merge_pdfs_pypdf2(file_contents)
+        else:
+            logger.info("Merging with Ghostscript")
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_output:
+                output_path = tmp_output.name
+            merged_pdf = merge_pdfs_ghostscript(file_contents, output_path)
+        
+        if not merged_pdf:
+            logger.error("Merge failed: No output produced")
+            raise HTTPException(status_code=500, detail="PDF merge failed")
+        
+        logger.info("Merge successful, returning response")
+        return StreamingResponse(
+            io.BytesIO(merged_pdf),
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'attachment; filename="merged_output.pdf"'}
+        )
+    except Exception as e:
+        logger.error(f"Merge error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"PDF merge failed: {str(e)}")
+    finally:
+        for s3_key in s3_keys:
+            cleanup_s3_file(s3_key)
+        gc.collect()
+
+@app.post("/compress_pdf")
+async def compress_pdf(file: UploadFile = File(...), preset: str = Form(...)):
+    logger.info(f"Received compress request for {file.filename}")
+    if file.size / (1024 * 1024) > 55:
+        raise HTTPException(status_code=400, detail="File exceeds 55MB limit")
+
+    compression_presets = {
+        "High": {"dpi": 72, "quality": 20},
+        "Medium": {"dpi": 100, "quality": 30},
+        "Low": {"dpi": 120, "quality": 40},
+        "Custom": {"dpi": 180, "quality": 50}
+    }
+    if preset not in compression_presets:
+        raise HTTPException(status_code=422, detail="Invalid preset. Choose: High, Medium, Low, Custom")
+    
+    dpi = compression_presets[preset]["dpi"]
+    quality = compression_presets[preset]["quality"]
+
+    s3_key = None
+    try:
+        file_content = await file.read()
+        s3_key = upload_to_s3(file_content, file.filename)
+        compressed_pdf = safe_compress_pdf(file_content, dpi, quality)
+        if not compressed_pdf:
+            raise HTTPException(status_code=500, detail="Compression failed")
+
+        return StreamingResponse(
+            io.BytesIO(compressed_pdf),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="compressed_{file.filename}"'}
+        )
+    except Exception as e:
+        logger.error(f"Compression error: {e}")
+        raise HTTPException(status_code=500, detail=f"PDF compression failed: {str(e)}")
+    finally:
+        if s3_key:
+            cleanup_s3_file(s3_key)
+        gc.collect()
+
+@app.post("/encrypt_pdf")
+async def encrypt_pdf_endpoint(file: UploadFile = File(...), password: str = Form(...)):
+    logger.info(f"Received encrypt request for {file.filename}")
+    if file.size / (1024 * 1024) > 50:
+        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+    if not password:
+        raise HTTPException(status_code=400, detail="Password required")
+
+    s3_key = None
+    try:
+        file_content = await file.read()
+        s3_key = upload_to_s3(file_content, file.filename)
+        encrypted_pdf = encrypt_pdf(file_content, password)  # This now calls the imported function
+        if not encrypted_pdf:
+            raise HTTPException(status_code=500, detail="Encryption failed")
+
+        return StreamingResponse(
+            io.BytesIO(encrypted_pdf),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="encrypted_{file.filename}"'}
+        )
+    except Exception as e:
+        logger.error(f"Encryption error: {e}")
+        raise HTTPException(status_code=500, detail=f"PDF encryption failed: {str(e)}")
+    finally:
+        if s3_key:
+            cleanup_s3_file(s3_key)
+        gc.collect()
+
+
+@app.post("/convert_pdf_to_images")
+async def convert_pdf_to_images_endpoint(file: UploadFile = File(...)):
+    logger.info(f"Received convert to images request for {file.filename}")
+    if file.size / (1024 * 1024) > 50:
+        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+
+    s3_key = None
+    try:
+        file_content = await file.read()
+        s3_key = upload_to_s3(file_content, file.filename)
+        zip_bytes = convert_pdf_to_images(file_content)
+        if not zip_bytes:
+            raise HTTPException(status_code=500, detail="Conversion failed")
+
+        return StreamingResponse(
+            io.BytesIO(zip_bytes),
+            media_type="application/zip",
+            headers={"Content-Disposition": 'attachment; filename="pdf_images.zip"'}
+        )
+    except Exception as e:
+        logger.error(f"PDF to images failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+    finally:
+        if s3_key:
+            cleanup_s3_file(s3_key)
+        gc.collect()
+
+@app.post("/split_pdf")
+async def split_pdf_endpoint(file: UploadFile = File(...)):
+    logger.info(f"Received split request for {file.filename}")
+    if file.size / (1024 * 1024) > 100:
+        raise HTTPException(status_code=400, detail="File exceeds 100MB limit")
+
+    s3_key = None
+    try:
+        file_content = await file.read()
+        s3_key = upload_to_s3(file_content, file.filename)
+        zip_bytes, total_pages = split_pdf(file_content)
+        if not zip_bytes:
+            raise HTTPException(status_code=500, detail="Split failed")
+
+        return StreamingResponse(
+            io.BytesIO(zip_bytes),
+            media_type="application/zip",
+            headers={"Content-Disposition": 'attachment; filename="split_pages.zip"'}
+        )
+    except Exception as e:
+        logger.error(f"Split error: {e}")
+        raise HTTPException(status_code=500, detail=f"Split failed: {str(e)}")
+    finally:
+        if s3_key:
+            cleanup_s3_file(s3_key)
+        gc.collect()
+
+@app.post("/delete_pdf_pages")
+async def delete_pdf_pages_endpoint(file: UploadFile = File(...), pages: str = Form(...)):
+    logger.info(f"Received delete pages request for {file.filename}")
+    if file.size / (1024 * 1024) > 55:
+        raise HTTPException(status_code=400, detail="File exceeds 55MB limit")
+
+    try:
+        pages_to_delete = set(int(p) for p in pages.split(",") if p.strip().isdigit())
+        if not pages_to_delete:
+            raise HTTPException(status_code=400, detail="Invalid page numbers")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid page format. Use comma-separated numbers (e.g., 2,5,7)")
+
+    s3_key = None
+    try:
+        file_content = await file.read()
+        s3_key = upload_to_s3(file_content, file.filename)
+        modified_pdf = delete_pdf_pages(file_content, pages_to_delete)
+        if not modified_pdf:
+            raise HTTPException(status_code=500, detail="Page deletion failed")
+
+        return StreamingResponse(
+            io.BytesIO(modified_pdf),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="modified_{file.filename}"'}
+        )
+    except Exception as e:
+        logger.error(f"Delete pages error: {e}")
+        raise HTTPException(status_code=500, detail=f"Page deletion failed: {str(e)}")
+    finally:
+        if s3_key:
+            cleanup_s3_file(s3_key)
+        gc.collect()
+
+@app.post("/convert_pdf_to_word")
+async def convert_pdf_to_word_endpoint(file: UploadFile = File(...)):
+    logger.info(f"Received convert to Word request for {file.filename}")
+    if file.size / (1024 * 1024) > 50:
+        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+
+    s3_key = None
+    try:
+        file_content = await file.read()
+        s3_key = upload_to_s3(file_content, file.filename)
+        docx_bytes = convert_pdf_to_word(file_content)
+        if not docx_bytes:
+            raise HTTPException(status_code=500, detail="Conversion failed")
+
+        return StreamingResponse(
+            io.BytesIO(docx_bytes),
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": 'attachment; filename="converted_output.docx"'}
+        )
+    except Exception as e:
+        logger.error(f"PDF to Word error: {e}")
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+    finally:
+        if s3_key:
+            cleanup_s3_file(s3_key)
+        gc.collect()
+
+@app.post("/convert_pdf_to_excel")
+async def convert_pdf_to_excel_endpoint(file: UploadFile = File(...)):
+    logger.info(f"Received convert to Excel request for {file.filename}")
+    if file.size / (1024 * 1024) > 50:
+        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+
+    s3_key = None
+    try:
+        file_content = await file.read()
+        s3_key = upload_to_s3(file_content, file.filename)
+        xlsx_bytes = convert_pdf_to_excel(file_content)
+        if not xlsx_bytes:
+            raise HTTPException(status_code=500, detail="Conversion failed")
+
+        return StreamingResponse(
+            io.BytesIO(xlsx_bytes),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="converted_output.xlsx"'}
+        )
+    except Exception as e:
+        logger.error(f"PDF to Excel error: {e}")
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+    finally:
+        if s3_key:
+            cleanup_s3_file(s3_key)
+        gc.collect()
+
+@app.post("/convert_image_to_pdf")
+async def convert_image_to_pdf_endpoint(file: UploadFile = File(...), page_size: str = Form("A4"), orientation: str = Form("Portrait")):
+    logger.info(f"Received convert image to PDF request for {file.filename}")
+    if file.size / (1024 * 1024) > 50:
+        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+    if page_size not in ["A4", "Letter"]:
+        raise HTTPException(status_code=400, detail="Invalid page size. Choose: A4, Letter")
+    if orientation not in ["Portrait", "Landscape"]:
+        raise HTTPException(status_code=400, detail="Invalid orientation. Choose: Portrait, Landscape")
+
+    s3_key = None
+    try:
+        file_content = await file.read()
+        s3_key = upload_to_s3(file_content, file.filename)
+        pdf_bytes = convert_image_to_pdf(file_content, page_size, orientation)
+        if not pdf_bytes:
+            raise HTTPException(status_code=500, detail="Conversion failed")
+
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'attachment; filename="image_to_pdf.pdf"'}
+        )
+    except Exception as e:
+        logger.error(f"Image to PDF error: {e}")
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+    finally:
+        if s3_key:
+            cleanup_s3_file(s3_key)
+        gc.collect()
+
+@app.post("/remove_pdf_password")
+async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: str = Form(...)):
+    logger.info(f"Received remove password request for {file.filename}")
+    if file.size / (1024 * 1024) > 50:
+        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+    if not password:
+        raise HTTPException(status_code=400, detail="Password required")
+
+    s3_key = None
+    try:
+        file_content = await file.read()
+        s3_key = upload_to_s3(file_content, file.filename)
+        decrypted_pdf = remove_pdf_password(file_content, password)
+        if not decrypted_pdf:
+            raise HTTPException(status_code=500, detail="Password removal failed")
+
+        return StreamingResponse(
+            io.BytesIO(decrypted_pdf),
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'attachment; filename="decrypted_pdf.pdf"'}
+        )
+    except Exception as e:
+        logger.error(f"Password removal error: {e}")
+        raise HTTPException(status_code=500, detail=f"Password removal failed: {str(e)}")
+    finally:
+        if s3_key:
+            cleanup_s3_file(s3_key)
+        gc.collect()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)

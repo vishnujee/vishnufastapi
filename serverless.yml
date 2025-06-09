@@ -1,0 +1,58 @@
+
+service: vishnu-ai-agent
+
+provider:
+  name: aws
+  runtime: python3.9
+  region: ap-south-1
+  memorySize: 256
+  timeout: 30
+  environment:
+    BUCKET_NAME: ${env:BUCKET_NAME}
+    AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID}
+    AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_KEY}
+    GOOGLE_API_KEY: ${env:GOOGLE_API_KEY}
+    OPENAI_API_KEY: ${env:OPENAI_API_KEY}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:DeleteObject
+          Resource: "arn:aws:s3:::${env:BUCKET_NAME}/*"
+
+functions:
+  api:
+    handler: app.main.handler
+    events:
+      - http:
+          path: /
+          method: ANY
+          cors: true
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors: true
+
+package:
+  include:
+    - app/**
+  exclude:
+    - .env
+    - node_modules/**
+    - venv/**
+
+plugins:
+  - serverless-python-requirements
+  - serverless-wsgi
+
+custom:
+  wsgi:
+    app: app.main.app
+    packRequirements: false
+  pythonRequirements:
+    dockerizePip: non-linux
+    slim: true
+    strip: false

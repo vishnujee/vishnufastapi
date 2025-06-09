@@ -1,0 +1,16 @@
+# Environment file
+.env
+
+# Python cache
+__pycache__/
+app/__pycache__/
+
+# Logs
+logs/
+input_pdfs/
+output_pdfs/
+
+# Local database files
+
+chroma_db/
+
