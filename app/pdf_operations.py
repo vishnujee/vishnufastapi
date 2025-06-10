@@ -16,7 +16,7 @@ from pdf2docx import Converter
 import pandas as pd
 import time
 import gc
-# import platform
+import platform
 
 # Configure logging
 os.makedirs("logs", exist_ok=True)
@@ -165,10 +165,10 @@ def merge_pdfs_ghostscript(file_contents, output_path):
                 input_files.append(tmp.name)
         
         # Determine Ghostscript binary based on OS
-        # gs_binary = "gswin64c" if platform.system() == "Windows" else "gs"
+        gs_binary = "gswin64c" if platform.system() == "Windows" else "gs"
         
         gs_command = [
-            "gs",
+            gs_binary,
             "-sDEVICE=pdfwrite",
             "-dCompatibilityLevel=1.4",
             "-dPDFSETTINGS=/default",
