@@ -13,6 +13,17 @@ import psutil
 import time
 import json
 import asyncio
+from pinecone import Pinecone, ServerlessSpec
+from langchain_core.vectorstores.base import VectorStoreRetriever
+from pydantic import BaseModel
+
+##
+from typing import Any, Dict, List, Optional
+from pydantic import Field
+from langchain_core.retrievers import BaseRetriever
+from langchain_core.callbacks.manager import CallbackManagerForRetrieverRun
+from langchain_core.runnables.config import RunnableConfig
+from langchain_core.documents import Document
 
 #langchain
 # LangChain & Embeddings
@@ -74,26 +85,70 @@ AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 
 # PDF_S3_KEY = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"  # Ensure case consistency
 PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"
 
 
-def download_from_url(url: str) -> bytes:
-    """Download file from a URL"""
+def download_from_url(url):
     try:
-        response = requests.get(url)
+        headers = {"User-Agent": os.getenv("USER_AGENT", "VishnuAI/1.0")}
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         return response.content
     except Exception as e:
-        logger.error(f"Failed to download from URL {url}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to download PDF from URL: {str(e)}")
+        logger.error(f"Failed to download PDF from {url}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to download PDF: {str(e)}")
+    
 
-BASE_DIR = Path(__file__).parent.parent
-PERSIST_DIRECTORY = str(BASE_DIR / "chroma_db")  # Will create in your project root
+###
+class PineconeRetriever(BaseRetriever):
+    index: Any = Field(...)
+    embeddings: Any = Field(...)
+    search_type: str = Field(default="similarity")
+    search_kwargs: Optional[Dict] = Field(default_factory=lambda: {"k": 5})
 
-# Ensure directory exists
-os.makedirs(PERSIST_DIRECTORY, exist_ok=True)
+    def _get_relevant_documents(
+        self, 
+        query: str, 
+        *, 
+        run_manager: CallbackManagerForRetrieverRun = None
+    ) -> List[Document]:
+        try:
+            query_embedding = self.embeddings.embed_query(query)
+            results = self.index.query(
+                vector=query_embedding,
+                top_k=self.search_kwargs.get("k", 5),
+                include_metadata=True,
+                namespace="vishnu_ai_docs"
+            )
+            documents = []
+            for match in results["matches"]:
+                text_content = match["metadata"].get("page_content", match["metadata"].get("text", ""))
+                documents.append(Document(
+                    page_content=text_content,
+                    metadata={
+                        "source": match["metadata"].get("source", ""),
+                        "page": match["metadata"].get("page", 0),
+                        "score": match["score"]
+                    }
+                ))
+            return documents
+        except Exception as e:
+            logger.error(f"Retrieval failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Retrieval failed: {str(e)}")
+
+    def invoke(
+        self, 
+        input: str, 
+        config: Optional[RunnableConfig] = None, 
+        **kwargs
+    ) -> List[Document]:
+        """Handle invoke calls with config parameter"""
+        return self._get_relevant_documents(input)
+
+
 
 
 s3_client = boto3.client(
@@ -102,74 +157,75 @@ s3_client = boto3.client(
     aws_secret_access_key=AWS_SECRET_KEY,
 )
 
-# Initialize Vector Store from S3 PDF
 
 def initialize_vectorstore():
     try:
-        # Download PDF from URL
-        pdf_bytes = download_from_url(PDF_URL)
+        pc = Pinecone(api_key=PINECONE_API_KEY)
+        index_name = "vishnu-ai-docs"
         
-        # Debug: Save local copy
-        with open("debug_pdf.pdf", "wb") as f:
-            f.write(pdf_bytes)
-        logger.info(f"Downloaded PDF from {PDF_URL}, size: {len(pdf_bytes)} bytes")
-
-        # Process PDF
-        documents = []
-        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-            for page_num, page in enumerate(pdf.pages):
-                text = page.extract_text(layout=True) or ""
-                tables = page.extract_tables()
-                
-                table_content = ""
-                if tables:
-                    for table in tables:
-                        table_content += "\n" + "\n".join(" | ".join(str(cell) for cell in row) for row in table)
-                
-                content = text + table_content
-                if content.strip():
-                    documents.append(Document(
-                        page_content=content,
-                        metadata={
-                            "source": PDF_URL,
-                            "page": page_num + 1,
-                            "content_type": "text_and_tables",
-                            "document_type": "education_records"
-                        }
-                    ))
-
-        # Text splitting
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=10000,
-            chunk_overlap=300,
-            length_function=len,
-            add_start_index=True
-        )
-        splits = text_splitter.split_documents(documents)
-
-        # Initialize embeddings
-        embeddings = OpenAIEmbeddings(
-            model="text-embedding-3-large",
-            dimensions=1024,
-            api_key=OPENAI_API_KEY
-        )
-
-        # Create ChromaDB instance - persistence is automatic with persist_directory
-        vectorstore = Chroma.from_documents(
-            documents=splits,
-            embedding=embeddings,
-            persist_directory=str(PERSIST_DIRECTORY),  # Convert to string if Path object
-            collection_name="vishnu_ai_docs"
-        )
+        # Check if index exists
+        if index_name not in pc.list_indexes().names():
+            pc.create_index(
+                name=index_name,
+                dimension=1536,
+                metric="cosine",
+                spec=ServerlessSpec(cloud="aws", region="us-east-1")
+            )
+            logger.info(f"Created new index: {index_name}")
+            time.sleep(30)  # Wait for index to be ready
         
-        logger.info(f"ChromaDB initialized with {vectorstore._collection.count()} documents")
-        return vectorstore
+        index = pc.Index(index_name)
+        embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
         
+        # Check if namespace has data
+        stats = index.describe_index_stats()
+        if stats.get("namespaces", {}).get("vishnu_ai_docs", {}).get("vector_count", 0) == 0:
+            # Process and upsert documents
+            pdf_bytes = download_from_url(PDF_URL)
+            documents = []
+            with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+                for page_num, page in enumerate(pdf.pages):
+                    text = page.extract_text(layout=True) or ""
+                    if text.strip():
+                        documents.append(Document(
+                            page_content=text,
+                            metadata={
+                                "source": PDF_URL,
+                                "page": page_num + 1,
+                                "content_type": "text",
+                                "document_type": "education_records"
+                            }
+                        ))
+            
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200
+            )
+            splits = text_splitter.split_documents(documents)
+            
+            vectors = []
+            for i, doc in enumerate(splits):
+                embedding = embeddings.embed_query(doc.page_content)
+                vectors.append({
+                    "id": f"doc_{i}",
+                    "values": embedding,
+                    "metadata": {
+                        "page_content": doc.page_content,
+                        "source": doc.metadata.get("source", PDF_URL),
+                        "page": doc.metadata.get("page", i+1),
+                        "text": doc.page_content
+                    }
+                })
+                if len(vectors) == 100 or i == len(splits)-1:
+                    index.upsert(vectors=vectors, namespace="vishnu_ai_docs")
+                    vectors = []
+            
+            logger.info(f"Successfully upserted {len(splits)} documents")
+        
+        return index, embeddings
     except Exception as e:
-        logger.error(f"Vectorstore initialization failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to initialize vectorstore: {str(e)}")
-
-
+        logger.error(f"Vectorstore initialization failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Vectorstore init failed: {str(e)}")
 
 # Initialize LLM
 def get_llm():
@@ -181,24 +237,18 @@ def get_llm():
         api_key=GOOGLE_API_KEY
     )
 
-# Cache vectorstore and retriever
-vectorstore = initialize_vectorstore()
-retriever = vectorstore.as_retriever(
+
+# Initialize vectorstore and retriever
+index, embeddings = initialize_vectorstore()
+retriever = PineconeRetriever(
+    index=index,
+    embeddings=embeddings,
     search_type="mmr",
     search_kwargs={
-        "k": 6,
-        "fetch_k": 12,
-        "lambda_mult": 0.5,
-        "score_threshold": 0.85,
-        "filter": {
-            "$or": [
-                {"source": PDF_URL},
-                {"content_type": {"$in": ["mixed_text_and_tables", "structured_table", "text", "mixed_text"]}}
-            ]
-        }
+        "k": 5,
+        "filter": {"document_type": "education_records"}
     }
 )
-
 llm = get_llm()
 
 # System Prompt
@@ -223,44 +273,7 @@ prompt = ChatPromptTemplate.from_messages([
 ])
 
 
-# @app.get("/memory-usage")
-# async def memory_usage_stream(request: Request):
-#     """Stream memory usage data every second"""
-#     async def event_stream():
-#         while True:
-#             if await request.is_disconnected():
-#                 break
-            
-#             # Get memory info
-#             mem = psutil.virtual_memory()
-#             swap = psutil.swap_memory()
-            
-#             data = {
-#                 "ram": {
-#                     "total": mem.total,
-#                     "used": mem.used,
-#                     "free": mem.free,
-#                     "percent": mem.percent
-#                 },
-#                 "rom": {
-#                     "total": swap.total,
-#                     "used": swap.used,
-#                     "free": swap.free,
-#                     "percent": swap.percent
-#                 }
-#             }
-            
-#             yield f"data: {json.dumps(data)}\n\n"
-#             time.sleep(1)
-    
-#     return StreamingResponse(
-#         event_stream(),
-#         media_type="text/event-stream",
-#         headers={
-#             "Cache-Control": "no-cache",
-#             "Connection": "keep-alive",
-#         }
-#     )
+
 
 @app.get("/memory-usage")
 async def memory_usage_stream(request: Request):
@@ -308,14 +321,15 @@ async def serve_index():
 
 chat_history = []
 
-
 @app.post("/chat")
 async def chat(query: str = Form(...), typewriter: bool = Form(False)):
     if not query.strip() or len(query) > 250:
         raise HTTPException(status_code=400, detail="Invalid query length")
     
     try:
+        # Use invoke() instead of get_relevant_documents()
         raw_docs = retriever.invoke(query)
+        
         if not raw_docs:
             answer = "No relevant information found in the PDF."
         else:
@@ -334,14 +348,15 @@ async def chat(query: str = Form(...), typewriter: bool = Form(False)):
         return {
             "answer": answer,
             "history": full_history,
-            "typewriter": typewriter  # Flag to indicate typewriter effect should be used
+            "typewriter": typewriter
         }
 
     except Exception as e:
-        logger.error(f"Chat error: {e}")
+        logger.error(f"Chat error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Chat processing failed")
-    finally:
-        gc.collect()
+
+
+
 
 @app.post("/merge_pdf")
 async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("PyPDF2")):

@@ -2,9 +2,26 @@
 <html lang="en">
 
 <head>
+ 
+    <!-- Social Media Meta Tags -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vishnu AI & PDF Tools</title>
+    <title>🤖  Vishnu ka AGENTIC AI🚀   </title>
+    <meta property="og:site_name" content="Vishnu's AI Chatbot">
+    
+    <meta property="og:description" content="An AI-powered chatbot for seamless conversation and knowledge retrieval.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://mygenfile25.s3.ap-south-1.amazonaws.com/vishnu.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Vishnu's AI Chatbot">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@AAPKAVISHNU">
+    <meta name="twitter:creator" content="@AAPKAVISHNU">
+    <meta name="twitter:title" content="Chat with Vishnu's AI Assistant">
+    <meta name="twitter:description" content="An AI-powered chatbot that assists with intelligent responses and real-time document retrieval.">
+    <meta name="twitter:image" content="https://mygenfile25.s3.ap-south-1.amazonaws.com/vishnu.jpg">
+  
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -528,8 +545,6 @@
 
 
 
-
-
         // New function to show/hide tool sections
         function showTool(toolId) {
             // Hide all tool sections
@@ -544,7 +559,32 @@
             document.querySelectorAll('.nav-link').forEach(link => {
                 link.classList.remove('text-green-600', 'font-bold');
             });
-            event.currentTarget.classList.add('text-green-600', 'font-bold');
+            if (event.currentTarget) {
+                event.currentTarget.classList.add('text-green-600', 'font-bold');
+            }
+
+            // On mobile (screen width <= 768px), hide mobile menu and submenu
+            if (window.innerWidth <= 768) {
+                const mobileMenu = document.getElementById('mobile-menu');
+                const mobileSubmenu = document.getElementById('mobile-submenu');
+                const menuButton = document.getElementById('mobile-menu-button');
+
+                // Hide submenu
+                if (mobileSubmenu && !mobileSubmenu.classList.contains('hidden')) {
+                    mobileSubmenu.classList.add('hidden');
+                }
+
+                // Hide main mobile menu
+                if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+                    mobileMenu.classList.add('hidden');
+                }
+
+                // Reset menu button icon to hamburger
+                if (menuButton) {
+                    menuButton.querySelector('i').classList.remove('fa-times');
+                    menuButton.querySelector('i').classList.add('fa-bars');
+                }
+            }
 
             // Scroll to the tool section
             document.getElementById(toolId).scrollIntoView({ behavior: 'smooth' });
