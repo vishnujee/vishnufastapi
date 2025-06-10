@@ -186,11 +186,11 @@
         }
     </style>
     <script>
-
+        const BASE_URL = window.location.origin;
       
-        const BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                        ? 'http://127.0.0.1:8000'
-                        : 'http://13.200.162.52:8000';  // or use a domain if you have one
+        // const BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        //                 ? 'http://127.0.0.1:8000'
+        //                 : 'http://13.200.162.52:8000';  // or use a domain if you have one
         // All your existing JavaScript functions remain exactly the same
         async function processPDF(endpoint, formId) {
             const form = document.getElementById(formId);
