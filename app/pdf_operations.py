@@ -200,10 +200,12 @@ def safe_compress_pdf(pdf_bytes, dpi, quality):
     """Compress PDF using Ghostscript with memory monitoring."""
     input_file = None
     output_file = None
+    gs_binary = "gswin64c" if platform.system() == "Windows" else "gs"
     try:
-        result = subprocess.run(["gswin64c", "--version"], capture_output=True, text=True)
+        # Verify Ghostscript is installed
+        result = subprocess.run([gs_binary, "--version"], capture_output=True, text=True)
         if result.returncode != 0:
-            raise FileNotFoundError("Ghostscript ('gswin64c') is not installed or not found in PATH.")
+            raise FileNotFoundError(f"Ghostscript ('{gs_binary}') is not installed or not found in PATH.")
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_input:
             tmp_input.write(pdf_bytes)
@@ -214,7 +216,7 @@ def safe_compress_pdf(pdf_bytes, dpi, quality):
 
         pdf_settings = "/screen" if dpi <= 72 else "/ebook"
         gs_command = [
-            "gswin64c",
+            gs_binary,
             "-sDEVICE=pdfwrite",
             "-dCompatibilityLevel=1.4",
             f"-dPDFSETTINGS={pdf_settings}",
