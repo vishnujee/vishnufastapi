@@ -1,5 +1,5 @@
 from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form
-from fastapi.responses import HTMLResponse, FileResponse,StreamingResponse
+from fastapi.responses import HTMLResponse, FileResponse,StreamingResponse,JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -16,7 +16,7 @@ import asyncio
 from pinecone import Pinecone, ServerlessSpec
 from langchain_core.vectorstores.base import VectorStoreRetriever
 from pydantic import BaseModel
-
+from botocore.exceptions import ClientError
 ##
 from typing import Any, Dict, List, Optional
 from pydantic import Field
@@ -38,14 +38,15 @@ from langchain_core.documents import Document
 #### for openai
 from langchain_openai import OpenAIEmbeddings
 from pathlib import Path
-
+import hashlib
 from dotenv import load_dotenv
 
 from app.pdf_operations import  (
     upload_to_s3, download_from_s3, cleanup_s3_file, get_memory_info,
     merge_pdfs_pypdf2, merge_pdfs_ghostscript, safe_compress_pdf, encrypt_pdf,
     convert_pdf_to_images, split_pdf, delete_pdf_pages, convert_pdf_to_word,
-    convert_pdf_to_excel, convert_image_to_pdf, remove_pdf_password
+    convert_pdf_to_excel, convert_image_to_pdf, remove_pdf_password,reorder_pdf_pages,
+    add_page_numbers, add_signature
 )
 from typing import List
 import gc
@@ -76,6 +77,21 @@ logger = logging.getLogger(__name__)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# AWS Detection (place this right after load_dotenv())
+
+# Environment Detection - Corrected Version
+IS_AWS = any(
+    key in os.environ 
+    for key in [
+        "AWS_EXECUTION_ENV",  # Lambda
+        "ECS_CONTAINER_METADATA_URI",  # ECS
+    ]
+) or (
+    "USER" in os.environ and os.environ.get("USER") in ["ubuntu", "ec2-user"]  # Common AWS default users
+)
+LOCAL_MODE = not IS_AWS
+
+
 
 
 
@@ -89,7 +105,8 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 
 # PDF_S3_KEY = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"  # Ensure case consistency
 PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"
-
+S3_PREFIX = "Amazingvideo/"
+CORRECT_PASSWORD_HASH = "724e9e22f2e156b598fe7a3612a7b01a6b53a39ffc049d256fa9c2df9c49b5f1"
 
 def download_from_url(url):
     try:
@@ -678,6 +695,201 @@ async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: s
             cleanup_s3_file(s3_key)
         gc.collect()
 
+
+@app.post("/reorder-pages")
+async def reorder_pages(file: UploadFile = File(...), page_order: str = Form(...)):
+    pdf_bytes = await file.read()
+    try:
+        page_order_list = [int(p) for p in page_order.split(",")]
+    except:
+        raise HTTPException(status_code=400, detail="Invalid page order format. Use comma-separated numbers.")
+    result = reorder_pdf_pages(pdf_bytes, page_order_list)
+    if result is None:
+        raise HTTPException(status_code=500, detail="Failed to reorder pages")
+    return StreamingResponse(
+        io.BytesIO(result),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=reordered_{file.filename}"}
+    )
+
+@app.post("/add-page-numbers")
+async def add_page_numbers_endpoint(
+    file: UploadFile = File(...),
+    position: str = Form("bottom"),
+    alignment: str = Form("center")
+):
+    pdf_bytes = await file.read()
+    result = add_page_numbers(pdf_bytes, position, alignment)
+    if result is None:
+        raise HTTPException(status_code=500, detail="Failed to add page numbers")
+    return StreamingResponse(
+        io.BytesIO(result),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=numbered_{file.filename}"}
+    )
+
+@app.post("/add-signature")
+async def add_signature_endpoint(
+    pdf_file: UploadFile = File(...),
+    signature_file: UploadFile = File(...),
+    page_num: int = Form(...),
+    size: str = Form("medium"),
+    position: str = Form("bottom"),
+    alignment: str = Form("center")
+):
+    pdf_bytes = await pdf_file.read()
+    signature_bytes = await signature_file.read()
+    result = add_signature(pdf_bytes, signature_bytes, page_num, size, position, alignment)
+    if result is None:
+        raise HTTPException(status_code=500, detail="Failed to add signature")
+    return StreamingResponse(
+        io.BytesIO(result),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=signed_{pdf_file.filename}"}
+    )
+
+
+@app.get("/videos")
+async def list_videos():
+    try:
+        response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
+        videos = []
+        
+        if "Contents" in response:
+            for obj in response["Contents"]:
+                key = obj["Key"]
+                if key.lower().endswith((".mp4", ".webm", ".ogg")):
+                    try:
+                        head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
+                        metadata = head.get('Metadata', {})
+                        content_type = head.get('ContentType', 'video/mp4')
+                        
+                        url = s3_client.generate_presigned_url(
+                            "get_object",
+                            Params={
+                                "Bucket": BUCKET_NAME,
+                                "Key": key,
+                                "ResponseContentType": content_type
+                            },
+                            ExpiresIn=86400  # Increased to 24 hours
+                        )
+                        
+                        videos.append({
+                            "name": key.split('/')[-1],
+                            "url": url,
+                            "description": metadata.get('description', ''),
+                            "type": content_type
+                        })
+                    except ClientError as e:
+                        logger.error(f"Error processing {key}: {e}")
+                        continue
+        
+        return JSONResponse(content=videos)
+
+    except Exception as e:
+        logger.error(f"Error listing videos: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list videos")
+
+
+# @app.get("/videos")
+# async def list_videos():
+#     """List all videos in S3 bucket with proper content type handling"""
+#     try:
+#         response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
+#         videos = []
+        
+#         if "Contents" in response:
+#             for obj in response["Contents"]:
+#                 key = obj["Key"]
+#                 if key.lower().endswith((".mp4", ".webm", ".ogg")):
+#                     try:
+#                         # Get object metadata and content type
+#                         head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
+#                         metadata = head.get('Metadata', {})
+#                         content_type = head.get('ContentType', 'video/mp4')  # Default to mp4
+                        
+#                         url = s3_client.generate_presigned_url(
+#                             "get_object",
+#                             Params={
+#                                 "Bucket": BUCKET_NAME,
+#                                 "Key": key,
+#                                 "ResponseContentType": content_type
+#                             },
+#                             ExpiresIn=3600
+#                         )
+                        
+#                         videos.append({
+#                             "name": key.split('/')[-1],
+#                             "url": url,
+#                             "description": metadata.get('description', ''),
+#                             "type": content_type
+#                         })
+#                     except ClientError as e:
+#                         logger.error(f"Error processing {key}: {e}")
+#                         continue
+        
+#         return JSONResponse(content=videos)
+
+#     except Exception as e:
+#         logger.error(f"Error listing videos: {e}")
+#         raise HTTPException(status_code=500, detail="Failed to list videos")
+
+@app.post("/upload-video")
+async def upload_video(
+    video_file: UploadFile = File(...),
+    password: str = Form(...),
+    description: str = Form(...)
+):
+    """Upload a video to S3 under Amazingvideo/ prefix after password verification."""
+    try:
+        # Verify password
+        if hashlib.sha256(password.encode()).hexdigest() != CORRECT_PASSWORD_HASH:
+            raise HTTPException(status_code=401, detail="Incorrect password")
+
+        # Validate video file
+        video_content = await video_file.read()
+        video_filename = video_file.filename
+        if not video_filename.lower().endswith((".mp4", ".webm", ".ogg")):
+            raise HTTPException(
+                status_code=400,
+                detail="Only MP4, WebM, or OGG videos are supported"
+            )
+
+        # Generate unique S3 key with hash prefix to prevent duplicates
+        file_hash = hashlib.md5(video_content).hexdigest()
+        s3_key = f"{S3_PREFIX}{file_hash}_{video_filename}"
+        
+        # Upload to S3 with description in metadata
+        s3_client.put_object(
+            Bucket=BUCKET_NAME,
+            Key=s3_key,
+            Body=video_content,
+            Metadata={'description': description},
+            ContentType=video_file.content_type
+        )
+        logger.info(f"Uploaded video to S3: {s3_key}")
+
+        # Generate presigned URL for immediate access
+        url = s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": BUCKET_NAME, "Key": s3_key},
+            ExpiresIn=36000  # 10 hours
+        )
+
+        return JSONResponse(content={
+            "message": "Video uploaded successfully",
+            "name": video_filename,
+            "url": url,
+            "description": description
+        })
+
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
+    except Exception as e:
+        logger.error(f"Error uploading video: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, workers=2)  # Use 2 workers for t2.micro
+    uvicorn.run(app, host="0.0.0.0", port=8080, workers=1) 

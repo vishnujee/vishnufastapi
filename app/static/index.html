@@ -2,13 +2,11 @@
 <html lang="en">
 
 <head>
- 
     <!-- Social Media Meta Tags -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🤖  Vishnu ka AGENTIC AI🚀   </title>
+    <title>🤖 Vishnu ka AGENTIC AI🚀</title>
     <meta property="og:site_name" content="Vishnu's AI Chatbot">
-    
     <meta property="og:description" content="An AI-powered chatbot for seamless conversation and knowledge retrieval.">
     <meta property="og:type" content="website">
     <meta property="og:image" content="https://mygenfile25.s3.ap-south-1.amazonaws.com/vishnu.jpg">
@@ -19,9 +17,10 @@
     <meta name="twitter:site" content="@AAPKAVISHNU">
     <meta name="twitter:creator" content="@AAPKAVISHNU">
     <meta name="twitter:title" content="Chat with Vishnu's AI Assistant">
-    <meta name="twitter:description" content="An AI-powered chatbot that assists with intelligent responses and real-time document retrieval.">
+    <meta name="twitter:description"
+        content="An AI-powered chatbot that assists with intelligent responses and real-time document retrieval.">
     <meta name="twitter:image" content="https://mygenfile25.s3.ap-south-1.amazonaws.com/vishnu.jpg">
-  
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -29,18 +28,25 @@
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-
         .blinking-cursor {
             animation: blink 1s step-end infinite;
             color: #4a90e2;
             font-weight: bold;
         }
+
         @keyframes blink {
-            from, to { opacity: 1; }
-            50% { opacity: 0; }
+
+            from,
+            to {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0;
+            }
         }
 
-       .ai-response table {
+        .ai-response table {
             width: 100%;
             margin: 1rem 0;
             border-collapse: collapse;
@@ -133,7 +139,7 @@
             transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
         }
 
-        .dropdown:hover > .dropdown-content,
+        .dropdown:hover>.dropdown-content,
         .dropdown-content:hover {
             opacity: 1;
             visibility: visible;
@@ -149,7 +155,6 @@
             }
         }
 
-
         .memory-container {
             display: flex;
             gap: 20px;
@@ -157,7 +162,7 @@
             background: white;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .memory-card {
@@ -167,6 +172,7 @@
             padding: 15px;
             background: #f9f9f9;
         }
+
         .progress-container {
             height: 20px;
             background: #e0e0e0;
@@ -174,12 +180,14 @@
             margin-top: 10px;
             overflow: hidden;
         }
+
         .progress-bar {
             height: 100%;
             background: #4CAF50;
             width: 0%;
             transition: width 0.3s;
         }
+
         .memory-stats {
             margin-top: 10px;
             font-family: monospace;
@@ -187,11 +195,7 @@
     </style>
     <script>
         const BASE_URL = window.location.origin;
-      
-        // const BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        //                 ? 'http://127.0.0.1:8000'
-        //                 : 'http://13.200.162.52:8000';  // or use a domain if you have one
-        // All your existing JavaScript functions remain exactly the same
+
         async function processPDF(endpoint, formId) {
             const form = document.getElementById(formId);
             const formData = new FormData(form);
@@ -215,7 +219,6 @@
                 progressDiv.querySelector('progress').value = progress;
                 progressText.textContent = `Uploading... ${progress}%`;
             }, 200);
-           
 
             try {
                 const response = await fetch(`${BASE_URL}/${endpoint}`, {
@@ -251,7 +254,7 @@
                 }
             } catch (e) {
                 clearInterval(progressInterval);
-                resultDiv.textContent = `Error: ${e.message}`;
+                resultDiv.textContent = `Error: ${error.message}`;
                 resultDiv.classList.remove('text-green-600');
                 resultDiv.classList.add('text-red-600');
             } finally {
@@ -263,15 +266,13 @@
             }
         }
 
-        //  
-        // First define the formatResponse function (move this to the top of your script)
         function formatResponse(text) {
             if (!text) return '';
-            
+
             // Convert markdown tables to HTML tables
-            text = text.replace(/(\|[^\n]+\|\r?\n\|[-: |]+\|\r?\n)((?:\|[^\n]+\|\r?\n?)+)/g, function(match, header, body) {
+            text = text.replace(/(\|[^\n]+\|\r?\n\|[-: |]+\|\r?\n)((?:\|[^\n]+\|\r?\n?)+)/g, function (match, header, body) {
                 let html = '<div class="overflow-x-auto"><table class="w-full border-collapse my-3">';
-                
+
                 // Process header
                 const headers = header.split('|').slice(1, -1).map(h => h.trim());
                 html += '<thead><tr class="bg-gray-100">';
@@ -279,7 +280,7 @@
                     html += `<th class="p-2 border text-left">${h}</th>`;
                 });
                 html += '</tr></thead><tbody>';
-                
+
                 // Process body
                 const rows = body.trim().split('\n');
                 rows.forEach(row => {
@@ -290,62 +291,61 @@
                     });
                     html += '</tr>';
                 });
-                
+
                 html += '</tbody></table></div>';
                 return html;
             });
-            
+
             // Convert markdown lists
-            text = text.replace(/^([*-]|\d+\.)\s+(.+)$/gm, function(match, bullet, content) {
+            text = text.replace(/^([*-]|\d+\.)\s+(.+)$/gm, function (match, bullet, content) {
                 return `<li class="ml-5">${formatMarkdownInline(content)}</li>`;
             });
-            
+
             // Wrap consecutive list items in ul/ol
-            text = text.replace(/(<li>.*<\/li>)+/g, function(match) {
+            text = text.replace(/(<li>.*<\/li>)+/g, function (match) {
                 const listType = match.includes('<li class="ml-5">') ? 'ul' : 'ol';
                 return `<${listType} class="list-disc pl-5 my-2">${match}</${listType}>`;
             });
-            
+
             // Convert markdown bold/italic
             text = formatMarkdownInline(text);
-            
+
             // Convert line breaks to <br> for non-table, non-list content
-            text = text.replace(/\n/g, function(match, offset, fullText) {
-                if (!fullText.substring(offset).match(/^\n*(<table|<ul|<ol)/) && 
+            text = text.replace(/\n/g, function (match, offset, fullText) {
+                if (!fullText.substring(offset).match(/^\n*(<table|<ul|<ol)/) &&
                     !fullText.substring(0, offset).match(/(<\/table|<\/ul|<\/ol>)\n*$/)) {
                     return '<br>';
                 }
                 return match;
             });
-            
+
             // Convert markdown links
             text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank">$1</a>');
-            
+
             return text;
         }
 
         function formatMarkdownInline(text) {
             if (!text) return '';
-            
+
             // Bold
             text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             // Italic
             text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
             // Inline code
             text = text.replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>');
-            
+
             return text;
         }
 
-        // Then define the typewriter-related functions
         async function typewriterEffect(element, text, speed = 20) {
             // First format the response to handle markdown
             const formattedText = formatResponse(text);
-            
+
             // Create a temporary element to parse the HTML
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = formattedText;
-            
+
             // Process each node for typewriter effect
             element.innerHTML = '';
             await typewriterProcessNodes(element, tempDiv.childNodes, speed);
@@ -362,19 +362,19 @@
                         parent.appendChild(clone);
                     } else {
                         const newElement = document.createElement(node.tagName);
-                        
+
                         // Copy all attributes
                         for (const attr of node.attributes) {
                             newElement.setAttribute(attr.name, attr.value);
                         }
-                        
+
                         // Copy classes
                         if (node.className) {
                             newElement.className = node.className;
                         }
-                        
+
                         parent.appendChild(newElement);
-                        
+
                         // Process child nodes recursively
                         await typewriterProcessNodes(newElement, node.childNodes, speed);
                     }
@@ -386,24 +386,23 @@
             for (let i = 0; i < text.length; i++) {
                 // Add the next character
                 element.textContent += text[i];
-                
+
                 // Add blinking cursor (except for the last character)
                 if (i < text.length - 1) {
                     const cursor = document.createElement('span');
                     cursor.className = 'blinking-cursor';
                     cursor.textContent = '|';
                     element.appendChild(cursor);
-                    
+
                     // Wait for a bit
                     await new Promise(resolve => setTimeout(resolve, speed));
-                    
+
                     // Remove the cursor
                     element.removeChild(cursor);
                 }
             }
         }
 
-        // Finally, your sendChat function
         async function sendChat() {
             const chatInput = document.getElementById('chatInput').value.trim();
             const chatOutput = document.getElementById('chatOutput');
@@ -431,28 +430,28 @@
                 }
 
                 const data = await response.json();
-                
+
                 // Create new message element
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'mb-4';
-                
+
                 // Add user query
                 const userQuery = document.createElement('p');
                 userQuery.className = 'font-semibold text-blue-600';
                 userQuery.textContent = `You: ${chatInput}`;
                 messageDiv.appendChild(userQuery);
-                
+
                 // Add AI response container
                 const aiResponse = document.createElement('div');
                 aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
                 messageDiv.appendChild(aiResponse);
-                
+
                 // Insert at the top of chat output
                 chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
-                
+
                 // Clear input
                 document.getElementById('chatInput').value = '';
-                
+
                 // Apply typewriter effect
                 await typewriterEffect(aiResponse, data.answer);
 
@@ -470,9 +469,6 @@
                 progressText.textContent = '';
             }
         }
-
-
-
 
         function validateForm(form, endpoint, resultDiv) {
             const filesInput = form.querySelector('input[type="file"]');
@@ -543,9 +539,6 @@
             return true;
         }
 
-
-
-        // New function to show/hide tool sections
         function showTool(toolId) {
             // Hide all tool sections
             document.querySelectorAll('.tool-section').forEach(section => {
@@ -631,8 +624,16 @@
                                 onclick="showTool('imageToPdf-section')">Image to PDF</a>
                             <a href="#remove-password" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                                 onclick="showTool('removePassword-section')">Remove Password</a>
+                            <a href="#reorder" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('reorder-section')">Reorder Pages</a>
+                            <a href="#pageNumbers" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('pageNumbers-section')">Add Page Numbers</a>
+                            <a href="#signature" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('signature-section')">Add Signature</a>
                         </div>
                     </div>
+                    <a href="#videos" class="nav-link text-xl text-gray-700 hover:text-green-600"
+                        onclick="showTool('videos-section')">Videos</a>
                 </div>
                 <button class="md:hidden text-gray-700" id="mobile-menu-button">
                     <i class="fas fa-bars text-xl"></i>
@@ -669,8 +670,16 @@
                             onclick="showTool('imageToPdf-section')">Image to PDF</a>
                         <a href="#remove-password" class="block py-2 text-gray-700 hover:text-green-600"
                             onclick="showTool('removePassword-section')">Remove Password</a>
+                        <a href="#reorder" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('reorder-section')">Reorder Pages</a>
+                        <a href="#pageNumbers" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('pageNumbers-section')">Add Page Numbers</a>
+                        <a href="#signature" class="block py-2 text-gray-7
+                        00 hover:text-green-600" onclick="showTool('signature-section')">Add Signature</a>
                     </div>
                 </div>
+                <a href="#videos" class="block py-2 text-gray-700 hover:text-green-600"
+                    onclick="showTool('videos-section')">Videos</a>
             </div>
         </div>
     </nav>
@@ -980,6 +989,8 @@
                 </div>
             </div>
 
+
+
             <!-- Convert PDF to Word -->
             <div id="pdfToWord-section" class="tool-section" style="display: none;">
                 <div class="bg-white p-6 rounded-xl shadow-md tool-card">
@@ -1017,7 +1028,6 @@
                 </div>
             </div>
 
-
             <!-- Convert PDF to Excel -->
             <div id="pdfToExcel-section" class="tool-section" style="display: none;">
                 <div class="bg-white p-6 rounded-xl shadow-md tool-card">
@@ -1030,19 +1040,17 @@
                     <form id="pdfToExcelForm" class="space-y-4">
                         <div>
                             <label for="pdfToExcel-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF
-                                File
-
-
-                                <div class="flex items-center">
-                                    <label
-                                        class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
-                                        <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
-                                        <input type="file" id="pdfToExcel-file" name="file" accept=".pdf" required
-                                            class="hidden">
-                                    </label>
-                                    <span id="pdfToExcel-file-name" class="ml-3 text-sm text-gray-500">No file
-                                        selected</span>
-                                </div>
+                                File</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                                    <input type="file" id="pdfToExcel-file" name="file" accept=".pdf" required
+                                        class="hidden">
+                                </label>
+                                <span id="pdfToExcel-file-name" class="ml-3 text-sm text-gray-500">No file
+                                    selected</span>
+                            </div>
                         </div>
                         <button type="button" onclick="processPDF('convert_pdf_to_excel', 'pdfToExcelForm')"
                             class="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
@@ -1137,13 +1145,217 @@
                     </form>
                 </div>
             </div>
+
+            <!-- Reorder Pages -->
+            <div id="reorder-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-blue-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-sort-numeric-up text-blue-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Reorder PDF Pages</h2>
+                    </div>
+                    <form id="reorderForm" class="space-y-4">
+                        <div>
+                            <label for="reorder-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF
+                                File</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                                    <input type="file" id="reorder-file" name="file" accept=".pdf" required
+                                        class="hidden">
+                                </label>
+                                <span id="reorder-file-name" class="ml-3 text-sm text-gray-500">No file
+                                    selected</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="reorder-page-order" class="block text-sm font-medium text-gray-600 mb-1">Page
+                                Order (e.g., 2,1,3)</label>
+                            <input type="text" id="reorder-page-order" name="page_order"
+                                placeholder="Page order (e.g., 2,1,3)" required
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <button type="button" onclick="processPDF('reorder_pages', 'reorderForm')"
+                            class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-sort-numeric-up mr-2"></i> Reorder Pages
+                        </button>
+                        <div class="progress" id="progress-reorderForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-reorderForm"></div>
+                        </div>
+                        <p id="result-reorderForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Add Page Numbers -->
+            <div id="pageNumbers-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-green-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-list-ol text-green-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Add Page Numbers</h2>
+                    </div>
+                    <form id="pageNumbersForm" class="space-y-4">
+                        <div>
+                            <label for="pageNumbers-file" class="block text-sm font-medium text-gray-600 mb-1">Select
+                                PDF File</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                                    <input type="file" id="pageNumbers-file" name="file" accept=".pdf" required
+                                        class="hidden">
+                                </label>
+                                <span id="pageNumbers-file-name" class="ml-3 text-sm text-gray-500">No file
+                                    selected</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="pageNumbers-position"
+                                class="block text-sm font-medium text-gray-600 mb-1">Position</label>
+                            <select id="pageNumbers-position" name="position"
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                <option value="top">Top</option>
+                                <option value="bottom">Bottom</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="pageNumbers-alignment"
+                                class="block text-sm font-medium text-gray-600 mb-1">Alignment</label>
+                            <select id="pageNumbers-alignment" name="alignment"
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                <option value="left">Left</option>
+                                <option value="center">Center</option>
+                                <option value="right">Right</option>
+                            </select>
+                        </div>
+                        <button type="button" onclick="processPDF('add_page_numbers', 'pageNumbersForm')"
+                            class="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-list-ol mr-2"></i> Add Page Numbers
+                        </button>
+                        <div class="progress" id="progress-pageNumbersForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-pageNumbersForm"></div>
+                        </div>
+                        <p id="result-pageNumbersForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Add Signature -->
+            <div id="signature-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-purple-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-signature text-purple-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Add Signature</h2>
+                    </div>
+                    <form id="signatureForm" class="space-y-4">
+                        <div>
+                            <label for="signature-pdf-file" class="block text-sm font-medium text-gray-600 mb-1">Select
+                                PDF File</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose PDF
+                                    <input type="file" id="signature-pdf-file" name="pdf_file" accept=".pdf" required
+                                        class="hidden">
+                                </label>
+                                <span id="signature-pdf-file-name" class="ml-3 text-sm text-gray-500">No file
+                                    selected</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="signature-image-file"
+                                class="block text-sm font-medium text-gray-600 mb-1">Select
+                                Signature Image</label>
+                            <div class="flex items-center">
+                                <label
+                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <i class="fas fa-image mr-2 text-purple-500"></i> Choose Image
+                                    <input type="file" id="signature-image-file" name="signature_file"
+                                        accept=".png,.jpg,.jpeg" required class="hidden">
+                                </label>
+                                <span id="signature-image-file-name" class="ml-3 text-sm text-gray-500">No file
+                                    selected</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="signature-page-num" class="block text-sm font-medium text-gray-600 mb-1">Page
+                                Number</label>
+                            <input type="number" id="signature-page-num" name="page_num" min="1" required
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label for="signature-size"
+                                class="block text-sm font-medium text-gray-600 mb-1">Size</label>
+                            <select id="signature-size" name="size"
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <option value="small">Small</option>
+                                <option value="medium">Medium</option>
+                                <option value="large">Large</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="signature-position"
+                                class="block text-sm font-medium text-gray-600 mb-1">Position</label>
+                            <select id="signature-position" name="position"
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <option value="top">Top</option>
+                                <option value="center">Center</option>
+                                <option value="bottom">Bottom</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="signature-alignment"
+                                class="block text-sm font-medium text-gray-600 mb-1">Alignment</label>
+                            <select id="signature-alignment" name="alignment"
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <option value="left">Left</option>
+                                <option value="center">Center</option>
+                                <option value="right">Right</option>
+                            </select>
+                        </div>
+                        <button type="button" onclick="processPDF('add_signature', 'signatureForm')"
+                            class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-signature mr-2"></i> Add Signature
+                        </button>
+                        <div class="progress" id="progress-signatureForm">
+                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                            <div class="progress-text" id="progress-text-signatureForm"></div>
+                        </div>
+                        <p id="result-signatureForm" class="text-sm text-center"></p>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Amazing Fact Videos -->
+            <div id="videos-section" class="tool-section" style="display: none;">
+                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-teal-100 p-2 rounded-full mr-3">
+                            <i class="fas fa-video text-teal-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold text-gray-800">Amazing Fact Videos</h2>
+                    </div>
+                    <button onclick="window.location.href='/static/videos.html'"
+                        class="w-full bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center">
+                        <i class="fas fa-video mr-2"></i> Click to See Amazing Fact Videos
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-6">
         <div class="container mx-auto px-4 text-center">
-            <p>&copy; 2025 Vishnu Tools. All rights reserved.</p>
+            <p>© 2025 Vishnu Tools. All rights reserved.</p>
             <p class="mt-2 text-sm">Built with <i class="fas fa-heart text-red-500"></i> for efficient PDF processing
                 and AI assistance</p>
         </div>
@@ -1193,15 +1405,16 @@
         updateFileLabel('pdfToExcel-file', 'pdfToExcel-file-name');
         updateFileLabel('imageToPdf-file', 'imageToPdf-file-name');
         updateFileLabel('removePassword-file', 'removePassword-file-name');
+        updateFileLabel('reorder-file', 'reorder-file-name');
+        updateFileLabel('pageNumbers-file', 'pageNumbers-file-name');
+        updateFileLabel('signature-pdf-file', 'signature-pdf-file-name');
+        updateFileLabel('signature-image-file', 'signature-image-file-name');
 
         // Show chat section by default
         document.getElementById('chat-section').style.display = 'block';
 
-
-
-        // memory
         // Memory Monitoring Code
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const ramBar = document.getElementById('ram-bar');
             const ramStats = document.getElementById('ram-stats');
             const romBar = document.getElementById('rom-bar');
@@ -1224,10 +1437,10 @@
                 }
                 if (ramStats) {
                     ramStats.innerHTML = `
-                        <div>Used: ${formatBytes(data.ram.used)} / ${formatBytes(data.ram.total)}</div>
-                        <div>Free: ${formatBytes(data.ram.free)}</div>
-                        <div>Usage: ${ramPercent.toFixed(1)}%</div>
-                    `;
+                                    <div>Used: ${formatBytes(data.ram.used)} / ${formatBytes(data.ram.total)}</div>
+                                    <div>Free: ${formatBytes(data.ram.free)}</div>
+                                    <div>Usage: ${ramPercent.toFixed(1)}%</div>
+                                `;
                 }
 
                 // Update ROM (Swap)
@@ -1238,17 +1451,16 @@
                 }
                 if (romStats) {
                     romStats.innerHTML = `
-                        <div>Used: ${formatBytes(data.rom.used)} / ${formatBytes(data.rom.total)}</div>
-                        <div>Free: ${formatBytes(data.rom.free)}</div>
-                        <div>Usage: ${romPercent.toFixed(1)}%</div>
-                    `;
+                                    <div>Used: ${formatBytes(data.rom.used)} / ${formatBytes(data.rom.total)}</div>
+                                    <div>Free: ${formatBytes(data.rom.free)}</div>
+                                    <div>Usage: ${romPercent.toFixed(1)}%</div>
+                                `;
                 }
             }
 
             // Connect to SSE endpoint
-            // const eventSource = new EventSource('/memory-usage');
             const eventSource = new EventSource(`${BASE_URL}/memory-usage`);
-            
+
             eventSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
                 updateMemoryUI(data);
@@ -1263,10 +1475,6 @@
                 }, 2000);
             };
         });
-
-
-
-
     </script>
 </body>
 
