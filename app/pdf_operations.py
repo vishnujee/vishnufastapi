@@ -16,7 +16,13 @@ import pandas as pd
 import time
 import gc
 import platform
+from fastapi import  HTTPException
+from typing import  List
+from reportlab.lib.utils import ImageReader
 
+
+from reportlab.pdfgen import canvas
+import logging
 # Configure logging
 os.makedirs("logs", exist_ok=True)
 logging.basicConfig(
@@ -536,12 +542,10 @@ def remove_pdf_password(pdf_bytes, password):
 
 
 def reorder_pdf_pages(pdf_bytes, page_order):
-    """Reorder PDF pages based on user-specified order."""
     try:
         pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
         total_pages = len(pdf_reader.pages)
         
-        # Validate page_order
         if not page_order or len(page_order) != total_pages:
             raise Exception(f"Invalid page order. Must specify {total_pages} unique pages.")
         if sorted(page_order) != list(range(1, total_pages + 1)):
@@ -561,43 +565,35 @@ def reorder_pdf_pages(pdf_bytes, page_order):
     finally:
         gc.collect()
 
-def add_page_numbers(pdf_bytes, position="bottom", alignment="center"):
-    """Add page numbers to PDF at specified position and alignment."""
+def add_page_numbers(pdf_bytes, position="bottom", alignment="center", format="page_x"):
     try:
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         total_pages = len(doc)
-        
         if position not in ["top", "bottom"]:
             raise Exception("Position must be 'top' or 'bottom'.")
         if alignment not in ["left", "center", "right"]:
             raise Exception("Alignment must be 'left', 'center', or 'right'.")
-        
-        used_mem, avail_mem, total_mem = get_memory_info()
-        mem_percent = (used_mem / total_mem) * 100
-        if mem_percent > 80:
-            raise Exception("High memory usage detected")
+        if format not in ["page_x", "x"]:
+            raise Exception("Format must be 'page_x' or 'x'.")
         
         for page_num in range(total_pages):
             page = doc[page_num]
             page_rect = page.rect
             font_size = 12
-            text = f"Page {page_num + 1}"
-            
-            # Calculate text position
+            # Choose text based on format
+            text = f"Page {page_num + 1}" if format == "page_x" else f"{page_num + 1}"
             text_width = fitz.get_text_length(text, fontsize=font_size)
             margin = 20
             if position == "top":
                 y = margin
-            else:  # bottom
+            else:
                 y = page_rect.height - margin - font_size
-            
             if alignment == "left":
                 x = margin
             elif alignment == "center":
                 x = (page_rect.width - text_width) / 2
-            else:  # right
+            else:
                 x = page_rect.width - text_width - margin
-            
             page.insert_text(
                 (x, y),
                 text,
@@ -606,7 +602,6 @@ def add_page_numbers(pdf_bytes, position="bottom", alignment="center"):
                 fontname="helv",
                 overlay=True
             )
-        
         output_buffer = io.BytesIO()
         doc.save(output_buffer)
         doc.close()
@@ -618,76 +613,301 @@ def add_page_numbers(pdf_bytes, position="bottom", alignment="center"):
     finally:
         gc.collect()
 
-def add_signature(pdf_bytes, signature_bytes, page_num, size="medium", position="bottom", alignment="center"):
-    """Add a signature image to a specific PDF page."""
-    try:
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        total_pages = len(doc)
-        
-        if page_num < 1 or page_num > total_pages:
-            raise Exception(f"Invalid page number. PDF has {total_pages} pages.")
-        if size not in ["small", "medium", "large"]:
-            raise Exception("Size must be 'small', 'medium', or 'large'.")
-        if position not in ["top", "center", "bottom"]:
-            raise Exception("Position must be 'top', 'center', or 'bottom'.")
-        if alignment not in ["left", "center", "right"]:
-            raise Exception("Alignment must be 'left', 'center', or 'right'.")
-        
-        used_mem, avail_mem, total_mem = get_memory_info()
-        mem_percent = (used_mem / total_mem) * 100
-        if mem_percent > 80:
-            raise Exception("High memory usage detected")
-        
-        # Load signature image
-        img = Image.open(io.BytesIO(signature_bytes))
-        if img.format not in ["PNG", "JPEG"]:
-            raise Exception("Signature must be PNG or JPEG.")
-        
-        # Define size dimensions
-        size_dims = {"small": 50, "medium": 100, "large": 150}
-        max_dim = size_dims[size]
-        
-        # Scale image
-        img_width, img_height = img.size
-        scale = min(max_dim / img_width, max_dim / img_height)
-        new_width = img_width * scale
-        new_height = img_height * scale
-        
-        # Save signature to buffer
-        img_buffer = io.BytesIO()
-        img.save(img_buffer, format="PNG")
-        img.close()
-        
-        # Insert signature
-        page = doc[page_num - 1]
-        page_rect = page.rect
-        margin = 20
-        
-        if position == "top":
-            y0 = margin
-        elif position == "center":
-            y0 = (page_rect.height - new_height) / 2
-        else:  # bottom
-            y0 = page_rect.height - new_height - margin
-            
-        if alignment == "left":
-            x0 = margin
-        elif alignment == "center":
-            x0 = (page_rect.width - new_width) / 2
-        else:  # right
-            x0 = page_rect.width - new_width - margin
-        
-        rect = fitz.Rect(x0, y0, x0 + new_width, y0 + new_height)
-        page.insert_image(rect, stream=img_buffer.getvalue())
-        
-        output_buffer = io.BytesIO()
-        doc.save(output_buffer)
-        doc.close()
-        output_buffer.seek(0)
-        return output_buffer.getvalue()
-    except Exception as e:
-        logger.error(f"Signature addition error: {e}")
-        return None
-    finally:
-        gc.collect()
 
+
+
+
+
+from reportlab.lib.utils import ImageReader
+import io
+from PyPDF2 import PdfReader, PdfWriter
+from reportlab.pdfgen import canvas
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+def add_signature(pdf_bytes, signature_bytes, pages, size, position, alignment):
+    try:
+        logger.info("Starting add_signature function")
+        # Validate inputs
+        if not pdf_bytes or not signature_bytes:
+            logger.error("Empty PDF or signature bytes")
+            raise ValueError("PDF or signature data is empty")
+        if not pages:
+            logger.error("No pages specified for signing")
+            raise ValueError("No pages specified for signing")
+
+        # Read the input PDF
+        logger.info("Reading input PDF")
+        pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
+        num_pages = len(pdf_reader.pages)
+        if num_pages == 0:
+            logger.error("PDF has no pages")
+            raise ValueError("PDF has no pages")
+        logger.info(f"PDF has {num_pages} pages")
+
+        # Validate page numbers
+        if not all(1 <= p <= num_pages for p in pages):
+            logger.error(f"Invalid page numbers: {pages}, total pages: {num_pages}")
+            raise ValueError(f"Page numbers out of range: {pages}")
+
+        pdf_writer = PdfWriter()
+
+        # Define size dimensions
+        size_map = {
+            'small': 100,
+            'medium': 150,
+            'large': 200
+        }
+        img_width = size_map.get(size, 150)  # Default to medium
+        logger.info(f"Signature size: {size}, width: {img_width}")
+
+        # Load signature image
+        logger.info("Loading signature image")
+        try:
+            img = ImageReader(io.BytesIO(signature_bytes))
+            sig_width, sig_height = img.getSize()
+            aspect = sig_height / float(sig_width) if sig_width else 1
+            img_height = img_width * aspect
+            logger.info(f"Signature dimensions: {sig_width}x{sig_height}, scaled to {img_width}x{img_height}")
+        except Exception as e:
+            logger.error(f"Failed to load signature image: {str(e)}")
+            raise ValueError(f"Invalid signature image: {str(e)}")
+
+        # Process each page
+        for page_num in range(num_pages):
+            logger.info(f"Processing page {page_num + 1}")
+            page = pdf_reader.pages[page_num]
+            page_width = float(page.mediabox.width)
+            page_height = float(page.mediabox.height)
+            logger.info(f"Page dimensions: {page_width}x{page_height}")
+
+            if page_num + 1 in pages:
+                # Create a new PDF page for signed pages
+                logger.info(f"Adding signature to page {page_num + 1}")
+                packet = io.BytesIO()
+                try:
+                    can = canvas.Canvas(packet, pagesize=(page_width, page_height))
+                except Exception as e:
+                    logger.error(f"Failed to create canvas: {str(e)}")
+                    raise RuntimeError(f"Canvas creation failed: {str(e)}")
+
+                # Calculate position
+                if position == 'top':
+                    y = page_height - img_height - 50
+                elif position == 'center':
+                    y = (page_height - img_height) / 2
+                else:  # bottom
+                    y = 50
+
+                if alignment == 'left':
+                    x = 50
+                elif alignment == 'center':
+                    x = (page_width - img_width) / 2
+                else:  # right
+                    x = page_width - img_width - 50
+
+                logger.info(f"Signature position: x={x}, y={y}")
+                try:
+                    can.drawImage(img, x, y, width=img_width, height=img_height, preserveAspectRatio=True)
+                except Exception as e:
+                    logger.error(f"Failed to draw signature image: {str(e)}")
+                    raise RuntimeError(f"Image drawing failed: {str(e)}")
+
+                # Save the canvas
+                try:
+                    can.save()
+                except Exception as e:
+                    logger.error(f"Failed to save canvas: {str(e)}")
+                    raise RuntimeError(f"Canvas save failed: {str(e)}")
+                packet.seek(0)
+
+                # Load the new page
+                logger.info("Reading new PDF page")
+                try:
+                    new_pdf = PdfReader(packet)
+                    if len(new_pdf.pages) == 0:
+                        logger.error("New PDF page is empty")
+                        raise ValueError("Failed to create new PDF page")
+                    new_page = new_pdf.pages[0]
+                except Exception as e:
+                    logger.error(f"Failed to read new PDF page: {str(e)}")
+                    raise RuntimeError(f"New page reading failed: {str(e)}")
+
+                # Merge the new page with the original
+                logger.info("Merging signed page")
+                try:
+                    page.merge_page(new_page)
+                except Exception as e:
+                    logger.error(f"Page merge failed: {str(e)}")
+                    raise RuntimeError(f"Page merge failed: {str(e)}")
+            else:
+                # For non-signed pages, use the original page directly
+                logger.info(f"Page {page_num + 1} not signed, keeping original")
+                # No need to create a new page; just add the original
+                pass
+
+            # Add the page to the output PDF
+            pdf_writer.add_page(page)
+
+        # Write output PDF
+        logger.info("Writing output PDF")
+        output = io.BytesIO()
+        try:
+            pdf_writer.write(output)
+        except Exception as e:
+            logger.error(f"Failed to write output PDF: {str(e)}")
+            raise RuntimeError(f"Output writing failed: {str(e)}")
+        output.seek(0)
+        result = output.read()
+        if not result:
+            logger.error("Output PDF is empty")
+            raise ValueError("Generated PDF is empty")
+        logger.info("Signature added successfully")
+        return result
+
+    except Exception as e:
+        logger.error(f"Error in signature processing: {str(e)}", exc_info=True)
+        return None
+
+
+
+
+# def add_signature(pdf_bytes, signature_bytes, pages, size, position, alignment):
+#     try:
+#         logger.info("Starting add_signature function")
+#         # Validate inputs
+#         if not pdf_bytes or not signature_bytes:
+#             logger.error("Empty PDF or signature bytes")
+#             raise ValueError("PDF or signature data is empty")
+#         if not pages:
+#             logger.error("No pages specified for signing")
+#             raise ValueError("No pages specified for signing")
+
+#         # Read the input PDF
+#         logger.info("Reading input PDF")
+#         pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
+#         num_pages = len(pdf_reader.pages)
+#         if num_pages == 0:
+#             logger.error("PDF has no pages")
+#             raise ValueError("PDF has no pages")
+#         logger.info(f"PDF has {num_pages} pages")
+
+#         # Validate page numbers
+#         if not all(1 <= p <= num_pages for p in pages):
+#             logger.error(f"Invalid page numbers: {pages}, total pages: {num_pages}")
+#             raise ValueError("Page numbers out of range")
+
+#         pdf_writer = PdfWriter()
+
+#         # Define size dimensions
+#         size_map = {
+#             'small': 100,
+#             'medium': 150,
+#             'large': 200
+#         }
+#         img_width = size_map.get(size, 150)  # Default to medium
+#         logger.info(f"Signature size: {size}, width: {img_width}")
+
+#         # Load signature image
+#         logger.info("Loading signature image")
+#         try:
+#             img = ImageReader(io.BytesIO(signature_bytes))
+#             sig_width, sig_height = img.getSize()
+#             aspect = sig_height / float(sig_width) if sig_width else 1
+#             img_height = img_width * aspect
+#             logger.info(f"Signature dimensions: {sig_width}x{sig_height}, scaled to {img_width}x{img_height}")
+#         except Exception as e:
+#             logger.error(f"Failed to load signature image: {str(e)}")
+#             raise ValueError(f"Invalid signature image: {str(e)}")
+
+#         # Process each page
+#         for page_num in range(num_pages):
+#             logger.info(f"Processing page {page_num + 1}")
+#             page = pdf_reader.pages[page_num]
+#             page_width = float(page.mediabox.width)
+#             page_height = float(page.mediabox.height)
+#             logger.info(f"Page dimensions: {page_width}x{page_height}")
+
+#             # Create a new PDF page
+#             packet = io.BytesIO()
+#             try:
+#                 can = canvas.Canvas(packet, pagesize=(page_width, page_height))
+#             except Exception as e:
+#                 logger.error(f"Failed to create canvas: {str(e)}")
+#                 raise RuntimeError(f"Canvas creation failed: {str(e)}")
+
+#             # Add signature if required
+#             if page_num + 1 in pages:
+#                 logger.info(f"Adding signature to page {page_num + 1}")
+#                 # Calculate position
+#                 if position == 'top':
+#                     y = page_height - img_height - 50
+#                 elif position == 'center':
+#                     y = (page_height - img_height) / 2
+#                 else:  # bottom
+#                     y = 50
+
+#                 if alignment == 'left':
+#                     x = 50
+#                 elif alignment == 'center':
+#                     x = (page_width - img_width) / 2
+#                 else:  # right
+#                     x = page_width - img_width - 50
+
+#                 logger.info(f"Signature position: x={x}, y={y}")
+#                 try:
+#                     can.drawImage(img, x, y, width=img_width, height=img_height, preserveAspectRatio=True)
+#                 except Exception as e:
+#                     logger.error(f"Failed to draw signature image: {str(e)}")
+#                     raise RuntimeError(f"Image drawing failed: {str(e)}")
+
+#             # Save the canvas
+#             try:
+#                 can.save()
+#             except Exception as e:
+#                 logger.error(f"Failed to save canvas: {str(e)}")
+#                 raise RuntimeError(f"Canvas save failed: {str(e)}")
+#             packet.seek(0)
+
+#             # Load the new page
+#             logger.info("Reading new PDF page")
+#             try:
+#                 new_pdf = PdfReader(packet)
+#                 if len(new_pdf.pages) == 0:
+#                     logger.error("New PDF page is empty")
+#                     raise ValueError("Failed to create new PDF page")
+#                 new_page = new_pdf.pages[0]
+#             except Exception as e:
+#                 logger.error(f"Failed to read new PDF page: {str(e)}")
+#                 raise RuntimeError(f"New page reading failed: {str(e)}")
+
+#             # Merge pages
+#             logger.info("Merging pages")
+#             try:
+#                 page.merge_page(new_page)
+#             except Exception as e:
+#                 logger.error(f"Page merge failed: {str(e)}")
+#                 raise RuntimeError(f"Page merge failed: {str(e)}")
+#             pdf_writer.add_page(page)
+
+#         # Write output PDF
+#         logger.info("Writing output PDF")
+#         output = io.BytesIO()
+#         try:
+#             pdf_writer.write(output)
+#         except Exception as e:
+#             logger.error(f"Failed to write output PDF: {str(e)}")
+#             raise RuntimeError(f"Output writing failed: {str(e)}")
+#         output.seek(0)
+#         result = output.read()
+#         if not result:
+#             logger.error("Output PDF is empty")
+#             raise ValueError("Generated PDF is empty")
+#         logger.info("Signature added successfully")
+#         return result
+
+#     except Exception as e:
+#         logger.error(f"Error in signature processing: {str(e)}", exc_info=True)
+#         return None

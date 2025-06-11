@@ -18,12 +18,18 @@
       margin-top: 20px;
     }
     .video-item {
-      width: 300px;
+      width: 300px; /* Default for mobile (1 per row) */
       text-align: center;
       border: 1px solid #ddd;
       padding: 10px;
       border-radius: 5px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    /* Adjust for PC: 4 videos per row */
+    @media (min-width: 768px) {
+      .video-item {
+        width: 255px; /* Adjusted to fit 4 videos per row */
+      }
     }
     video {
       width: 100%;
@@ -113,13 +119,10 @@
   
   <h2>Video Gallery</h2>
   <div id="videoContainer" class="video-container">
-    
     <!-- Videos will be loaded here -->
   </div>
 
-
   <script>
-    // Load videos when page loads
     document.addEventListener('DOMContentLoaded', fetchVideos);
 
     async function fetchVideos() {
@@ -139,6 +142,7 @@
                 videoElement.controls = true;
                 videoElement.preload = "metadata";
                 videoElement.style.width = "100%";
+                videoElement.setAttribute('controlsList', 'nodownload');
                 
                 const sourceElement = document.createElement('source');
                 sourceElement.src = video.url;
@@ -159,9 +163,6 @@
                 descElement.className = 'video-description';
                 descElement.textContent = video.description || 'No description';
                 
-                videoItem.innerHTML = `
-                    <h3>${video.name}</h3>
-                `;
                 videoItem.appendChild(videoElement);
                 videoItem.appendChild(descElement);
                 
@@ -171,53 +172,6 @@
             console.error('Error:', error);
             alert('Error loading videos. Check console for details.');
         }
-    }
-
-    function displayVideos(videos) {
-      const videoContainer = document.getElementById('videoContainer');
-      videoContainer.innerHTML = '';
-
-      if (videos.length === 0) {
-        videoContainer.innerHTML = '<p>No videos found. Upload the first one!</p>';
-        return;
-      }
-
-      videos.forEach(video => {
-        const videoItem = document.createElement('div');
-        videoItem.className = 'video-item';
-        
-        // Create video element
-        const videoElement = document.createElement('video');
-        videoElement.controls = true;
-        
-        const sourceElement = document.createElement('source');
-        sourceElement.src = video.url;
-        
-        // Set type based on file extension
-        const ext = video.name.split('.').pop().toLowerCase();
-        if (ext === 'mp4') sourceElement.type = 'video/mp4';
-        else if (ext === 'webm') sourceElement.type = 'video/webm';
-        else if (ext === 'ogg') sourceElement.type = 'video/ogg';
-        
-        videoElement.appendChild(sourceElement);
-        videoElement.appendChild(document.createTextNode('Your browser does not support the video tag.'));
-        
-        // Create description element
-        const descElement = document.createElement('div');
-        descElement.className = 'video-description';
-        descElement.textContent = video.description || 'No description provided';
-        
-        // Create title element
-        const titleElement = document.createElement('h3');
-        titleElement.textContent = video.name;
-        
-        // Assemble the video item
-        videoItem.appendChild(titleElement);
-        videoItem.appendChild(videoElement);
-        videoItem.appendChild(descElement);
-        
-        videoContainer.appendChild(videoItem);
-      });
     }
 
     function showUploadForm() {
@@ -258,14 +212,10 @@
 
         const result = await response.json();
         
-        // Show success message
         document.getElementById('successMessage').style.display = 'block';
         document.getElementById('passwordError').style.display = 'none';
         
-        // Reset form
         document.getElementById('videoUploadForm').reset();
-        
-        // Refresh the video list
         setTimeout(fetchVideos, 1000);
         
       } catch (error) {

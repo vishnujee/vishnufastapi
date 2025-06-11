@@ -11,6 +11,8 @@ import tempfile
 import requests
 import psutil
 import time
+import PyPDF2
+import io
 import json
 import asyncio
 from pinecone import Pinecone, ServerlessSpec
@@ -39,6 +41,7 @@ from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 from pathlib import Path
 import hashlib
+from PyPDF2 import  PdfReader
 from dotenv import load_dotenv
 
 from app.pdf_operations import  (
@@ -374,10 +377,9 @@ async def chat(query: str = Form(...), typewriter: bool = Form(False)):
 
 
 
-
 @app.post("/merge_pdf")
-async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("PyPDF2")):
-    logger.info(f"Received merge request with {len(files)} files, method: {method}")
+async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("PyPDF2"), file_order: str = Form(None)):
+    logger.info(f"Received merge request with {len(files)} files, method: {method}, file_order: {file_order}")
     if len(files) < 2:
         raise HTTPException(status_code=400, detail="At least 2 PDF files required")
     
@@ -386,6 +388,17 @@ async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("Py
         raise HTTPException(status_code=400, detail="PyPDF2 limits: 51 files, 90MB total")
     if method == "Ghostscript" and (len(files) > 30 or total_size_mb > 50):
         raise HTTPException(status_code=400, detail="Ghostscript limits: 30 files, 50MB total")
+
+    # Reorder files based on file_order
+    if file_order:
+        try:
+            order = [int(i) for i in file_order.split(',')]
+            if len(order) != len(files) or not all(0 <= i < len(files) for i in order):
+                raise HTTPException(status_code=400, detail="Invalid file order")
+            files = [files[i] for i in order]
+            logger.info(f"Reordered files: {[file.filename for file in files]}")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid file order format")
 
     s3_keys = []
     try:
@@ -423,6 +436,7 @@ async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("Py
         for s3_key in s3_keys:
             cleanup_s3_file(s3_key)
         gc.collect()
+
 
 @app.post("/compress_pdf")
 async def compress_pdf(file: UploadFile = File(...), preset: str = Form(...)):
@@ -696,30 +710,69 @@ async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: s
         gc.collect()
 
 
-@app.post("/reorder-pages")
-async def reorder_pages(file: UploadFile = File(...), page_order: str = Form(...)):
-    pdf_bytes = await file.read()
-    try:
-        page_order_list = [int(p) for p in page_order.split(",")]
-    except:
-        raise HTTPException(status_code=400, detail="Invalid page order format. Use comma-separated numbers.")
-    result = reorder_pdf_pages(pdf_bytes, page_order_list)
-    if result is None:
-        raise HTTPException(status_code=500, detail="Failed to reorder pages")
-    return StreamingResponse(
-        io.BytesIO(result),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=reordered_{file.filename}"}
-    )
+# @app.post("/reorder-pages")
+# async def reorder_pages(file: UploadFile = File(...), page_order: str = Form(...)):
+#     pdf_bytes = await file.read()
+#     try:
+#         page_order_list = [int(p) for p in page_order.split(",")]
+#     except:
+#         raise HTTPException(status_code=400, detail="Invalid page order format. Use comma-separated numbers.")
+#     result = reorder_pdf_pages(pdf_bytes, page_order_list)
+#     if result is None:
+#         raise HTTPException(status_code=500, detail="Failed to reorder pages")
+#     return StreamingResponse(
+#         io.BytesIO(result),
+#         media_type="application/pdf",
+#         headers={"Content-Disposition": f"attachment; filename=reordered_{file.filename}"}
+#     )
 
-@app.post("/add-page-numbers")
+
+@app.post("/reorder_pages")
+async def reorder_pages(file: UploadFile = File(...), page_order: str = Form(...)):
+    try:
+        print(f"Received page_order: {page_order}")  # Debug log
+        pdf_reader = PyPDF2.PdfReader(file.file)
+        num_pages = len(pdf_reader.pages)
+        
+        page_indices = [int(p) - 1 for p in page_order.split(",") if p.strip()]
+        if not page_indices or len(page_indices) != num_pages:
+            raise ValueError("Page order must include all pages exactly once")
+        if any(idx < 0 or idx >= num_pages for idx in page_indices):
+            raise ValueError("Invalid page numbers")
+        if len(set(page_indices)) != len(page_indices):
+            raise ValueError("Duplicate page numbers detected")
+        
+        pdf_writer = PyPDF2.PdfWriter()
+        for idx in page_indices:
+            pdf_writer.add_page(pdf_reader.pages[idx])
+        
+        output = io.BytesIO()
+        pdf_writer.write(output)
+        output.seek(0)
+        
+        # Create a generator function to stream the content
+        def iterfile():
+            yield output.getvalue()
+            output.close()
+        
+        return StreamingResponse(
+            iterfile(),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=reordered_{file.filename}"}
+        )
+    except Exception as e:
+        print(f"Error processing PDF: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error processing PDF: {str(e)}")
+
+@app.post("/add_page_numbers")
 async def add_page_numbers_endpoint(
     file: UploadFile = File(...),
     position: str = Form("bottom"),
-    alignment: str = Form("center")
+    alignment: str = Form("center"),
+    format: str = Form("page_x")
 ):
     pdf_bytes = await file.read()
-    result = add_page_numbers(pdf_bytes, position, alignment)
+    result = add_page_numbers(pdf_bytes, position, alignment, format)
     if result is None:
         raise HTTPException(status_code=500, detail="Failed to add page numbers")
     return StreamingResponse(
@@ -727,27 +780,173 @@ async def add_page_numbers_endpoint(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=numbered_{file.filename}"}
     )
+# @app.post("/add_signature")
+# async def add_signature_endpoint(
+#     pdf_file: UploadFile = File(...),
+#     signature_file: UploadFile = File(...),
+#     page_selection: str = Form(...),
+#     specific_pages: Optional[str] = Form(None),
+#     page_range: Optional[str] = Form(None),
+#     size: str = Form("medium"),
+#     position: str = Form("bottom"),
+#     alignment: str = Form("center")
+# ):
+#     pdf_bytes = await pdf_file.read()
+#     signature_bytes = await signature_file.read()
 
-@app.post("/add-signature")
+#     # Determine pages to apply the signature
+#     pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
+#     num_pages = len(pdf_reader.pages)
+#     pages = []
+
+#     if page_selection == 'all':
+#         pages = list(range(1, num_pages + 1))
+#     elif page_selection == 'specific':
+#         if not specific_pages:
+#             raise HTTPException(status_code=400, detail="Specific pages must be provided.")
+#         try:
+#             pages = [int(p) for p in specific_pages.split(',') if p.strip()]
+#             if not all(1 <= p <= num_pages for p in pages):
+#                 raise ValueError("Invalid page numbers.")
+#         except ValueError:
+#             raise HTTPException(status_code=400, detail="Invalid specific pages format. Use comma-separated integers (e.g., 2,3,4).")
+#     elif page_selection == 'range':
+#         if not page_range:
+#             raise HTTPException(status_code=400, detail="Page range must be provided.")
+#         try:
+#             start, end = map(int, page_range.split('-'))
+#             if not (1 <= start <= end <= num_pages):
+#                 raise ValueError("Invalid page range.")
+#             pages = list(range(start, end + 1))
+#         except ValueError:
+#             raise HTTPException(status_code=400, detail="Invalid page range format. Use start-end format (e.g., 12-30).")
+#     else:
+#         raise HTTPException(status_code=400, detail="Invalid page selection option.")
+
+#     result = add_signature(pdf_bytes, signature_bytes, pages, size, position, alignment)
+#     if result is None:
+#         raise HTTPException(status_code=500, detail="Failed to add signature")
+    
+#     return StreamingResponse(
+#         io.BytesIO(result),
+#         media_type="application/pdf",
+#         headers={"Content-Disposition": f"attachment; filename=signed_{pdf_file.filename}"}
+#     )
+
+
+# @app.post("/add_signature")
+# async def add_signature_endpoint(
+#     pdf_file: UploadFile = File(...),
+#     signature_file: UploadFile = File(...),
+#     specific_pages: str = Form(...),
+#     size: str = Form(...),
+#     position: str = Form(...),
+#     alignment: str = Form(...),
+# ):
+#     try:
+#         logger.info(f"Received request to: pdf={pdf_file.filename}, signature={signature_file}, specific_pages={specific_pages}, size={size}, position={position}, position={alignment}")
+#         # Read input files
+#         pdf_bytes = await pdf_file.read()
+#         signature_bytes = await signature_file.read()
+
+#         # Validate inputs
+#         if not pdf_file.filename.lower().endswith('.pdf'):
+#             logger.error("Invalid PDF file type")
+#             raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files allowed.")
+#         if not signature_file.filename.lower().endswith(('.png', '.jpg', '.jpeg'))):
+#             logger.error("Invalid signature file type")
+#             raise HTTPException(status_code=400, detail="Invalid signature file type. Only PNG or JPEG allowed.")
+#         if len(pdf_bytes) > 50 * 1024 * 1024:
+#             logger.error("PDF file too large")
+#             raise HTTPException(status_code=400, detail="PDF file size exceeds 50MB.")
+#         if len(signature_bytes) > 10 * 1024 * 1024:
+#             logger.error("Signature file too large")
+#             raise HTTPException(status_code=400, detail="Signature file size exceeds 10MB.")
+
+#         # Parse page numbers
+#         try:
+#             pages = [int(p) for p in specific_pages.split(',')] if specific_pages else []
+#             logger.info(f"Pages to sign: {pages}")
+#         except ValueError:
+#             logger.error("Invalid page numbers format")
+#             raise HTTPException(status_code=400, detail="Invalid page numbers format.")
+
+#         # Add signature
+#         logger.info("Calling add_signature function")
+#         result = add_signature(pdf_bytes, signature_bytes, pages, size, position, alignment)
+#         if result is None:
+#             logger.error("add_signature returned None")
+#             raise HTTPException(status_code=500, detail="Failed to add signature")
+
+#         # Return the signed PDF
+#         return StreamingResponse(
+#             io.BytesIO(result),
+#             media_type="application/pdf",
+#             headers={"Content-Disposition": f"attachment; filename=signed_{pdf_file.filename}"}
+#         )
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"Unexpected error in add_signature_endpoint: {str(e)}", exc_info=True)
+#         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    
+    
+
+@app.post("/add_signature")
 async def add_signature_endpoint(
     pdf_file: UploadFile = File(...),
     signature_file: UploadFile = File(...),
-    page_num: int = Form(...),
-    size: str = Form("medium"),
-    position: str = Form("bottom"),
-    alignment: str = Form("center")
+    specific_pages: str = Form(...),
+    size: str = Form(...),
+    position: str = Form(...),
+    alignment: str = Form(...)
 ):
-    pdf_bytes = await pdf_file.read()
-    signature_bytes = await signature_file.read()
-    result = add_signature(pdf_bytes, signature_bytes, page_num, size, position, alignment)
-    if result is None:
-        raise HTTPException(status_code=500, detail="Failed to add signature")
-    return StreamingResponse(
-        io.BytesIO(result),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=signed_{pdf_file.filename}"}
-    )
+    try:
+        logger.info(f"Received request: pdf={pdf_file.filename}, signature={signature_file.filename}, specific_pages={specific_pages}, size={size}, position={position}, alignment={alignment}")
+        # Read input files
+        pdf_bytes = await pdf_file.read()
+        signature_bytes = await signature_file.read()
 
+        # Validate inputs
+        if not pdf_file.filename.lower().endswith('.pdf'):
+            logger.error("Invalid PDF file type")
+            raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files allowed.")
+        if not signature_file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+            logger.error("Invalid signature file type")
+            raise HTTPException(status_code=400, detail="Invalid signature file type. Only PNG or JPEG allowed.")
+        if len(pdf_bytes) > 50 * 1024 * 1024:
+            logger.error("PDF file too large")
+            raise HTTPException(status_code=400, detail="PDF file size exceeds 50MB.")
+        if len(signature_bytes) > 10 * 1024 * 1024:
+            logger.error("Signature file too large")
+            raise HTTPException(status_code=400, detail="Signature file size exceeds 10MB.")
+
+        # Parse page numbers
+        try:
+            pages = [int(p) for p in specific_pages.split(',')] if specific_pages else []
+            logger.info(f"Pages to sign: {pages}")
+        except ValueError:
+            logger.error("Invalid page numbers format")
+            raise HTTPException(status_code=400, detail="Invalid page numbers format.")
+
+        # Add signature
+        logger.info("Calling add_signature function")
+        result = add_signature(pdf_bytes, signature_bytes, pages, size, position, alignment)
+        if result is None:
+            logger.error("add_signature returned None")
+            raise HTTPException(status_code=500, detail="Failed to add signature")
+
+        # Return the signed PDF
+        return StreamingResponse(
+            io.BytesIO(result),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=signed_{pdf_file.filename}"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in add_signature_endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/videos")
 async def list_videos():
@@ -764,15 +963,9 @@ async def list_videos():
                         metadata = head.get('Metadata', {})
                         content_type = head.get('ContentType', 'video/mp4')
                         
-                        url = s3_client.generate_presigned_url(
-                            "get_object",
-                            Params={
-                                "Bucket": BUCKET_NAME,
-                                "Key": key,
-                                "ResponseContentType": content_type
-                            },
-                            ExpiresIn=86400  # Increased to 24 hours
-                        )
+                        # Dynamically generate the direct S3 URL for each object
+                        url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}"
+                        logger.info(f"Direct URL for {key}: {url}")
                         
                         videos.append({
                             "name": key.split('/')[-1],
@@ -791,48 +984,6 @@ async def list_videos():
         raise HTTPException(status_code=500, detail="Failed to list videos")
 
 
-# @app.get("/videos")
-# async def list_videos():
-#     """List all videos in S3 bucket with proper content type handling"""
-#     try:
-#         response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
-#         videos = []
-        
-#         if "Contents" in response:
-#             for obj in response["Contents"]:
-#                 key = obj["Key"]
-#                 if key.lower().endswith((".mp4", ".webm", ".ogg")):
-#                     try:
-#                         # Get object metadata and content type
-#                         head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
-#                         metadata = head.get('Metadata', {})
-#                         content_type = head.get('ContentType', 'video/mp4')  # Default to mp4
-                        
-#                         url = s3_client.generate_presigned_url(
-#                             "get_object",
-#                             Params={
-#                                 "Bucket": BUCKET_NAME,
-#                                 "Key": key,
-#                                 "ResponseContentType": content_type
-#                             },
-#                             ExpiresIn=3600
-#                         )
-                        
-#                         videos.append({
-#                             "name": key.split('/')[-1],
-#                             "url": url,
-#                             "description": metadata.get('description', ''),
-#                             "type": content_type
-#                         })
-#                     except ClientError as e:
-#                         logger.error(f"Error processing {key}: {e}")
-#                         continue
-        
-#         return JSONResponse(content=videos)
-
-#     except Exception as e:
-#         logger.error(f"Error listing videos: {e}")
-#         raise HTTPException(status_code=500, detail="Failed to list videos")
 
 @app.post("/upload-video")
 async def upload_video(
