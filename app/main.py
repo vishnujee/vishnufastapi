@@ -43,13 +43,14 @@ from pathlib import Path
 import hashlib
 from PyPDF2 import  PdfReader
 from dotenv import load_dotenv
+from rembg import remove
 
 from app.pdf_operations import  (
     upload_to_s3, download_from_s3, cleanup_s3_file, get_memory_info,
     merge_pdfs_pypdf2, merge_pdfs_ghostscript, safe_compress_pdf, encrypt_pdf,
     convert_pdf_to_images, split_pdf, delete_pdf_pages, convert_pdf_to_word,
     convert_pdf_to_excel, convert_image_to_pdf, remove_pdf_password,reorder_pdf_pages,
-    add_page_numbers, add_signature
+    add_page_numbers, add_signature,remove_background_rembg
 )
 from typing import List
 import gc
@@ -710,22 +711,6 @@ async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: s
         gc.collect()
 
 
-# @app.post("/reorder-pages")
-# async def reorder_pages(file: UploadFile = File(...), page_order: str = Form(...)):
-#     pdf_bytes = await file.read()
-#     try:
-#         page_order_list = [int(p) for p in page_order.split(",")]
-#     except:
-#         raise HTTPException(status_code=400, detail="Invalid page order format. Use comma-separated numbers.")
-#     result = reorder_pdf_pages(pdf_bytes, page_order_list)
-#     if result is None:
-#         raise HTTPException(status_code=500, detail="Failed to reorder pages")
-#     return StreamingResponse(
-#         io.BytesIO(result),
-#         media_type="application/pdf",
-#         headers={"Content-Disposition": f"attachment; filename=reordered_{file.filename}"}
-#     )
-
 
 @app.post("/reorder_pages")
 async def reorder_pages(file: UploadFile = File(...), page_order: str = Form(...)):
@@ -780,117 +765,6 @@ async def add_page_numbers_endpoint(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=numbered_{file.filename}"}
     )
-# @app.post("/add_signature")
-# async def add_signature_endpoint(
-#     pdf_file: UploadFile = File(...),
-#     signature_file: UploadFile = File(...),
-#     page_selection: str = Form(...),
-#     specific_pages: Optional[str] = Form(None),
-#     page_range: Optional[str] = Form(None),
-#     size: str = Form("medium"),
-#     position: str = Form("bottom"),
-#     alignment: str = Form("center")
-# ):
-#     pdf_bytes = await pdf_file.read()
-#     signature_bytes = await signature_file.read()
-
-#     # Determine pages to apply the signature
-#     pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
-#     num_pages = len(pdf_reader.pages)
-#     pages = []
-
-#     if page_selection == 'all':
-#         pages = list(range(1, num_pages + 1))
-#     elif page_selection == 'specific':
-#         if not specific_pages:
-#             raise HTTPException(status_code=400, detail="Specific pages must be provided.")
-#         try:
-#             pages = [int(p) for p in specific_pages.split(',') if p.strip()]
-#             if not all(1 <= p <= num_pages for p in pages):
-#                 raise ValueError("Invalid page numbers.")
-#         except ValueError:
-#             raise HTTPException(status_code=400, detail="Invalid specific pages format. Use comma-separated integers (e.g., 2,3,4).")
-#     elif page_selection == 'range':
-#         if not page_range:
-#             raise HTTPException(status_code=400, detail="Page range must be provided.")
-#         try:
-#             start, end = map(int, page_range.split('-'))
-#             if not (1 <= start <= end <= num_pages):
-#                 raise ValueError("Invalid page range.")
-#             pages = list(range(start, end + 1))
-#         except ValueError:
-#             raise HTTPException(status_code=400, detail="Invalid page range format. Use start-end format (e.g., 12-30).")
-#     else:
-#         raise HTTPException(status_code=400, detail="Invalid page selection option.")
-
-#     result = add_signature(pdf_bytes, signature_bytes, pages, size, position, alignment)
-#     if result is None:
-#         raise HTTPException(status_code=500, detail="Failed to add signature")
-    
-#     return StreamingResponse(
-#         io.BytesIO(result),
-#         media_type="application/pdf",
-#         headers={"Content-Disposition": f"attachment; filename=signed_{pdf_file.filename}"}
-#     )
-
-
-# @app.post("/add_signature")
-# async def add_signature_endpoint(
-#     pdf_file: UploadFile = File(...),
-#     signature_file: UploadFile = File(...),
-#     specific_pages: str = Form(...),
-#     size: str = Form(...),
-#     position: str = Form(...),
-#     alignment: str = Form(...),
-# ):
-#     try:
-#         logger.info(f"Received request to: pdf={pdf_file.filename}, signature={signature_file}, specific_pages={specific_pages}, size={size}, position={position}, position={alignment}")
-#         # Read input files
-#         pdf_bytes = await pdf_file.read()
-#         signature_bytes = await signature_file.read()
-
-#         # Validate inputs
-#         if not pdf_file.filename.lower().endswith('.pdf'):
-#             logger.error("Invalid PDF file type")
-#             raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files allowed.")
-#         if not signature_file.filename.lower().endswith(('.png', '.jpg', '.jpeg'))):
-#             logger.error("Invalid signature file type")
-#             raise HTTPException(status_code=400, detail="Invalid signature file type. Only PNG or JPEG allowed.")
-#         if len(pdf_bytes) > 50 * 1024 * 1024:
-#             logger.error("PDF file too large")
-#             raise HTTPException(status_code=400, detail="PDF file size exceeds 50MB.")
-#         if len(signature_bytes) > 10 * 1024 * 1024:
-#             logger.error("Signature file too large")
-#             raise HTTPException(status_code=400, detail="Signature file size exceeds 10MB.")
-
-#         # Parse page numbers
-#         try:
-#             pages = [int(p) for p in specific_pages.split(',')] if specific_pages else []
-#             logger.info(f"Pages to sign: {pages}")
-#         except ValueError:
-#             logger.error("Invalid page numbers format")
-#             raise HTTPException(status_code=400, detail="Invalid page numbers format.")
-
-#         # Add signature
-#         logger.info("Calling add_signature function")
-#         result = add_signature(pdf_bytes, signature_bytes, pages, size, position, alignment)
-#         if result is None:
-#             logger.error("add_signature returned None")
-#             raise HTTPException(status_code=500, detail="Failed to add signature")
-
-#         # Return the signed PDF
-#         return StreamingResponse(
-#             io.BytesIO(result),
-#             media_type="application/pdf",
-#             headers={"Content-Disposition": f"attachment; filename=signed_{pdf_file.filename}"}
-#         )
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         logger.error(f"Unexpected error in add_signature_endpoint: {str(e)}", exc_info=True)
-#         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-    
-    
 
 @app.post("/add_signature")
 async def add_signature_endpoint(
@@ -899,7 +773,8 @@ async def add_signature_endpoint(
     specific_pages: str = Form(...),
     size: str = Form(...),
     position: str = Form(...),
-    alignment: str = Form(...)
+    alignment: str = Form(...),
+    remove_bg: bool = Form(False)
 ):
     try:
         logger.info(f"Received request: pdf={pdf_file.filename}, signature={signature_file.filename}, specific_pages={specific_pages}, size={size}, position={position}, alignment={alignment}")
@@ -929,9 +804,19 @@ async def add_signature_endpoint(
             logger.error("Invalid page numbers format")
             raise HTTPException(status_code=400, detail="Invalid page numbers format.")
 
+  
         # Add signature
         logger.info("Calling add_signature function")
-        result = add_signature(pdf_bytes, signature_bytes, pages, size, position, alignment)
+        result = add_signature(
+            pdf_bytes=pdf_bytes,
+            signature_bytes=signature_bytes,
+            pages=pages,
+            size=size,
+            position=position,
+            alignment=alignment,
+            remove_bg=remove_bg  # <-- this was missing
+        )
+
         if result is None:
             logger.error("add_signature returned None")
             raise HTTPException(status_code=500, detail="Failed to add signature")
@@ -1039,8 +924,59 @@ async def upload_video(
     except Exception as e:
         logger.error(f"Error uploading video: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-    
-    
+
+
+
+def remove_background_rembg(image_bytes):
+    """
+    Remove background using rembg AI-based background remover.
+    """
+    try:
+        output = remove(image_bytes)
+        return io.BytesIO(output)
+    except Exception as e:
+        logger.error(f"Background removal failed: {str(e)}")
+        raise ValueError(f"Background removal failed: {str(e)}")
+
+@app.post("/remove_background")
+async def remove_background_endpoint(file: UploadFile = File(...)):
+    """
+    Endpoint to remove background from an uploaded image using rembg.
+    Returns a PNG image with transparent background.
+    """
+    try:
+        # Validate file type
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Uploaded file must be an image")
+
+        # Read image bytes
+        image_bytes = await file.read()
+        if not image_bytes:
+            raise HTTPException(status_code=400, detail="Empty image file")
+
+        # Process image with rembg
+        logger.info("Processing image for background removal")
+        processed_image = remove_background_rembg(image_bytes)
+
+        # Verify output
+        if not processed_image.getvalue():
+            raise HTTPException(status_code=500, detail="Failed to process image")
+
+        # Return the processed image as a streaming response
+        return StreamingResponse(
+            content=processed_image,
+            media_type="image/png",
+            headers={"Content-Disposition": f"attachment; filename=processed_image.png"}
+        )
+
+    except ValueError as e:
+        logger.error(f"Error processing image: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080, workers=1) 

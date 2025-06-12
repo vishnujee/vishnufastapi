@@ -25,934 +25,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    
+
 
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .blinking-cursor {
-            animation: blink 1s step-end infinite;
-            color: #4a90e2;
-            font-weight: bold;
-        }
-
-        @keyframes blink {
-
-            from,
-            to {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0;
-            }
-        }
-
-        .ai-response table {
-            width: 100%;
-            margin: 1rem 0;
-            border-collapse: collapse;
-        }
-
-        .ai-response th {
-            background-color: #f3f4f6;
-            font-weight: bold;
-        }
-
-        .ai-response th,
-        .ai-response td {
-            padding: 0.5rem;
-            border: 1px solid #e2e8f0;
-            text-align: left;
-        }
-
-        .ai-response {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-
-        .ai-response ul {
-            list-style-type: disc;
-            padding-left: 1.5rem;
-            margin: 0.5rem 0;
-        }
-
-        .ai-response li {
-            margin: 0.25rem 0;
-        }
-
-        .progress {
-            display: none;
-        }
-
-        .progress-text {
-            font-size: 0.875rem;
-            color: #4a5568;
-        }
-
-        #chatOutput p {
-            margin: 0.5rem 0;
-        }
-
-        .tool-card {
-            transition: all 0.3s ease;
-        }
-
-        .tool-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-        }
-
-        .nav-link {
-            position: relative;
-        }
-
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            width: 0;
-            height: 2px;
-            bottom: -2px;
-            left: 0;
-            background-color: #10b981;
-            transition: width 0.3s ease;
-        }
-
-        .nav-link:hover::after {
-            width: 100%;
-        }
-
-        .dropdown {
-            position: relative;
-        }
-
-        .dropdown-content {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            min-width: 200px;
-            z-index: 10;
-            background-color: white;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            border-radius: 0.375rem;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(10px);
-            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
-        }
-
-        .dropdown:hover>.dropdown-content,
-        .dropdown-content:hover {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-
-        @media (max-width: 768px) {
-            .dropdown-content {
-                position: static;
-                opacity: 1;
-                visibility: visible;
-                transform: none;
-            }
-        }
-
-        .memory-container {
-            display: flex;
-            gap: 20px;
-            margin: 20px;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .memory-card {
-            flex: 1;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 15px;
-            background: #f9f9f9;
-        }
-
-        .progress-container {
-            height: 20px;
-            background: #e0e0e0;
-            border-radius: 10px;
-            margin-top: 10px;
-            overflow: hidden;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: #4CAF50;
-            width: 0%;
-            transition: width 0.3s;
-        }
-
-        .memory-stats {
-            margin-top: 10px;
-            font-family: monospace;
-        }
-
-        #page-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            padding: 1rem 0;
-        }
-
-        @media (max-width: 768px) {
-            #page-list {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .page-preview {
-            border: 1px solid #e2e8f0;
-            padding: 0.5rem;
-            border-radius: 0.375rem;
-            background-color: #f8fafc;
-            text-align: center;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .page-preview:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .page-preview canvas {
-            display: block;
-            margin: 0 auto;
-            max-width: 100%;
-            height: auto;
-            border: 1px solid #cbd5e0;
-            border-radius: 0.25rem;
-        }
-
-        .page-preview span {
-            display: block;
-            margin-top: 0.5rem;
-            font-size: 0.875rem;
-            color: #4b5563;
-        }
-
-        .page-controls {
-            display: flex;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .page-controls button {
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            background-color: #3b82f6;
-            color: white;
-            border: none;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-
-        .page-controls button:hover {
-            background-color: #2563eb;
-        }
-
-        .page-controls button:disabled {
-            background-color: #9ca3af;
-            cursor: not-allowed;
-        }
-
-        #file-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            padding: 1rem 0;
-        }
-
-        @media (max-width: 768px) {
-            #file-list {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .file-preview {
-            border: 1px solid #e2e8f0;
-            padding: 0.5rem;
-            border-radius: 0.375rem;
-            background-color: #f8fafc;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .file-preview:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .file-preview span {
-            display: block;
-            margin-top: 0.5rem;
-            font-size: 0.875rem;
-            color: #4b5563;
-            word-break: break-all;
-        }
-
-        .file-controls {
-            display: flex;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .file-controls button {
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            background-color: #3b82f6;
-            color: white;
-            border: none;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-
-        .file-controls button:hover {
-            background-color: #2563eb;
-        }
-
-        .file-controls button:disabled {
-            background-color: #9ca3af;
-            cursor: not-allowed;
-        }
-    </style>
-    <script>
-        const BASE_URL = window.location.origin;
-        async function processPDF(endpoint, formId) {
-            const form = document.getElementById(formId);
-            const formData = new FormData(form);
-            const resultDiv = document.getElementById(`result-${formId}`);
-            const submitButton = form.querySelector('button');
-            const progressDiv = document.getElementById(`progress-${formId}`);
-            const progressText = document.getElementById(`progress-text-${formId}`);
-
-            if (!validateForm(form, endpoint, resultDiv)) return;
-
-            console.log('Sending request to:', `${BASE_URL}/${endpoint}`);
-            console.log('FormData contents:');
-            for (const [key, value] of formData.entries()) {
-                console.log(`${key}: ${value instanceof File ? value.name : value}`);
-            }
-
-            submitButton.disabled = true;
-            progressDiv.style.display = 'block';
-            progressText.textContent = 'Preparing files...';
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress = Math.min(progress + 10, 90);
-                progressDiv.querySelector('progress').value = progress;
-                progressText.textContent = `Uploading... ${progress}%`;
-            }, 200);
-
-            try {
-                const response = await fetch(`${BASE_URL}/${endpoint}`, {
-                    method: 'POST',
-                    body: formData
-                });
-                clearInterval(progressInterval);
-                progressDiv.querySelector('progress').value = 100;
-                progressText.textContent = 'Processing complete!';
-
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const contentDisposition = response.headers.get('Content-Disposition');
-                    let filename = 'output.pdf';
-                    if (contentDisposition) {
-                        const match = contentDisposition.match(/filename="(.+)"|filename=([^;]+)/i);
-                        if (match) filename = match[1] || match[2];
-                    }
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    resultDiv.textContent = 'Page numbers added successfully!';
-                    resultDiv.classList.remove('text-red-600');
-                    resultDiv.classList.add('text-green-600');
-                } else {
-                    const error = await response.json();
-                    console.error('Backend error:', error);
-                    resultDiv.textContent = `Error: ${error.detail || 'Unknown error'}`;
-                    resultDiv.classList.remove('text-green-600');
-                    resultDiv.classList.add('text-red-600');
-                }
-            } catch (e) {
-                clearInterval(progressInterval);
-                console.error('Fetch error:', e, 'Endpoint:', endpoint);
-                resultDiv.textContent = `Error: ${e.message}. Please check the server logs.`;
-                resultDiv.classList.remove('text-green-600');
-                resultDiv.classList.add('text-red-600');
-            } finally {
-                submitButton.disabled = false;
-                setTimeout(() => {
-                    progressDiv.style.display = 'none';
-                    progressText.textContent = '';
-                }, 2000);
-            }
-        }
-
-        function updateFileOrder(files) {
-            const fileOrder = Array.from(files).map(file => file.dataset.fileIndex);
-            document.getElementById('merge-file-order').value = fileOrder.join(',');
-        }
-
-
-        function updateFileButtonStates(files) {
-            files.forEach((file, index) => {
-                const upButton = file.querySelector('.move-up');
-                const downButton = file.querySelector('.move-down');
-                upButton.disabled = index === 0;
-                downButton.disabled = index === files.length - 1;
-            });
-        }
-
-
-
-        // Modified validateForm for reorder
-        function validateForm(form, endpoint, resultDiv) {
-            const filesInput = form.querySelector('input[type="file"]');
-            const files = filesInput.files;
-            const password = form.querySelector('input[type="password"]');
-            const pages = form.querySelector('input[name="pages"]');
-            const pageOrderInput = form.querySelector('input[name="page_order"]');
-            const fileOrderInput = form.querySelector('input[name="file_order"]');
-
-            // File validation
-            if (!files.length) {
-                resultDiv.textContent = 'Please select a file.';
-                resultDiv.classList.add('text-red-600');
-                return false;
-            }
-
-            else if (endpoint === 'add_signature') {
-                const pdfFile = files[0];
-                const signatureFile = form.querySelector('input[name="signature_file"]').files[0];
-                const selectedPages = form.querySelector('input[name="specific_pages"]').value;
-                const size = form.querySelector('select[name="size"]').value;
-                const position = form.querySelector('select[name="position"]').value;
-                const alignment = form.querySelector('select[name="alignment"]').value;
-
-                // Validate PDF file
-                const pdfSizeMB = pdfFile.size / (1024 * 1024);
-                if (pdfSizeMB > 50) {
-                    resultDiv.textContent = `PDF file ${pdfFile.name} exceeds 50MB limit.`;
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                if (pdfFile.type !== 'application/pdf') {
-                    resultDiv.textContent = `File ${pdfFile.name} must be a PDF.`;
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-
-                // Validate signature file
-                const sigSizeMB = signatureFile.size / (1024 * 1024);
-                if (sigSizeMB > 10) {
-                    resultDiv.textContent = `Signature file ${signatureFile.name} exceeds 10MB limit.`;
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                if (!['image/png', 'image/jpeg', 'image/jpg'].includes(signatureFile.type)) {
-                    resultDiv.textContent = `Signature file ${signatureFile.name} must be PNG or JPEG.`;
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-
-                // Validate selected pages
-                if (!selectedPages) {
-                    resultDiv.textContent = 'Please select at least one page to sign.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                if (!/^[1-9]\d*(,[1-9]\d*)*$/.test(selectedPages)) {
-                    resultDiv.textContent = 'Invalid page selection format. Pages must be comma-separated positive integers.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-
-                // Validate size, position, alignment
-                if (!['small', 'medium', 'large'].includes(size)) {
-                    resultDiv.textContent = 'Invalid size. Choose small, medium, or large.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                if (!['top', 'center', 'bottom'].includes(position)) {
-                    resultDiv.textContent = 'Invalid position. Choose top, center, or bottom.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                if (!['left', 'center', 'right'].includes(alignment)) {
-                    resultDiv.textContent = 'Invalid alignment. Choose left, center, or right.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-            }
-
-            if (endpoint === 'merge_pdf') {
-                if (files.length < 2) {
-                    resultDiv.textContent = 'Please select at least 2 PDF files.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                let totalSize = 0;
-                for (let file of files) {
-                    const sizeMB = file.size / (1024 * 1024);
-                    totalSize += sizeMB;
-                    if (sizeMB > 30) {
-                        resultDiv.textContent = `File ${file.name} exceeds 30MB limit.`;
-                        resultDiv.classList.add('text-red-600');
-                        return false;
-                    }
-                }
-                const method = form.querySelector('select[name="method"]').value;
-                const maxFiles = method === 'PyPDF2' ? 51 : 30;
-                const maxSizeMB = method === 'PyPDF2' ? 90 : 50;
-                if (files.length > maxFiles) {
-                    resultDiv.textContent = `Too many files. Maximum is ${maxFiles} for ${method}.`;
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                if (totalSize > maxSizeMB) {
-                    resultDiv.textContent = `Total file size (${totalSize.toFixed(1)}MB) exceeds ${maxSizeMB}MB limit.`;
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                // Validate file order
-                if (!fileOrderInput || !fileOrderInput.value) {
-                    resultDiv.textContent = 'Please load and order files.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                // Validate file order if provided
-                if (fileOrderInput && fileOrderInput.value) {
-                    const fileOrder = fileOrderInput.value.split(',').map(i => parseInt(i.trim()));
-                    if (fileOrder.length !== files.length || !fileOrder.every(i => i >= 0 && i < files.length)) {
-                        resultDiv.textContent = 'Invalid file order. Ensure all files are included in the order.';
-                        resultDiv.classList.add('text-red-600');
-                        return false;
-                    }
-                }
-            }
-
-            else if (endpoint === 'add_page_numbers') {
-                const file = files[0];
-                const sizeMB = file.size / (1024 * 1024);
-                if (sizeMB > 50) {
-                    resultDiv.textContent = `File ${file.name} exceeds 50MB limit.`;
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                if (file.type !== 'application/pdf') {
-                    resultDiv.textContent = `File ${file.name} must be a PDF.`;
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                const position = form.querySelector('select[name="position"]').value;
-                const alignment = form.querySelector('select[name="alignment"]').value;
-                const format = form.querySelector('select[name="format"]').value;
-                if (!['top', 'bottom'].includes(position)) {
-                    resultDiv.textContent = 'Invalid position. Choose top or bottom.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                if (!['left', 'center', 'right'].includes(alignment)) {
-                    resultDiv.textContent = 'Invalid alignment. Choose left, center, or right.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                if (!['page_x', 'x'].includes(format)) {
-                    resultDiv.textContent = 'Invalid format. Choose Page X or X.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-            }
-            else if (endpoint === 'reorder_pages') {
-                const file = files[0];
-                const sizeMB = file.size / (1024 * 1024);
-                if (sizeMB > 50) {
-                    resultDiv.textContent = `File ${file.name} exceeds 50MB limit.`;
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                if (!pageOrderInput || !pageOrderInput.value) {
-                    resultDiv.textContent = 'Please load and reorder pages.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                // Optional: Validate page order format (comma-separated numbers)
-                const pageOrder = pageOrderInput.value.split(',').map(p => p.trim());
-                if (!pageOrder.every(p => /^[1-9]\d*$/.test(p))) {
-                    resultDiv.textContent = 'Invalid page order format. Use comma-separated positive integers.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-
-
-            }
-
-            else {
-                const maxSizeMB = endpoint === 'compress_pdf' ? 55 : endpoint === 'split_pdf' ? 100 : 50;
-                const file = files[0];
-                const sizeMB = file.size / (1024 * 1024);
-                if (sizeMB > maxSizeMB) {
-                    resultDiv.textContent = `File ${file.name} exceeds ${maxSizeMB}MB limit.`;
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                if (endpoint === 'convert_image_to_pdf' && !['image/png', 'image/jpeg'].includes(file.type)) {
-                    resultDiv.textContent = `File ${file.name} must be PNG or JPEG.`;
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-            }
-
-            // Password validation
-            if ((endpoint === 'encrypt_pdf' || endpoint === 'remove_pdf_password') && (!password || !password.value)) {
-                resultDiv.textContent = 'Please enter a password.';
-                resultDiv.classList.add('text-red-600');
-                return false;
-            }
-
-            // Pages validation for delete_pdf_pages
-            if (endpoint === 'delete_pdf_pages' && pages) {
-                const pageNumbers = pages.value.split(',').map(p => p.trim());
-                if (!pageNumbers.every(p => /^[1-9]\d*$/.test(p))) {
-                    resultDiv.textContent = 'Invalid page numbers. Use comma-separated positive integers (e.g., 2,5,7).';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-
-        function formatResponse(text) {
-            if (!text) return '';
-
-            // Convert markdown tables to HTML tables
-            text = text.replace(/(\|[^\n]+\|\r?\n\|[-: |]+\|\r?\n)((?:\|[^\n]+\|\r?\n?)+)/g, function (match, header, body) {
-                let html = '<div class="overflow-x-auto"><table class="w-full border-collapse my-3">';
-
-                // Process header
-                const headers = header.split('|').slice(1, -1).map(h => h.trim());
-                html += '<thead><tr class="bg-gray-100">';
-                headers.forEach(h => {
-                    html += `<th class="p-2 border text-left">${h}</th>`;
-                });
-                html += '</tr></thead><tbody>';
-
-                // Process body
-                const rows = body.trim().split('\n');
-                rows.forEach(row => {
-                    const cells = row.split('|').slice(1, -1).map(c => c.trim());
-                    html += '<tr>';
-                    cells.forEach(cell => {
-                        html += `<td class="p-2 border">${formatMarkdownInline(cell)}</td>`;
-                    });
-                    html += '</tr>';
-                });
-
-                html += '</tbody></table></div>';
-                return html;
-            });
-
-            // Convert markdown lists
-            text = text.replace(/^([*-]|\d+\.)\s+(.+)$/gm, function (match, bullet, content) {
-                return `<li class="ml-5">${formatMarkdownInline(content)}</li>`;
-            });
-
-            // Wrap consecutive list items in ul/ol
-            text = text.replace(/(<li>.*<\/li>)+/g, function (match) {
-                const listType = match.includes('<li class="ml-5">') ? 'ul' : 'ol';
-                return `<${listType} class="list-disc pl-5 my-2">${match}</${listType}>`;
-            });
-
-            // Convert markdown bold/italic
-            text = formatMarkdownInline(text);
-
-            // Convert line breaks to <br> for non-table, non-list content
-            text = text.replace(/\n/g, function (match, offset, fullText) {
-                if (!fullText.substring(offset).match(/^\n*(<table|<ul|<ol)/) &&
-                    !fullText.substring(0, offset).match(/(<\/table|<\/ul|<\/ol>)\n*$/)) {
-                    return '<br>';
-                }
-                return match;
-            });
-
-            // Convert markdown links
-            text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank">$1</a>');
-
-            return text;
-        }
-
-        function formatMarkdownInline(text) {
-            if (!text) return '';
-
-            // Bold
-            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            // Italic
-            text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
-            // Inline code
-            text = text.replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>');
-
-            return text;
-        }
-
-        async function typewriterEffect(element, text, speed = 20) {
-            // First format the response to handle markdown
-            const formattedText = formatResponse(text);
-
-            // Create a temporary element to parse the HTML
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = formattedText;
-
-            // Process each node for typewriter effect
-            element.innerHTML = '';
-            await typewriterProcessNodes(element, tempDiv.childNodes, speed);
-        }
-
-        async function typewriterProcessNodes(parent, nodes, speed) {
-            for (const node of nodes) {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    await typewriterAddText(parent, node.textContent, speed);
-                } else if (node.nodeType === Node.ELEMENT_NODE) {
-                    // For tables, add them immediately
-                    if (node.tagName === 'TABLE') {
-                        const clone = node.cloneNode(true);
-                        parent.appendChild(clone);
-                    } else {
-                        const newElement = document.createElement(node.tagName);
-
-                        // Copy all attributes
-                        for (const attr of node.attributes) {
-                            newElement.setAttribute(attr.name, attr.value);
-                        }
-
-                        // Copy classes
-                        if (node.className) {
-                            newElement.className = node.className;
-                        }
-
-                        parent.appendChild(newElement);
-
-                        // Process child nodes recursively
-                        await typewriterProcessNodes(newElement, node.childNodes, speed);
-                    }
-                }
-            }
-        }
-
-        async function typewriterAddText(element, text, speed) {
-            for (let i = 0; i < text.length; i++) {
-                // Add the next character
-                element.textContent += text[i];
-
-                // Add blinking cursor (except for the last character)
-                if (i < text.length - 1) {
-                    const cursor = document.createElement('span');
-                    cursor.className = 'blinking-cursor';
-                    cursor.textContent = '|';
-                    element.appendChild(cursor);
-
-                    // Wait for a bit
-                    await new Promise(resolve => setTimeout(resolve, speed));
-
-                    // Remove the cursor
-                    element.removeChild(cursor);
-                }
-            }
-        }
-
-        async function sendChat() {
-            const chatInput = document.getElementById('chatInput').value.trim();
-            const chatOutput = document.getElementById('chatOutput');
-            const progressDiv = document.getElementById('progress-chat');
-            const progressText = document.getElementById('progress-text-chat');
-
-            if (!chatInput) {
-                chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
-                return;
-            }
-
-            progressDiv.style.display = 'block';
-            progressText.textContent = 'Processing query...';
-
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `query=${encodeURIComponent(chatInput)}&typewriter=true`
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Chat error');
-                }
-
-                const data = await response.json();
-
-                // Create new message element
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'mb-4';
-
-                // Add user query
-                const userQuery = document.createElement('p');
-                userQuery.className = 'font-semibold text-blue-600';
-                userQuery.textContent = `You: ${chatInput}`;
-                messageDiv.appendChild(userQuery);
-
-                // Add AI response container
-                const aiResponse = document.createElement('div');
-                aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
-                messageDiv.appendChild(aiResponse);
-
-                // Insert at the top of chat output
-                chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
-
-                // Clear input
-                document.getElementById('chatInput').value = '';
-
-                // Apply typewriter effect
-                await typewriterEffect(aiResponse, data.answer);
-
-            } catch (error) {
-                console.error("Chat error:", error);
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'text-red-600 mb-4';
-                errorDiv.innerHTML = `
-                    <p>Error: ${error.message}</p>
-                    <p class="text-sm text-gray-500">Please try again or refresh the page.</p>
-                `;
-                chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
-            } finally {
-                progressDiv.style.display = 'none';
-                progressText.textContent = '';
-            }
-        }
-
-        // function validateForm(form, endpoint, resultDiv) {
-        //     const filesInput = form.querySelector('input[type="file"]');
-        //     const files = filesInput.files;
-        //     const password = form.querySelector('input[type="password"]');
-        //     const pages = form.querySelector('input[name="pages"]');
-
-        //     // File validation
-        //     if (!files.length) {
-        //         resultDiv.textContent = 'Please select a file.';
-        //         return false;
-        //     }
-
-        //     if (endpoint === 'merge_pdf') {
-        //         if (files.length < 2) {
-        //             resultDiv.textContent = 'Please select at least 2 PDF files.';
-        //             return false;
-        //         }
-        //         let totalSize = 0;
-        //         for (let file of files) {
-        //             const sizeMB = file.size / (1024 * 1024);
-        //             totalSize += sizeMB;
-        //             if (sizeMB > 30) {
-        //                 resultDiv.textContent = `File ${file.name} exceeds 30MB limit.`;
-        //                 return false;
-        //             }
-        //         }
-        //         const method = form.querySelector('select[name="method"]').value;
-        //         const maxFiles = method === 'PyPDF2' ? 51 : 30;
-        //         const maxSizeMB = method === 'PyPDF2' ? 90 : 50;
-        //         if (files.length > maxFiles) {
-        //             resultDiv.textContent = `Too many files. Maximum is ${maxFiles} for ${method}.`;
-        //             return false;
-        //         }
-        //         if (totalSize > maxSizeMB) {
-        //             resultDiv.textContent = `Total file size (${totalSize.toFixed(1)}MB) exceeds ${maxSizeMB}MB limit.`;
-        //             return false;
-        //         }
-        //     } else {
-        //         const maxSizeMB = endpoint === 'compress_pdf' ? 55 : endpoint === 'split_pdf' ? 100 : 50;
-        //         const file = files[0];
-        //         const sizeMB = file.size / (1024 * 1024);
-        //         if (sizeMB > maxSizeMB) {
-        //             resultDiv.textContent = `File ${file.name} exceeds ${maxSizeMB}MB limit.`;
-        //             return false;
-        //         }
-        //         if (endpoint === 'convert_image_to_pdf' && !['image/png', 'image/jpeg'].includes(file.type)) {
-        //             resultDiv.textContent = `File ${file.name} must be PNG or JPEG.`;
-        //             return false;
-        //         }
-        //     }
-
-        //     // Password validation
-        //     if ((endpoint === 'encrypt_pdf' || endpoint === 'remove_pdf_password') && (!password || !password.value)) {
-        //         resultDiv.textContent = 'Please enter a password.';
-        //         return false;
-        //     }
-
-        //     // Pages validation for delete_pdf_pages
-        //     if (endpoint === 'delete_pdf_pages' && pages) {
-        //         const pageNumbers = pages.value.split(',').map(p => p.trim());
-        //         if (!pageNumbers.every(p => /^[1-9]\d*$/.test(p))) {
-        //             resultDiv.textContent = 'Invalid page numbers. Use comma-separated positive integers (e.g., 2,5,7).';
-        //             return false;
-        //         }
-        //     }
-
-        //     return true;
-        // }
-
-        function showTool(toolId) {
-            // Hide all tool sections
-            document.querySelectorAll('.tool-section').forEach(section => {
-                section.style.display = 'none';
-            });
-
-            // Show selected tool
-            document.getElementById(toolId).style.display = 'block';
-
-            // Update active nav item
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('text-green-600', 'font-bold');
-            });
-            if (event.currentTarget) {
-                event.currentTarget.classList.add('text-green-600', 'font-bold');
-            }
-
-            // On mobile (screen width <= 768px), hide mobile menu and submenu
-            if (window.innerWidth <= 768) {
-                const mobileMenu = document.getElementById('mobile-menu');
-                const mobileSubmenu = document.getElementById('mobile-submenu');
-                const menuButton = document.getElementById('mobile-menu-button');
-
-                // Hide submenu
-                if (mobileSubmenu && !mobileSubmenu.classList.contains('hidden')) {
-                    mobileSubmenu.classList.add('hidden');
-                }
-
-                // Hide main mobile menu
-                if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-                    mobileMenu.classList.add('hidden');
-                }
-
-                // Reset menu button icon to hamburger
-                if (menuButton) {
-                    menuButton.querySelector('i').classList.remove('fa-times');
-                    menuButton.querySelector('i').classList.add('fa-bars');
-                }
-            }
-
-            // Scroll to the tool section
-            document.getElementById(toolId).scrollIntoView({ behavior: 'smooth' });
-        }
-    </script>
+    <link rel="stylesheet" href="static/styles.css" />
+    <script src="static/script.js"></script>
 </head>
 
 <body class="bg-gray-50 min-h-screen">
@@ -1000,6 +78,8 @@
                                 onclick="showTool('pageNumbers-section')">Add Page Numbers</a>
                             <a href="#signature" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                                 onclick="showTool('signature-section')">Add Signature</a>
+                            <a href="#remove-background" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('removeBackground-section')">Remove Background</a>
                         </div>
                     </div>
                     <a href="#videos" class="nav-link text-xl text-gray-700 hover:text-green-600"
@@ -1046,6 +126,8 @@
                             onclick="showTool('pageNumbers-section')">Add Page Numbers</a>
                         <a href="#signature" class="block py-2 text-gray-7
                         00 hover:text-green-600" onclick="showTool('signature-section')">Add Signature</a>
+                        <a href="#remove-background" class="block py-2 text-gray-700 hover:text-green-600"
+                            onclick="showTool('removeBackground-section')">Remove Background</a>
                     </div>
                 </div>
                 <a href="#videos" class="block py-2 text-gray-700 hover:text-green-600"
@@ -1570,52 +652,6 @@
                     </div>
                 </div>
 
-
-
-
-                <!-- <div id="reorder-section" class="tool-section" style="display: none;">
-                <div class="bg-white p-6 rounded-xl shadow-md tool-card">
-                    <div class="flex items-center mb-4">
-                        <div class="bg-blue-100 p-2 rounded-full mr-3">
-                            <i class="fas fa-sort-numeric-up text-blue-600 text-xl"></i>
-                        </div>
-                        <h2 class="text-2xl font-semibold text-gray-800">Reorder PDF Pages</h2>
-                    </div>
-                    <form id="reorderForm" class="space-y-4">
-                        <div>
-                            <label for="reorder-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF
-                                File</label>
-                            <div class="flex items-center">
-                                <label
-                                    class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
-                                    <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
-                                    <input type="file" id="reorder-file" name="file" accept=".pdf" required
-                                        class="hidden">
-                                </label>
-                                <span id="reorder-file-name" class="ml-3 text-sm text-gray-500">No file
-                                    selected</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="reorder-page-order" class="block text-sm font-medium text-gray-600 mb-1">Page
-                                Order (e.g., 2,1,3)</label>
-                            <input type="text" id="reorder-page-order" name="page_order"
-                                placeholder="Page order (e.g., 2,1,3)" required
-                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        </div>
-                        <button type="button" onclick="processPDF('reorder_pages', 'reorderForm')"
-                            class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-                            <i class="fas fa-sort-numeric-up mr-2"></i> Reorder Pages
-                        </button>
-                        <div class="progress" id="progress-reorderForm">
-                            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-                            <div class="progress-text" id="progress-text-reorderForm"></div>
-                        </div>
-                        <p id="result-reorderForm" class="text-sm text-center"></p>
-                    </form>
-                </div>
-            </div> -->
-
                 <!-- Add Page Numbers -->
                 <div id="pageNumbers-section" class="tool-section" style="display: none;">
                     <div class="bg-white p-6 rounded-xl shadow-md tool-card">
@@ -1681,8 +717,12 @@
                     </div>
                 </div>
                 <!-- Add Signature -->
-  
-             
+
+
+
+
+
+
                 <!-- Add Signature -->
                 <div id="signature-section" class="tool-section" style="display: none;">
                     <div class="bg-white p-6 rounded-xl shadow-md tool-card">
@@ -1694,59 +734,85 @@
                         </div>
                         <form id="signatureForm" class="space-y-4">
                             <div>
-                                <label for="signature-pdf-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF File</label>
+                                <label for="signature-pdf-file"
+                                    class="block text-sm font-medium text-gray-600 mb-1">Select PDF File</label>
                                 <div class="flex items-center">
-                                    <label class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <label
+                                        class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
                                         <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose PDF
-                                        <input type="file" id="signature-pdf-file" name="pdf_file" accept=".pdf" required class="hidden">
+                                        <input type="file" id="signature-pdf-file" name="pdf_file" accept=".pdf"
+                                            required class="hidden">
                                     </label>
-                                    <span id="signature-pdf-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+                                    <span id="signature-pdf-file-name" class="ml-3 text-sm text-gray-500">No file
+                                        selected</span>
                                 </div>
                             </div>
                             <div>
-                                <label for="signature-image-file" class="block text-sm font-medium text-gray-600 mb-1">Select Signature Image</label>
+                                <label for="signature-image-file"
+                                    class="block text-sm font-medium text-gray-600 mb-1">Select Signature Image</label>
                                 <div class="flex items-center">
-                                    <label class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                    <label
+                                        class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
                                         <i class="fas fa-image mr-2 text-purple-500"></i> Choose Image
-                                        <input type="file" id="signature-image-file" name="signature_file" accept=".png,.jpg,.jpeg" required class="hidden">
+                                        <input type="file" id="signature-image-file" name="signature_file"
+                                            accept=".png,.jpg,.jpeg" required class="hidden">
+
                                     </label>
-                                    <span id="signature-image-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+
+                                    <span id="signature-image-file-name" class="ml-3 text-sm text-gray-500">No file
+                                        selected</span>
+                                </div>
+
+                                <div class="flex items-center mt-4">
+                                    <input type="hidden" name="remove_bg" value="false">
+                                    <input type="checkbox" id="remove-bg" name="remove_bg" value="true" class="mr-2">
+                                    <label for="remove-bg" class="text-sm font-medium text-gray-600">Remove Image
+                                        Background</label>
                                 </div>
                             </div>
                             <div id="signature-page-previews" class="hidden">
                                 <div class="flex items-center mb-2">
                                     <input type="checkbox" id="select-all-pages" class="mr-2">
-                                    <label for="select-all-pages" class="text-sm font-medium text-gray-600">Select All Pages</label>
+                                    <label for="select-all-pages" class="text-sm font-medium text-gray-600">Select All
+                                        Pages</label>
                                 </div>
                                 <h3 class="text-lg font-medium text-gray-700 mb-2">Page Previews</h3>
-                                <div id="signature-page-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+                                <div id="signature-page-list"
+                                    class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
                             </div>
                             <input type="hidden" id="signature-selected-pages" name="specific_pages">
                             <div>
-                                <label for="signature-size" class="block text-sm font-medium text-gray-600 mb-1">Size</label>
-                                <select id="signature-size" name="size" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <label for="signature-size"
+                                    class="block text-sm font-medium text-gray-600 mb-1">Size</label>
+                                <select id="signature-size" name="size"
+                                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                     <option value="small">Small</option>
                                     <option value="medium">Medium</option>
                                     <option value="large">Large</option>
                                 </select>
                             </div>
                             <div>
-                                <label for="signature-position" class="block text-sm font-medium text-gray-600 mb-1">Position</label>
-                                <select id="signature-position" name="position" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <label for="signature-position"
+                                    class="block text-sm font-medium text-gray-600 mb-1">Position</label>
+                                <select id="signature-position" name="position"
+                                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                     <option value="top">Top</option>
                                     <option value="center">Center</option>
                                     <option value="bottom">Bottom</option>
                                 </select>
                             </div>
                             <div>
-                                <label for="signature-alignment" class="block text-sm font-medium text-gray-600 mb-1">Alignment</label>
-                                <select id="signature-alignment" name="alignment" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <label for="signature-alignment"
+                                    class="block text-sm font-medium text-gray-600 mb-1">Alignment</label>
+                                <select id="signature-alignment" name="alignment"
+                                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                     <option value="left">Left</option>
                                     <option value="center">Center</option>
                                     <option value="right">Right</option>
                                 </select>
                             </div>
-                            <button type="button" onclick="processPDF('add_signature', 'signatureForm')" class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <button type="button" onclick="processPDF('add_signature', 'signatureForm')"
+                                class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
                                 <i class="fas fa-signature mr-2"></i> Add Signature
                             </button>
                             <div class="progress" id="progress-signatureForm">
@@ -1757,7 +823,45 @@
                         </form>
                     </div>
                 </div>
-                
+
+
+                <!-- Remove Background -->
+                <div id="removeBackground-section" class="tool-section" style="display: none;">
+                    <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                        <div class="flex items-center mb-4">
+                            <div class="bg-cyan-100 p-2 rounded-full mr-3">
+                                <i class="fas fa-eraser text-cyan-600 text-xl"></i>
+                            </div>
+                            <h2 class="text-2xl font-semibold text-gray-800">Remove Image Background</h2>
+                        </div>
+                        <form id="removeBackgroundForm" class="space-y-4">
+                            <div>
+                                <label for="removeBackground-file"
+                                    class="block text-sm font-medium text-gray-600 mb-1">Select Image File</label>
+                                <div class="flex items-center">
+                                    <label
+                                        class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                        <i class="fas fa-image mr-2 text-cyan-500"></i> Choose Image
+                                        <input type="file" id="removeBackground-file" name="file"
+                                            accept="image/png,image/jpeg" required class="hidden">
+                                    </label>
+                                    <span id="removeBackground-file-name" class="ml-3 text-sm text-gray-500">No file
+                                        selected</span>
+                                </div>
+                            </div>
+                            <button type="button" onclick="processImage('remove_background', 'removeBackgroundForm')"
+                                class="w-full bg-cyan-600 text-white p-3 rounded-lg hover:bg-cyan-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                                <i class="fas fa-eraser mr-2"></i> Remove Background
+                            </button>
+                            <div class="progress" id="progress-removeBackgroundForm">
+                                <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                                <div class="progress-text" id="progress-text-removeBackgroundForm"></div>
+                            </div>
+                            <p id="result-removeBackgroundForm" class="text-sm text-center"></p>
+                        </form>
+                    </div>
+                </div>
+
 
 
 
@@ -2079,63 +1183,6 @@
                 resultDiv.classList.add('text-green-600');
             });
 
-            // Handle signature form submission
-            // document.getElementById('signature-form').addEventListener('submit', async function (e) {
-            //     e.preventDefault();
-
-            //     const form = e.target;
-            //     const formData = new FormData(form);
-            //     const resultContainer = document.getElementById('signature-result');
-            //     const downloadLink = document.getElementById('download-signed-pdf');
-
-            //     try {
-            //         // Show loading state
-            //         const submitBtn = form.querySelector('button[type="submit"]');
-            //         submitBtn.disabled = true;
-            //         submitBtn.textContent = 'Processing...';
-
-            //         // Send to backend
-            //         const response = await fetch('/add-signature', {
-            //             method: 'POST',
-            //             body: formData
-            //         });
-
-            //         if (!response.ok) {
-            //             throw new Error(await response.text());
-            //         }
-
-            //         // Create download link
-            //         const blob = await response.blob();
-            //         const url = URL.createObjectURL(blob);
-            //         downloadLink.href = url;
-            //         downloadLink.download = `signed_${formData.get('pdf_file').name}`;
-
-            //         // Show result
-            //         resultContainer.style.display = 'block';
-
-            //     } catch (error) {
-            //         console.error('Error:', error);
-            //         alert('Failed to add signature: ' + error.message);
-            //     } finally {
-            //         // Reset button
-            //         const submitBtn = form.querySelector('button[type="submit"]');
-            //         submitBtn.disabled = false;
-            //         submitBtn.textContent = 'Add Signature';
-            //     }
-            // });
-
-            // document.getElementById('signature-page-selection').addEventListener('change', (e) => {
-            //     const specificPagesDiv = document.getElementById('specific-pages-input');
-            //     const pageRangeDiv = document.getElementById('page-range-input');
-            //     specificPagesDiv.classList.add('hidden');
-            //     pageRangeDiv.classList.add('hidden');
-                
-            //     if (e.target.value === 'specific') {
-            //         specificPagesDiv.classList.remove('hidden');
-            //     } else if (e.target.value === 'range') {
-            //         pageRangeDiv.classList.remove('hidden');
-            //     }
-            // });
 
             updateFileLabel('signature-pdf-file', 'signature-pdf-file-name');
             updateFileLabel('signature-image-file', 'signature-image-file-name');
@@ -2157,6 +1204,8 @@
                 const pagePreviews = document.getElementById('signature-page-previews');
                 const pageList = document.getElementById('signature-page-list');
                 const selectAllCheckbox = document.getElementById('select-all-pages');
+                const removeBgCheckbox = document.getElementById('remove-bg');
+                console.log("Remove Background Checkbox is checked:", removeBgCheckbox);
 
                 if (!file) {
                     pagePreviews.classList.add('hidden');
