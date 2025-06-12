@@ -513,8 +513,6 @@ async function sendChat() {
     }
 }
 
-
-
 function showTool(toolId) {
     // Hide all tool sections
     document.querySelectorAll('.tool-section').forEach(section => {
@@ -524,40 +522,84 @@ function showTool(toolId) {
     // Show selected tool
     document.getElementById(toolId).style.display = 'block';
 
-    // Update active nav item
-    document.querySelectorAll('.nav-link').forEach(link => {
+    // Revert all nav-link styles
+    document.querySelectorAll('.nav-link, .dropdown-content a, #mobile-submenu a').forEach(link => {
         link.classList.remove('text-green-600', 'font-bold');
     });
+
+    // Highlight the clicked item (PDF tool or top nav)
     if (event.currentTarget) {
         event.currentTarget.classList.add('text-green-600', 'font-bold');
     }
 
-    // On mobile (screen width <= 768px), hide mobile menu and submenu
+    // On mobile, hide the menus
     if (window.innerWidth <= 768) {
         const mobileMenu = document.getElementById('mobile-menu');
         const mobileSubmenu = document.getElementById('mobile-submenu');
         const menuButton = document.getElementById('mobile-menu-button');
 
-        // Hide submenu
         if (mobileSubmenu && !mobileSubmenu.classList.contains('hidden')) {
             mobileSubmenu.classList.add('hidden');
         }
 
-        // Hide main mobile menu
         if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
             mobileMenu.classList.add('hidden');
         }
 
-        // Reset menu button icon to hamburger
         if (menuButton) {
             menuButton.querySelector('i').classList.remove('fa-times');
             menuButton.querySelector('i').classList.add('fa-bars');
         }
     }
 
-    // Scroll to the tool section
+    // Scroll to section
     document.getElementById(toolId).scrollIntoView({ behavior: 'smooth' });
 }
+
+
+// function showTool(toolId) {
+//     // Hide all tool sections
+//     document.querySelectorAll('.tool-section').forEach(section => {
+//         section.style.display = 'none';
+//     });
+
+//     // Show selected tool
+//     document.getElementById(toolId).style.display = 'block';
+
+//     // Update active nav item
+//     document.querySelectorAll('.nav-link').forEach(link => {
+//         link.classList.remove('text-green-600', 'font-bold');
+//     });
+//     if (event.currentTarget) {
+//         event.currentTarget.classList.add('text-green-600', 'font-bold');
+//     }
+
+//     // On mobile (screen width <= 768px), hide mobile menu and submenu
+//     if (window.innerWidth <= 768) {
+//         const mobileMenu = document.getElementById('mobile-menu');
+//         const mobileSubmenu = document.getElementById('mobile-submenu');
+//         const menuButton = document.getElementById('mobile-menu-button');
+
+//         // Hide submenu
+//         if (mobileSubmenu && !mobileSubmenu.classList.contains('hidden')) {
+//             mobileSubmenu.classList.add('hidden');
+//         }
+
+//         // Hide main mobile menu
+//         if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+//             mobileMenu.classList.add('hidden');
+//         }
+
+//         // Reset menu button icon to hamburger
+//         if (menuButton) {
+//             menuButton.querySelector('i').classList.remove('fa-times');
+//             menuButton.querySelector('i').classList.add('fa-bars');
+//         }
+//     }
+
+//     // Scroll to the tool section
+//     document.getElementById(toolId).scrollIntoView({ behavior: 'smooth' });
+// }
 
 updateFileLabel('removeBackground-file', 'removeBackground-file-name');
 
@@ -612,3 +654,6 @@ async function processImage(endpoint, formId) {
         form.querySelector('button').disabled = false;
     }
 }
+
+
+

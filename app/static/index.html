@@ -31,6 +31,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="static/styles.css" />
     <script src="static/script.js"></script>
+
+
+    
 </head>
 
 <body class="bg-gray-50 min-h-screen">
@@ -40,7 +43,7 @@
             <div class="flex justify-between items-center py-4">
                 <div class="flex items-center space-x-4">
                     <a href="/" class="text-2xl font-bold text-blue-600 hover:text-green-600">
-                        Vishnu Tools
+                        VishnuDesk
                     </a>
                 </div>
 
@@ -57,7 +60,7 @@
                             <a href="#compress" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                                 onclick="showTool('compress-section')">Compress PDF</a>
                             <a href="#encrypt" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                                onclick="showTool('encrypt-section')">Encrypt PDF</a>
+                                onclick="showTool('encrypt-section')">Add Password to PDF</a>
                             <a href="#pdf-to-images" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                                 onclick="showTool('pdfToImages-section')">PDF to Images</a>
                             <a href="#split" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
@@ -111,7 +114,7 @@
                         <a href="#compress" class="block py-2 text-gray-700 hover:text-green-600"
                             onclick="showTool('compress-section')">Compress PDF</a>
                         <a href="#encrypt" class="block py-2 text-gray-700 hover:text-green-600"
-                            onclick="showTool('encrypt-section')">Encrypt PDF</a>
+                            onclick="showTool('encrypt-section')">Add Password to PDF</a>
                         <a href="#pdf-to-images" class="block py-2 text-gray-700 hover:text-green-600"
                             onclick="showTool('pdfToImages-section')">PDF to Images</a>
                         <a href="#split" class="block py-2 text-gray-700 hover:text-green-600"
@@ -136,8 +139,14 @@
                             onclick="showTool('removeBackground-section')">Remove Background</a>
                     </div>
                 </div>
-                <a href="#videos" class="block py-2 text-gray-700 hover:text-green-600"
-                    onclick="showTool('videos-section')">Videos</a>
+                <!-- <a href="#videos" class="block py-2 text-gray-700 hover:text-green-600"
+                    onclick="showTool('videos-section')">Videos</a> -->
+                       <a href="#" 
+                        class="nav-link text-xl text-gray-700 hover:text-green-600" 
+                        onclick="window.location.href='/static/videos.html'">
+                        Videos
+                     </a>
+                     
             </div>
         </div>
     </nav>
@@ -146,9 +155,44 @@
     <div class="container mx-auto px-4 py-8 max-w-6xl">
         <!-- Hero Section -->
         <div class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-gray-800 mb-4">Vishnu AI & PDF Tools</h1>
-            <p class="text-xl text-gray-600 max-w-3xl mx-auto">Your all-in-one solution for PDF operations and
-                AI-powered assistance</p>
+            <!-- <h1 class="text-4xl font-bold text-gray-800 mb-4">Vishnu AI & PDF Tools</h1> -->
+            <div class="text-center mb-12">
+                <div style="
+                    background: linear-gradient(135deg, #0f0c29, #302b63, #ff416c);
+                    padding: 8px;
+                    border-radius: 12px;
+                    text-align: center;
+                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+                    margin-bottom: 20px;
+                    display: block;
+                    width: 7    00px;
+                    height: 50px;
+                    margin-left: auto;
+                    margin-right: auto;
+                ">
+                    <h1 style="
+                        color: #fff;
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        font-size: 25px;
+                        font-weight: bold;
+                        margin: 0;
+                        letter-spacing: 1px;
+                        animation: pulse 2s infinite;
+                    ">
+                        SmartFix PDF Engine
+                    </h1>
+                </div>
+                <style>
+                    @keyframes pulse {
+                        0% { transform: scale(1); }
+                        50% { transform: scale(1.04); }
+                        100% { transform: scale(1) }
+                    }
+                </style>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">Your all-in-one solution for PDF operations and
+                    AI-powered assistance</p>
+            </div>
+            
         </div>
         <h1>System Memory Usage</h1>
         <div class="memory-container">
@@ -185,11 +229,15 @@
                             <i class="fas fa-paper-plane mr-2"></i> Send
                         </button>
                     </div>
-                    <div id="chatOutput" class="text-gray-700 bg-gray-50 p-4 rounded-lg min-h-32"></div>
                     <div class="progress" id="progress-chat">
-                        <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-                        <div class="progress-text" id="progress-text-chat"></div>
+                        <!-- <progress value="0" max="100" class="w-full h-2 rounded-full"></progress> -->
+                        <div class="progress" id="progress-chat" style="padding: 10px;">
+                            <progress id="progress-bar" value="0" max="100" style="width: 200px; height: 10px; border-radius: 5px; background: #e0e0e0; appearance: none; overflow: hidden;"></progress>
+                        </div>
+                        <div class="progress-text" id="progress-text-chat" style="font-family: sans-serif; font-size: 18px; font-weight: bold;"></div>
                     </div>
+                    <div id="chatOutput" class="text-gray-700 bg-gray-50 p-4 rounded-lg min-h-32"></div>
+                    
                 </div>
             </div>
         </div>
@@ -892,7 +940,7 @@
         <!-- Footer -->
         <footer class="bg-gray-800 text-white py-6">
             <div class="container mx-auto px-4 text-center">
-                <p>© 2025 Vishnu Tools. All rights reserved.</p>
+                <p> &copy; 2025 <span class="font-semibold">Vishnu Tools</span>. All rights reserved..</p>
                 <p class="mt-2 text-sm">Built with <i class="fas fa-heart text-red-500"></i> for efficient PDF
                     processing
                     and AI assistance</p>
