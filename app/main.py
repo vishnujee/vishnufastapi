@@ -457,7 +457,6 @@ async def memory_usage_stream(request: Request):
             "Connection": "keep-alive",
         }
     )
-
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
     with open("app/static/index.html", "r") as f:

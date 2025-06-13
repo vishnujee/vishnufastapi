@@ -1,89 +1,6 @@
-// const BASE_URL = window.location.origin;
-// async function processPDF(endpoint, formId) {
-//     const form = document.getElementById(formId);
-//     const formData = new FormData(form);
-//     const resultDiv = document.getElementById(`result-${formId}`);
-//     const submitButton = form.querySelector('button');
-//     const progressDiv = document.getElementById(`progress-${formId}`);
-//     const progressText = document.getElementById(`progress-text-${formId}`);
-
-
-//     // Add conversion type to form data
-//     const conversionType = form.querySelector('input[name="conversionType"]:checked').value;
-//     formData.append('file', form.querySelector('input[type="file"]').files[0]);
-//     formData.append('conversion_type', conversionType);  // Must match backend parameter
-//     console.log(conversionType);
-
-//     if (!validateForm(form, endpoint, resultDiv)) return;
-
-//     console.log('Sending request to:', `${BASE_URL}/${endpoint}`);
-//     console.log('FormData contents:');
-//     for (const [key, value] of formData.entries()) {
-//         console.log(`${key}: ${value instanceof File ? value.name : value}`);
-//     }
-
-//     submitButton.disabled = true;
-//     progressDiv.style.display = 'block';
-//     progressText.textContent = 'Preparing files...';
-//     let progress = 0;
-//     const progressInterval = setInterval(() => {
-//         progress = Math.min(progress + 10, 90);
-//         progressDiv.querySelector('progress').value = progress;
-//         progressText.textContent = `Uploading... ${progress}%`;
-//     }, 200);
-
-//     try {
-//         const response = await fetch(`${BASE_URL}/${endpoint}`, {
-//             method: 'POST',
-//             body: formData,
-//             headers: {
-//                 // Let browser set Content-Type with boundary automatically
-//             }
-//         });
-//         clearInterval(progressInterval);
-//         progressDiv.querySelector('progress').value = 100;
-//         progressText.textContent = 'Processing complete!';
-
-//         if (response.ok) {
-//             const blob = await response.blob();
-//             const contentDisposition = response.headers.get('Content-Disposition');
-//             let filename = 'output.pdf';
-//             if (contentDisposition) {
-//                 const match = contentDisposition.match(/filename="(.+)"|filename=([^;]+)/i);
-//                 if (match) filename = match[1] || match[2];
-//             }
-//             const url = window.URL.createObjectURL(blob);
-//             const a = document.createElement('a');
-//             a.href = url;
-//             a.download = filename;
-//             a.click();
-//             window.URL.revokeObjectURL(url);
-//             resultDiv.textContent = 'Page numbers added successfully!';
-//             resultDiv.classList.remove('text-red-600');
-//             resultDiv.classList.add('text-green-600');
-//         } else {
-//             const error = await response.json();
-//             console.error('Backend error:', error);
-//             resultDiv.textContent = `Error: ${error.detail || 'Unknown error'}`;
-//             resultDiv.classList.remove('text-green-600');
-//             resultDiv.classList.add('text-red-600');
-//         }
-//     } catch (e) {
-//         clearInterval(progressInterval);
-//         console.error('Fetch error:', e, 'Endpoint:', endpoint);
-//         resultDiv.textContent = `Error: ${e.message}. Please check the server logs.`;
-//         resultDiv.classList.remove('text-green-600');
-//         resultDiv.classList.add('text-red-600');
-//     } finally {
-//         submitButton.disabled = false;
-//         setTimeout(() => {
-//             progressDiv.style.display = 'none';
-//             progressText.textContent = '';
-//         }, 2000);
-//     }
-// }
 
 const BASE_URL = window.location.origin  // Adjust if backend API path differs
+
 
 
 function updateFileSize() {
@@ -998,7 +915,14 @@ async function processImage(endpoint, formId) {
 
 
 
+
+
+
+
+
 document.addEventListener('DOMContentLoaded', () => {
     initSliders();
     updateFileSize(); // Initialize file size display
 });
+
+
