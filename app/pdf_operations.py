@@ -16,18 +16,29 @@ import pandas as pd
 import time
 import gc
 import platform
+from pptx import Presentation 
+from pdf2image import convert_from_bytes
+
+from typing import Dict,  Optional
 
 from reportlab.lib.utils import ImageReader
-
-
-
 from reportlab.pdfgen import canvas
 import logging
+from docx import Document
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 from reportlab.pdfgen import canvas
+
+
+from rembg import remove
+
+logger = logging.getLogger(__name__)
+
+from pptx.enum.text import PP_ALIGN
+from pptx.util import Inches, Pt
+import math
 
 # Configure logging
 os.makedirs("logs", exist_ok=True)
@@ -42,65 +53,41 @@ logger = logging.getLogger(__name__)
 BUCKET_NAME = os.getenv("BUCKET_NAME", "vishnufastapi")
 AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-LOCAL_MODE = not (AWS_ACCESS_KEY and AWS_SECRET_KEY)
 
-if not LOCAL_MODE:
-    s3_client = boto3.client(
+s3_client = boto3.client(
         "s3",
         aws_access_key_id=AWS_ACCESS_KEY,
         aws_secret_access_key=AWS_SECRET_KEY,
     )
 
-# Local directories
-INPUT_DIR = "input_pdfs"
-OUTPUT_DIR = "output_pdfs"
-os.makedirs(INPUT_DIR, exist_ok=True)
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 
 def upload_to_s3(file_content, filename):
     """Upload file content to S3 or save locally."""
-    if LOCAL_MODE:
-        s3_key = f"temp_uploads/{hashlib.md5(file_content).hexdigest()}_{filename}"
-        local_path = os.path.join(INPUT_DIR, os.path.basename(s3_key))
-        with open(local_path, "wb") as f:
-            f.write(file_content)
-        logger.info(f"Saved locally: {local_path}")
-        return s3_key
-    else:
-        s3_key = f"temp_uploads/{hashlib.md5(file_content).hexdigest()}_{filename}"
-        s3_client.put_object(Bucket=BUCKET_NAME, Key=s3_key, Body=file_content)
-        logger.info(f"Uploaded to S3: {s3_key}")
-        return s3_key
+
+    s3_key = f"temp_uploads/{hashlib.md5(file_content).hexdigest()}_{filename}"
+    s3_client.put_object(Bucket=BUCKET_NAME, Key=s3_key, Body=file_content)
+    logger.info(f"Uploaded to S3: {s3_key}")
+    return s3_key
 
 def download_from_s3(s3_key):
     """Download file content from S3 or read locally."""
-    if LOCAL_MODE:
-        local_path = os.path.join(INPUT_DIR, os.path.basename(s3_key))
-        if not os.path.exists(local_path):
-            raise Exception(f"Local file not found: {local_path}")
-        with open(local_path, "rb") as f:
-            return f.read()
-    else:
-        try:
-            response = s3_client.get_object(Bucket=BUCKET_NAME, Key=s3_key)
-            return response["Body"].read()
-        except Exception as e:
-            logger.error(f"Failed to download S3 file {s3_key}: {e}")
-            raise
+
+    try:
+        response = s3_client.get_object(Bucket=BUCKET_NAME, Key=s3_key)
+        return response["Body"].read()
+    except Exception as e:
+        logger.error(f"Failed to download S3 file {s3_key}: {e}")
+        raise
 
 def cleanup_s3_file(s3_key):
     """Delete file from S3 or locally."""
-    if LOCAL_MODE:
-        local_path = os.path.join(INPUT_DIR, os.path.basename(s3_key))
-        if os.path.exists(local_path):
-            os.unlink(local_path)
-            logger.info(f"Deleted local file: {local_path}")
-    else:
-        try:
-            s3_client.delete_object(Bucket=BUCKET_NAME, Key=s3_key)
-            logger.info(f"Deleted S3 file: {s3_key}")
-        except Exception as e:
-            logger.warning(f"Failed to delete S3 file {s3_key}: {e}")
+
+    try:
+        s3_client.delete_object(Bucket=BUCKET_NAME, Key=s3_key)
+        logger.info(f"Deleted S3 file: {s3_key}")
+    except Exception as e:
+        logger.warning(f"Failed to delete S3 file {s3_key}: {e}")
 
 def get_memory_info():
     """Return system-wide memory usage info in MB."""
@@ -439,6 +426,316 @@ def convert_pdf_to_word(pdf_bytes):
                     pass
         gc.collect()
 
+
+def convert_pdf_to_ppt(pdf_bytes):
+    """Convert PDF to PowerPoint with proper aspect ratio handling"""
+    try:
+        # Convert PDF to images
+        images = convert_from_bytes(
+            pdf_bytes,
+            dpi=200,
+            fmt='jpeg',
+            jpegopt={'quality': 90},
+            thread_count=4
+        )
+        
+        if not images:
+            raise ValueError("No pages converted from PDF")
+
+        prs = Presentation()
+        
+        # Set to standard 4:3 aspect ratio (more square than 16:9)
+        prs.slide_width = Inches(7)       # Was 10
+        prs.slide_height = Inches(5.25)     # Reduced from 7.5 inches# 7.5 inches tall (4:3 ratio)
+        
+        # Available content area with margins
+        content_width = Inches(6.5)       # Was 9 
+        content_height = Inches(4.75)     # Was 6.75     # Reduced from 6.75 inches       # 0.375" top + bottom margins
+
+        for img in images:
+            slide = prs.slides.add_slide(prs.slide_layouts[6])  # Blank layout
+            
+            # Get original image dimensions
+            img_width, img_height = img.size
+            
+            # Calculate scaling to fit content area while maintaining aspect ratio
+            width_ratio = content_width / img_width
+            height_ratio = content_height / img_height
+            scale = min(width_ratio, height_ratio)
+            
+            # Apply scaling
+            scaled_width = img_width * scale
+            scaled_height = img_height * scale
+            
+            # Center the image on slide
+            left = (prs.slide_width - scaled_width) / 2
+            top = (prs.slide_height - scaled_height) / 2
+            
+            # Convert image to bytes
+            with io.BytesIO() as output:
+                img.save(output, format='JPEG', quality=90)
+                output.seek(0)
+                
+                # Add to slide
+                slide.shapes.add_picture(
+                    output,
+                    left,
+                    top,
+                    width=scaled_width,
+                    height=scaled_height
+                )
+
+        # Save presentation
+        output = io.BytesIO()
+        prs.save(output)
+        return output.getvalue()
+
+    except Exception as e:
+        logger.error(f"PPT conversion failed: {str(e)}")
+        return None
+
+
+
+def convert_pdf_to_editable_ppt(pdf_bytes):
+    """Convert PDF to properly formatted PowerPoint with error handling"""
+    try:
+        from pptx.util import Pt, Inches
+        from pptx.enum.text import PP_ALIGN, PP_PARAGRAPH_ALIGNMENT
+        from pptx.dml.color import RGBColor
+        import re
+        import tempfile
+        import io
+        import os
+        from docx import Document
+        from pdf2docx import Converter
+        from pptx import Presentation
+        import logging
+
+        # Set up logging
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+
+        # Create temp files
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as pdf_temp:
+            pdf_temp.write(pdf_bytes)
+            pdf_path = pdf_temp.name
+        
+        docx_path = tempfile.mktemp(suffix=".docx")
+        
+        # Convert PDF to Word
+        cv = Converter(pdf_path)
+        cv.convert(docx_path, 
+                  layout_analysis=True,
+                  keep_blank_lines=False,
+                  ignore_page_error=True)
+        cv.close()
+        
+        # Create presentation
+        prs = Presentation()
+        prs.slide_width = Inches(13.33)
+        prs.slide_height = Inches(7.5)
+        
+        # Style definitions
+        def safe_pt(value, default=12):
+            return Pt(value) if value is not None else Pt(default)
+            
+        title_style = {
+            'size': safe_pt(36),
+            'bold': True,
+            'color': RGBColor(0, 32, 96)
+        }
+        content_style = {
+            'size': safe_pt(18),  # Further reduced size
+            'color': RGBColor(64, 64, 64),
+            'alignment': PP_ALIGN.LEFT,
+            'space_after': safe_pt(8),  # Reduced spacing
+            'line_spacing': 1.2,  # Increased line spacing
+            'word_wrap': True,
+            'width': Inches(11.5),  # Text box width
+            'height': Inches(5)     # Text box height
+        }
+
+        # Process document
+        doc = Document(docx_path)
+        current_slide_content = []
+        slide_count = 0
+        
+        def add_safe_slide(content):
+            """Create slide with proper text wrapping and boundaries"""
+            nonlocal slide_count
+            try:
+                if not content.strip():
+                    return
+                    
+                slide_count += 1
+                slide = prs.slides.add_slide(prs.slide_layouts[6])  # Blank layout
+                
+                # Add title
+                title = slide.shapes.add_textbox(
+                    left=Inches(0.5), top=Inches(0.25),
+                    width=Inches(12), height=Inches(0.75))  # Smaller title box
+                title.text = f"Slide {slide_count}"
+                title.text_frame.word_wrap = True
+                
+                # Format title
+                for paragraph in title.text_frame.paragraphs:
+                    paragraph.font.size = title_style['size']
+                    paragraph.font.bold = title_style['bold']
+                    paragraph.font.color.rgb = title_style['color']
+                    paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+                
+                # Add content with strict boundaries
+                body = slide.shapes.add_textbox(
+                    left=Inches(0.75), top=Inches(1.25),  # Adjusted position
+                    width=content_style['width'], 
+                    height=content_style['height'])
+                
+                # Clean content and handle long lines
+                cleaned_content = []
+                for line in content.split('\n'):
+                    # Split long lines at approximately 100 characters
+                    if len(line) > 100:
+                        chunks = [line[i:i+100] for i in range(0, len(line), 100)]
+                        cleaned_content.extend(chunks)
+                    else:
+                        cleaned_content.append(line)
+                
+                body.text = '\n'.join(cleaned_content)
+                body.text_frame.word_wrap = True
+                body.text_frame.auto_size = None  # Disable auto-size to enforce boundaries
+                
+                # Format content
+                for paragraph in body.text_frame.paragraphs:
+                    paragraph.font.size = content_style['size']
+                    paragraph.font.color.rgb = content_style['color']
+                    paragraph.alignment = content_style['alignment']
+                    paragraph.space_after = content_style['space_after']
+                    paragraph.line_spacing = content_style['line_spacing']
+                    
+                    # Remove any remaining special characters
+                    paragraph.text = re.sub(r'[•\u2022\u25CF\uFEFF]', '', paragraph.text)
+                    
+            except Exception as e:
+                logger.error(f"Slide creation error: {str(e)}")
+
+        # Paragraph processing with line length control
+        for para in doc.paragraphs:
+            try:
+                text = re.sub(r'[•\u2022\u25CF\uFEFF]', '', para.text).strip()
+                if not text:
+                    continue
+                    
+                # Split long paragraphs into chunks
+                if len(text) > 300:
+                    chunks = [text[i:i+300] for i in range(0, len(text), 300)]
+                    current_slide_content.extend(chunks)
+                else:
+                    current_slide_content.append(text)
+                
+                # Check if we should create a new slide
+                if len('\n'.join(current_slide_content)) > 300:
+                    add_safe_slide('\n'.join(current_slide_content))
+                    current_slide_content = []
+                
+            except Exception as e:
+                logger.error(f"Paragraph processing error: {str(e)}")
+                continue
+        
+        # Add final slide
+        if current_slide_content:
+            add_safe_slide('\n'.join(current_slide_content))
+        
+        # Validate presentation
+        if slide_count == 0:
+            raise ValueError("No valid slides created")
+            
+        # Save with checks
+        output = io.BytesIO()
+        prs.save(output)
+        if output.getbuffer().nbytes < 1024:
+            raise ValueError("Presentation too small - likely conversion failed")
+            
+        return output.getvalue()
+        
+    except Exception as e:
+        logger.error(f"PPT conversion failed: {str(e)}")
+        return None
+    finally:
+        # Cleanup
+        for path in [pdf_path, docx_path]:
+            try:
+                if path and os.path.exists(path):
+                    os.unlink(path)
+            except:
+                pass
+
+
+def convert_pdf_to_ppt(pdf_bytes):
+    """Convert PDF to PowerPoint with tight width and proper image centering"""
+    try:
+        # Convert PDF to images with error handling
+        images = []
+        try:
+            images = convert_from_bytes(
+                pdf_bytes,
+                dpi=200,
+                fmt='jpeg',
+                jpegopt={'quality': 90},
+                thread_count=4
+            )
+            if not images:
+                raise ValueError("No pages converted from PDF")
+        except Exception as e:
+            raise ValueError(f"PDF to image conversion failed: {str(e)}")
+
+        prs = Presentation()
+        
+        # Set ultra-compact slide dimensions (adjusted 16:9 ratio)
+        slide_width = Inches(4.0)   # Tight width (~10.16 cm)
+        slide_height = Inches(2.25) # Maintains 16:9 aspect ratio
+        prs.slide_width = slide_width
+        prs.slide_height = slide_height
+
+        for img in images:
+            slide = prs.slides.add_slide(prs.slide_layouts[6])  # Blank layout
+
+            with io.BytesIO() as output:
+                img.save(output, format='JPEG', quality=90)
+                output.seek(0)
+                
+                # Calculate with minimal padding
+                img_ratio = img.width / img.height
+                
+                # Use 90% of slide width for image (5% margin each side)
+                target_width = slide_width * 0.9
+                target_height = target_width / img_ratio
+                
+                # If too tall, scale down to fit height instead
+                if target_height > slide_height * 0.9:
+                    target_height = slide_height * 0.9
+                    target_width = target_height * img_ratio
+                
+                # Center the image
+                left = (slide_width - target_width) / 2
+                top = (slide_height - target_height) / 2
+
+                slide.shapes.add_picture(
+                    output,
+                    left,
+                    top,
+                    width=target_width,
+                    height=target_height
+                )
+
+        output = io.BytesIO()
+        prs.save(output)
+        return output.getvalue()
+
+    except Exception as e:
+        logger.error(f"PPT conversion failed: {str(e)}")
+        return None
+
+
 def convert_pdf_to_excel(pdf_bytes):
     """Convert PDF to Excel using pdfplumber."""
     try:
@@ -622,148 +919,7 @@ def add_page_numbers(pdf_bytes, position="bottom", alignment="center", format="p
 
 
 
-# import io
-# import logging
-# from PyPDF2 import PdfReader, PdfWriter
-# from reportlab.pdfgen import canvas
-# from reportlab.lib.utils import ImageReader
-# from PIL import Image
 
-# logger = logging.getLogger(__name__)
-
-# def remove_white_background(image_bytes, threshold=240):
-#     """
-#     Convert white or near-white background to transparent.
-#     """
-#     img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
-#     datas = img.getdata()
-
-#     new_data = []
-#     for item in datas:
-#         r, g, b, a = item
-#         if r > threshold and g > threshold and b > threshold:
-#             new_data.append((255, 255, 255, 0))  # transparent
-#         else:
-#             new_data.append((r, g, b, a))
-#     img.putdata(new_data)
-
-#     output = io.BytesIO()
-#     img.save(output, format='PNG')
-#     output.seek(0)
-#     return output
-
-# def add_signature(pdf_bytes, signature_bytes, pages, size, position, alignment,remove_bg=False):
-#     try:
-#         logger.info("Starting add_signature function")
-
-#         if not pdf_bytes or not signature_bytes:
-#             raise ValueError("PDF or signature data is empty")
-#         if not pages:
-#             raise ValueError("No pages specified for signing")
-
-#         pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
-#         num_pages = len(pdf_reader.pages)
-#         if num_pages == 0:
-#             raise ValueError("PDF has no pages")
-
-#         if not all(1 <= p <= num_pages for p in pages):
-#             raise ValueError(f"Page numbers out of range: {pages}")
-
-#         pdf_writer = PdfWriter()
-
-#         size_map = {
-#             'small': 100,
-#             'medium': 150,
-#             'large': 200
-#         }
-#         img_width = size_map.get(size, 150)
-
-#         # Process signature image and remove background
-#        # Process signature image based on remove_bg flag
-#         try:
-#             logger.info("Loading and processing signature image")
-#             if remove_bg:
-#                 logger.info("Removing background from signature image")
-#                 sig_io = remove_white_background(signature_bytes, threshold=240)
-#             else:
-#                 sig_io = io.BytesIO(signature_bytes)
-#             img = ImageReader(sig_io)
-#             sig_width, sig_height = img.getSize()
-#             aspect = sig_height / float(sig_width) if sig_width else 1
-#             img_height = img_width * aspect
-#         except Exception as e:
-#             logger.error(f"Signature image processing failed: {str(e)}")
-#             raise ValueError(f"Invalid signature image: {str(e)}")
-
-
-#         for page_num in range(num_pages):
-#             page = pdf_reader.pages[page_num]
-#             page_width = float(page.mediabox.width)
-#             page_height = float(page.mediabox.height)
-
-#             if page_num + 1 in pages:
-#                 packet = io.BytesIO()
-#                 can = canvas.Canvas(packet, pagesize=(page_width, page_height))
-
-#                 # Calculate position
-#                 if position == 'top':
-#                     y = page_height - img_height - 50
-#                 elif position == 'center':
-#                     y = (page_height - img_height) / 2
-#                 else:  # bottom
-#                     y = 50
-
-#                 if alignment == 'left':
-#                     x = 50
-#                 elif alignment == 'center':
-#                     x = (page_width - img_width) / 2
-#                 else:  # right
-#                     x = page_width - img_width - 50
-
-#                 # Draw image with transparent background
-#                 can.drawImage(img, x, y, width=img_width, height=img_height,
-#                               preserveAspectRatio=True, mask='auto')
-
-#                 can.save()
-#                 packet.seek(0)
-
-#                 new_pdf = PdfReader(packet)
-#                 if len(new_pdf.pages) == 0:
-#                     raise ValueError("Failed to create new PDF page")
-#                 new_page = new_pdf.pages[0]
-
-#                 try:
-#                     page.merge_page(new_page)
-#                 except Exception as e:
-#                     logger.error(f"Page merge failed: {str(e)}")
-#                     raise RuntimeError(f"Page merge failed: {str(e)}")
-
-#             pdf_writer.add_page(page)
-
-#         output = io.BytesIO()
-#         pdf_writer.write(output)
-#         output.seek(0)
-#         result = output.read()
-#         if not result:
-#             raise ValueError("Generated PDF is empty")
-#         return result
-
-#     except Exception as e:
-#         logger.error(f"Error in signature processing: {str(e)}", exc_info=True)
-#         return None
-
-
-
-
-import io
-import logging
-from PyPDF2 import PdfReader, PdfWriter
-from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
-from PIL import Image
-from rembg import remove
-
-logger = logging.getLogger(__name__)
 
 def remove_background_rembg(image_bytes):
     """
@@ -872,4 +1028,51 @@ def add_signature(pdf_bytes, signature_bytes, pages, size, position, alignment, 
 
     except Exception as e:
         logger.error(f"Error in signature processing: {str(e)}", exc_info=True)
+        return None
+
+def estimate_compression_sizes(pdf_bytes: bytes, custom_dpi: int, custom_quality: int) -> Optional[Dict[str, int]]:
+    """Estimate output sizes for all compression presets."""
+    try:
+        sizes = {}
+        presets = [
+            ("high", 72, 20),
+            ("medium", 100, 30),
+            ("low", 120, 40),
+            ("custom", custom_dpi, custom_quality)
+        ]
+
+        for preset_name, dpi, quality in presets:
+            compressed_pdf = safe_compress_pdf(pdf_bytes, dpi, quality)
+            if compressed_pdf is None:
+                logger.error(f"Failed to compress for preset: {preset_name}")
+                return None
+            sizes[preset_name] = len(compressed_pdf)
+
+        return sizes
+    except Exception as e:
+        logger.error(f"Size estimation error: {str(e)}")
+        return None
+    
+
+def estimate_compression_sizes(pdf_bytes: bytes, custom_dpi: int, custom_quality: int) -> Optional[Dict[str, int]]:
+    """Estimate output sizes for all compression presets."""
+    try:
+        sizes = {}
+        presets = [
+            ("high", 72, 20),
+            ("medium", 100, 30),
+            ("low", 120, 40),
+            ("custom", custom_dpi, custom_quality)
+        ]
+
+        for preset_name, dpi, quality in presets:
+            compressed_pdf = safe_compress_pdf(pdf_bytes, dpi, quality)
+            if compressed_pdf is None:
+                logger.error(f"Failed to compress for preset: {preset_name}")
+                return None
+            sizes[preset_name] = len(compressed_pdf)
+
+        return sizes
+    except Exception as e:
+        logger.error(f"Size estimation error: {str(e)}")
         return None

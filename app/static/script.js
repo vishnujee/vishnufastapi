@@ -1,5 +1,225 @@
-const BASE_URL = window.location.origin;
+// const BASE_URL = window.location.origin;
+// async function processPDF(endpoint, formId) {
+//     const form = document.getElementById(formId);
+//     const formData = new FormData(form);
+//     const resultDiv = document.getElementById(`result-${formId}`);
+//     const submitButton = form.querySelector('button');
+//     const progressDiv = document.getElementById(`progress-${formId}`);
+//     const progressText = document.getElementById(`progress-text-${formId}`);
+
+
+//     // Add conversion type to form data
+//     const conversionType = form.querySelector('input[name="conversionType"]:checked').value;
+//     formData.append('file', form.querySelector('input[type="file"]').files[0]);
+//     formData.append('conversion_type', conversionType);  // Must match backend parameter
+//     console.log(conversionType);
+
+//     if (!validateForm(form, endpoint, resultDiv)) return;
+
+//     console.log('Sending request to:', `${BASE_URL}/${endpoint}`);
+//     console.log('FormData contents:');
+//     for (const [key, value] of formData.entries()) {
+//         console.log(`${key}: ${value instanceof File ? value.name : value}`);
+//     }
+
+//     submitButton.disabled = true;
+//     progressDiv.style.display = 'block';
+//     progressText.textContent = 'Preparing files...';
+//     let progress = 0;
+//     const progressInterval = setInterval(() => {
+//         progress = Math.min(progress + 10, 90);
+//         progressDiv.querySelector('progress').value = progress;
+//         progressText.textContent = `Uploading... ${progress}%`;
+//     }, 200);
+
+//     try {
+//         const response = await fetch(`${BASE_URL}/${endpoint}`, {
+//             method: 'POST',
+//             body: formData,
+//             headers: {
+//                 // Let browser set Content-Type with boundary automatically
+//             }
+//         });
+//         clearInterval(progressInterval);
+//         progressDiv.querySelector('progress').value = 100;
+//         progressText.textContent = 'Processing complete!';
+
+//         if (response.ok) {
+//             const blob = await response.blob();
+//             const contentDisposition = response.headers.get('Content-Disposition');
+//             let filename = 'output.pdf';
+//             if (contentDisposition) {
+//                 const match = contentDisposition.match(/filename="(.+)"|filename=([^;]+)/i);
+//                 if (match) filename = match[1] || match[2];
+//             }
+//             const url = window.URL.createObjectURL(blob);
+//             const a = document.createElement('a');
+//             a.href = url;
+//             a.download = filename;
+//             a.click();
+//             window.URL.revokeObjectURL(url);
+//             resultDiv.textContent = 'Page numbers added successfully!';
+//             resultDiv.classList.remove('text-red-600');
+//             resultDiv.classList.add('text-green-600');
+//         } else {
+//             const error = await response.json();
+//             console.error('Backend error:', error);
+//             resultDiv.textContent = `Error: ${error.detail || 'Unknown error'}`;
+//             resultDiv.classList.remove('text-green-600');
+//             resultDiv.classList.add('text-red-600');
+//         }
+//     } catch (e) {
+//         clearInterval(progressInterval);
+//         console.error('Fetch error:', e, 'Endpoint:', endpoint);
+//         resultDiv.textContent = `Error: ${e.message}. Please check the server logs.`;
+//         resultDiv.classList.remove('text-green-600');
+//         resultDiv.classList.add('text-red-600');
+//     } finally {
+//         submitButton.disabled = false;
+//         setTimeout(() => {
+//             progressDiv.style.display = 'none';
+//             progressText.textContent = '';
+//         }, 2000);
+//     }
+// }
+
+const BASE_URL = window.location.origin  // Adjust if backend API path differs
+
+
+function updateFileSize() {
+    const fileInput = document.getElementById('compress-file');
+    const fileSizeDisplay = document.getElementById('original-file-size');
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        fileSizeDisplay.textContent = `Original File Size: ${sizeMB} MB`;
+    } else {
+        fileSizeDisplay.textContent = 'Original File Size: Not selected';
+    }
+}
+
+
+
+async function computeAllCompressionSizes() {
+    console.log('Computing all compression sizes');
+    const form = document.getElementById('compressForm');
+    const fileInput = form.querySelector('input[type="file"]');
+    const resultDiv = document.getElementById('result-compressForm');
+    const progressDiv = document.getElementById('progress-compressForm');
+    const progressText = document.getElementById('progress-text-compressForm');
+    const compressionResults = document.getElementById('compression-results');
+    const compressionSizes = document.getElementById('compression-sizes');
+    const computeButton = form.querySelector('button[onclick="computeAllCompressionSizes()"]');
+
+    if (!fileInput.files.length) {
+        resultDiv.textContent = 'Please select a PDF file.';
+        resultDiv.classList.add('text-red-600');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const sizeMB = file.size / (1024 * 1024);
+    if (sizeMB > 160) {
+        resultDiv.textContent = `File ${file.name} exceeds 160MB limit.`;
+        resultDiv.classList.add('text-red-600');
+        return;
+    }
+    if (file.type !== 'application/pdf') {
+        resultDiv.textContent = `File ${file.name} must be a PDF.`;
+        resultDiv.classList.add('text-red-600');
+        return;
+    }
+
+    const customDpi = form.querySelector('input[name="custom_dpi"]').value;
+    const customQuality = form.querySelector('input[name="custom_quality"]').value;
+    if (customDpi && customQuality) {
+        const dpi = parseInt(customDpi);
+        const quality = parseInt(customQuality);
+        if (dpi < 50 || dpi > 400 || quality < 10 || quality > 100) {
+            resultDiv.textContent = 'Invalid custom DPI (50-400) or quality (10-100).';
+            resultDiv.classList.add('text-red-600');
+            return;
+        }
+    }
+
+    resultDiv.textContent = '';
+    resultDiv.classList.remove('text-red-600', 'text-green-600');
+    progressDiv.style.display = 'block';
+    progressText.textContent = 'Estimating sizes...';
+    computeButton.disabled = true;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('custom_dpi', customDpi || '180');
+    formData.append('custom_quality', customQuality || '50');
+
+    try {
+        const response = await fetch(`${BASE_URL}/estimate_compression_sizes`, {
+            method: 'POST',
+            body: formData
+        });
+
+        progressDiv.style.display = 'none';
+        computeButton.disabled = false;
+
+        if (response.ok) {
+            const sizes = await response.json();
+            compressionSizes.innerHTML = `
+                <li>High Compression (72 DPI, 20% Quality): ${sizes.high.toFixed(2)} MB</li>
+                <li>Medium Compression (100 DPI, 30% Quality): ${sizes.medium.toFixed(2)} MB</li>
+                <li>Low Compression (120 DPI, 40% Quality): ${sizes.low.toFixed(2)} MB</li>
+                <li>Custom Compression (${customDpi} DPI, ${customQuality}% Quality): ${sizes.custom.toFixed(2)} MB</li>
+            `;
+            compressionResults.classList.remove('hidden');
+            resultDiv.textContent = 'Estimated sizes calculated successfully!';
+            resultDiv.classList.add('text-green-600');
+        } else {
+            const error = await response.json();
+            console.error('Estimation error:', error);
+            resultDiv.textContent = `Error: ${error.detail || 'Unknown error'}`;
+            resultDiv.classList.add('text-red-600');
+        }
+    } catch (e) {
+        console.error('Fetch error:', e);
+        progressDiv.style.display = 'none';
+        computeButton.disabled = false;
+        resultDiv.textContent = `Error: ${e.message}. Please check the server logs.`;
+        resultDiv.classList.add('text-red-600');
+    }
+}
+
+// Add slider value display update
+function initSliders() {
+    const dpiSlider = document.getElementById('custom_dpi');
+    const qualitySlider = document.getElementById('custom_quality');
+    const dpiValue = document.getElementById('dpi-value');
+    const qualityValue = document.getElementById('quality-value');
+
+    if (dpiSlider && dpiValue) {
+        dpiSlider.addEventListener('input', () => {
+            dpiValue.textContent = dpiSlider.value;
+        });
+    }
+    if (qualitySlider && qualityValue) {
+        qualitySlider.addEventListener('input', () => {
+            qualityValue.textContent = qualitySlider.value;
+        });
+    }
+}
+
+// Call initSliders on page load
+// document.addEventListener('DOMContentLoaded', initSliders);
+
+// Existing toggleCustomInputs (unchanged)
+function toggleCustomInputs() {
+    const preset = document.getElementById('compress-preset').value;
+    const customOptions = document.getElementById('custom-compress-options');
+    customOptions.classList.toggle('hidden', preset !== 'Custom');
+}
+
+
 async function processPDF(endpoint, formId) {
+    console.log(`Processing PDF for endpoint: ${endpoint}, form: ${formId}`);
     const form = document.getElementById(formId);
     const formData = new FormData(form);
     const resultDiv = document.getElementById(`result-${formId}`);
@@ -7,7 +227,37 @@ async function processPDF(endpoint, formId) {
     const progressDiv = document.getElementById(`progress-${formId}`);
     const progressText = document.getElementById(`progress-text-${formId}`);
 
-    if (!validateForm(form, endpoint, resultDiv)) return;
+    if (!form) {
+        console.error(`Form with ID ${formId} not found`);
+        resultDiv.textContent = 'Form not found.';
+        resultDiv.classList.add('text-red-600');
+        return;
+    }
+
+    // Add compression-specific parameters for compress_pdf
+    if (endpoint === 'compress_pdf') {
+        const preset = form.querySelector('select[name="preset"]').value;
+        formData.append('preset', preset);
+        if (preset === 'Custom') {
+            const customDpi = form.querySelector('input[name="custom_dpi"]').value;
+            const customQuality = form.querySelector('input[name="custom_quality"]').value;
+            formData.append('custom_dpi', customDpi);
+            formData.append('custom_quality', customQuality);
+        }
+    } else {
+        // Add conversion type for other endpoints if applicable
+        const conversionTypeInput = form.querySelector('input[name="conversionType"]:checked');
+        if (conversionTypeInput) {
+            const conversionType = conversionTypeInput.value;
+            formData.append('conversion_type', conversionType);
+            console.log('Conversion type:', conversionType);
+        }
+    }
+
+    if (!validateForm(form, endpoint, resultDiv)) {
+        console.log('Validation failed');
+        return;
+    }
 
     console.log('Sending request to:', `${BASE_URL}/${endpoint}`);
     console.log('FormData contents:');
@@ -37,7 +287,7 @@ async function processPDF(endpoint, formId) {
         if (response.ok) {
             const blob = await response.blob();
             const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = 'output.pdf';
+            let filename = endpoint === 'compress_pdf' ? 'compressed.pdf' : 'output.pdf';
             if (contentDisposition) {
                 const match = contentDisposition.match(/filename="(.+)"|filename=([^;]+)/i);
                 if (match) filename = match[1] || match[2];
@@ -48,7 +298,7 @@ async function processPDF(endpoint, formId) {
             a.download = filename;
             a.click();
             window.URL.revokeObjectURL(url);
-            resultDiv.textContent = 'Page numbers added successfully!';
+            resultDiv.textContent = endpoint === 'compress_pdf' ? 'PDF compressed successfully!' : 'Page numbers added successfully!';
             resultDiv.classList.remove('text-red-600');
             resultDiv.classList.add('text-green-600');
         } else {
@@ -71,7 +321,7 @@ async function processPDF(endpoint, formId) {
             progressText.textContent = '';
         }, 2000);
     }
-}
+}   
 
 function updateFileOrder(files) {
     const fileOrder = Array.from(files).map(file => file.dataset.fileIndex);
@@ -270,6 +520,96 @@ function validateForm(form, endpoint, resultDiv) {
         }
 
 
+    }
+
+    // Add to your validateForm function (inside the else if chain)
+    else if (endpoint === 'convert_pdf_to_ppt') {
+        const file = files[0];
+        const sizeMB = file.size / (1024 * 1024);
+        if (sizeMB > 10) {
+            resultDiv.textContent = `File ${file.name} exceeds 10MB limit.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        if (file.type !== 'application/pdf') {
+            resultDiv.textContent = `File ${file.name} must be a PDF.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+    }
+
+
+    // else if (endpoint === 'compress_pdf') {
+    //     const file = files[0];
+    //     const sizeMB = file.size / (1024 * 1024);
+    //     if (sizeMB > 160) {
+    //         resultDiv.textContent = `File ${file.name} exceeds 160MB limit.`;
+    //         resultDiv.classList.add('text-red-600');
+    //         return false;
+    //     }
+    //     if (file.type !== 'application/pdf') {
+    //         resultDiv.textContent = `File ${file.name} must be a PDF.`;
+    //         resultDiv.classList.add('text-red-600');
+    //         return false;
+    //     }
+    //     const preset = form.querySelector('select[name="preset"]').value;
+    //     if (!['High', 'Medium', 'Low', 'Custom'].includes(preset)) {
+    //         resultDiv.textContent = 'Invalid preset. Choose High, Medium, Low, or Custom.';
+    //         resultDiv.classList.add('text-red-600');
+    //         return false;
+    //     }
+    //     if (preset === 'Custom') {
+    //         const customDpi = form.querySelector('input[name="custom_dpi"]').value;
+    //         const customQuality = form.querySelector('input[name="custom_quality"]').value;
+    //         if (!customDpi || !customQuality) {
+    //             resultDiv.textContent = 'Custom preset requires DPI and quality values.';
+    //             resultDiv.classList.add('text-red-600');
+    //             return false;
+    //         }
+    //         const dpi = parseInt(customDpi);
+    //         const quality = parseInt(customQuality);
+    //         if (dpi < 50 || dpi > 400 || quality < 10 || quality > 100) {
+    //             resultDiv.textContent = 'Invalid custom DPI (50-400) or quality (10-100).';
+    //             resultDiv.classList.add('text-red-600');
+    //             return false;
+    //         }
+    //     }
+    // }
+    if (endpoint === 'compress_pdf') {
+        const file = files[0];
+        const sizeMB = file.size / (1024 * 1024);
+        if (sizeMB > 160) {
+            resultDiv.textContent = `File ${file.name} exceeds 160MB limit.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        if (file.type !== 'application/pdf') {
+            resultDiv.textContent = `File ${file.name} must be a PDF.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        const preset = form.querySelector('select[name="preset"]').value;
+        if (!['High', 'Medium', 'Low', 'Custom'].includes(preset)) {
+            resultDiv.textContent = 'Invalid preset. Choose High, Medium, Low, or Custom.';
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        if (preset === 'Custom') {
+            const customDpi = form.querySelector('input[name="custom_dpi"]').value;
+            const customQuality = form.querySelector('input[name="custom_quality"]').value;
+            if (!customDpi || !customQuality) {
+                resultDiv.textContent = 'Custom preset requires DPI and quality values.';
+                resultDiv.classList.add('text-red-600');
+                return false;
+            }
+            const dpi = parseInt(customDpi);
+            const quality = parseInt(customQuality);
+            if (dpi < 50 || dpi > 400 || quality < 10 || quality > 100) {
+                resultDiv.textContent = 'Invalid custom DPI (50-400) or quality (10-100).';
+                resultDiv.classList.add('text-red-600');
+                return false;
+            }
+        }
     }
 
     else {
@@ -602,6 +942,7 @@ function showTool(toolId) {
 // }
 
 updateFileLabel('removeBackground-file', 'removeBackground-file-name');
+updateFileLabel('compress-file', 'compress-file-name');
 
 // Process image for background removal
 async function processImage(endpoint, formId) {
@@ -657,3 +998,7 @@ async function processImage(endpoint, formId) {
 
 
 
+document.addEventListener('DOMContentLoaded', () => {
+    initSliders();
+    updateFileSize(); // Initialize file size display
+});

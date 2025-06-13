@@ -294,4 +294,90 @@
 
 
 
+/* slider for compress */
+/* Existing Slider Styling */
+input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 8px;
+    background: #e5e7eb; /* gray-200 */
+    border-radius: 5px;
+    outline: none;
+    transition: background 0.3s;
+}
 
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #6b7280; /* gray-500 */
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #6b7280; /* gray-500 */
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+input[type="range"]::-ms-thumb {
+    width: 20px;
+    height: 20px;
+    background: #6b7280; /* gray-500 */
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+input[type="range"]:hover::-webkit-slider-thumb,
+input[type="range"]:hover::-moz-range-thumb,
+input[type="range"]:hover::-ms-thumb {
+    background: #7c3aed; /* purple-600 */
+}
+
+input[type="range"]:focus {
+    background: #d1d5db; /* gray-300 */
+}
+
+#dpi-value, #quality-value {
+    display: inline-block;
+    margin-left: 10px;
+    font-size: 0.875rem; /* text-sm */
+    color: #4b5563; /* gray-600 */
+}
+
+/* New Styles for Compression Results */
+#compression-results {
+    background-color: #f9fafb; /* gray-50 */
+    border: 1px solid #e5e7eb; /* gray-200 */
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+
+#compression-sizes {
+    list-style-type: disc;
+    padding-left: 1.25rem;
+}
+
+#compression-sizes li {
+    margin-bottom: 0.25rem;
+}
+
+/* Button Layout */
+.flex.space-x-4 {
+    display: flex;
+    gap: 1rem;
+}
+
+.bg-blue-600 {
+    background-color: #2563eb;
+}
+
+.bg-blue-600:hover {
+    background-color: #1d4ed8;
+}

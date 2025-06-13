@@ -71,6 +71,8 @@
                                 onclick="showTool('pdfToWord-section')">PDF to Word</a>
                             <a href="#pdf-to-excel" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                                 onclick="showTool('pdfToExcel-section')">PDF to Excel</a>
+                            <a href="#pdf-to-ppt" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('pdfToPpt-section')">PDF to PPT</a>
                             <a href="#image-to-pdf" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                                 onclick="showTool('imageToPdf-section')">Image to PDF</a>
                             <a href="#remove-password" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
@@ -125,6 +127,8 @@
                             onclick="showTool('pdfToWord-section')">PDF to Word</a>
                         <a href="#pdf-to-excel" class="block py-2 text-gray-700 hover:text-green-600"
                             onclick="showTool('pdfToExcel-section')">PDF to Excel</a>
+                        <a href="#pdf-to-ppt" class="block py-2 text-gray-700 hover:bg-gray-100"
+                                onclick="showTool('pdfToPpt-section')">PDF to PPT</a>
                         <a href="#image-to-pdf" class="block py-2 text-gray-700 hover:text-green-600"
                             onclick="showTool('imageToPdf-section')">Image to PDF</a>
                         <a href="#remove-password" class="block py-2 text-gray-700 hover:text-green-600"
@@ -297,7 +301,7 @@
             </div>
 
             <!-- Compress PDF -->
-            <div id="compress-section" class="tool-section" style="display: none;">
+            <!-- <div id="compress-section" class="tool-section" style="display: none;">
                 <div class="bg-white p-6 rounded-xl shadow-md tool-card">
                     <div class="flex items-center mb-4">
                         <div class="bg-purple-100 p-2 rounded-full mr-3">
@@ -341,7 +345,70 @@
                         <p id="result-compressForm" class="text-sm text-center"></p>
                     </form>
                 </div>
+            </div> -->
+
+           <!-- Replace the compress_pdf section with this -->
+           <div id="compress-section" class="tool-section">
+            <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+                <div class="flex items-center mb-4">
+                    <div class="bg-purple-100 p-2 rounded-full mr-3">
+                        <i class="fas fa-compress-alt text-purple-600 text-xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-semibold text-gray-800">Compress PDF</h2>
+                </div>
+                <form id="compressForm" class="space-y-4">
+                    <div>
+                        <label for="compress-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF File (Max 160MB)</label>
+                        <div class="flex items-center">
+                            <label class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                                <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                                <input type="file" id="compress-file" name="file" accept=".pdf" required class="hidden" onchange="updateFileSize()">
+                            </label>
+                            <span id="compress-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+                        </div>
+                        <p id="original-file-size" class="text-sm text-gray-600 mt-2">Original File Size: Not selected</p>
+                    </div>
+                    <div>
+                        <label for="compress-preset" class="block text-sm font-medium text-gray-600 mb-1">Compression Level</label>
+                        <select id="compress-preset" name="preset" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" onchange="toggleCustomInputs()">
+                            <option value="High">High Compression (72 DPI, 20% Quality)</option>
+                            <option value="Medium">Medium Compression (100 DPI, 30% Quality)</option>
+                            <option value="Low">Low Compression (120 DPI, 40% Quality)</option>
+                            <option value="Custom">Custom</option>
+                        </select>
+                    </div>
+                    <div id="custom-compress-options" class="hidden space-y-4">
+                        <div>
+                            <label for="custom_dpi" class="block text-sm font-medium text-gray-600 mb-1">DPI (50-400)</label>
+                            <input type="range" id="custom_dpi" name="custom_dpi" min="50" max="400" value="180" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <span id="dpi-value" class="text-sm text-gray-600">180</span>
+                        </div>
+                        <div>
+                            <label for="custom_quality" class="block text-sm font-medium text-gray-600 mb-1">Quality (10-100)</label>
+                            <input type="range" id="custom_quality" name="custom_quality" min="10" max="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <span id="quality-value" class="text-sm text-gray-600">50</span>
+                        </div>
+                    </div>
+                    <div class="flex space-x-4">
+                        <button type="button" onclick="processPDF('compress_pdf', 'compressForm')" class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-compress-alt mr-2"></i> Compress PDF
+                        </button>
+                        <button type="button" onclick="computeAllCompressionSizes()" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                            <i class="fas fa-calculator mr-2"></i> Compute All Compression
+                        </button>
+                    </div>
+                    <div id="compression-results" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
+                        <h3 class="text-lg font-medium text-gray-800 mb-2">Estimated Compression Sizes</h3>
+                        <ul id="compression-sizes" class="text-sm text-gray-600 space-y-1"></ul>
+                    </div>
+                    <div class="progress" id="progress-compressForm">
+                        <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                        <div class="progress-text" id="progress-text-compressForm"></div>
+                    </div>
+                    <p id="result-compressForm" class="text-sm text-center"></p>
+                </form>
             </div>
+        </div>
 
             <!-- Encrypt PDF -->
             <div id="encrypt-section" class="tool-section" style="display: none;">
@@ -541,6 +608,45 @@
                     </form>
                 </div>
             </div>
+
+
+            <!-- Convert PDF to PowerPoint -->
+            <div id="pdfToPpt-section" class="tool-section">
+                <div class="flex items-center mb-4">
+                    <div class="bg-blue-100 p-2 rounded-full mr-3">
+                        <i class="fas fa-file-powerpoint text-orange-600 text-xl"></i>
+
+                    </div>
+                    <h2 class="text-2xl font-semibold text-gray-800">Convert PDF to PPT</h2>
+                </div>
+                <form id="pdfToPptForm" class="space-y-4">
+                    <!-- File input -->
+                    <input type="file" name="file" accept=".pdf" required>
+                    
+                    <!-- Conversion type selector -->
+                    <div class="conversion-options">
+                        <div class="conversion-options">
+                            <input type="radio" id="imageBased" name="conversionType" value="image" checked>
+                            <label for="imageBased">Image-based</label>
+                            
+                            <input type="radio" id="editable" name="conversionType" value="editable">
+                            <label for="editable">Editable</label>
+                        </div>
+                   
+                    </div>
+                    <button type="button" onclick="processPDF('convert_pdf_to_ppt', 'pdfToPptForm')"
+                        class="w-full bg-orange-600 text-white p-3 rounded-lg hover:bg-orange-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                        <i class="fas fa-file-powerpoint mr-2"></i> Convert to PowerPoint
+                    </button>
+                    <div class="progress" id="progress-pdfToPptForm">
+                        <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                        <div class="progress-text" id="progress-text-pdfToPptForm"></div>
+                    </div>
+                    <p id="result-pdfToPptForm" class="text-sm text-center"></p>
+                </form>
+            </div>
+        </div>
+
 
             <!-- Convert PDF to Excel -->
             <div id="pdfToExcel-section" class="tool-section" style="display: none;">
@@ -965,10 +1071,10 @@
 
             document.getElementById('mobile-menu-button').addEventListener('click', toggleMobileMenu);
             // 
-            function updatePageOrder(pages) {
-                const pageOrder = Array.from(pages).map(page => page.dataset.pageNum);
-                document.getElementById('reorder-page-order').value = pageOrder.join(',');
-            }
+                function updatePageOrder(pages) {
+                    const pageOrder = Array.from(pages).map(page => page.dataset.pageNum);
+                    document.getElementById('reorder-page-order').value = pageOrder.join(',');
+                }
 
             function updateButtonStates(pages) {
                 pages.forEach((page, index) => {
@@ -1009,7 +1115,8 @@
             updateFileLabel('pageNumbers-file', 'pageNumbers-file-name');
             updateFileLabel('signature-pdf-file', 'signature-pdf-file-name');
             updateFileLabel('signature-image-file', 'signature-image-file-name');
-            updateFileLabel('removeBackground-file', 'removeBackground-file-name'); // Add this line
+            updateFileLabel('removeBackground-file', 'removeBackground-file-name'); 
+            updateFileLabel('pdfToPpt-file', 'pdfToPpt-file-name');
 
             // Show chat section by default
             document.getElementById('chat-section').style.display = 'block';

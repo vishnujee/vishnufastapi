@@ -16,10 +16,13 @@ import io
 import json
 import asyncio
 from pinecone import Pinecone, ServerlessSpec
-from langchain_core.vectorstores.base import VectorStoreRetriever
-from pydantic import BaseModel
+# from langchain_core.vectorstores.base import VectorStoreRetriever
+# from pydantic import BaseModel
 from botocore.exceptions import ClientError
-##
+
+
+import gc
+
 from typing import Any, Dict, List, Optional
 from pydantic import Field
 from langchain_core.retrievers import BaseRetriever
@@ -29,9 +32,9 @@ from langchain_core.documents import Document
 
 #langchain
 # LangChain & Embeddings
-from langchain_community.document_loaders import PyPDFLoader, WebBaseLoader,PyMuPDFLoader
+# from langchain_community.document_loaders import PyPDFLoader, WebBaseLoader,PyMuPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_google_genai import  ChatGoogleGenerativeAI
 from langchain_chroma import Chroma
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -39,21 +42,21 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.documents import Document
 #### for openai
 from langchain_openai import OpenAIEmbeddings
-from pathlib import Path
+# from pathlib import Path
 import hashlib
-from PyPDF2 import  PdfReader
+# from PyPDF2 import  PdfReader
 from dotenv import load_dotenv
 from rembg import remove
 
 from app.pdf_operations import  (
-    upload_to_s3, download_from_s3, cleanup_s3_file, get_memory_info,
+    upload_to_s3, cleanup_s3_file,
     merge_pdfs_pypdf2, merge_pdfs_ghostscript, safe_compress_pdf, encrypt_pdf,
     convert_pdf_to_images, split_pdf, delete_pdf_pages, convert_pdf_to_word,
     convert_pdf_to_excel, convert_image_to_pdf, remove_pdf_password,reorder_pdf_pages,
-    add_page_numbers, add_signature,remove_background_rembg
+    add_page_numbers, add_signature,remove_background_rembg,convert_pdf_to_ppt,convert_pdf_to_editable_ppt,
+    estimate_compression_sizes
 )
-from typing import List
-import gc
+
 
 load_dotenv()
 
@@ -84,16 +87,16 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # AWS Detection (place this right after load_dotenv())
 
 # Environment Detection - Corrected Version
-IS_AWS = any(
-    key in os.environ 
-    for key in [
-        "AWS_EXECUTION_ENV",  # Lambda
-        "ECS_CONTAINER_METADATA_URI",  # ECS
-    ]
-) or (
-    "USER" in os.environ and os.environ.get("USER") in ["ubuntu", "ec2-user"]  # Common AWS default users
-)
-LOCAL_MODE = not IS_AWS
+# IS_AWS = any(
+#     key in os.environ 
+#     for key in [
+#         "AWS_EXECUTION_ENV",  # Lambda
+#         "ECS_CONTAINER_METADATA_URI",  # ECS
+#     ]
+# ) or (
+#     "USER" in os.environ and os.environ.get("USER") in ["ubuntu", "ec2-user"]  # Common AWS default users
+# )
+# LOCAL_MODE = not IS_AWS
 
 
 
@@ -124,7 +127,125 @@ def download_from_url(url):
         raise HTTPException(status_code=500, detail=f"Failed to download PDF: {str(e)}")
     
 
-###
+
+
+##### VECTOR STORE
+
+# BASE_DIR = Path(__file__).parent.parent
+# PERSIST_DIRECTORY = str(BASE_DIR / "chroma_db")  # Will create in your project root
+
+# # Ensure directory exists
+# os.makedirs(PERSIST_DIRECTORY, exist_ok=True)
+
+
+# s3_client = boto3.client(
+#     "s3",
+#     aws_access_key_id=AWS_ACCESS_KEY,
+#     aws_secret_access_key=AWS_SECRET_KEY,
+# )
+
+# # Initialize Vector Store from S3 PDF
+
+# def initialize_vectorstore():
+#     try:
+#         # Download PDF from URL
+#         pdf_bytes = download_from_url(PDF_URL)
+        
+#         # Debug: Save local copy
+#         with open("debug_pdf.pdf", "wb") as f:
+#             f.write(pdf_bytes)
+#         logger.info(f"Downloaded PDF from {PDF_URL}, size: {len(pdf_bytes)} bytes")
+
+#         # Process PDF
+#         documents = []
+#         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+#             for page_num, page in enumerate(pdf.pages):
+#                 text = page.extract_text(layout=True) or ""
+#                 tables = page.extract_tables()
+                
+#                 table_content = ""
+#                 if tables:
+#                     for table in tables:
+#                         table_content += "\n" + "\n".join(" | ".join(str(cell) for cell in row) for row in table)
+                
+#                 content = text + table_content
+#                 if content.strip():
+#                     documents.append(Document(
+#                         page_content=content,
+#                         metadata={
+#                             "source": PDF_URL,
+#                             "page": page_num + 1,
+#                             "content_type": "text_and_tables",
+#                             "document_type": "education_records"
+#                         }
+#                     ))
+
+#         # Text splitting
+#         text_splitter = RecursiveCharacterTextSplitter(
+#             chunk_size=10000,
+#             chunk_overlap=300,
+#             length_function=len,
+#             add_start_index=True
+#         )
+#         splits = text_splitter.split_documents(documents)
+
+#         # Initialize embeddings
+#         embeddings = OpenAIEmbeddings(
+#             model="text-embedding-3-large",
+#             dimensions=1024,
+#             api_key=OPENAI_API_KEY
+#         )
+
+#         # Create ChromaDB instance - persistence is automatic with persist_directory
+#         vectorstore = Chroma.from_documents(
+#             documents=splits,
+#             embedding=embeddings,
+#             persist_directory=str(PERSIST_DIRECTORY),  # Convert to string if Path object
+#             collection_name="vishnu_ai_docs"
+#         )
+        
+#         logger.info(f"ChromaDB initialized with {vectorstore._collection.count()} documents")
+#         return vectorstore
+        
+#     except Exception as e:
+#         logger.error(f"Vectorstore initialization failed: {e}", exc_info=True)
+#         raise HTTPException(status_code=500, detail=f"Failed to initialize vectorstore: {str(e)}")
+
+
+
+# # Initialize LLM
+# def get_llm():
+#     return ChatGoogleGenerativeAI(
+#         model="gemini-2.0-flash",
+#         temperature=0.3,
+#         max_tokens=800,
+#         timeout=None,
+#         api_key=GOOGLE_API_KEY
+#     )
+
+# # Cache vectorstore and retriever
+# vectorstore = initialize_vectorstore()
+# retriever = vectorstore.as_retriever(
+#     search_type="mmr",
+#     search_kwargs={
+#         "k": 5,
+#         "fetch_k": 10,
+#         "lambda_mult": 0.5,
+#         "score_threshold": 0.85,
+#         "filter": {
+#             "$or": [
+#                 {"source": PDF_URL},
+#                 {"content_type": {"$in": ["mixed_text_and_tables", "structured_table", "text", "mixed_text"]}}
+#             ]
+#         }
+#     }
+# )
+
+
+
+###  PINECONE CLOUD 
+
+
 class PineconeRetriever(BaseRetriever):
     index: Any = Field(...)
     embeddings: Any = Field(...)
@@ -271,12 +392,7 @@ retriever = PineconeRetriever(
         "filter": {"document_type": "education_records"}
     }
 )
-# retriever = PineconeRetriever(
-#     index=index,
-#     embeddings=embeddings,
-#     search_type="similarity",
-#     search_kwargs={"k": 3}
-# )
+
 llm = get_llm()
 
 # System Prompt
@@ -446,23 +562,42 @@ async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("Py
         gc.collect()
 
 
-@app.post("/compress_pdf")
-async def compress_pdf(file: UploadFile = File(...), preset: str = Form(...)):
-    logger.info(f"Received compress request for {file.filename}")
-    if file.size / (1024 * 1024) > 55:
-        raise HTTPException(status_code=400, detail="File exceeds 55MB limit")
 
-    compression_presets = {
-        "High": {"dpi": 72, "quality": 20},
-        "Medium": {"dpi": 100, "quality": 30},
-        "Low": {"dpi": 120, "quality": 40},
-        "Custom": {"dpi": 180, "quality": 50}
-    }
+compression_presets = {
+    "High": {"dpi": 72, "quality": 20},
+    "Medium": {"dpi": 100, "quality": 30},
+    "Low": {"dpi": 120, "quality": 40},
+    "Custom": {"dpi": 180, "quality": 50}
+}
+
+@app.post("/compress_pdf")
+async def compress_pdf(
+    file: UploadFile = File(...),
+    preset: str = Form(...),
+    custom_dpi: int = Form(None),
+    custom_quality: int = Form(None)
+):
+    logger.info(f"Compress request: file={file.filename}, preset={preset}, custom_dpi={custom_dpi}, custom_quality={custom_quality}")
+    MAX_FILE_SIZE_MB = 160
+    if file.size / (1024 * 1024) > MAX_FILE_SIZE_MB:
+        logger.error(f"File {file.filename} exceeds {MAX_FILE_SIZE_MB}MB limit")
+        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE_MB}MB limit")
+
     if preset not in compression_presets:
+        logger.error(f"Invalid preset: {preset}")
         raise HTTPException(status_code=422, detail="Invalid preset. Choose: High, Medium, Low, Custom")
-    
+
     dpi = compression_presets[preset]["dpi"]
     quality = compression_presets[preset]["quality"]
+    if preset == "Custom":
+        if custom_dpi is None or custom_quality is None:
+            logger.error("Custom preset missing dpi or quality")
+            raise HTTPException(status_code=400, detail="Custom preset requires custom_dpi and custom_quality")
+        if not (50 <= custom_dpi <= 400 and 10 <= custom_quality <= 100):
+            logger.error(f"Invalid custom_dpi={custom_dpi} or custom_quality={custom_quality}")
+            raise HTTPException(status_code=400, detail="Invalid custom_dpi (50-400) or custom_quality (10-100)")
+        dpi = custom_dpi
+        quality = custom_quality
 
     s3_key = None
     try:
@@ -470,20 +605,97 @@ async def compress_pdf(file: UploadFile = File(...), preset: str = Form(...)):
         s3_key = upload_to_s3(file_content, file.filename)
         compressed_pdf = safe_compress_pdf(file_content, dpi, quality)
         if not compressed_pdf:
+            logger.error("Compression failed, no output returned")
             raise HTTPException(status_code=500, detail="Compression failed")
 
+        logger.info("Compression successful")
         return StreamingResponse(
             io.BytesIO(compressed_pdf),
             media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="compressed_{file.filename}"'}
         )
     except Exception as e:
-        logger.error(f"Compression error: {e}")
+        logger.error(f"Compression error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"PDF compression failed: {str(e)}")
     finally:
         if s3_key:
             cleanup_s3_file(s3_key)
         gc.collect()
+
+@app.post("/estimate_compression_sizes")
+async def estimate_sizes(
+    file: UploadFile = File(...),
+    custom_dpi: int = Form(180),
+    custom_quality: int = Form(50)
+):
+    logger.info(f"Estimate sizes request: file={file.filename}, custom_dpi={custom_dpi}, custom_quality={custom_quality}")
+    MAX_FILE_SIZE_MB = 160
+    if file.size / (1024 * 1024) > MAX_FILE_SIZE_MB:
+        logger.error(f"File {file.filename} exceeds {MAX_FILE_SIZE_MB}MB limit")
+        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE_MB}MB limit")
+
+    if not (50 <= custom_dpi <= 400 and 10 <= custom_quality <= 100):
+        logger.error(f"Invalid custom_dpi={custom_dpi} or custom_quality={custom_quality}")
+        raise HTTPException(status_code=400, detail="Invalid custom_dpi (50-400) or custom_quality (10-100)")
+
+    try:
+        file_content = await file.read()
+        sizes = estimate_compression_sizes(file_content, custom_dpi, custom_quality)
+        if not sizes:
+            logger.error("Size estimation failed")
+            raise HTTPException(status_code=500, detail="Size estimation failed")
+
+        logger.info("Size estimation successful")
+        return JSONResponse(content={
+            "high": sizes["high"] / (1024 * 1024),  # Convert bytes to MB
+            "medium": sizes["medium"] / (1024 * 1024),
+            "low": sizes["low"] / (1024 * 1024),
+            "custom": sizes["custom"] / (1024 * 1024)
+        })
+    except Exception as e:
+        logger.error(f"Size estimation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Size estimation failed: {str(e)}")
+    finally:
+        gc.collect()
+
+# @app.post("/compress_pdf")
+# async def compress_pdf(file: UploadFile = File(...), preset: str = Form(...)):
+#     logger.info(f"Received compress request for {file.filename}")
+#     if file.size / (1024 * 1024) > 55:
+#         raise HTTPException(status_code=400, detail="File exceeds 55MB limit")
+
+#     compression_presets = {
+#         "High": {"dpi": 72, "quality": 20},
+#         "Medium": {"dpi": 100, "quality": 30},
+#         "Low": {"dpi": 120, "quality": 40},
+#         "Custom": {"dpi": 180, "quality": 50}
+#     }
+#     if preset not in compression_presets:
+#         raise HTTPException(status_code=422, detail="Invalid preset. Choose: High, Medium, Low, Custom")
+    
+#     dpi = compression_presets[preset]["dpi"]
+#     quality = compression_presets[preset]["quality"]
+
+#     s3_key = None
+#     try:
+#         file_content = await file.read()
+#         s3_key = upload_to_s3(file_content, file.filename)
+#         compressed_pdf = safe_compress_pdf(file_content, dpi, quality)
+#         if not compressed_pdf:
+#             raise HTTPException(status_code=500, detail="Compression failed")
+
+#         return StreamingResponse(
+#             io.BytesIO(compressed_pdf),
+#             media_type="application/pdf",
+#             headers={"Content-Disposition": f'attachment; filename="compressed_{file.filename}"'}
+#         )
+#     except Exception as e:
+#         logger.error(f"Compression error: {e}")
+#         raise HTTPException(status_code=500, detail=f"PDF compression failed: {str(e)}")
+#     finally:
+#         if s3_key:
+#             cleanup_s3_file(s3_key)
+#         gc.collect()
 
 @app.post("/encrypt_pdf")
 async def encrypt_pdf_endpoint(file: UploadFile = File(...), password: str = Form(...)):
@@ -656,6 +868,79 @@ async def convert_pdf_to_excel_endpoint(file: UploadFile = File(...)):
         if s3_key:
             cleanup_s3_file(s3_key)
         gc.collect()
+
+@app.post("/convert_pdf_to_ppt")
+async def convert_pdf_to_ppt_endpoint(
+    file: UploadFile = File(...),
+    conversion_type: str = Form("image")  # Make sure parameter name matches frontend
+):
+    logger.info(f"Received convert to PPT request for {file.filename} (type: {conversion_type})")
+    
+    # File size validation
+    if file.size / (1024 * 1024) > 50:
+        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+
+    s3_key = None
+    try:
+        file_content = await file.read()
+        s3_key = upload_to_s3(file_content, file.filename)
+        
+        # Choose conversion method based on user selection
+        if conversion_type == "editable":
+            ppt_bytes = convert_pdf_to_editable_ppt(file_content)
+            filename = "editable_output.pptx"
+        else:
+            ppt_bytes = convert_pdf_to_ppt(file_content)  # Your existing image-based function
+            filename = "image_based_output.pptx"
+        
+        if not ppt_bytes:
+            raise HTTPException(status_code=500, detail="Conversion failed")
+
+        return StreamingResponse(
+            io.BytesIO(ppt_bytes),
+            media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+        
+    except Exception as e:
+        logger.error(f"PDF to PPT error ({conversion_type}): {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"{conversion_type.capitalize()} conversion failed: {str(e)}"
+        )
+    finally:
+        if s3_key:
+            cleanup_s3_file(s3_key)
+        gc.collect()
+
+
+# @app.post("/convert_pdf_to_ppt")
+# async def convert_pdf_to_ppt_endpoint(file: UploadFile = File(...)):
+#     logger.info(f"Received convert to PPT request for {file.filename}")
+#     if file.size / (1024 * 1024) > 50:
+#         raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+
+#     s3_key = None
+#     try:
+#         file_content = await file.read()
+#         s3_key = upload_to_s3(file_content, file.filename)
+#         ppt_bytes = convert_pdf_to_ppt(file_content)
+#         if not ppt_bytes:
+#             raise HTTPException(status_code=500, detail="Conversion failed")
+
+#         return StreamingResponse(
+#             io.BytesIO(ppt_bytes),
+#             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+#             headers={"Content-Disposition": 'attachment; filename="converted_output.pptx"'}
+#         )
+#     except Exception as e:
+#         logger.error(f"PDF to PPT error: {e}")
+#         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+#     finally:
+#         if s3_key:
+#             cleanup_s3_file(s3_key)
+#         gc.collect()
+
 
 @app.post("/convert_image_to_pdf")
 async def convert_image_to_pdf_endpoint(file: UploadFile = File(...), page_size: str = Form("A4"), orientation: str = Form("Portrait")):
