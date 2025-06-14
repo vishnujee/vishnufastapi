@@ -24,7 +24,7 @@ from typing import Dict,  Optional
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 import logging
-from docx import Document
+# from docx import Document
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -37,9 +37,10 @@ from rembg import remove
 logger = logging.getLogger(__name__)
 
 from pptx.enum.text import PP_ALIGN
-from pptx.util import Inches, Pt
+from pptx.util import Inches
 import math
 
+# Configure logging
 # Configure logging
 os.makedirs("logs", exist_ok=True)
 logging.basicConfig(
@@ -102,6 +103,7 @@ def download_from_s3(s3_key):
     except Exception as e:
         logger.error(f"Failed to download S3 file {s3_key}: {e}")
         raise
+
 
 def cleanup_s3_file(s3_key):
     """Delete file from S3 or locally."""
