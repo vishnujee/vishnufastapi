@@ -56,14 +56,32 @@ AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 
 
 
+USE_S3 = all([BUCKET_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY])
 
+if USE_S3:
+    # Split bucket name and folder prefix (if provided)
+    if "/" in BUCKET_NAME:
+        BUCKET_NAME, S3_PREFIX = BUCKET_NAME.split("/", 1)
+    else:
+        S3_PREFIX = ""
 
-
-s3_client = boto3.client(
+    # Initialize S3 client
+    s3_client = boto3.client(
         "s3",
         aws_access_key_id=AWS_ACCESS_KEY,
         aws_secret_access_key=AWS_SECRET_KEY,
     )
+else:
+    print("AWS credentials missing. Falling back to local storage.")
+    os.makedirs("input_pdfs", exist_ok=True)
+    os.makedirs("output_pdfs", exist_ok=True)
+
+
+# s3_client = boto3.client(
+#         "s3",
+#         aws_access_key_id=AWS_ACCESS_KEY,
+#         aws_secret_access_key=AWS_SECRET_KEY,
+#     )
 
 
 
