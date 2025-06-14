@@ -440,20 +440,20 @@ function validateForm(form, endpoint, resultDiv) {
     }
 
     // Add to your validateForm function (inside the else if chain)
-    else if (endpoint === 'convert_pdf_to_ppt') {
-        const file = files[0];
-        const sizeMB = file.size / (1024 * 1024);
-        if (sizeMB > 10) {
-            resultDiv.textContent = `File ${file.name} exceeds 10MB limit.`;
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
-        if (file.type !== 'application/pdf') {
-            resultDiv.textContent = `File ${file.name} must be a PDF.`;
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
-    }
+    // else if (endpoint === 'convert_pdf_to_ppt') {
+    //     const file = files[0];
+    //     const sizeMB = file.size / (1024 * 1024);
+    //     if (sizeMB > 10) {
+    //         resultDiv.textContent = `File ${file.name} exceeds 10MB limit.`;
+    //         resultDiv.classList.add('text-red-600');
+    //         return false;
+    //     }
+    //     if (file.type !== 'application/pdf') {
+    //         resultDiv.textContent = `File ${file.name} must be a PDF.`;
+    //         resultDiv.classList.add('text-red-600');
+    //         return false;
+    //     }
+    // }
 
 
     // else if (endpoint === 'compress_pdf') {
