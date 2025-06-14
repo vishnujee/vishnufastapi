@@ -102,6 +102,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
 
+
 # AWS S3 Configuration
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
@@ -109,6 +110,13 @@ AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+
+
+s3_client = boto3.client(
+    "s3",
+    aws_access_key_id=AWS_ACCESS_KEY,
+    aws_secret_access_key=AWS_SECRET_KEY,
+)
 
 # PDF_S3_KEY = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"  # Ensure case consistency
 # PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"
@@ -137,12 +145,6 @@ def download_from_url(url):
 # # Ensure directory exists
 # os.makedirs(PERSIST_DIRECTORY, exist_ok=True)
 
-
-# s3_client = boto3.client(
-#     "s3",
-#     aws_access_key_id=AWS_ACCESS_KEY,
-#     aws_secret_access_key=AWS_SECRET_KEY,
-# )
 
 # # Initialize Vector Store from S3 PDF
 
@@ -294,11 +296,7 @@ class PineconeRetriever(BaseRetriever):
 
 
 
-s3_client = boto3.client(
-    "s3",
-    aws_access_key_id=AWS_ACCESS_KEY,
-    aws_secret_access_key=AWS_SECRET_KEY,
-)
+
 
 
 def initialize_vectorstore():
