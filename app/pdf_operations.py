@@ -50,9 +50,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # S3 and local mode
-BUCKET_NAME = os.getenv("BUCKET_NAME", "vishnufastapi")
+BUCKET_NAME = os.getenv("BUCKET_NAME")
 AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+
+
+
+
 
 s3_client = boto3.client(
         "s3",
@@ -1054,25 +1059,25 @@ def estimate_compression_sizes(pdf_bytes: bytes, custom_dpi: int, custom_quality
         return None
     
 
-def estimate_compression_sizes(pdf_bytes: bytes, custom_dpi: int, custom_quality: int) -> Optional[Dict[str, int]]:
-    """Estimate output sizes for all compression presets."""
-    try:
-        sizes = {}
-        presets = [
-            ("high", 72, 20),
-            ("medium", 100, 30),
-            ("low", 120, 40),
-            ("custom", custom_dpi, custom_quality)
-        ]
+# def estimate_compression_sizes(pdf_bytes: bytes, custom_dpi: int, custom_quality: int) -> Optional[Dict[str, int]]:
+#     """Estimate output sizes for all compression presets."""
+#     try:
+#         sizes = {}
+#         presets = [
+#             ("high", 72, 20),
+#             ("medium", 100, 30),
+#             ("low", 120, 40),
+#             ("custom", custom_dpi, custom_quality)
+#         ]
 
-        for preset_name, dpi, quality in presets:
-            compressed_pdf = safe_compress_pdf(pdf_bytes, dpi, quality)
-            if compressed_pdf is None:
-                logger.error(f"Failed to compress for preset: {preset_name}")
-                return None
-            sizes[preset_name] = len(compressed_pdf)
+#         for preset_name, dpi, quality in presets:
+#             compressed_pdf = safe_compress_pdf(pdf_bytes, dpi, quality)
+#             if compressed_pdf is None:
+#                 logger.error(f"Failed to compress for preset: {preset_name}")
+#                 return None
+#             sizes[preset_name] = len(compressed_pdf)
 
-        return sizes
-    except Exception as e:
-        logger.error(f"Size estimation error: {str(e)}")
-        return None
+#         return sizes
+#     except Exception as e:
+#         logger.error(f"Size estimation error: {str(e)}")
+#         return None
