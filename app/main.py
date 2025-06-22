@@ -86,13 +86,10 @@ logger = logging.getLogger(__name__)
 
 
 # Mount static files
-# app.mount("/static", StaticFiles(directory="app/static"), name="static")
-# Configure static files
-current_dir = pathlib.Path(__file__).parent.resolve()
-static_dir = os.path.join(current_dir, "static")
+current_dir = pathlib.Path(__file__).parent.resolve()  # Resolves to E:\AI\RAG\MyProject\FASTAPI\vishnu_ai without docker\fastapi\app
+static_dir = os.path.join(current_dir, "static")  # Points to E:\AI\RAG\MyProject\FASTAPI\vishnu_ai without docker\fastapi\app\static
 
-app.mount("/static",StaticFiles(directory=static_dir),name="static")
-
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 # AWS S3 Configuration
