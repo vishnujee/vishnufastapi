@@ -87,10 +87,13 @@ logger = logging.getLogger(__name__)
 
 # Mount static files
 # app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# Configure static files
+current_dir = pathlib.Path(__file__).parent.resolve()
+static_dir = os.path.join(current_dir, "static")
 
-# Replace your current static mounting with:
-static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
+app.mount("/static",StaticFiles(directory=static_dir),name="static")
+
+
 
 # AWS S3 Configuration
 BUCKET_NAME = os.getenv("BUCKET_NAME")
@@ -362,9 +365,14 @@ async def memory_usage_stream(request: Request):
             "Connection": "keep-alive",
         }
     )
+# @app.get("/", response_class=HTMLResponse)
+# async def serve_index():
+#     with open("app/static/index.html", "r") as f:
+#         return HTMLResponse(content=f.read())
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
-    with open("app/static/index.html", "r") as f:
+    index_path = os.path.join(static_dir, "index.html")
+    with open(index_path, "r") as f:
         return HTMLResponse(content=f.read())
 
 chat_history = []
