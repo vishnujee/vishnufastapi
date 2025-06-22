@@ -1,7 +1,9 @@
+const BASE_URL = window.location.origin; // Adjust if backend API path differs
 
-const BASE_URL = window.location.origin  // Adjust if backend API path differs
-
-
+// Set PDF.js worker script
+if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
 
 function updateFileSize() {
     const fileInput = document.getElementById('compress-file');
@@ -14,8 +16,6 @@ function updateFileSize() {
         fileSizeDisplay.textContent = 'Original File Size: Not selected';
     }
 }
-
-
 
 async function computeAllCompressionSizes() {
     console.log('Computing all compression sizes');
@@ -51,8 +51,9 @@ async function computeAllCompressionSizes() {
     const customQuality = form.querySelector('input[name="custom_quality"]').value;
     if (customDpi && customQuality) {
         const dpi = parseInt(customDpi);
+        console.log('Custom DPI:', dpi);
         const quality = parseInt(customQuality);
-        if (dpi < 50 || dpi > 400 || quality < 10 || quality > 100) {
+        if (dpi < 50 || dpi > 250 || quality < 10 || quality > 100) {
             resultDiv.textContent = 'Invalid custom DPI (50-400) or quality (10-100).';
             resultDiv.classList.add('text-red-600');
             return;
@@ -85,7 +86,7 @@ async function computeAllCompressionSizes() {
                 <li>High Compression (72 DPI, 20% Quality): ${sizes.high.toFixed(2)} MB</li>
                 <li>Medium Compression (100 DPI, 30% Quality): ${sizes.medium.toFixed(2)} MB</li>
                 <li>Low Compression (120 DPI, 40% Quality): ${sizes.low.toFixed(2)} MB</li>
-                <li>Custom Compression (${customDpi} DPI, ${customQuality}% Quality): ${sizes.custom.toFixed(2)} MB</li>
+                <li>Custom Compression (${customDpi || 180} DPI, ${customQuality || 50}% Quality): ${sizes.custom.toFixed(2)} MB</li>
             `;
             compressionResults.classList.remove('hidden');
             resultDiv.textContent = 'Estimated sizes calculated successfully!';
@@ -124,25 +125,47 @@ function initSliders() {
     }
 }
 
-// Call initSliders on page load
-// document.addEventListener('DOMContentLoaded', initSliders);
+// Toggle between specific pages and range inputs
+function toggleDeleteInputs() {
+    const deleteType = document.getElementById('deletePages-type').value;
+    document.getElementById('specific-pages-input').classList.toggle('hidden', deleteType !== 'specific');
+    document.getElementById('range-pages-input').classList.toggle('hidden', deleteType !== 'range');
+}
 
-// Existing toggleCustomInputs (unchanged)
+// Existing toggleCustomInputs
 function toggleCustomInputs() {
     const preset = document.getElementById('compress-preset').value;
     const customOptions = document.getElementById('custom-compress-options');
     customOptions.classList.toggle('hidden', preset !== 'Custom');
 }
 
+// Helper function to get total pages
+async function getTotalPages(file) {
+    if (!file || typeof pdfjsLib === 'undefined') return 0;
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        return pdf.numPages;
+    } catch (err) {
+        console.error('Error fetching total pages:', err);
+        return 0;
+    }
+}
 
-async function processPDF(endpoint, formId) {
+// document.getElementById('description-position').addEventListener('change', function() {
+//     const customContainer = document.getElementById('custom-position-container');
+//     customContainer.classList.toggle('hidden', this.value !== 'custom');
+//   });
+
+
+  async function processPDF(endpoint, formId) {
     console.log(`Processing PDF for endpoint: ${endpoint}, form: ${formId}`);
     const form = document.getElementById(formId);
-    const formData = new FormData(form);
     const resultDiv = document.getElementById(`result-${formId}`);
     const submitButton = form.querySelector('button');
     const progressDiv = document.getElementById(`progress-${formId}`);
     const progressText = document.getElementById(`progress-text-${formId}`);
+    const spinnerStyle = document.createElement('style');
 
     if (!form) {
         console.error(`Form with ID ${formId} not found`);
@@ -151,9 +174,46 @@ async function processPDF(endpoint, formId) {
         return;
     }
 
-    // Add compression-specific parameters for compress_pdf
-    if (endpoint === 'compress_pdf') {
+    let formData = new FormData();
+
+    if (endpoint === 'convert_image_to_pdf') {
+        const fileInput = form.querySelector('#imageToPdf-file');
+        const description = form.querySelector('#image-description')?.value || '';
+        const position = form.querySelector('#description-position')?.value || 'bottom';
+        const fontSize = parseInt(form.querySelector('#description-font-size')?.value || '12');
+        const pageSize = form.querySelector('select[name="page_size"]')?.value || 'A4';
+        const orientation = form.querySelector('select[name="orientation"]')?.value || 'Portrait';
+        const customX = form.querySelector('#custom-x')?.value;
+        const customY = form.querySelector('#custom-y')?.value;
+
+        if (!fileInput || !fileInput.files[0]) {
+            resultDiv.textContent = 'Please select an image file.';
+            resultDiv.classList.add('text-red-600');
+            return;
+        }
+
+        formData.append('file', fileInput.files[0]);
+        formData.append('description', description);
+        formData.append('description_position', position);
+        formData.append('description_font_size', fontSize);
+        formData.append('page_size', pageSize);
+        formData.append('orientation', orientation);
+
+        if (position === 'custom') {
+            if (!customX || !customY || isNaN(customX) || isNaN(customY)) {
+                resultDiv.textContent = 'Custom position requires valid X and Y coordinates.';
+                resultDiv.classList.add('text-red-600');
+                return;
+            }
+            formData.append('custom_x', parseFloat(customX));
+            formData.append('custom_y', parseFloat(customY));
+        }
+    } else if (endpoint === 'compress_pdf') {
+        const fileInput = form.querySelector('input[type="file"]');
         const preset = form.querySelector('select[name="preset"]').value;
+        if (fileInput && fileInput.files[0]) {
+            formData.append('file', fileInput.files[0]);
+        }
         formData.append('preset', preset);
         if (preset === 'Custom') {
             const customDpi = form.querySelector('input[name="custom_dpi"]').value;
@@ -161,17 +221,37 @@ async function processPDF(endpoint, formId) {
             formData.append('custom_dpi', customDpi);
             formData.append('custom_quality', customQuality);
         }
+    } else if (endpoint === 'delete_pdf_pages') {
+        const deleteType = form.querySelector('select[name="delete_type"]').value;
+        const fileInput = form.querySelector('input[type="file"]');
+        if (!fileInput || !fileInput.files[0]) {
+            resultDiv.textContent = 'Please select a PDF file.';
+            resultDiv.classList.add('text-red-600');
+            return;
+        }
+        const file = fileInput.files[0];
+        let pages;
+        if (deleteType === 'specific') {
+            pages = form.querySelector('input[name="pages"]').value;
+        } else {
+            const range = form.querySelector('input[name="range"]').value;
+            const totalPages = await getTotalPages(file);
+            pages = expandPageRange(range, totalPages);
+        }
+        formData.append('file', file);
+        formData.append('pages', pages);
     } else {
-        // Add conversion type for other endpoints if applicable
+        const fileInput = form.querySelector('input[type="file"]');
+        if (fileInput && fileInput.files[0]) {
+            formData.append('file', fileInput.files[0]);
+        }
         const conversionTypeInput = form.querySelector('input[name="conversionType"]:checked');
         if (conversionTypeInput) {
-            const conversionType = conversionTypeInput.value;
-            formData.append('conversion_type', conversionType);
-            console.log('Conversion type:', conversionType);
+            formData.append('conversion_type', conversionTypeInput.value);
         }
     }
 
-    if (!validateForm(form, endpoint, resultDiv)) {
+    if (!(await validateForm(form, endpoint, resultDiv))) {
         console.log('Validation failed');
         return;
     }
@@ -189,7 +269,7 @@ async function processPDF(endpoint, formId) {
     const progressInterval = setInterval(() => {
         progress = Math.min(progress + 10, 90);
         progressDiv.querySelector('progress').value = progress;
-        progressText.textContent = `Uploading... ${progress}%`;
+        progressText.textContent = `Uploading & Processing... ${progress}%`;
     }, 200);
 
     try {
@@ -199,7 +279,23 @@ async function processPDF(endpoint, formId) {
         });
         clearInterval(progressInterval);
         progressDiv.querySelector('progress').value = 100;
-        progressText.textContent = 'Processing complete!';
+
+        spinnerStyle.textContent = `
+            .spinner {
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                border: 3px solid rgba(235, 13, 13, 0.99);
+                border-radius: 50%;
+                border-top-color: rgba(37, 230, 20, 0.99);
+                animation: spin 1s ease-in-out infinite;
+            }
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(spinnerStyle);
+        progressText.innerHTML = 'Processing completed. Wait for download... <i class="fas fa-spinner fa-spin" style="font-size: 1rem;color: red;"></i>';
 
         if (response.ok) {
             const blob = await response.blob();
@@ -215,13 +311,19 @@ async function processPDF(endpoint, formId) {
             a.download = filename;
             a.click();
             window.URL.revokeObjectURL(url);
-            resultDiv.textContent = endpoint === 'compress_pdf' ? 'PDF compressed successfully!' : 'Page numbers added successfully!';
+            resultDiv.textContent = endpoint === 'compress_pdf' ? 'PDF compressed successfully!' : 'Processing completed successfully!';
             resultDiv.classList.remove('text-red-600');
             resultDiv.classList.add('text-green-600');
         } else {
             const error = await response.json();
+            let errorMessage = 'Unknown error';
+            if (Array.isArray(error.detail)) {
+                errorMessage = error.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join('; ');
+            } else if (error.detail) {
+                errorMessage = error.detail;
+            }
             console.error('Backend error:', error);
-            resultDiv.textContent = `Error: ${error.detail || 'Unknown error'}`;
+            resultDiv.textContent = `Error: ${errorMessage}`;
             resultDiv.classList.remove('text-green-600');
             resultDiv.classList.add('text-red-600');
         }
@@ -238,13 +340,12 @@ async function processPDF(endpoint, formId) {
             progressText.textContent = '';
         }, 2000);
     }
-}   
+}
 
 function updateFileOrder(files) {
     const fileOrder = Array.from(files).map(file => file.dataset.fileIndex);
     document.getElementById('merge-file-order').value = fileOrder.join(',');
 }
-
 
 function updateFileButtonStates(files) {
     files.forEach((file, index) => {
@@ -255,24 +356,95 @@ function updateFileButtonStates(files) {
     });
 }
 
-
-
-// Modified validateForm for reorder
-function validateForm(form, endpoint, resultDiv) {
+// Modified validateForm
+async function validateForm(form, endpoint, resultDiv) {
     const filesInput = form.querySelector('input[type="file"]');
+    if (!filesInput) {
+        resultDiv.textContent = 'File input not found in the form.';
+        resultDiv.classList.add('text-red-600');
+        console.error(`No input[type="file"] found in form ${form.id}`);
+        return false;
+    }
     const files = filesInput.files;
     const password = form.querySelector('input[type="password"]');
     const pages = form.querySelector('input[name="pages"]');
     const pageOrderInput = form.querySelector('input[name="page_order"]');
     const fileOrderInput = form.querySelector('input[name="file_order"]');
 
-    // File validation
     if (!files.length) {
         resultDiv.textContent = 'Please select a file.';
         resultDiv.classList.add('text-red-600');
         return false;
     }
 
+    if (endpoint === 'convert_image_to_pdf') {
+        const file = files[0];
+        const sizeMB = file.size / (1024 * 1024);
+        if (sizeMB > 50) {
+            resultDiv.textContent = `File ${file.name} exceeds 50MB limit.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        if (!['image/png', 'image/jpeg'].includes(file.type)) {
+            resultDiv.textContent = `File ${file.name} must be PNG or JPEG.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        const position = form.querySelector('#description-position')?.value;
+        if (!position) {
+            resultDiv.textContent = 'Description position field is missing or invalid.';
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        const validPositions = ['top', 'bottom', 'top-left', 'top-center', 'top-right', 
+                               'bottom-left', 'bottom-center', 'bottom-right', 'custom'];
+        if (!validPositions.includes(position)) {
+            resultDiv.textContent = `Invalid description position: ${position}.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        if (position === 'custom') {
+            const customXInput = form.querySelector('#custom-x');
+            const customYInput = form.querySelector('#custom-y');
+            if (!customXInput || !customYInput) {
+                resultDiv.textContent = 'Custom X and Y coordinate inputs are missing.';
+                resultDiv.classList.add('text-red-600');
+                return false;
+            }
+            const customX = customXInput.value;
+            const customY = customYInput.value;
+            if (!customX || !customY || isNaN(customX) || isNaN(customY)) {
+                resultDiv.textContent = 'Custom position requires valid X and Y coordinates.';
+                resultDiv.classList.add('text-red-600');
+                return false;
+            }
+            const x = parseFloat(customX);
+            const y = parseFloat(customY);
+            if (x < 0 || y < 0) {
+                resultDiv.textContent = 'X and Y coordinates must be non-negative.';
+                resultDiv.classList.add('text-red-600');
+                return false;
+            }
+        }
+        const fontSize = form.querySelector('#description-font-size')?.value;
+        if (!fontSize || isNaN(fontSize) || fontSize < 8 || fontSize > 72) {
+            resultDiv.textContent = 'Font size must be a number between 8 and 72.';
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        const pageSize = form.querySelector('select[name="page_size"]')?.value || 'A4';
+        if (!['A4', 'Letter'].includes(pageSize)) {
+            resultDiv.textContent = `Invalid page size: ${pageSize}. Choose A4 or Letter.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        const orientation = form.querySelector('select[name="orientation"]')?.value || 'Portrait';
+        if (!['Portrait', 'Landscape'].includes(orientation)) {
+            resultDiv.textContent = `Invalid orientation: ${orientation}. Choose Portrait or Landscape.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+    }
     else if (endpoint === 'add_signature') {
         const pdfFile = files[0];
         const signatureFile = form.querySelector('input[name="signature_file"]').files[0];
@@ -335,9 +507,7 @@ function validateForm(form, endpoint, resultDiv) {
             resultDiv.classList.add('text-red-600');
             return false;
         }
-    }
-
-    if (endpoint === 'merge_pdf') {
+    } else if (endpoint === 'merge_pdf') {
         if (files.length < 2) {
             resultDiv.textContent = 'Please select at least 2 PDF files.';
             resultDiv.classList.add('text-red-600');
@@ -381,9 +551,7 @@ function validateForm(form, endpoint, resultDiv) {
                 return false;
             }
         }
-    }
-
-    else if (endpoint === 'add_page_numbers') {
+    } else if (endpoint === 'add_page_numbers') {
         const file = files[0];
         const sizeMB = file.size / (1024 * 1024);
         if (sizeMB > 50) {
@@ -414,8 +582,7 @@ function validateForm(form, endpoint, resultDiv) {
             resultDiv.classList.add('text-red-600');
             return false;
         }
-    }
-    else if (endpoint === 'reorder_pages') {
+    } else if (endpoint === 'reorder_pages') {
         const file = files[0];
         const sizeMB = file.size / (1024 * 1024);
         if (sizeMB > 50) {
@@ -428,71 +595,14 @@ function validateForm(form, endpoint, resultDiv) {
             resultDiv.classList.add('text-red-600');
             return false;
         }
-        // Optional: Validate page order format (comma-separated numbers)
+        // Validate page order format
         const pageOrder = pageOrderInput.value.split(',').map(p => p.trim());
         if (!pageOrder.every(p => /^[1-9]\d*$/.test(p))) {
             resultDiv.textContent = 'Invalid page order format. Use comma-separated positive integers.';
             resultDiv.classList.add('text-red-600');
             return false;
         }
-
-
-    }
-
-    // Add to your validateForm function (inside the else if chain)
-    // else if (endpoint === 'convert_pdf_to_ppt') {
-    //     const file = files[0];
-    //     const sizeMB = file.size / (1024 * 1024);
-    //     if (sizeMB > 10) {
-    //         resultDiv.textContent = `File ${file.name} exceeds 10MB limit.`;
-    //         resultDiv.classList.add('text-red-600');
-    //         return false;
-    //     }
-    //     if (file.type !== 'application/pdf') {
-    //         resultDiv.textContent = `File ${file.name} must be a PDF.`;
-    //         resultDiv.classList.add('text-red-600');
-    //         return false;
-    //     }
-    // }
-
-
-    // else if (endpoint === 'compress_pdf') {
-    //     const file = files[0];
-    //     const sizeMB = file.size / (1024 * 1024);
-    //     if (sizeMB > 160) {
-    //         resultDiv.textContent = `File ${file.name} exceeds 160MB limit.`;
-    //         resultDiv.classList.add('text-red-600');
-    //         return false;
-    //     }
-    //     if (file.type !== 'application/pdf') {
-    //         resultDiv.textContent = `File ${file.name} must be a PDF.`;
-    //         resultDiv.classList.add('text-red-600');
-    //         return false;
-    //     }
-    //     const preset = form.querySelector('select[name="preset"]').value;
-    //     if (!['High', 'Medium', 'Low', 'Custom'].includes(preset)) {
-    //         resultDiv.textContent = 'Invalid preset. Choose High, Medium, Low, or Custom.';
-    //         resultDiv.classList.add('text-red-600');
-    //         return false;
-    //     }
-    //     if (preset === 'Custom') {
-    //         const customDpi = form.querySelector('input[name="custom_dpi"]').value;
-    //         const customQuality = form.querySelector('input[name="custom_quality"]').value;
-    //         if (!customDpi || !customQuality) {
-    //             resultDiv.textContent = 'Custom preset requires DPI and quality values.';
-    //             resultDiv.classList.add('text-red-600');
-    //             return false;
-    //         }
-    //         const dpi = parseInt(customDpi);
-    //         const quality = parseInt(customQuality);
-    //         if (dpi < 50 || dpi > 400 || quality < 10 || quality > 100) {
-    //             resultDiv.textContent = 'Invalid custom DPI (50-400) or quality (10-100).';
-    //             resultDiv.classList.add('text-red-600');
-    //             return false;
-    //         }
-    //     }
-    // }
-    if (endpoint === 'compress_pdf') {
+    } else if (endpoint === 'compress_pdf') {
         const file = files[0];
         const sizeMB = file.size / (1024 * 1024);
         if (sizeMB > 160) {
@@ -527,9 +637,77 @@ function validateForm(form, endpoint, resultDiv) {
                 return false;
             }
         }
-    }
-
-    else {
+    } else if (endpoint === 'delete_pdf_pages') {
+        const deleteTypeElement = form.querySelector('select[name="delete_type"]');
+        if (!deleteTypeElement) {
+            resultDiv.textContent = 'Delete type selector not found.';
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        const deleteType = deleteTypeElement.value;
+        let pagesInput = deleteType === 'specific' ? form.querySelector('input[name="pages"]').value : form.querySelector('input[name="range"]').value;
+        console.log('deleteType:', deleteType, 'pagesInput:', pagesInput);
+        let totalPages = 0;
+        const file = form.querySelector('input[type="file"]').files[0];
+        if (!file) {
+            resultDiv.textContent = 'Please select a PDF file.';
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        const sizeMB = file.size / (1024 * 1024);
+        if (sizeMB > 50) {
+            resultDiv.textContent = `File ${file.name} exceeds 50MB limit.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        if (file.type !== 'application/pdf') {
+            resultDiv.textContent = `File ${file.name} must be a PDF.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        if (typeof pdfjsLib === 'undefined') {
+            resultDiv.textContent = 'PDF processing library not loaded. Please try again later.';
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            totalPages = pdf.numPages;
+        } catch (err) {
+            console.error('PDF page count error:', err);
+            resultDiv.textContent = 'Error loading PDF file. Please ensure it’s a valid PDF.';
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        if (!pagesInput) {
+            resultDiv.textContent = 'Please enter pages to delete.';
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        if (deleteType !== 'specific' && deleteType !== 'range') {
+            resultDiv.textContent = 'Invalid delete type selected.';
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        if (deleteType === 'specific') {
+            const pageNumbers = [...new Set(pagesInput.split(',').map(p => p.trim()).filter(p => p))];
+            if (!pageNumbers.length || !pageNumbers.every(p => /^[1-9]\d*$/.test(p) && parseInt(p) <= totalPages)) {
+                resultDiv.textContent = `Invalid page numbers. Use comma-separated integers (e.g., 1,12,32) within 1-${totalPages}.`;
+                resultDiv.classList.add('text-red-600');
+                return false;
+            }
+            form.querySelector('input[name="pages"]').value = pageNumbers.join(',');
+        } else {
+            const expandedPages = expandPageRange(pagesInput, totalPages);
+            if (!expandedPages) {
+                resultDiv.textContent = `Invalid range. Use format like 1-5 within 1-${totalPages}.`;
+                resultDiv.classList.add('text-red-600');
+                return false;
+            }
+            form.querySelector('input[name="pages"]').value = expandedPages;
+        }
+    } else {
         const maxSizeMB = endpoint === 'compress_pdf' ? 55 : endpoint === 'split_pdf' ? 100 : 50;
         const file = files[0];
         const sizeMB = file.size / (1024 * 1024);
@@ -538,33 +716,60 @@ function validateForm(form, endpoint, resultDiv) {
             resultDiv.classList.add('text-red-600');
             return false;
         }
-        if (endpoint === 'convert_image_to_pdf' && !['image/png', 'image/jpeg'].includes(file.type)) {
-            resultDiv.textContent = `File ${file.name} must be PNG or JPEG.`;
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
     }
 
-    // Password validation
     if ((endpoint === 'encrypt_pdf' || endpoint === 'remove_pdf_password') && (!password || !password.value)) {
         resultDiv.textContent = 'Please enter a password.';
         resultDiv.classList.add('text-red-600');
         return false;
     }
 
-    // Pages validation for delete_pdf_pages
-    if (endpoint === 'delete_pdf_pages' && pages) {
-        const pageNumbers = pages.value.split(',').map(p => p.trim());
-        if (!pageNumbers.every(p => /^[1-9]\d*$/.test(p))) {
-            resultDiv.textContent = 'Invalid page numbers. Use comma-separated positive integers (e.g., 2,5,7).';
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
-    }
-
     return true;
 }
 
+// Display total pages in PDF
+async function displayTotalPages(fileInputId, totalPagesId) {
+    const fileInput = document.getElementById(fileInputId);
+    const totalPagesDiv = document.getElementById(totalPagesId);
+    const resultDiv = document.getElementById('result-deletePagesForm');
+    if (!fileInput.files[0]) {
+        totalPagesDiv.textContent = 'Total Pages: Not loaded';
+        return;
+    }
+    try {
+        const file = fileInput.files[0];
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        totalPagesDiv.textContent = `Total Pages: ${pdf.numPages}`;
+        resultDiv.textContent = '';
+    } catch (err) {
+        console.error('Error counting pages:', err);
+        totalPagesDiv.textContent = 'Total Pages: Error loading PDF';
+        resultDiv.textContent = 'Invalid PDF file.';
+        resultDiv.classList.add('text-red-600');
+    }
+}
+
+// Expand page range (e.g., "1-5" to "1,2,3,4,5")
+function expandPageRange(range, totalPages) {
+    if (!range || typeof range !== 'string') {
+        console.error('Invalid range input:', range);
+        return null;
+    }
+    const trimmedRange = range.trim();
+    const match = trimmedRange.match(/^(\d+)-(\d+)$/);
+    if (!match) {
+        console.error('Range format invalid:', trimmedRange);
+        return null;
+    }
+    const start = parseInt(match[1]);
+    const end = parseInt(match[2]);
+    if (isNaN(start) || isNaN(end) || start < 1 || end < start || end > totalPages) {
+        console.error(`Invalid range values: start=${start}, end=${end}, totalPages=${totalPages}`);
+        return null;
+    }
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i).join(',');
+}
 
 function formatResponse(text) {
     if (!text) return '';
@@ -754,7 +959,6 @@ async function sendChat() {
 
         // Apply typewriter effect
         await typewriterEffect(aiResponse, data.answer);
-
     } catch (error) {
         console.error("Chat error:", error);
         const errorDiv = document.createElement('div');
@@ -771,6 +975,7 @@ async function sendChat() {
 }
 
 function showTool(toolId) {
+    localStorage.setItem('lastTool', toolId);
     // Hide all tool sections
     document.querySelectorAll('.tool-section').forEach(section => {
         section.style.display = 'none';
@@ -784,7 +989,7 @@ function showTool(toolId) {
         link.classList.remove('text-green-600', 'font-bold');
     });
 
-    // Highlight the clicked item (PDF tool or top nav)
+    // Highlight the clicked item
     if (event.currentTarget) {
         event.currentTarget.classList.add('text-green-600', 'font-bold');
     }
@@ -813,55 +1018,6 @@ function showTool(toolId) {
     document.getElementById(toolId).scrollIntoView({ behavior: 'smooth' });
 }
 
-
-// function showTool(toolId) {
-//     // Hide all tool sections
-//     document.querySelectorAll('.tool-section').forEach(section => {
-//         section.style.display = 'none';
-//     });
-
-//     // Show selected tool
-//     document.getElementById(toolId).style.display = 'block';
-
-//     // Update active nav item
-//     document.querySelectorAll('.nav-link').forEach(link => {
-//         link.classList.remove('text-green-600', 'font-bold');
-//     });
-//     if (event.currentTarget) {
-//         event.currentTarget.classList.add('text-green-600', 'font-bold');
-//     }
-
-//     // On mobile (screen width <= 768px), hide mobile menu and submenu
-//     if (window.innerWidth <= 768) {
-//         const mobileMenu = document.getElementById('mobile-menu');
-//         const mobileSubmenu = document.getElementById('mobile-submenu');
-//         const menuButton = document.getElementById('mobile-menu-button');
-
-//         // Hide submenu
-//         if (mobileSubmenu && !mobileSubmenu.classList.contains('hidden')) {
-//             mobileSubmenu.classList.add('hidden');
-//         }
-
-//         // Hide main mobile menu
-//         if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-//             mobileMenu.classList.add('hidden');
-//         }
-
-//         // Reset menu button icon to hamburger
-//         if (menuButton) {
-//             menuButton.querySelector('i').classList.remove('fa-times');
-//             menuButton.querySelector('i').classList.add('fa-bars');
-//         }
-//     }
-
-//     // Scroll to the tool section
-//     document.getElementById(toolId).scrollIntoView({ behavior: 'smooth' });
-// }
-
-updateFileLabel('removeBackground-file', 'removeBackground-file-name');
-updateFileLabel('compress-file', 'compress-file-name');
-
-// Process image for background removal
 async function processImage(endpoint, formId) {
     const form = document.getElementById(formId);
     const resultDiv = document.getElementById(`result-${formId}`);
@@ -913,16 +1069,63 @@ async function processImage(endpoint, formId) {
     }
 }
 
-
-
-
-
-
-
-
 document.addEventListener('DOMContentLoaded', () => {
     initSliders();
-    updateFileSize(); // Initialize file size display
+    updateFileSize();
+    const deletePagesType = document.getElementById('deletePages-type');
+    if (deletePagesType) {
+        deletePagesType.addEventListener('change', toggleDeleteInputs);
+    }
+
+// page reload
+    const lastTool = localStorage.getItem('lastTool');
+        if (lastTool) showTool(lastTool); // Restore last tool
+        else showTool('chat');
+
+// 
+
+    const imageToPdfForm = document.getElementById('imageToPdfForm');
+    if (imageToPdfForm) {
+        const imageToPdfFile = document.getElementById('imageToPdf-file');
+        const descriptionPosition = document.getElementById('description-position');
+        if (imageToPdfFile) {
+            imageToPdfFile.addEventListener('change', function() {
+                const fileName = this.files[0] ? this.files[0].name : 'No file selected';
+                const fileNameElement = document.getElementById('imageToPdf-file-name');
+                if (fileNameElement) {
+                    fileNameElement.textContent = fileName;
+                } else {
+                    console.warn('Element with ID "imageToPdf-file-name" not found');
+                }
+            });
+        } else {
+            console.warn('Element with ID "imageToPdf-file" not found');
+        }
+
+        if (descriptionPosition) {
+            descriptionPosition.addEventListener('change', function() {
+                const customContainer = document.getElementById('custom-position-container');
+                const customX = document.getElementById('custom-x');
+                const customY = document.getElementById('custom-y');
+                if (customContainer) {
+                    const isCustom = this.value === 'custom';
+                    customContainer.classList.toggle('hidden', !isCustom);
+                    if (!isCustom && customX && customY) {
+                        customX.value = '';
+                        customY.value = '';
+                    }
+                } else {
+                    console.warn('Element with ID "custom-position-container" not found');
+                }
+            });
+            // Trigger change event on load
+            descriptionPosition.dispatchEvent(new Event('change'));
+        } else {
+            console.warn('Element with ID "description-position" not found');
+        }
+    } else {
+        console.warn('Form with ID "imageToPdfForm" not found');
+    }
+        
+    
 });
-
-

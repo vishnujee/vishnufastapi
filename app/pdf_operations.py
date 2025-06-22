@@ -18,6 +18,7 @@ import gc
 import platform
 from pptx import Presentation 
 from pdf2image import convert_from_bytes
+from pikepdf import Pdf, PasswordError
 
 from typing import Dict,  Optional
 
@@ -39,6 +40,18 @@ logger = logging.getLogger(__name__)
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches
 import math
+
+
+from adobe.pdfservices.operation.auth.service_principal_credentials import ServicePrincipalCredentials
+from adobe.pdfservices.operation.exception.exceptions import ServiceApiException, ServiceUsageException, SdkException
+from adobe.pdfservices.operation.io.cloud_asset import CloudAsset
+from adobe.pdfservices.operation.io.stream_asset import StreamAsset
+from adobe.pdfservices.operation.pdf_services import PDFServices
+from adobe.pdfservices.operation.pdf_services_media_type import PDFServicesMediaType
+from adobe.pdfservices.operation.pdfjobs.jobs.export_pdf_job import ExportPDFJob
+from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_params import ExportPDFParams
+from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_target_format import ExportPDFTargetFormat
+from adobe.pdfservices.operation.pdfjobs.result.export_pdf_result import ExportPDFResult
 
 # Configure logging
 # Configure logging
@@ -72,6 +85,9 @@ if USE_S3:
         aws_access_key_id=AWS_ACCESS_KEY,
         aws_secret_access_key=AWS_SECRET_KEY,
     )
+    # Use the IAM role attached to the Lambda function (no need to pass keys)
+    # s3 = boto3.client("s3")
+
 else:
     print("AWS credentials missing. Falling back to local storage.")
     os.makedirs("input_pdfs", exist_ok=True)
@@ -400,6 +416,12 @@ def split_pdf(pdf_bytes):
     finally:
         gc.collect()
 
+
+
+
+
+
+
 def delete_pdf_pages(pdf_bytes, pages_to_delete):
     """Delete specified pages from PDF."""
     try:
@@ -423,27 +445,88 @@ def delete_pdf_pages(pdf_bytes, pages_to_delete):
     finally:
         gc.collect()
 
-def convert_pdf_to_word(pdf_bytes):
-    """Convert PDF to Word using pdf2docx."""
-    input_file = None
-    output_file = None
+# def convert_pdf_to_word(pdf_bytes):
+#     """Convert PDF to Word using pdf2docx."""
+#     input_file = None
+#     output_file = None
+#     try:
+#         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_input:
+#             tmp_input.write(pdf_bytes)
+#             input_file = tmp_input.name
+        
+#         output_file = tempfile.NamedTemporaryFile(delete=False, suffix=".docx").name
+#         cv = Converter(input_file)
+#         cv.convert(output_file)
+#         cv.close()
+        
+#         with open(output_file, "rb") as f:
+#             return f.read()
+#     except Exception as e:
+#         logger.error(f"PDF to Word error: {e}")
+#         return None
+#     finally:
+#         for path in [input_file, output_file]:
+#             if path and os.path.exists(path):
+#                 try:
+#                     os.unlink(path)
+#                 except:
+#                     pass
+#         gc.collect()
+
+
+def convert_pdf_to_word(pdf_bytes: bytes) -> bytes | None:
+    input_pdf_path = None
+    output_docx_path = None
+
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_input:
-            tmp_input.write(pdf_bytes)
-            input_file = tmp_input.name
-        
-        output_file = tempfile.NamedTemporaryFile(delete=False, suffix=".docx").name
-        cv = Converter(input_file)
-        cv.convert(output_file)
-        cv.close()
-        
-        with open(output_file, "rb") as f:
+        # Save PDF to a temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as input_pdf:
+            input_pdf.write(pdf_bytes)
+            input_pdf_path = input_pdf.name
+
+        # Prepare output file path
+        output_docx_path = tempfile.NamedTemporaryFile(delete=False, suffix=".docx").name
+
+        # Authenticate
+        credentials = ServicePrincipalCredentials(
+            client_id=os.getenv('PDF_SERVICES_CLIENT_ID'),
+            client_secret=os.getenv('PDF_SERVICES_CLIENT_SECRET')
+        )
+
+        pdf_services = PDFServices(credentials=credentials)
+
+        # Upload input PDF
+        with open(input_pdf_path, "rb") as file:
+            input_stream = file.read()
+        input_asset = pdf_services.upload(input_stream=input_stream, mime_type=PDFServicesMediaType.PDF)
+
+        # Configure export params
+        export_pdf_params = ExportPDFParams(target_format=ExportPDFTargetFormat.DOCX)
+        export_pdf_job = ExportPDFJob(input_asset=input_asset, export_pdf_params=export_pdf_params)
+
+        # Submit job
+        location = pdf_services.submit(export_pdf_job)
+        # result = pdf_services.get_job_result(location, ExportPDFJob.get_result_type())
+        result = pdf_services.get_job_result(location, ExportPDFResult)
+
+        # Get converted DOCX
+        result_asset: CloudAsset = result.get_result().get_asset()
+        stream_asset: StreamAsset = pdf_services.get_content(result_asset)
+
+        with open(output_docx_path, "wb") as out_file:
+            out_file.write(stream_asset.get_input_stream())
+
+        with open(output_docx_path, "rb") as f:
             return f.read()
+
+    except (ServiceApiException, ServiceUsageException, SdkException) as e:
+        logger.error(f"Adobe PDF Services error: {str(e)}")
+        return None
     except Exception as e:
-        logger.error(f"PDF to Word error: {e}")
+        logger.exception(f"Unexpected error in Adobe PDF conversion: {e}")
         return None
     finally:
-        for path in [input_file, output_file]:
+        for path in [input_pdf_path, output_docx_path]:
             if path and os.path.exists(path):
                 try:
                     os.unlink(path)
@@ -785,32 +868,37 @@ def convert_pdf_to_excel(pdf_bytes):
     finally:
         gc.collect()
 
-def convert_image_to_pdf(image_bytes, page_size="A4", orientation="Portrait"):
-    """Convert a single image to a one-page PDF."""
+
+def convert_image_to_pdf(
+    image_bytes,
+    page_size="A4",
+    orientation="Portrait",
+    description="",
+    description_position="bottom",
+    description_font_size=12,
+    custom_x=None,
+    custom_y=None,
+    margin=10
+):
+    """Convert image to PDF with customizable description."""
     try:
         doc = fitz.open()
         page_sizes = {"A4": (595, 842), "Letter": (612, 792)}
         page_width, page_height = page_sizes.get(page_size, page_sizes["A4"])
+        
         if orientation == "Landscape":
             page_width, page_height = page_height, page_width
         
-        used_mem, avail_mem, total_mem = get_memory_info()
-        mem_percent = (used_mem / total_mem) * 100
-        if mem_percent > 80:
-            raise Exception("High memory usage detected")
-        
+        # Process image
         img = Image.open(io.BytesIO(image_bytes))
-        if img.format not in ["PNG", "JPEG"]:
-            raise Exception("Only PNG and JPEG are supported")
         img_width, img_height = img.size
-        
-        margin = 10
         usable_width = page_width - 2 * margin
         usable_height = page_height - 2 * margin
         scale = min(usable_width / img_width, usable_height / img_height)
         new_width = img_width * scale
         new_height = img_height * scale
         
+        # Create page and position image
         page = doc.new_page(width=page_width, height=page_height)
         x0 = (page_width - new_width) / 2
         y0 = (page_height - new_height) / 2
@@ -821,52 +909,157 @@ def convert_image_to_pdf(image_bytes, page_size="A4", orientation="Portrait"):
         page.insert_image(rect, stream=img_buffer.getvalue())
         img.close()
         
+        # Add description if provided
+        if description:
+            # Calculate position based on user selection
+            if description_position == "custom" and custom_x and custom_y:
+                desc_x = float(custom_x)
+                desc_y = float(custom_y)
+            else:
+                # Default positions
+                desc_x = margin
+                desc_y = margin  # Top by default
+                
+                if "bottom" in description_position:
+                    desc_y = page_height - margin - description_font_size
+                
+                if "center" in description_position:
+                    text_width = len(description) * (description_font_size * 0.5)
+                    desc_x = (page_width - text_width) / 2
+                    if "top" in description_position:
+                        desc_y = margin + description_font_size  # Shift down by font size to keep text fully visible
+                elif "right" in description_position:
+                    text_width = len(description) * (description_font_size * 0.6)
+                    desc_x = page_width - margin - text_width
+            
+            # Add text to PDF
+            text_point = fitz.Point(desc_x, desc_y)
+            page.insert_text(
+                text_point,
+                description,
+                fontsize=description_font_size,
+                color=(0, 0, 0),  # Black
+                fontname="helv",  # Helvetica
+                rotate=0
+            )
+        
+        # Save PDF
         pdf_bytes = io.BytesIO()
         doc.save(pdf_bytes)
         doc.close()
-        pdf_bytes.seek(0)
         return pdf_bytes.getvalue()
+        
     except Exception as e:
-        logger.error(f"Image to PDF error: {e}")
+        logger.error(f"Image to PDF conversion error: {str(e)}")
         return None
     finally:
         gc.collect()
 
-def remove_pdf_password(pdf_bytes, password):
-    """Remove password from PDF using PyMuPDF."""
+
+# def convert_image_to_pdf(image_bytes, page_size="A4", orientation="Portrait"):
+#     """Convert a single image to a one-page PDF."""
+#     # logger.info("Converting image to PDF...${page_size} ${orientation}")
+#     try:
+#         doc = fitz.open()
+#         page_sizes = {"A4": (595, 842), "Letter": (612, 792)}
+#         page_width, page_height = page_sizes.get(page_size, page_sizes["A4"])
+#         if orientation == "Landscape":
+#             page_width, page_height = page_height, page_width
+        
+#         used_mem, avail_mem, total_mem = get_memory_info()
+#         mem_percent = (used_mem / total_mem) * 100
+#         if mem_percent > 80:
+#             raise Exception("High memory usage detected")
+        
+#         img = Image.open(io.BytesIO(image_bytes))
+#         if img.format not in ["PNG", "JPEG"]:
+#             raise Exception("Only PNG and JPEG are supported")
+#         img_width, img_height = img.size
+        
+#         margin = 10
+#         usable_width = page_width - 2 * margin
+#         usable_height = page_height - 2 * margin
+#         scale = min(usable_width / img_width, usable_height / img_height)
+#         new_width = img_width * scale
+#         new_height = img_height * scale
+        
+#         page = doc.new_page(width=page_width, height=page_height)
+#         x0 = (page_width - new_width) / 2
+#         y0 = (page_height - new_height) / 2
+#         rect = fitz.Rect(x0, y0, x0 + new_width, y0 + new_height)
+        
+#         img_buffer = io.BytesIO()
+#         img.save(img_buffer, format="PNG")
+#         page.insert_image(rect, stream=img_buffer.getvalue())
+#         img.close()
+        
+#         pdf_bytes = io.BytesIO()
+#         doc.save(pdf_bytes)
+#         doc.close()
+#         pdf_bytes.seek(0)
+#         return pdf_bytes.getvalue()
+#     except Exception as e:
+#         logger.error(f"Image to PDF error: {e}")
+#         return None
+#     finally:
+#         gc.collect()
+
+# def remove_pdf_password(pdf_bytes, password):
+#     """Remove password from PDF using PyMuPDF."""
+#     try:
+#         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+#         if not doc.is_encrypted:
+#             return pdf_bytes
+#         if not doc.authenticate(password):
+#             raise Exception("Incorrect password")
+        
+#         used_mem, avail_mem, total_mem = get_memory_info()
+#         mem_percent = (used_mem / total_mem) * 100
+#         if mem_percent > 80:
+#             raise Exception("High memory usage detected")
+        
+#         output_buffer = io.BytesIO()
+#         doc.save(output_buffer, encryption=0)
+#         doc.close()
+#         output_buffer.seek(0)
+        
+#         decrypted_bytes = output_buffer.getvalue()
+#         test_doc = fitz.open(stream=decrypted_bytes, filetype="pdf")
+#         is_encrypted = test_doc.is_encrypted
+#         test_doc.close()
+        
+#         if is_encrypted:
+#             raise Exception("Failed to remove password")
+        
+#         return decrypted_bytes
+#     except Exception as e:
+#         logger.error(f"PDF password removal error: {e}")
+#         return None
+#     finally:
+#         gc.collect()
+
+def remove_pdf_password(pdf_bytes: bytes, password: str) -> Optional[bytes]:
+    """Remove password using pikepdf which handles AES-256 better."""
     try:
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        if not doc.is_encrypted:
-            return pdf_bytes
-        if not doc.authenticate(password):
-            raise Exception("Incorrect password")
-        
-        used_mem, avail_mem, total_mem = get_memory_info()
-        mem_percent = (used_mem / total_mem) * 100
-        if mem_percent > 80:
-            raise Exception("High memory usage detected")
-        
-        output_buffer = io.BytesIO()
-        doc.save(output_buffer, encryption=0)
-        doc.close()
-        output_buffer.seek(0)
-        
-        decrypted_bytes = output_buffer.getvalue()
-        test_doc = fitz.open(stream=decrypted_bytes, filetype="pdf")
-        is_encrypted = test_doc.is_encrypted
-        test_doc.close()
-        
-        if is_encrypted:
-            raise Exception("Failed to remove password")
-        
-        return decrypted_bytes
+        # Open with password
+        with Pdf.open(io.BytesIO(pdf_bytes), password=password) as pdf:
+            # Save without password
+            output = io.BytesIO()
+            pdf.save(output)
+            decrypted_bytes = output.getvalue()
+            
+            # Verify
+            with Pdf.open(io.BytesIO(decrypted_bytes)) as test_pdf:
+                if test_pdf.is_encrypted:
+                    raise RuntimeError("Output PDF is still encrypted")
+            
+            return decrypted_bytes
+            
+    except PasswordError:
+        raise ValueError("Incorrect password")
     except Exception as e:
-        logger.error(f"PDF password removal error: {e}")
-        return None
-    finally:
-        gc.collect()
-
-
+        logger.error(f"pikepdf decryption failed: {str(e)}")
+        raise RuntimeError(f"Decryption failed: {str(e)}")
 
 
 def reorder_pdf_pages(pdf_bytes, page_order):
