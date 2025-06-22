@@ -19,7 +19,7 @@ from pinecone import Pinecone, ServerlessSpec
 # from langchain_core.vectorstores.base import VectorStoreRetriever
 # from pydantic import BaseModel
 from botocore.exceptions import ClientError
-
+import pathlib
 
 import gc
 

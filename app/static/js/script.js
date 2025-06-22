@@ -980,6 +980,13 @@ function showTool(toolId) {
     document.querySelectorAll('.tool-section').forEach(section => {
         section.style.display = 'none';
     });
+    const toolSection = document.getElementById(toolId);
+    if (toolSection) {
+        toolSection.style.display = 'block';
+    } else {
+        // Fallback to chat if tool not found
+        document.getElementById('chat-section').style.display = 'block';
+    }
 
     // Show selected tool
     document.getElementById(toolId).style.display = 'block';
@@ -1078,9 +1085,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 // page reload
-    const lastTool = localStorage.getItem('lastTool');
-        if (lastTool) showTool(lastTool); // Restore last tool
-        else showTool('chat');
+
+
+
 
 // 
 
