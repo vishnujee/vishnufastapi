@@ -100,7 +100,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 USE_S3 = all([BUCKET_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY])
-
+CORRECT_PASSWORD_HASH = os.getenv("CORRECT_PASSWORD_HASH")
 
 s3_client = boto3.client(
     "s3",
@@ -135,7 +135,7 @@ else:
 # PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"
 PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/websitepdf.pdf"
 S3_PREFIX = "Amazingvideo/"
-CORRECT_PASSWORD_HASH = "724e9e22f2e156b598fe7a3612a7b01a6b53a39ffc049d256fa9c2df9c49b5f1"
+
 
 def download_from_url(url):
     try:

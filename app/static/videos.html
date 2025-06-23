@@ -145,14 +145,14 @@
           setTheme(!isDark);
         });
         
-        // Watch for system theme changes (optional)
+     
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
           if (!localStorage.getItem('theme')) {
             setTheme(e.matches);
           }
         });
     
-        // Fetch videos (moved inside DOMContentLoaded)
+        // Fetch videos 
         fetchVideos();
       });
     
