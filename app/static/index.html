@@ -96,6 +96,8 @@
                     onclick="showTool('videos-section')">Videos</a> -->
           <a href="#" class="nav-link text-xl text-gray-700 hover:text-green-600" onclick="window.location.href='/static/videos.html'"> Videos </a>
         </div>
+        <div class="grid grid-cols-1 gap-8">
+    
       </div>
     </nav>
     <div class="container mx-auto px-4 py-8 max-w-6xl">
@@ -171,8 +173,14 @@
           </div>
         </div>
       </div>
+     
       <!-- PDF Tools Sections -->
-      <div class="grid grid-cols-1 gap-8">
+      <div class="text-center my-4" id="clear-all-btn-container"  style="display: none;">
+        <button onclick="clearAllForms()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+          <i class="fas fa-broom mr-2"></i> Clear PDF Forms
+        </button>
+      </div>
+     
         <!-- Merge PDFs -->
         <div id="merge-section" class="tool-section"  style="display: none;">
           <div class="bg-white p-6 rounded-xl shadow-md tool-card">
@@ -468,7 +476,7 @@
                     <input type="radio" id="imageBased" name="conversionType" value="image" checked class="mr-2">
                     <label for="imageBased" class="text-sm text-gray-700">Image-based</label>
                   </div>
-                  <div class="flex items-center">
+                  <div class="flex items-center" style="display: none;">
                     <input type="radio" id="editable" name="conversionType" value="editable" class="mr-2">
                     <label for="editable" class="text-sm text-gray-700">Editable</label>
                   </div>
@@ -877,9 +885,21 @@
           menuButton.querySelector('i').classList.toggle('fa-times');
         }
 
+        // function toggleMobileSubmenu() {
+        //   const mobileSubmenu = document.getElementById('mobile-submenu');
+        //   mobileSubmenu.classList.toggle('hidden');
+        // }
         function toggleMobileSubmenu() {
           const mobileSubmenu = document.getElementById('mobile-submenu');
+          const mobileMenu = document.getElementById('mobile-menu');
+          const menuButton = document.getElementById('mobile-menu-button');
           mobileSubmenu.classList.toggle('hidden');
+          
+          // If submenu is opened and main menu is visible, revert icon to hamburger
+          if (!mobileSubmenu.classList.contains('hidden') && !mobileMenu.classList.contains('hidden')) {
+            menuButton.querySelector('i').classList.remove('fa-times');
+            menuButton.querySelector('i').classList.add('fa-bars');
+          }
         }
         document.getElementById('mobile-menu-button').addEventListener('click', toggleMobileMenu);
         // 
@@ -990,15 +1010,15 @@
               pageList.appendChild(pageDiv);
               pages.push(pageDiv);
               // Update button states
-              pageDiv.querySelector('.move-up').disabled = i === 1;
-              pageDiv.querySelector('.move-down').disabled = i === numPages;
+              // pageDiv.querySelector('.move-up').disabled = i === 1;
+              // pageDiv.querySelector('.move-down').disabled = i === numPages;
               // Add event listeners for reordering
               pageDiv.querySelector('.move-up').addEventListener('click', () => {
                 const prev = pageDiv.previousSibling;
                 if (prev) {
                   pageList.insertBefore(pageDiv, prev);
                   updatePageOrder(pages);
-                  updateButtonStates(pages);
+                  // updateButtonStates(pages);
                   console.log('Moved page up, new order:', document.getElementById('reorder-page-order').value);
                 }
               });
@@ -1007,7 +1027,7 @@
                 if (next) {
                   pageList.insertBefore(next, pageDiv);
                   updatePageOrder(pages);
-                  updateButtonStates(pages);
+                  // updateButtonStates(pages);
                   console.log('Moved page down, new order:', document.getElementById('reorder-page-order').value);
                 }
               });
@@ -1059,14 +1079,14 @@
                 `;
             fileList.appendChild(fileDiv);
             fileDivs.push(fileDiv);
-            fileDiv.querySelector('.move-up').disabled = i === 0;
-            fileDiv.querySelector('.move-down').disabled = i === files.length - 1;
+            // fileDiv.querySelector('.move-up').disabled = i === 0;
+            // fileDiv.querySelector('.move-down').disabled = i === files.length - 1;
             fileDiv.querySelector('.move-up').addEventListener('click', () => {
               const prev = fileDiv.previousSibling;
               if (prev) {
                 fileList.insertBefore(fileDiv, prev);
                 updateFileOrder(fileDivs);
-                updateFileButtonStates(fileDivs);
+                // updateFileButtonStates(fileDivs);
                 console.log('Moved file up, new order:', document.getElementById('merge-file-order').value);
               }
             });
@@ -1075,7 +1095,7 @@
               if (next) {
                 fileList.insertBefore(next, fileDiv);
                 updateFileOrder(fileDivs);
-                updateFileButtonStates(fileDivs);
+                // updateFileButtonStates(fileDivs);
                 console.log('Moved file down, new order:', document.getElementById('merge-file-order').value);
               }
             });
@@ -1178,6 +1198,11 @@
             document.getElementById('signature-selected-pages').value = '';
           }
         });
+
+        // clear form
+        
+
+
       </script>
   </body>
 </html>

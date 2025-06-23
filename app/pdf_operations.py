@@ -445,33 +445,6 @@ def delete_pdf_pages(pdf_bytes, pages_to_delete):
     finally:
         gc.collect()
 
-# def convert_pdf_to_word(pdf_bytes):
-#     """Convert PDF to Word using pdf2docx."""
-#     input_file = None
-#     output_file = None
-#     try:
-#         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_input:
-#             tmp_input.write(pdf_bytes)
-#             input_file = tmp_input.name
-        
-#         output_file = tempfile.NamedTemporaryFile(delete=False, suffix=".docx").name
-#         cv = Converter(input_file)
-#         cv.convert(output_file)
-#         cv.close()
-        
-#         with open(output_file, "rb") as f:
-#             return f.read()
-#     except Exception as e:
-#         logger.error(f"PDF to Word error: {e}")
-#         return None
-#     finally:
-#         for path in [input_file, output_file]:
-#             if path and os.path.exists(path):
-#                 try:
-#                     os.unlink(path)
-#                 except:
-#                     pass
-#         gc.collect()
 
 
 def convert_pdf_to_word(pdf_bytes: bytes) -> bytes | None:
@@ -843,30 +816,74 @@ def convert_pdf_to_ppt(pdf_bytes):
         logger.error(f"PPT conversion failed: {str(e)}")
         return None
 
+def convert_pdf_to_excel(pdf_bytes: bytes) -> bytes:
+    """
+    Convert PDF to Excel using Adobe PDF Services.
+    :param pdf_bytes: The PDF file as bytes.
+    :return: The converted Excel file as bytes.
+    """
+    input_pdf_path = None
+    output_xlsx_path = None
 
-def convert_pdf_to_excel(pdf_bytes):
-    """Convert PDF to Excel using pdfplumber."""
     try:
-        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-            all_tables = []
-            for page in pdf.pages:
-                tables = page.extract_tables()
-                for table in tables:
-                    all_tables.append(pd.DataFrame(table[1:], columns=table[0]))
-        
-        if not all_tables:
-            raise Exception("No tables found in PDF")
-        
-        df = pd.concat(all_tables, ignore_index=True) if len(all_tables) > 1 else all_tables[0]
-        output_buffer = io.BytesIO()
-        df.to_excel(output_buffer, index=False, engine="openpyxl")
-        output_buffer.seek(0)
-        return output_buffer.getvalue()
+        # Validate input PDF
+        pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
+        if len(pdf_reader.pages) == 0:
+            raise ValueError("PDF is empty or invalid")
+
+        # Write PDF bytes to a temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as input_pdf:
+            input_pdf.write(pdf_bytes)
+            input_pdf_path = input_pdf.name
+
+        # Generate output file path
+        output_xlsx_path = tempfile.mktemp(suffix=".xlsx")
+
+        # Adobe credentials
+        credentials = ServicePrincipalCredentials(
+            client_id=os.getenv("PDF_SERVICES_CLIENT_ID"),
+            client_secret=os.getenv("PDF_SERVICES_CLIENT_SECRET")
+        )
+        pdf_services = PDFServices(credentials=credentials)
+
+        # Upload the PDF
+        with open(input_pdf_path, "rb") as f:
+            input_stream = f.read()
+        input_asset = pdf_services.upload(input_stream=input_stream, mime_type="application/pdf")
+
+        # Prepare and submit job
+        export_params = ExportPDFParams(target_format=ExportPDFTargetFormat.XLSX)
+        export_job = ExportPDFJob(input_asset=input_asset, export_pdf_params=export_params)
+        location = pdf_services.submit(export_job)
+        job_result = pdf_services.get_job_result(location, ExportPDFResult)
+
+        # Get Excel content
+        result_asset: CloudAsset = job_result.get_result().get_asset()
+        stream_asset: StreamAsset = pdf_services.get_content(result_asset)
+
+        # Write Excel output to file
+        with open(output_xlsx_path, "wb") as f:
+            f.write(stream_asset.get_input_stream())
+
+
+        # Read as bytes to return
+        with open(output_xlsx_path, "rb") as f:
+            xlsx_bytes = f.read()
+
+        return xlsx_bytes
+
+    except (ServiceApiException, ServiceUsageException, SdkException) as e:
+        logging.error(f"Adobe PDF Services error: {str(e)}")
+        raise ValueError("Adobe PDF Services failed: " + str(e))
     except Exception as e:
-        logger.error(f"PDF to Excel error: {e}")
-        return None
+        logging.error(f"Unexpected error in conversion: {str(e)}")
+        raise ValueError("Conversion failed: " + str(e))
     finally:
+        for path in [input_pdf_path, output_xlsx_path]:
+            if path and os.path.exists(path):
+                os.remove(path)
         gc.collect()
+
 
 
 def convert_image_to_pdf(
@@ -956,87 +973,7 @@ def convert_image_to_pdf(
         gc.collect()
 
 
-# def convert_image_to_pdf(image_bytes, page_size="A4", orientation="Portrait"):
-#     """Convert a single image to a one-page PDF."""
-#     # logger.info("Converting image to PDF...${page_size} ${orientation}")
-#     try:
-#         doc = fitz.open()
-#         page_sizes = {"A4": (595, 842), "Letter": (612, 792)}
-#         page_width, page_height = page_sizes.get(page_size, page_sizes["A4"])
-#         if orientation == "Landscape":
-#             page_width, page_height = page_height, page_width
-        
-#         used_mem, avail_mem, total_mem = get_memory_info()
-#         mem_percent = (used_mem / total_mem) * 100
-#         if mem_percent > 80:
-#             raise Exception("High memory usage detected")
-        
-#         img = Image.open(io.BytesIO(image_bytes))
-#         if img.format not in ["PNG", "JPEG"]:
-#             raise Exception("Only PNG and JPEG are supported")
-#         img_width, img_height = img.size
-        
-#         margin = 10
-#         usable_width = page_width - 2 * margin
-#         usable_height = page_height - 2 * margin
-#         scale = min(usable_width / img_width, usable_height / img_height)
-#         new_width = img_width * scale
-#         new_height = img_height * scale
-        
-#         page = doc.new_page(width=page_width, height=page_height)
-#         x0 = (page_width - new_width) / 2
-#         y0 = (page_height - new_height) / 2
-#         rect = fitz.Rect(x0, y0, x0 + new_width, y0 + new_height)
-        
-#         img_buffer = io.BytesIO()
-#         img.save(img_buffer, format="PNG")
-#         page.insert_image(rect, stream=img_buffer.getvalue())
-#         img.close()
-        
-#         pdf_bytes = io.BytesIO()
-#         doc.save(pdf_bytes)
-#         doc.close()
-#         pdf_bytes.seek(0)
-#         return pdf_bytes.getvalue()
-#     except Exception as e:
-#         logger.error(f"Image to PDF error: {e}")
-#         return None
-#     finally:
-#         gc.collect()
 
-# def remove_pdf_password(pdf_bytes, password):
-#     """Remove password from PDF using PyMuPDF."""
-#     try:
-#         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-#         if not doc.is_encrypted:
-#             return pdf_bytes
-#         if not doc.authenticate(password):
-#             raise Exception("Incorrect password")
-        
-#         used_mem, avail_mem, total_mem = get_memory_info()
-#         mem_percent = (used_mem / total_mem) * 100
-#         if mem_percent > 80:
-#             raise Exception("High memory usage detected")
-        
-#         output_buffer = io.BytesIO()
-#         doc.save(output_buffer, encryption=0)
-#         doc.close()
-#         output_buffer.seek(0)
-        
-#         decrypted_bytes = output_buffer.getvalue()
-#         test_doc = fitz.open(stream=decrypted_bytes, filetype="pdf")
-#         is_encrypted = test_doc.is_encrypted
-#         test_doc.close()
-        
-#         if is_encrypted:
-#             raise Exception("Failed to remove password")
-        
-#         return decrypted_bytes
-#     except Exception as e:
-#         logger.error(f"PDF password removal error: {e}")
-#         return None
-#     finally:
-#         gc.collect()
 
 def remove_pdf_password(pdf_bytes: bytes, password: str) -> Optional[bytes]:
     """Remove password using pikepdf which handles AES-256 better."""

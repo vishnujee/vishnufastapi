@@ -578,3 +578,26 @@ input[type="range"]:focus {
         box-shadow: none; /* Matches existing @media (max-width: 400px) */
     }
 }
+
+/*  clear form css */
+
+
+  /* .clear-btn {
+    background-color: #f44336;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: background-color 0.3s;
+  }
+  .clear-btn:hover {
+    background-color: #d32f2f;
+  }
+
+
+  button.bg-red-600:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  } */

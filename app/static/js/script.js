@@ -1,4 +1,5 @@
-const BASE_URL = window.location.origin; // Adjust if backend API path differs
+
+const BASE_URL = window.location.origin;
 
 // Set PDF.js worker script
 if (typeof pdfjsLib !== 'undefined') {
@@ -8,7 +9,7 @@ if (typeof pdfjsLib !== 'undefined') {
 function updateFileSize() {
     const fileInput = document.getElementById('compress-file');
     const fileSizeDisplay = document.getElementById('original-file-size');
-    if (fileInput.files.length > 0) {
+    if (fileInput && fileInput.files.length > 0) {
         const file = fileInput.files[0];
         const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
         fileSizeDisplay.textContent = `Original File Size: ${sizeMB} MB`;
@@ -28,7 +29,7 @@ async function computeAllCompressionSizes() {
     const compressionSizes = document.getElementById('compression-sizes');
     const computeButton = form.querySelector('button[onclick="computeAllCompressionSizes()"]');
 
-    if (!fileInput.files.length) {
+    if (!fileInput || !fileInput.files.length) {
         resultDiv.textContent = 'Please select a PDF file.';
         resultDiv.classList.add('text-red-600');
         return;
@@ -106,7 +107,6 @@ async function computeAllCompressionSizes() {
     }
 }
 
-// Add slider value display update
 function initSliders() {
     const dpiSlider = document.getElementById('custom_dpi');
     const qualitySlider = document.getElementById('custom_quality');
@@ -125,21 +125,34 @@ function initSliders() {
     }
 }
 
-// Toggle between specific pages and range inputs
 function toggleDeleteInputs() {
-    const deleteType = document.getElementById('deletePages-type').value;
-    document.getElementById('specific-pages-input').classList.toggle('hidden', deleteType !== 'specific');
-    document.getElementById('range-pages-input').classList.toggle('hidden', deleteType !== 'range');
+    const deleteType = document.getElementById('deletePages-type');
+    if (deleteType) {
+        const specificPagesInput = document.getElementById('specific-pages-input');
+        const rangePagesInput = document.getElementById('range-pages-input');
+        if (specificPagesInput && rangePagesInput) {
+            specificPagesInput.classList.toggle('hidden', deleteType.value !== 'specific');
+            rangePagesInput.classList.toggle('hidden', deleteType.value !== 'range');
+        }
+    }
 }
 
-// Existing toggleCustomInputs
 function toggleCustomInputs() {
-    const preset = document.getElementById('compress-preset').value;
+    const preset = document.getElementById('compress-preset');
     const customOptions = document.getElementById('custom-compress-options');
-    customOptions.classList.toggle('hidden', preset !== 'Custom');
+    if (preset && customOptions) {
+        customOptions.classList.toggle('hidden', preset.value !== 'Custom');
+    }
 }
 
-// Helper function to get total pages
+function toggleCustomXYInputs() {
+    const customPosition = document.querySelector('input[name="position_type"][value="custom"]');
+    const customXYInputs = document.getElementById('custom-xy-inputs');
+    if (customPosition && customXYInputs) {
+        customXYInputs.classList.toggle('hidden', !customPosition.checked);
+    }
+}
+
 async function getTotalPages(file) {
     if (!file || typeof pdfjsLib === 'undefined') return 0;
     try {
@@ -152,13 +165,7 @@ async function getTotalPages(file) {
     }
 }
 
-// document.getElementById('description-position').addEventListener('change', function() {
-//     const customContainer = document.getElementById('custom-position-container');
-//     customContainer.classList.toggle('hidden', this.value !== 'custom');
-//   });
-
-
-  async function processPDF(endpoint, formId) {
+async function processPDF(endpoint, formId) {
     console.log(`Processing PDF for endpoint: ${endpoint}, form: ${formId}`);
     const form = document.getElementById(formId);
     const resultDiv = document.getElementById(`result-${formId}`);
@@ -209,11 +216,8 @@ async function getTotalPages(file) {
             formData.append('custom_y', parseFloat(customY));
         }
     } else if (endpoint === 'compress_pdf') {
-        const fileInput = form.querySelector('input[type="file"]');
         const preset = form.querySelector('select[name="preset"]').value;
-        if (fileInput && fileInput.files[0]) {
-            formData.append('file', fileInput.files[0]);
-        }
+        formData = new FormData(form);
         formData.append('preset', preset);
         if (preset === 'Custom') {
             const customDpi = form.querySelector('input[name="custom_dpi"]').value;
@@ -223,13 +227,7 @@ async function getTotalPages(file) {
         }
     } else if (endpoint === 'delete_pdf_pages') {
         const deleteType = form.querySelector('select[name="delete_type"]').value;
-        const fileInput = form.querySelector('input[type="file"]');
-        if (!fileInput || !fileInput.files[0]) {
-            resultDiv.textContent = 'Please select a PDF file.';
-            resultDiv.classList.add('text-red-600');
-            return;
-        }
-        const file = fileInput.files[0];
+        const file = form.querySelector('input[type="file"]').files[0];
         let pages;
         if (deleteType === 'specific') {
             pages = form.querySelector('input[name="pages"]').value;
@@ -238,16 +236,16 @@ async function getTotalPages(file) {
             const totalPages = await getTotalPages(file);
             pages = expandPageRange(range, totalPages);
         }
+        formData = new FormData();
         formData.append('file', file);
         formData.append('pages', pages);
     } else {
-        const fileInput = form.querySelector('input[type="file"]');
-        if (fileInput && fileInput.files[0]) {
-            formData.append('file', fileInput.files[0]);
-        }
         const conversionTypeInput = form.querySelector('input[name="conversionType"]:checked');
+        formData = new FormData(form);
         if (conversionTypeInput) {
-            formData.append('conversion_type', conversionTypeInput.value);
+            const conversionType = conversionTypeInput.value;
+            formData.append('conversion_type', conversionType);
+            console.log('Conversion type:', conversionType);
         }
     }
 
@@ -343,20 +341,35 @@ async function getTotalPages(file) {
 }
 
 function updateFileOrder(files) {
-    const fileOrder = Array.from(files).map(file => file.dataset.fileIndex);
-    document.getElementById('merge-file-order').value = fileOrder.join(',');
-}
-
-function updateFileButtonStates(files) {
-    files.forEach((file, index) => {
-        const upButton = file.querySelector('.move-up');
-        const downButton = file.querySelector('.move-down');
-        upButton.disabled = index === 0;
-        downButton.disabled = index === files.length - 1;
+    const fileOrder = Array.from(files).map((file, index) => {
+        if (!file.dataset.fileIndex) {
+            file.dataset.fileIndex = index;
+        }
+        return file.dataset.fileIndex;
     });
+    const fileOrderInput = document.getElementById('merge-file-order');
+    if (fileOrderInput) {
+        fileOrderInput.value = fileOrder.join(',');
+    }
 }
 
-// Modified validateForm
+// function updateButtonStates(items) {
+//     items.forEach((item, index) => {
+//         const upButton = item.querySelector('.move-up');
+//         const downButton = item.querySelector('.move-down');
+//         if (upButton) {
+//             upButton.disabled = index === 0;
+//             upButton.classList.toggle('bg-gray-400', index === 0);
+//             upButton.classList.toggle('bg-blue-500', index !== 0);
+//         }
+//         if (downButton) {
+//             downButton.disabled = index === items.length - 1;
+//             downButton.classList.toggle('bg-gray-400', index === items.length - 1);
+//             downButton.classList.toggle('bg-blue-500', index !== items.length - 1);
+//         }
+//     });
+// }
+
 async function validateForm(form, endpoint, resultDiv) {
     const filesInput = form.querySelector('input[type="file"]');
     if (!filesInput) {
@@ -444,8 +457,7 @@ async function validateForm(form, endpoint, resultDiv) {
             resultDiv.classList.add('text-red-600');
             return false;
         }
-    }
-    else if (endpoint === 'add_signature') {
+    } else if (endpoint === 'add_signature') {
         const pdfFile = files[0];
         const signatureFile = form.querySelector('input[name="signature_file"]').files[0];
         const selectedPages = form.querySelector('input[name="specific_pages"]').value;
@@ -453,7 +465,6 @@ async function validateForm(form, endpoint, resultDiv) {
         const position = form.querySelector('select[name="position"]').value;
         const alignment = form.querySelector('select[name="alignment"]').value;
 
-        // Validate PDF file
         const pdfSizeMB = pdfFile.size / (1024 * 1024);
         if (pdfSizeMB > 50) {
             resultDiv.textContent = `PDF file ${pdfFile.name} exceeds 50MB limit.`;
@@ -466,7 +477,6 @@ async function validateForm(form, endpoint, resultDiv) {
             return false;
         }
 
-        // Validate signature file
         const sigSizeMB = signatureFile.size / (1024 * 1024);
         if (sigSizeMB > 10) {
             resultDiv.textContent = `Signature file ${signatureFile.name} exceeds 10MB limit.`;
@@ -479,7 +489,6 @@ async function validateForm(form, endpoint, resultDiv) {
             return false;
         }
 
-        // Validate selected pages
         if (!selectedPages) {
             resultDiv.textContent = 'Please select at least one page to sign.';
             resultDiv.classList.add('text-red-600');
@@ -491,7 +500,6 @@ async function validateForm(form, endpoint, resultDiv) {
             return false;
         }
 
-        // Validate size, position, alignment
         if (!['small', 'medium', 'large'].includes(size)) {
             resultDiv.textContent = 'Invalid size. Choose small, medium, or large.';
             resultDiv.classList.add('text-red-600');
@@ -522,6 +530,11 @@ async function validateForm(form, endpoint, resultDiv) {
                 resultDiv.classList.add('text-red-600');
                 return false;
             }
+            if (file.type !== 'application/pdf') {
+                resultDiv.textContent = `File ${file.name} must be a PDF.`;
+                resultDiv.classList.add('text-red-600');
+                return false;
+            }
         }
         const method = form.querySelector('select[name="method"]').value;
         const maxFiles = method === 'PyPDF2' ? 51 : 30;
@@ -536,20 +549,17 @@ async function validateForm(form, endpoint, resultDiv) {
             resultDiv.classList.add('text-red-600');
             return false;
         }
-        // Validate file order
         if (!fileOrderInput || !fileOrderInput.value) {
             resultDiv.textContent = 'Please load and order files.';
             resultDiv.classList.add('text-red-600');
             return false;
         }
-        // Validate file order if provided
-        if (fileOrderInput && fileOrderInput.value) {
-            const fileOrder = fileOrderInput.value.split(',').map(i => parseInt(i.trim()));
-            if (fileOrder.length !== files.length || !fileOrder.every(i => i >= 0 && i < files.length)) {
-                resultDiv.textContent = 'Invalid file order. Ensure all files are included in the order.';
-                resultDiv.classList.add('text-red-600');
-                return false;
-            }
+        const fileOrder = fileOrderInput.value.split(',').map(i => parseInt(i.trim()));
+        const uniqueIndices = new Set(fileOrder);
+        if (fileOrder.length !== files.length || uniqueIndices.size !== files.length || !fileOrder.every(i => i >= 0 && i < files.length)) {
+            resultDiv.textContent = 'Invalid file order. Ensure all files are included exactly once.';
+            resultDiv.classList.add('text-red-600');
+            return false;
         }
     } else if (endpoint === 'add_page_numbers') {
         const file = files[0];
@@ -590,15 +600,21 @@ async function validateForm(form, endpoint, resultDiv) {
             resultDiv.classList.add('text-red-600');
             return false;
         }
+        if (file.type !== 'application/pdf') {
+            resultDiv.textContent = `File ${file.name} must be a PDF.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
         if (!pageOrderInput || !pageOrderInput.value) {
             resultDiv.textContent = 'Please load and reorder pages.';
             resultDiv.classList.add('text-red-600');
             return false;
         }
-        // Validate page order format
-        const pageOrder = pageOrderInput.value.split(',').map(p => p.trim());
-        if (!pageOrder.every(p => /^[1-9]\d*$/.test(p))) {
-            resultDiv.textContent = 'Invalid page order format. Use comma-separated positive integers.';
+        const totalPages = await getTotalPages(file);
+        const pageOrder = pageOrderInput.value.split(',').map(p => parseInt(p.trim()));
+        const uniquePages = new Set(pageOrder);
+        if (!pageOrder.every(p => /^[1-9]\d*$/.test(p.toString())) || pageOrder.length !== totalPages || uniquePages.size !== totalPages || !pageOrder.every(p => p >= 1 && p <= totalPages)) {
+            resultDiv.textContent = `Invalid page order. Must include all pages (1-${totalPages}) exactly once.`;
             resultDiv.classList.add('text-red-600');
             return false;
         }
@@ -727,12 +743,11 @@ async function validateForm(form, endpoint, resultDiv) {
     return true;
 }
 
-// Display total pages in PDF
 async function displayTotalPages(fileInputId, totalPagesId) {
     const fileInput = document.getElementById(fileInputId);
     const totalPagesDiv = document.getElementById(totalPagesId);
-    const resultDiv = document.getElementById('result-deletePagesForm');
-    if (!fileInput.files[0]) {
+    const resultDiv = document.getElementById(`result-${fileInputId.replace('-file', 'Form')}`);
+    if (!fileInput || !fileInput.files[0]) {
         totalPagesDiv.textContent = 'Total Pages: Not loaded';
         return;
     }
@@ -742,6 +757,10 @@ async function displayTotalPages(fileInputId, totalPagesId) {
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         totalPagesDiv.textContent = `Total Pages: ${pdf.numPages}`;
         resultDiv.textContent = '';
+        const pageOrderInput = document.querySelector('input[name="page_order"]');
+        if (pageOrderInput && fileInputId === 'reorderPages-file') {
+            pageOrderInput.value = Array.from({ length: pdf.numPages }, (_, i) => i + 1).join(',');
+        }
     } catch (err) {
         console.error('Error counting pages:', err);
         totalPagesDiv.textContent = 'Total Pages: Error loading PDF';
@@ -750,7 +769,6 @@ async function displayTotalPages(fileInputId, totalPagesId) {
     }
 }
 
-// Expand page range (e.g., "1-5" to "1,2,3,4,5")
 function expandPageRange(range, totalPages) {
     if (!range || typeof range !== 'string') {
         console.error('Invalid range input:', range);
@@ -774,19 +792,14 @@ function expandPageRange(range, totalPages) {
 function formatResponse(text) {
     if (!text) return '';
 
-    // Convert markdown tables to HTML tables
     text = text.replace(/(\|[^\n]+\|\r?\n\|[-: |]+\|\r?\n)((?:\|[^\n]+\|\r?\n?)+)/g, function (match, header, body) {
         let html = '<div class="overflow-x-auto"><table class="w-full border-collapse my-3">';
-
-        // Process header
         const headers = header.split('|').slice(1, -1).map(h => h.trim());
         html += '<thead><tr class="bg-gray-100">';
         headers.forEach(h => {
             html += `<th class="p-2 border text-left">${h}</th>`;
         });
         html += '</tr></thead><tbody>';
-
-        // Process body
         const rows = body.trim().split('\n');
         rows.forEach(row => {
             const cells = row.split('|').slice(1, -1).map(c => c.trim());
@@ -796,26 +809,21 @@ function formatResponse(text) {
             });
             html += '</tr>';
         });
-
         html += '</tbody></table></div>';
         return html;
     });
 
-    // Convert markdown lists
     text = text.replace(/^([*-]|\d+\.)\s+(.+)$/gm, function (match, bullet, content) {
         return `<li class="ml-5">${formatMarkdownInline(content)}</li>`;
     });
 
-    // Wrap consecutive list items in ul/ol
     text = text.replace(/(<li>.*<\/li>)+/g, function (match) {
         const listType = match.includes('<li class="ml-5">') ? 'ul' : 'ol';
         return `<${listType} class="list-disc pl-5 my-2">${match}</${listType}>`;
     });
 
-    // Convert markdown bold/italic
     text = formatMarkdownInline(text);
 
-    // Convert line breaks to <br> for non-table, non-list content
     text = text.replace(/\n/g, function (match, offset, fullText) {
         if (!fullText.substring(offset).match(/^\n*(<table|<ul|<ol)/) &&
             !fullText.substring(0, offset).match(/(<\/table|<\/ul|<\/ol>)\n*$/)) {
@@ -824,7 +832,6 @@ function formatResponse(text) {
         return match;
     });
 
-    // Convert markdown links
     text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank">$1</a>');
 
     return text;
@@ -833,25 +840,17 @@ function formatResponse(text) {
 function formatMarkdownInline(text) {
     if (!text) return '';
 
-    // Bold
     text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    // Italic
     text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    // Inline code
     text = text.replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>');
 
     return text;
 }
 
 async function typewriterEffect(element, text, speed = 20) {
-    // First format the response to handle markdown
     const formattedText = formatResponse(text);
-
-    // Create a temporary element to parse the HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = formattedText;
-
-    // Process each node for typewriter effect
     element.innerHTML = '';
     await typewriterProcessNodes(element, tempDiv.childNodes, speed);
 }
@@ -861,26 +860,18 @@ async function typewriterProcessNodes(parent, nodes, speed) {
         if (node.nodeType === Node.TEXT_NODE) {
             await typewriterAddText(parent, node.textContent, speed);
         } else if (node.nodeType === Node.ELEMENT_NODE) {
-            // For tables, add them immediately
             if (node.tagName === 'TABLE') {
                 const clone = node.cloneNode(true);
                 parent.appendChild(clone);
             } else {
                 const newElement = document.createElement(node.tagName);
-
-                // Copy all attributes
                 for (const attr of node.attributes) {
                     newElement.setAttribute(attr.name, attr.value);
                 }
-
-                // Copy classes
                 if (node.className) {
                     newElement.className = node.className;
                 }
-
                 parent.appendChild(newElement);
-
-                // Process child nodes recursively
                 await typewriterProcessNodes(newElement, node.childNodes, speed);
             }
         }
@@ -889,32 +880,25 @@ async function typewriterProcessNodes(parent, nodes, speed) {
 
 async function typewriterAddText(element, text, speed) {
     for (let i = 0; i < text.length; i++) {
-        // Add the next character
         element.textContent += text[i];
-
-        // Add blinking cursor (except for the last character)
         if (i < text.length - 1) {
             const cursor = document.createElement('span');
             cursor.className = 'blinking-cursor';
             cursor.textContent = '|';
             element.appendChild(cursor);
-
-            // Wait for a bit
             await new Promise(resolve => setTimeout(resolve, speed));
-
-            // Remove the cursor
             element.removeChild(cursor);
         }
     }
 }
 
 async function sendChat() {
-    const chatInput = document.getElementById('chatInput').value.trim();
+    const chatInput = document.getElementById('chatInput');
     const chatOutput = document.getElementById('chatOutput');
     const progressDiv = document.getElementById('progress-chat');
     const progressText = document.getElementById('progress-text-chat');
 
-    if (!chatInput) {
+    if (!chatInput || !chatInput.value.trim()) {
         chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
         return;
     }
@@ -926,7 +910,7 @@ async function sendChat() {
         const response = await fetch('/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `query=${encodeURIComponent(chatInput)}&typewriter=true`
+            body: `query=${encodeURIComponent(chatInput.value.trim())}&typewriter=true`
         });
 
         if (!response.ok) {
@@ -936,28 +920,22 @@ async function sendChat() {
 
         const data = await response.json();
 
-        // Create new message element
         const messageDiv = document.createElement('div');
         messageDiv.className = 'mb-4';
 
-        // Add user query
         const userQuery = document.createElement('p');
         userQuery.className = 'font-semibold text-blue-600';
-        userQuery.textContent = `You: ${chatInput}`;
+        userQuery.textContent = `You: ${chatInput.value.trim()}`;
         messageDiv.appendChild(userQuery);
 
-        // Add AI response container
         const aiResponse = document.createElement('div');
         aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
         messageDiv.appendChild(aiResponse);
 
-        // Insert at the top of chat output
         chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
 
-        // Clear input
-        document.getElementById('chatInput').value = '';
+        chatInput.value = '';
 
-        // Apply typewriter effect
         await typewriterEffect(aiResponse, data.answer);
     } catch (error) {
         console.error("Chat error:", error);
@@ -965,7 +943,7 @@ async function sendChat() {
         errorDiv.className = 'text-red-600 mb-4';
         errorDiv.innerHTML = `
             <p>Error: ${error.message}</p>
-            <p class="text-sm text-gray-500">Please try again or refresh the page.</p>
+            <p class="text-sm text-gray-600">Please try again or refresh the page.</p>
         `;
         chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
     } finally {
@@ -976,54 +954,88 @@ async function sendChat() {
 
 function showTool(toolId) {
     localStorage.setItem('lastTool', toolId);
-    // Hide all tool sections
     document.querySelectorAll('.tool-section').forEach(section => {
         section.style.display = 'none';
     });
     const toolSection = document.getElementById(toolId);
     if (toolSection) {
         toolSection.style.display = 'block';
+    }
+    document.getElementById('chat-section').style.display = 'block';
+
+    // hide and show clear form
+    const clearBtn = document.getElementById('clear-all-btn-container');
+    if (toolId === 'chat-section') {
+      clearBtn.style.display = 'none';
     } else {
-        // Fallback to chat if tool not found
-        document.getElementById('chat-section').style.display = 'block';
+      clearBtn.style.display = 'block';
     }
 
-    // Show selected tool
-    document.getElementById(toolId).style.display = 'block';
-
-    // Revert all nav-link styles
-    document.querySelectorAll('.nav-link, .dropdown-content a, #mobile-submenu a').forEach(link => {
-        link.classList.remove('text-green-600', 'font-bold');
+    // 
+    document.querySelectorAll('.nav-link, .dropdown-content a').forEach(link => {
+        link.classList.remove('text-green-600');
+        link.classList.add('text-blue-600');
     });
 
-    // Highlight the clicked item
-    if (event.currentTarget) {
-        event.currentTarget.classList.add('text-green-600', 'font-bold');
+    if (event && event.currentTarget) {
+        event.currentTarget.classList.add('text-green-600');
     }
 
-    // On mobile, hide the menus
-    if (window.innerWidth <= 768) {
-        const mobileMenu = document.getElementById('mobile-menu');
-        const mobileSubmenu = document.getElementById('mobile-submenu');
-        const menuButton = document.getElementById('mobile-menu-button');
-
-        if (mobileSubmenu && !mobileSubmenu.classList.contains('hidden')) {
+    // Updated mobile dropdown handling
+    const mobileMenu = document.querySelector('#mobile-menu');
+    const mobileSubmenu = document.querySelector('#mobile-submenu');
+    const menuButton = document.querySelector('#mobile-menu-button');
+    if (mobileMenu && window.innerWidth <= 768) {
+        mobileMenu.classList.add('hidden');
+        if (mobileSubmenu) {
             mobileSubmenu.classList.add('hidden');
         }
-
-        if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-            mobileMenu.classList.add('hidden');
-        }
-
         if (menuButton) {
             menuButton.querySelector('i').classList.remove('fa-times');
             menuButton.querySelector('i').classList.add('fa-bars');
         }
     }
-
-    // Scroll to section
-    document.getElementById(toolId).scrollIntoView({ behavior: 'smooth' });
 }
+
+// function showTool(toolId) {
+//     localStorage.setItem('lastTool', toolId);
+//     document.querySelectorAll('.tool-section').forEach(section => {
+//         section.style.display = 'none';
+//     });
+//     const toolSection = document.getElementById(toolId);
+//     if (toolSection) {
+//         toolSection.style.display = 'block';
+//     }
+//     document.getElementById('chat-section').style.display = 'block';
+
+
+//     // hide and show clear form
+
+//     const clearBtn = document.getElementById('clear-all-btn-container');
+//     if (toolId === 'chat-section') {
+//       clearBtn.style.display = 'none';
+//     } else {
+//       clearBtn.style.display = 'block';
+//     }
+
+//     // 
+
+//     document.querySelectorAll('.nav-link, .dropdown-content a').forEach(link => {
+//         link.classList.remove('text-green-600');
+//         link.classList.add('text-blue-600');
+//     });
+
+//     if (event && event.currentTarget) {
+//         event.currentTarget.classList.add('text-green-600');
+//     }
+
+//     const mobileSubmenu = document.querySelector('#mobile-menu');
+//     if (mobileSubmenu && window.innerWidth <= 768) {
+//         mobileSubmenu.classList.add('hidden');
+//     }
+
+//     document.getElementById(toolId).scrollIntoView({ behavior: 'smooth' });
+// }
 
 async function processImage(endpoint, formId) {
     const form = document.getElementById(formId);
@@ -1032,7 +1044,7 @@ async function processImage(endpoint, formId) {
     const progressText = document.getElementById(`progress-text-${formId}`);
     const fileInput = form.querySelector('input[type="file"]');
 
-    if (!fileInput.files[0]) {
+    if (!fileInput || !fileInput.files[0]) {
         resultDiv.textContent = 'Please select an image file.';
         resultDiv.classList.add('text-red-600');
         return;
@@ -1084,13 +1096,96 @@ document.addEventListener('DOMContentLoaded', () => {
         deletePagesType.addEventListener('change', toggleDeleteInputs);
     }
 
-// page reload
+    // Initialize merge_pdf file reordering
+    const mergeFileInput = document.getElementById('mergePdf-file');
+    const fileList = document.querySelector('.file-list');
+    if (mergeFileInput && fileList) {
+        mergeFileInput.addEventListener('change', () => {
+            fileList.innerHTML = '';
+            const files = mergeFileInput.files;
+            Array.from(files).forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.dataset.fileIndex = index;
+                fileItem.className = 'file-item flex justify-between items-center mb-2';
+                fileItem.innerHTML = `
+                    <span>${file.name}</span>
+                    <div>
+                        <button class="move-up bg-blue-600 text-white px-2 py-1 rounded mr-2">Up</button>
+                        <button class="move-down bg-blue-600 text-white px-2 py-1 rounded">Down</button>
+                    </div>
+                `;
+                fileList.appendChild(fileItem);
+            });
+            updateFileOrder(fileList.querySelectorAll('.file-item'));
+            updateButtonStates(fileList.querySelectorAll('.file-item'));
+        });
 
+        // Handle move up/down buttons for merge_pdf
+        fileList.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target.classList.contains('move-up') || target.classList.contains('move-down')) {
+                const fileItem = target.closest('.file-item');
+                const items = Array.from(fileList.querySelectorAll('.file-item'));
+                const index = items.indexOf(fileItem);
+                if (target.classList.contains('move-up') && index > 0) {
+                    fileList.insertBefore(fileItem, items[index - 1]);
+                } else if (target.classList.contains('move-down') && index < items.length - 1) {
+                    fileList.insertBefore(items[index + 1], fileItem);
+                }
+                updateFileOrder(fileList.querySelectorAll('.file-item'));
+                // updateButtonStates(fileList.querySelectorAll('.file-item'));
+            }
+        });
+    }
 
+    // Initialize reorder_pages
+    const reorderFileInput = document.getElementById('reorderPages-file');
+    const pageList = document.querySelector('.page-list');
+    if (reorderFileInput && pageList) {
+        reorderFileInput.addEventListener('change', async () => {
+            await displayTotalPages('reorderPages-file', 'total-pages-reorderPages');
+            const pageOrderInput = document.querySelector('input[name="page_order"]');
+            if (pageOrderInput && pageOrderInput.value) {
+                pageList.innerHTML = '';
+                const pages = pageOrderInput.value.split(',').map(p => parseInt(p.trim()));
+                pages.forEach((page, index) => {
+                    const pageItem = document.createElement('div');
+                    pageItem.dataset.fileIndex = index;
+                    pageItem.dataset.pageNumber = page;
+                    pageItem.className = 'page-item flex justify-between items-center mb-2';
+                    pageItem.innerHTML = `
+                        <span>Page ${page}</span>
+                        <div>
+                            <button class="move-up bg-blue-600 text-white px-2 py-1 rounded mr-2">Up</button>
+                            <button class="move-down bg-blue-600 text-white px-2 py-1 rounded">Down</button>
+                        </div>
+                    `;
+                    pageList.appendChild(pageItem);
+                });
+                updateButtonStates(pageList.querySelectorAll('.page-item'));
 
+                // Handle page reordering
+                pageList.addEventListener('click', (e) => {
+                    const target = e.target;
+                    if (target.classList.contains('move-up') || target.classList.contains('move-down')) {
+                        const pageItem = target.closest('.page-item');
+                        const items = Array.from(pageList.querySelectorAll('.page-item'));
+                        const index = items.indexOf(pageItem);
+                        if (target.classList.contains('move-up') && index > 0) {
+                            pageList.insertBefore(pageItem, items[index - 1]);
+                        } else if (target.classList.contains('move-down') && index < items.length - 1) {
+                            pageList.insertBefore(items[index + 1], pageItem);
+                        }
+                        const newOrder = Array.from(pageList.querySelectorAll('.page-item')).map(item => item.dataset.pageNumber);
+                        pageOrderInput.value = newOrder.join(',');
+                        // updateButtonStates(pageList.querySelectorAll('.page-item'));
+                    }
+                }, { once: true }); // Prevent duplicate listeners
+            }
+        });
+    }
 
-// 
-
+    // Initialize image to PDF functionality
     const imageToPdfForm = document.getElementById('imageToPdfForm');
     if (imageToPdfForm) {
         const imageToPdfFile = document.getElementById('imageToPdf-file');
@@ -1133,6 +1228,45 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.warn('Form with ID "imageToPdfForm" not found');
     }
-        
-    
 });
+
+
+// function clearForm(formId) {
+//     console.log('Button clicked!');
+//     document.getElementById(formId).reset();
+//     alert('Form cleared!'); // Temporary to verify it's working
+//   }
+
+
+//  clear form function for all forms
+
+
+function clearAllForms() {
+    // Reset all forms on the page
+    document.querySelectorAll('form').forEach(form => form.reset());
+    
+    // Clear all file inputs
+    document.querySelectorAll('input[type="file"]').forEach(input => {
+      input.value = '';
+      // Trigger change event to update UI
+      input.dispatchEvent(new Event('change'));
+    });
+    
+    // Reset all file name displays
+    document.querySelectorAll('[id$="-file-name"], [id$="-files-count"]').forEach(display => {
+      display.textContent = 'No file selected';
+    });
+    
+    // Clear all result messages
+    document.querySelectorAll('[id^="result-"]').forEach(result => {
+      result.textContent = '';
+    });
+    
+    // Hide all preview sections
+    // document.querySelectorAll('#file-previews, #page-previews').forEach(section => {
+    //   section.classList.add('hidden');
+    //   section.innerHTML = '';
+    // });
+    
+    // alert('All forms cleared successfully!');
+  }

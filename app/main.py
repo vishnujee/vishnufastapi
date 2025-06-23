@@ -411,7 +411,7 @@ async def chat(query: str = Form(...), typewriter: bool = Form(False)):
 
 
 @app.post("/merge_pdf")
-async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("PyPDF2"), file_order: str = Form(None)):
+async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("PyPDF2"), file_order: Optional[str] = Form(None)):
     logger.info(f"Received merge request with {len(files)} files, method: {method}, file_order: {file_order}")
     if len(files) < 2:
         raise HTTPException(status_code=400, detail="At least 2 PDF files required")
@@ -726,22 +726,22 @@ async def convert_pdf_to_excel_endpoint(file: UploadFile = File(...)):
         file_content = await file.read()
         s3_key = upload_to_s3(file_content, file.filename)
         xlsx_bytes = convert_pdf_to_excel(file_content)
-        if not xlsx_bytes:
-            raise HTTPException(status_code=500, detail="Conversion failed")
-
+        
         return StreamingResponse(
             io.BytesIO(xlsx_bytes),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": 'attachment; filename="converted_output.xlsx"'}
         )
+    except ValueError as ve:
+        logger.error(f"Conversion failed: {str(ve)}")
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        logger.error(f"PDF to Excel error: {e}")
-        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+        logger.error(f"Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Conversion error: {str(e)}")
     finally:
         if s3_key:
             cleanup_s3_file(s3_key)
         gc.collect()
-
 @app.post("/convert_pdf_to_ppt")
 async def convert_pdf_to_ppt_endpoint(
     file: UploadFile = File(...),
