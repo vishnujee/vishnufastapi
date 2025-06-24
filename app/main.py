@@ -1,4 +1,4 @@
-from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form
+from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form,Body
 from fastapi.responses import HTMLResponse, FileResponse,StreamingResponse,JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -1132,6 +1132,42 @@ async def add_signature_endpoint(
         logger.error(f"Unexpected error in add_signature_endpoint: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+# @app.get("/videos")
+# async def list_videos():
+#     try:
+#         response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
+#         videos = []
+        
+#         if "Contents" in response:
+#             for obj in response["Contents"]:
+#                 key = obj["Key"]
+#                 if key.lower().endswith((".mp4", ".webm", ".ogg")):
+#                     try:
+#                         head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
+#                         metadata = head.get('Metadata', {})
+#                         content_type = head.get('ContentType', 'video/mp4')
+                        
+#                         # Dynamically generate the direct S3 URL for each object
+#                         url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}"
+#                         logger.info(f"Direct URL for {key}: {url}")
+                        
+#                         videos.append({
+#                             "name": key.split('/')[-1],
+#                             "url": url,
+#                             "description": metadata.get('description', ''),
+#                             "type": content_type
+#                         })
+#                     except ClientError as e:
+#                         logger.error(f"Error processing {key}: {e}")
+#                         continue
+        
+#         return JSONResponse(content=videos)
+
+#     except Exception as e:
+#         logger.error(f"Error listing videos: {e}")
+#         raise HTTPException(status_code=500, detail="Failed to list videos")
+
+
 @app.get("/videos")
 async def list_videos():
     try:
@@ -1147,11 +1183,15 @@ async def list_videos():
                         metadata = head.get('Metadata', {})
                         content_type = head.get('ContentType', 'video/mp4')
                         
-                        # Dynamically generate the direct S3 URL for each object
-                        url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}"
+                        # Extract video_id (filename part after prefix)
+                        video_id = key[len(S3_PREFIX):]
+                        
+                        # Direct S3 URL with #t=1 for preview frame
+                        url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}#t=1"
                         logger.info(f"Direct URL for {key}: {url}")
                         
                         videos.append({
+                            "id": video_id,
                             "name": key.split('/')[-1],
                             "url": url,
                             "description": metadata.get('description', ''),
@@ -1167,7 +1207,38 @@ async def list_videos():
         logger.error(f"Error listing videos: {e}")
         raise HTTPException(status_code=500, detail="Failed to list videos")
 
+@app.delete("/delete-video/{video_id}")
+async def delete_video(video_id: str, payload: Dict = Body(...)):
+    """
+    Delete a video from S3 after verifying the password.
+    Expects JSON payload: {"password": "your_password"}
+    """
+    try:
+        # Verify password
+        password = payload.get("password", "")
+        if not password:
+            raise HTTPException(status_code=400, detail="Password required")
+        if hashlib.sha256(password.encode()).hexdigest() != CORRECT_PASSWORD_HASH:
+            raise HTTPException(status_code=401, detail="Incorrect password")
 
+        video_key = f"{S3_PREFIX}{video_id}"
+
+        # Delete video from S3
+        try:
+            s3_client.delete_object(Bucket=BUCKET_NAME, Key=video_key)
+            logger.info(f"Successfully deleted video from S3: {video_key}")
+        except ClientError as e:
+            logger.error(f"Error deleting video {video_key}: {str(e)}")
+            if e.response["Error"]["Code"] != "404":
+                raise HTTPException(status_code=500, detail=f"Failed to delete video: {str(e)}")
+
+        return JSONResponse(content={"detail": "Video deleted successfully"})
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting video {video_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Deletion failed: {str(e)}")
 
 @app.post("/upload-video")
 async def upload_video(

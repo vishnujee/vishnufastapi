@@ -954,6 +954,8 @@ async function sendChat() {
 
 function showTool(toolId) {
     localStorage.setItem('lastTool', toolId);
+    console.log("checking toolid ",toolId);
+    
     document.querySelectorAll('.tool-section').forEach(section => {
         section.style.display = 'none';
     });
@@ -961,7 +963,7 @@ function showTool(toolId) {
     if (toolSection) {
         toolSection.style.display = 'block';
     }
-    document.getElementById('chat-section').style.display = 'block';
+    // document.getElementById('chat-section').style.display = 'block';
 
     // hide and show clear form
     const clearBtn = document.getElementById('clear-all-btn-container');
