@@ -877,7 +877,12 @@ def convert_pdf_to_excel(pdf_bytes: bytes) -> bytes:
                 os.remove(path)
         gc.collect()
 
+import fitz
+import io
+from PIL import Image
+import logging
 
+logger = logging.getLogger(__name__)
 
 def convert_image_to_pdf(
     image_bytes,
@@ -888,9 +893,11 @@ def convert_image_to_pdf(
     description_font_size=12,
     custom_x=None,
     custom_y=None,
-    margin=10
+    margin=10,
+    font_color=(0, 0, 0),  # Expects (r,g,b) in 0-1 range
+    font_family="helvetica",
+    font_weight="normal"
 ):
-    """Convert image to PDF with customizable description."""
     try:
         doc = fitz.open()
         page_sizes = {"A4": (595, 842), "Letter": (612, 792)}
@@ -898,72 +905,174 @@ def convert_image_to_pdf(
         
         if orientation == "Landscape":
             page_width, page_height = page_height, page_width
-        
-        # Process image
+
+        # Image processing
         img = Image.open(io.BytesIO(image_bytes))
         img_width, img_height = img.size
-        usable_width = page_width - 2 * margin
-        usable_height = page_height - 2 * margin
-        scale = min(usable_width / img_width, usable_height / img_height)
-        new_width = img_width * scale
-        new_height = img_height * scale
+        scale = min(
+            (page_width - 2*margin) / img_width,
+            (page_height - 2*margin) / img_height
+        )
+        new_width, new_height = img_width * scale, img_height * scale
         
-        # Create page and position image
         page = doc.new_page(width=page_width, height=page_height)
-        x0 = (page_width - new_width) / 2
-        y0 = (page_height - new_height) / 2
-        rect = fitz.Rect(x0, y0, x0 + new_width, y0 + new_height)
-        
-        img_buffer = io.BytesIO()
-        img.save(img_buffer, format="PNG")
-        page.insert_image(rect, stream=img_buffer.getvalue())
-        img.close()
-        
-        # Add description if provided
+        rect = fitz.Rect(
+            (page_width - new_width)/2,
+            (page_height - new_height)/2,
+            (page_width + new_width)/2,
+            (page_height + new_height)/2
+        )
+        page.insert_image(rect, stream=image_bytes)
+
+        # Font mapping
+        FONT_MAP = {
+            "helvetica": {"normal": "helv", "bold": "helvb"},
+            "times": {"normal": "tiro", "bold": "tibo"},  # Corrected to 'tiro' for regular
+            "courier": {"normal": "cour", "bold": "cob"},
+            "zapf": {"normal": "zadb", "bold": "zadb"}  # Zapf doesn't have a bold variant
+        }
+
+        # Get the correct font
+        font_family = font_family.lower()
+        font_weight = font_weight.lower()
+        pdf_font = FONT_MAP.get(font_family, {"normal": "helv", "bold": "helvb"})[font_weight if font_weight in ["normal", "bold"] else "normal"]
+
+        # Description handling
         if description:
-            # Calculate position based on user selection
-            if description_position == "custom" and custom_x and custom_y:
-                desc_x = float(custom_x)
-                desc_y = float(custom_y)
-            else:
-                # Default positions
-                desc_x = margin
-                desc_y = margin  # Top by default
-                
-                if "bottom" in description_position:
-                    desc_y = page_height - margin - description_font_size
-                
-                if "center" in description_position:
-                    text_width = len(description) * (description_font_size * 0.5)
-                    desc_x = (page_width - text_width) / 2
-                    if "top" in description_position:
-                        desc_y = margin + description_font_size  # Shift down by font size to keep text fully visible
-                elif "right" in description_position:
-                    text_width = len(description) * (description_font_size * 0.6)
-                    desc_x = page_width - margin - text_width
+            # Calculate text dimensions
+            text_width = fitz.get_text_length(
+                description,
+                fontname=pdf_font,
+                fontsize=description_font_size
+            )
             
-            # Add text to PDF
-            text_point = fitz.Point(desc_x, desc_y)
+            # Initialize coordinates
+            desc_x, desc_y = margin, margin + description_font_size
+            
+            # Handle custom position
+            if description_position == "custom":
+                if custom_x is not None and custom_y is not None:
+                    desc_x, desc_y = float(custom_x), float(custom_y)
+            
+            # Horizontal alignment
+            elif "center" in description_position:
+                desc_x = (page_width - text_width) / 2
+            elif "right" in description_position:
+                desc_x = page_width - text_width - margin
+            
+            # Vertical alignment
+            if "bottom" in description_position:
+                desc_y = page_height - margin - description_font_size
+            elif "center" in description_position and "top" not in description_position:
+                desc_y = (page_height - description_font_size) / 2
+
+            # Insert text
             page.insert_text(
-                text_point,
+                fitz.Point(desc_x, desc_y),
                 description,
                 fontsize=description_font_size,
-                color=(0, 0, 0),  # Black
-                fontname="helv",  # Helvetica
-                rotate=0
+                color=font_color,
+                fontname=pdf_font,
+                fontfile=None,
+                render_mode=0
             )
-        
-        # Save PDF
+
         pdf_bytes = io.BytesIO()
         doc.save(pdf_bytes)
-        doc.close()
         return pdf_bytes.getvalue()
         
     except Exception as e:
-        logger.error(f"Image to PDF conversion error: {str(e)}")
-        return None
+        logger.error(f"PDF conversion failed: {str(e)}")
+        raise
     finally:
-        gc.collect()
+        if 'doc' in locals():
+            doc.close()
+
+# def convert_image_to_pdf(
+#     image_bytes,
+#     page_size="A4",
+#     orientation="Portrait",
+#     description="",
+#     description_position="bottom",
+#     description_font_size=12,
+#     custom_x=None,
+#     custom_y=None,
+#     margin=10
+# ):
+#     """Convert image to PDF with customizable description."""
+#     try:
+#         doc = fitz.open()
+#         page_sizes = {"A4": (595, 842), "Letter": (612, 792)}
+#         page_width, page_height = page_sizes.get(page_size, page_sizes["A4"])
+        
+#         if orientation == "Landscape":
+#             page_width, page_height = page_height, page_width
+        
+#         # Process image
+#         img = Image.open(io.BytesIO(image_bytes))
+#         img_width, img_height = img.size
+#         usable_width = page_width - 2 * margin
+#         usable_height = page_height - 2 * margin
+#         scale = min(usable_width / img_width, usable_height / img_height)
+#         new_width = img_width * scale
+#         new_height = img_height * scale
+        
+#         # Create page and position image
+#         page = doc.new_page(width=page_width, height=page_height)
+#         x0 = (page_width - new_width) / 2
+#         y0 = (page_height - new_height) / 2
+#         rect = fitz.Rect(x0, y0, x0 + new_width, y0 + new_height)
+        
+#         img_buffer = io.BytesIO()
+#         img.save(img_buffer, format="PNG")
+#         page.insert_image(rect, stream=img_buffer.getvalue())
+#         img.close()
+        
+#         # Add description if provided
+#         if description:
+#             # Calculate position based on user selection
+#             if description_position == "custom" and custom_x and custom_y:
+#                 desc_x = float(custom_x)
+#                 desc_y = float(custom_y)
+#             else:
+#                 # Default positions
+#                 desc_x = margin
+#                 desc_y = margin  # Top by default
+                
+#                 if "bottom" in description_position:
+#                     desc_y = page_height - margin - description_font_size
+                
+#                 if "center" in description_position:
+#                     text_width = len(description) * (description_font_size * 0.5)
+#                     desc_x = (page_width - text_width) / 2
+#                     if "top" in description_position:
+#                         desc_y = margin + description_font_size  # Shift down by font size to keep text fully visible
+#                 elif "right" in description_position:
+#                     text_width = len(description) * (description_font_size * 0.6)
+#                     desc_x = page_width - margin - text_width
+            
+#             # Add text to PDF
+#             text_point = fitz.Point(desc_x, desc_y)
+#             page.insert_text(
+#                 text_point,
+#                 description,
+#                 fontsize=description_font_size,
+#                 color=(0, 0, 0),  # Black
+#                 fontname="helv",  # Helvetica
+#                 rotate=0
+#             )
+        
+#         # Save PDF
+#         pdf_bytes = io.BytesIO()
+#         doc.save(pdf_bytes)
+#         doc.close()
+#         return pdf_bytes.getvalue()
+        
+#     except Exception as e:
+#         logger.error(f"Image to PDF conversion error: {str(e)}")
+#         return None
+#     finally:
+#         gc.collect()
 
 
 

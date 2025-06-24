@@ -528,7 +528,10 @@
               <div class="bg-teal-100 p-2 rounded-full mr-3">
                 <i class="fas fa-image text-teal-600 text-xl"></i>
               </div>
-              <h2 class="text-2xl font-semibold text-gray-800">Convert Image to PDF</h2>
+              <h2 class="text-2xl font-semibold text-gray-800">
+                Image → PDF Magic <br>
+                <span class="whitespace-nowrap" style="font-size: medium;">Pixel-Perfect Conversion <span class="ml-1">🔮✨🧙</span></span>
+            </h2>
             </div>
             <form id="imageToPdfForm" enctype="multipart/form-data" class="pdf-form">
               <div class="form-group">
@@ -541,12 +544,12 @@
                   <textarea id="image-description" name="description" placeholder="Enter description (optional)" rows="4"></textarea>
               </div>
               <div class="form-group">
-                  <label for="description-position">Description Position<span class="required">*</span></label>
+                  <label for="description-position">Description Position<span class="required"></span></label>
                   <select id="description-position" name="description_position" required>
+                      <option value="top-center">Top Center</option>
                       <option value="bottom">Bottom</option>
                       <option value="top">Top</option>
                       <option value="top-left">Top Left</option>
-                      <option value="top-center">Top Center</option>
                       <option value="top-right">Top Right</option>
                       <option value="bottom-left">Bottom Left</option>
                       <option value="bottom-center">Bottom Center</option>
@@ -567,18 +570,41 @@
                   </div>
               </div>
               <div class="form-group">
-                  <label for="description-font-size">Font Size (8-72)<span class="required">*</span></label>
-                  <input type="number" id="description-font-size" name="description_font_size" min="8" max="72" value="12" required>
+                  <label for="description-font-size">Font Size (8-72)<span class="required"></span></label>
+                  <input type="number" id="description-font-size" name="description_font_size" min="8" max="72" value="20" required>
+              </div>
+              <!-- THIS FOR FON COLOR N STYLE -->
+              <div class="form-group">
+                <label for="font-color">Font Color<span class="required"></span></label>
+                <input type="color" id="font-color" name="font_color" value="#000000" required>
+              </div>
+
+              <div class="form-group">
+                <label for="font-family">Font Family<span class="required"></span></label>
+                <select id="font-family" name="font_family" required>
+                  <option value="helvetica">Helvetica</option>
+                  <option value="times">Times New Roman</option>
+                  <option value="courier">Courier</option>
+                  <option value="zapf">Zapf Dingbats</option>
+                </select>
+            </div>
+
+              <div class="form-group">
+                <label for="font-weight">Font Weight<span class="required"></span></label>
+                <select name="font_weight" required>
+                  <option value="normal">Regular</option>
+                  <option value="bold">Bold</option>
+              </select>
               </div>
               <div class="form-group">
-                  <label for="page_size">Page Size<span class="required">*</span></label>
+                  <label for="page_size">Page Size<span class="required"></span></label>
                   <select name="page_size" id="page_size" required>
                       <option value="A4">A4</option>
                       <option value="Letter">Letter</option>
                   </select>
               </div>
               <div class="form-group">
-                  <label for="orientation">Orientation<span class="required">*</span></label>
+                  <label for="orientation">Orientation<span class="required"></span></label>
                   <select name="orientation" id="orientation" required>
                       <option value="Portrait">Portrait</option>
                       <option value="Landscape">Landscape</option>

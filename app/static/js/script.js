@@ -186,12 +186,15 @@ async function processPDF(endpoint, formId) {
     if (endpoint === 'convert_image_to_pdf') {
         const fileInput = form.querySelector('#imageToPdf-file');
         const description = form.querySelector('#image-description')?.value || '';
-        const position = form.querySelector('#description-position')?.value || 'bottom';
+        const position = form.querySelector('#description-position')?.value || 'top-cente';
         const fontSize = parseInt(form.querySelector('#description-font-size')?.value || '12');
         const pageSize = form.querySelector('select[name="page_size"]')?.value || 'A4';
         const orientation = form.querySelector('select[name="orientation"]')?.value || 'Portrait';
         const customX = form.querySelector('#custom-x')?.value;
         const customY = form.querySelector('#custom-y')?.value;
+        const fontColor = form.querySelector('#font-color')?.value || '#000000';
+        const fontFamily = form.querySelector('#font-family')?.value || 'helv';
+        const fontWeight = form.querySelector('#font-weight')?.value || 'normal';
 
         if (!fileInput || !fileInput.files[0]) {
             resultDiv.textContent = 'Please select an image file.';
@@ -203,6 +206,9 @@ async function processPDF(endpoint, formId) {
         formData.append('description', description);
         formData.append('description_position', position);
         formData.append('description_font_size', fontSize);
+        formData.append('font_color', fontColor); // NEW IMPLEMENTION
+        formData.append('font_family', fontFamily); // NEW IMPLEMENTION
+        formData.append('font_weight', fontWeight); // NEW IMPLEMENTION
         formData.append('page_size', pageSize);
         formData.append('orientation', orientation);
 

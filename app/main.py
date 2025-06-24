@@ -15,6 +15,7 @@ import PyPDF2
 import io
 import json
 import asyncio
+# Initialize colorama
 from pinecone import Pinecone, ServerlessSpec
 # from langchain_core.vectorstores.base import VectorStoreRetriever
 # from pydantic import BaseModel
@@ -48,6 +49,8 @@ import hashlib
 
 from rembg import remove
 from dotenv import load_dotenv
+from colorama import Fore, Style, init
+init() 
 load_dotenv()
 
 
@@ -367,7 +370,7 @@ async def memory_usage_stream(request: Request):
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
     index_path = os.path.join(static_dir, "index.html")
-    with open(index_path, "r") as f:
+    with open(index_path, "r",encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
 chat_history = []
@@ -919,9 +922,12 @@ async def convert_image_to_pdf_endpoint(
     description_position: str = Form("bottom"),
     description_font_size: int = Form(12),
     custom_x: float = Form(None),
-    custom_y: float = Form(None)
+    custom_y: float = Form(None),
+    font_color: str = Form("#000000"),  
+    font_family: str = Form("helv"),    
+    font_weight: str = Form("normal"),  
 ):
-    logger.info(f"Received convert image to PDF request for {file.filename}")
+    # Input validation
     if file.size / (1024 * 1024) > 50:
         raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
     if page_size not in ["A4", "Letter"]:
@@ -934,9 +940,37 @@ async def convert_image_to_pdf_endpoint(
     if description_position == "custom" and (custom_x is None or custom_y is None):
         raise HTTPException(status_code=400, detail="Custom position requires both X and Y coordinates")
 
+    # Convert HEX color to RGB tuple (0-1 range)
+    try:
+        hex_color = font_color.lstrip('#')
+        if len(hex_color) == 3:  # Handle shorthand #RGB
+            hex_color = ''.join([c*2 for c in hex_color])
+        rgb_color = tuple(int(hex_color[i:i+2], 16)/255 for i in (0, 2, 4))
+    except Exception as e:
+        logger.warning(f"Invalid color {font_color}, defaulting to black. Error: {str(e)}")
+        rgb_color = (0, 0, 0)
+
+    # Terminal logging with colored output
+    print("\n" + "="*50)
+    print(f"{Fore.YELLOW}📝 PDF Conversion Parameters:{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}• Filename:{Style.RESET_ALL} {file.filename}")
+    print(f"{Fore.CYAN}• Page Size:{Style.RESET_ALL} {page_size}")
+    print(f"{Fore.CYAN}• Orientation:{Style.RESET_ALL} {orientation}")
+    print(f"{Fore.CYAN}• Description:{Style.RESET_ALL} '{description}'")
+    print(f"{Fore.CYAN}• Position:{Style.RESET_ALL} {description_position}")
+    print(f"{Fore.CYAN}• Font Size:{Style.RESET_ALL} {description_font_size}pt")
+    print(f"{Fore.CYAN}• Custom Coords:{Style.RESET_ALL} X={custom_x}, Y={custom_y}")
+    print(f"{Fore.CYAN}• Font Color:{Style.RESET_ALL} {font_color} (RGB: {rgb_color})")
+    print(f"{Fore.CYAN}• Font Family:{Style.RESET_ALL} {font_family}")
+    print(f"{Fore.CYAN}• Font Weight:{Style.RESET_ALL} {font_weight}")
+    print("="*50 + "\n")
+
+
+
     s3_key = None
     try:
         file_content = await file.read()
+        
         if USE_S3:
             s3_key = upload_to_s3(file_content, file.filename)
         else:
@@ -946,14 +980,17 @@ async def convert_image_to_pdf_endpoint(
                 f.write(file_content)
         
         pdf_bytes = convert_image_to_pdf(
-            file_content,
-            page_size,
-            orientation,
-            description,
-            description_position,
-            description_font_size,
-            custom_x,
-            custom_y
+            image_bytes=file_content,
+            page_size=page_size,
+            orientation=orientation,
+            description=description,
+            description_position=description_position.lower(),  # Ensure lowercase
+            description_font_size=description_font_size,
+            custom_x=custom_x,
+            custom_y=custom_y,
+            font_color=rgb_color,  # Pass the converted RGB
+            font_family=font_family,
+            font_weight=font_weight
         )
         
         if not pdf_bytes:
@@ -962,20 +999,19 @@ async def convert_image_to_pdf_endpoint(
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
-            headers={"Content-Disposition": 'attachment; filename="image_to_pdf.pdf"'}
+            headers={"Content-Disposition": f'attachment; filename="{file.filename.split(".")[0]}.pdf"'}
         )
+
     except Exception as e:
-        logger.error(f"Image to PDF error: {e}")
-        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+        logger.error(f"🚨 Conversion failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Conversion error: {str(e)}")
     finally:
-        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
-        if s3_key:
+        if USE_S3 and s3_key:
             cleanup_s3_file(s3_key)
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
+        elif not USE_S3:
             cleanup_local_files()
-        logger.info("Running garbage collection")
         gc.collect()
+
 
 @app.post("/remove_pdf_password")
 async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: str = Form(...)):
