@@ -121,14 +121,7 @@ def download_from_s3(s3_key):
         raise
 
 
-def cleanup_s3_file(s3_key):
-    """Delete file from S3 or locally."""
 
-    try:
-        s3_client.delete_object(Bucket=BUCKET_NAME, Key=s3_key)
-        logger.info(f"Deleted S3 file: {s3_key}")
-    except Exception as e:
-        logger.warning(f"Failed to delete S3 file {s3_key}: {e}")
 
 def get_memory_info():
     """Return system-wide memory usage info in MB."""
@@ -1209,25 +1202,27 @@ def estimate_compression_sizes(pdf_bytes: bytes, custom_dpi: int, custom_quality
         return None
     
 
-# def estimate_compression_sizes(pdf_bytes: bytes, custom_dpi: int, custom_quality: int) -> Optional[Dict[str, int]]:
-#     """Estimate output sizes for all compression presets."""
-#     try:
-#         sizes = {}
-#         presets = [
-#             ("high", 72, 20),
-#             ("medium", 100, 30),
-#             ("low", 120, 40),
-#             ("custom", custom_dpi, custom_quality)
-#         ]
+def cleanup_local_files():
+    """Clean up files in input_pdfs and output_pdfs directories."""
+    directories = ["input_pdfs", "output_pdfs"]
+    for directory in directories:
+        if not os.path.exists(directory):
+            continue
+        for filename in os.listdir(directory):
+            file_path = os.path.join(directory, filename)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                    logger.info(f"Deleted local file: {file_path}")
+            except Exception as e:
+                logger.error(f"Failed to delete local file {file_path}: {str(e)}")
 
-#         for preset_name, dpi, quality in presets:
-#             compressed_pdf = safe_compress_pdf(pdf_bytes, dpi, quality)
-#             if compressed_pdf is None:
-#                 logger.error(f"Failed to compress for preset: {preset_name}")
-#                 return None
-#             sizes[preset_name] = len(compressed_pdf)
 
-#         return sizes
-#     except Exception as e:
-#         logger.error(f"Size estimation error: {str(e)}")
-#         return None
+def cleanup_s3_file(s3_key):
+    """Delete file from S3 or locally."""
+
+    try:
+        s3_client.delete_object(Bucket=BUCKET_NAME, Key=s3_key)
+        logger.info(f"Deleted S3 file: {s3_key}")
+    except Exception as e:
+        logger.warning(f"Failed to delete S3 file {s3_key}: {e}")

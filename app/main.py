@@ -57,10 +57,8 @@ from app.pdf_operations import  (
     convert_pdf_to_images, split_pdf, delete_pdf_pages, convert_pdf_to_word,
     convert_pdf_to_excel, convert_image_to_pdf, remove_pdf_password,reorder_pdf_pages,
     add_page_numbers, add_signature,remove_background_rembg,convert_pdf_to_ppt,convert_pdf_to_editable_ppt,
-    estimate_compression_sizes
+    estimate_compression_sizes,cleanup_local_files
 )
-
-
 
 
 # Configure logging
@@ -465,9 +463,18 @@ async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("Py
     except Exception as e:
         logger.error(f"Merge error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"PDF merge failed: {str(e)}")
+    # finally:
+    #     for s3_key in s3_keys:
+    #         cleanup_s3_file(s3_key)
+    #     gc.collect()
     finally:
+        logger.info(f"S3 cleanup: {'Running' if s3_keys else 'Skipping (no S3 keys)'}")
         for s3_key in s3_keys:
             cleanup_s3_file(s3_key)
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
         gc.collect()
 
 
@@ -511,7 +518,13 @@ async def compress_pdf(
     s3_key = None
     try:
         file_content = await file.read()
-        s3_key = upload_to_s3(file_content, file.filename)
+        if USE_S3:
+            s3_key = upload_to_s3(file_content, file.filename)
+        else:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
         compressed_pdf = safe_compress_pdf(file_content, dpi, quality)
         if not compressed_pdf:
             logger.error("Compression failed, no output returned")
@@ -527,8 +540,13 @@ async def compress_pdf(
         logger.error(f"Compression error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"PDF compression failed: {str(e)}")
     finally:
+        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
         if s3_key:
             cleanup_s3_file(s3_key)
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
         gc.collect()
 
 @app.post("/estimate_compression_sizes")
@@ -556,7 +574,7 @@ async def estimate_sizes(
 
         logger.info("Size estimation successful")
         return JSONResponse(content={
-            "high": sizes["high"] / (1024 * 1024),  # Convert bytes to MB
+            "high": sizes["high"] / (1024 * 1024),
             "medium": sizes["medium"] / (1024 * 1024),
             "low": sizes["low"] / (1024 * 1024),
             "custom": sizes["custom"] / (1024 * 1024)
@@ -565,6 +583,11 @@ async def estimate_sizes(
         logger.error(f"Size estimation error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Size estimation failed: {str(e)}")
     finally:
+        logger.info("No S3 cleanup needed (no S3 uploads)")
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
         gc.collect()
 
 
@@ -579,8 +602,14 @@ async def encrypt_pdf_endpoint(file: UploadFile = File(...), password: str = For
     s3_key = None
     try:
         file_content = await file.read()
-        s3_key = upload_to_s3(file_content, file.filename)
-        encrypted_pdf = encrypt_pdf(file_content, password)  # This now calls the imported function
+        if USE_S3:
+            s3_key = upload_to_s3(file_content, file.filename)
+        else:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
+        encrypted_pdf = encrypt_pdf(file_content, password)
         if not encrypted_pdf:
             raise HTTPException(status_code=500, detail="Encryption failed")
 
@@ -593,10 +622,14 @@ async def encrypt_pdf_endpoint(file: UploadFile = File(...), password: str = For
         logger.error(f"Encryption error: {e}")
         raise HTTPException(status_code=500, detail=f"PDF encryption failed: {str(e)}")
     finally:
+        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
         if s3_key:
             cleanup_s3_file(s3_key)
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
         gc.collect()
-
 
 @app.post("/convert_pdf_to_images")
 async def convert_pdf_to_images_endpoint(file: UploadFile = File(...)):
@@ -607,7 +640,13 @@ async def convert_pdf_to_images_endpoint(file: UploadFile = File(...)):
     s3_key = None
     try:
         file_content = await file.read()
-        s3_key = upload_to_s3(file_content, file.filename)
+        if USE_S3:
+            s3_key = upload_to_s3(file_content, file.filename)
+        else:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
         zip_bytes = convert_pdf_to_images(file_content)
         if not zip_bytes:
             raise HTTPException(status_code=500, detail="Conversion failed")
@@ -621,8 +660,13 @@ async def convert_pdf_to_images_endpoint(file: UploadFile = File(...)):
         logger.error(f"PDF to images failed: {e}")
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
+        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
         if s3_key:
             cleanup_s3_file(s3_key)
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
         gc.collect()
 
 @app.post("/split_pdf")
@@ -634,7 +678,13 @@ async def split_pdf_endpoint(file: UploadFile = File(...)):
     s3_key = None
     try:
         file_content = await file.read()
-        s3_key = upload_to_s3(file_content, file.filename)
+        if USE_S3:
+            s3_key = upload_to_s3(file_content, file.filename)
+        else:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
         zip_bytes, total_pages = split_pdf(file_content)
         if not zip_bytes:
             raise HTTPException(status_code=500, detail="Split failed")
@@ -648,11 +698,14 @@ async def split_pdf_endpoint(file: UploadFile = File(...)):
         logger.error(f"Split error: {e}")
         raise HTTPException(status_code=500, detail=f"Split failed: {str(e)}")
     finally:
+        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
         if s3_key:
             cleanup_s3_file(s3_key)
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
         gc.collect()
-
-
 
 @app.post("/delete_pdf_pages")
 async def delete_pdf_pages_endpoint(file: UploadFile = File(...), pages: str = Form(...)):
@@ -670,7 +723,13 @@ async def delete_pdf_pages_endpoint(file: UploadFile = File(...), pages: str = F
     s3_key = None
     try:
         file_content = await file.read()
-        s3_key = upload_to_s3(file_content, file.filename)
+        if USE_S3:
+            s3_key = upload_to_s3(file_content, file.filename)
+        else:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
         modified_pdf = delete_pdf_pages(file_content, pages_to_delete)
         if not modified_pdf:
             raise HTTPException(status_code=500, detail="Page deletion failed")
@@ -684,8 +743,13 @@ async def delete_pdf_pages_endpoint(file: UploadFile = File(...), pages: str = F
         logger.error(f"Delete pages error: {e}")
         raise HTTPException(status_code=500, detail=f"Page deletion failed: {str(e)}")
     finally:
+        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
         if s3_key:
             cleanup_s3_file(s3_key)
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
         gc.collect()
 
 @app.post("/convert_pdf_to_word")
@@ -697,7 +761,13 @@ async def convert_pdf_to_word_endpoint(file: UploadFile = File(...)):
     s3_key = None
     try:
         file_content = await file.read()
-        s3_key = upload_to_s3(file_content, file.filename)
+        if USE_S3:
+            s3_key = upload_to_s3(file_content, file.filename)
+        else:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
         docx_bytes = convert_pdf_to_word(file_content)
         if not docx_bytes:
             raise HTTPException(status_code=500, detail="Conversion failed")
@@ -711,8 +781,13 @@ async def convert_pdf_to_word_endpoint(file: UploadFile = File(...)):
         logger.error(f"PDF to Word error: {e}")
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
+        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
         if s3_key:
             cleanup_s3_file(s3_key)
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
         gc.collect()
 
 @app.post("/convert_pdf_to_excel")
@@ -724,8 +799,16 @@ async def convert_pdf_to_excel_endpoint(file: UploadFile = File(...)):
     s3_key = None
     try:
         file_content = await file.read()
-        s3_key = upload_to_s3(file_content, file.filename)
+        if USE_S3:
+            s3_key = upload_to_s3(file_content, file.filename)
+        else:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
         xlsx_bytes = convert_pdf_to_excel(file_content)
+        if not xlsx_bytes:
+            raise HTTPException(status_code=500, detail="Conversion failed")
         
         return StreamingResponse(
             io.BytesIO(xlsx_bytes),
@@ -739,31 +822,40 @@ async def convert_pdf_to_excel_endpoint(file: UploadFile = File(...)):
         logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Conversion error: {str(e)}")
     finally:
+        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
         if s3_key:
             cleanup_s3_file(s3_key)
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
         gc.collect()
+
 @app.post("/convert_pdf_to_ppt")
 async def convert_pdf_to_ppt_endpoint(
     file: UploadFile = File(...),
-    conversion_type: str = Form("image")  # Make sure parameter name matches frontend
+    conversion_type: str = Form("image")
 ):
     logger.info(f"Received convert to PPT request for {file.filename} (type: {conversion_type})")
-    
-    # File size validation
     if file.size / (1024 * 1024) > 50:
         raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
 
     s3_key = None
     try:
         file_content = await file.read()
-        s3_key = upload_to_s3(file_content, file.filename)
+        if USE_S3:
+            s3_key = upload_to_s3(file_content, file.filename)
+        else:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
         
-        # Choose conversion method based on user selection
         if conversion_type == "editable":
             ppt_bytes = convert_pdf_to_editable_ppt(file_content)
             filename = "editable_output.pptx"
         else:
-            ppt_bytes = convert_pdf_to_ppt(file_content)  # Your existing image-based function
+            ppt_bytes = convert_pdf_to_ppt(file_content)
             filename = "image_based_output.pptx"
         
         if not ppt_bytes:
@@ -774,7 +866,6 @@ async def convert_pdf_to_ppt_endpoint(
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
-        
     except Exception as e:
         logger.error(f"PDF to PPT error ({conversion_type}): {str(e)}")
         raise HTTPException(
@@ -782,8 +873,13 @@ async def convert_pdf_to_ppt_endpoint(
             detail=f"{conversion_type.capitalize()} conversion failed: {str(e)}"
         )
     finally:
+        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
         if s3_key:
             cleanup_s3_file(s3_key)
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
         gc.collect()
 
 
@@ -814,36 +910,18 @@ async def convert_pdf_to_ppt_endpoint(
 #             cleanup_s3_file(s3_key)
 #         gc.collect()
 
-
 @app.post("/convert_image_to_pdf")
 async def convert_image_to_pdf_endpoint(
     file: UploadFile = File(...),
     page_size: str = Form("A4"),
     orientation: str = Form("Portrait"),
-    description: str = Form(""),  # New
-    description_position: str = Form("bottom"),  # New
-    description_font_size: int = Form(12),  # New
-    custom_x: float = Form(None),  # New
-    custom_y: float = Form(None)  # New
+    description: str = Form(""),
+    description_position: str = Form("bottom"),
+    description_font_size: int = Form(12),
+    custom_x: float = Form(None),
+    custom_y: float = Form(None)
 ):
     logger.info(f"Received convert image to PDF request for {file.filename}")
-    if file.size / (1024 * 1024) > 50:
-        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
-    # Validate inputs
-    if file.size / (1024 * 1024) > 50:
-        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
-    if page_size not in ["A4", "Letter"]:
-        raise HTTPException(status_code=400, detail="Invalid page size. Choose: A4, Letter")
-    if orientation not in ["Portrait", "Landscape"]:
-        raise HTTPException(status_code=400, detail="Invalid orientation. Choose: Portrait, Landscape")
-    if description_position not in ["top", "bottom", "top-center", "top-left", "top-right", 
-                                  "bottom-left", "bottom-center", "bottom-right", "custom"]:
-        raise HTTPException(status_code=400, detail="Invalid description position")
-    if description_position == "custom" and (custom_x is None or custom_y is None):
-        raise HTTPException(status_code=400, detail="Custom position requires both X and Y coordinates")
-
-    
-    # Validate inputs
     if file.size / (1024 * 1024) > 50:
         raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
     if page_size not in ["A4", "Letter"]:
@@ -859,7 +937,13 @@ async def convert_image_to_pdf_endpoint(
     s3_key = None
     try:
         file_content = await file.read()
-        s3_key = upload_to_s3(file_content, file.filename)
+        if USE_S3:
+            s3_key = upload_to_s3(file_content, file.filename)
+        else:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
         
         pdf_bytes = convert_image_to_pdf(
             file_content,
@@ -884,80 +968,42 @@ async def convert_image_to_pdf_endpoint(
         logger.error(f"Image to PDF error: {e}")
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
+        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
         if s3_key:
             cleanup_s3_file(s3_key)
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
         gc.collect()
-
-
-
-# @app.post("/convert_image_to_pdf")
-# async def convert_image_to_pdf_endpoint(file: UploadFile = File(...), page_size: str = Form("A4"), orientation: str = Form("Portrait")):
-#     logger.info(f"Received convert image to PDF request for {file.filename}")
-#     if file.size / (1024 * 1024) > 50:
-#         raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
-#     if page_size not in ["A4", "Letter"]:
-#         raise HTTPException(status_code=400, detail="Invalid page size. Choose: A4, Letter")
-#     if orientation not in ["Portrait", "Landscape"]:
-#         raise HTTPException(status_code=400, detail="Invalid orientation. Choose: Portrait, Landscape")
-
-#     s3_key = None
-#     try:
-#         file_content = await file.read()
-#         s3_key = upload_to_s3(file_content, file.filename)
-#         pdf_bytes = convert_image_to_pdf(file_content, page_size, orientation)
-#         if not pdf_bytes:
-#             raise HTTPException(status_code=500, detail="Conversion failed")
-
-#         return StreamingResponse(
-#             io.BytesIO(pdf_bytes),
-#             media_type="application/pdf",
-#             headers={"Content-Disposition": 'attachment; filename="image_to_pdf.pdf"'}
-#         )
-#     except Exception as e:
-#         logger.error(f"Image to PDF error: {e}")
-#         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
-#     finally:
-#         if s3_key:
-#             cleanup_s3_file(s3_key)
-#         gc.collect()
 
 @app.post("/remove_pdf_password")
 async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: str = Form(...)):
     logger.info(f"Received remove password request for {file.filename}")
-    logger.info(f"Received password {file}")
+    if file.size / (1024 * 1024) > 50:
+        logger.error(f"File {file.filename} exceeds 50MB limit")
+        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+    if not password:
+        logger.error("Empty password provided")
+        raise HTTPException(status_code=400, detail="Password cannot be empty")
+
     s3_key = None
     try:
-        file_size_mb = file.size / (1024 * 1024)
-        logger.debug(f"File size: {file_size_mb:.2f}MB")
-        if file_size_mb > 50:
-            logger.error(f"File {file.filename} exceeds 50MB limit")
-            raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
-
-        if not password.strip():
-            logger.error("Empty password provided")
-            raise HTTPException(status_code=400, detail="Password cannot be empty")
-
         file_content = await file.read()
         if not file_content:
             logger.error(f"Empty file uploaded: {file.filename}")
             raise HTTPException(status_code=400, detail="Empty file uploaded")
-
-        if USE_S3 and s3_client:
-            try:
-                s3_key = upload_to_s3(file_content, file.filename)
-            except Exception as e:
-                logger.error(f"S3 upload failed: {str(e)}")
-                raise HTTPException(status_code=500, detail=f"S3 upload failed: {str(e)}")
-
-        try:
-            decrypted_pdf = remove_pdf_password(file_content, password)
-            if decrypted_pdf is None:
-                logger.error("remove_pdf_password returned None")
-                raise HTTPException(status_code=500, detail="Password removal failed")
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except RuntimeError as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        if USE_S3:
+            s3_key = upload_to_s3(file_content, file.filename)
+        else:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
+        decrypted_pdf = remove_pdf_password(file_content, password)
+        if decrypted_pdf is None:
+            logger.error("remove_pdf_password returned None")
+            raise HTTPException(status_code=500, detail="Password removal failed")
 
         logger.info(f"Returning decrypted PDF for {file.filename}")
         return StreamingResponse(
@@ -965,57 +1011,36 @@ async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: s
             media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="decrypted_{file.filename}"'}
         )
-
-    except HTTPException:
-        raise
+    except ValueError as e:
+        logger.error(f"Password removal error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        logger.error(f"Password removal error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error in endpoint: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Password removal failed: {str(e)}")
     finally:
-        if s3_key and USE_S3 and s3_client:
-            try:
-                cleanup_s3_file(s3_key)
-            except Exception as e:
-                logger.warning(f"Failed to cleanup S3 file {s3_key}: {str(e)}")
+        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
+        if s3_key:
+            cleanup_s3_file(s3_key)
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
         gc.collect()
-        logger.debug("Endpoint cleanup completed")
-
-# @app.post("/remove_pdf_password")
-# async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: str = Form(...)):
-#     logger.info(f"Received remove password request for {file.filename}")
-#     if file.size / (1024 * 1024) > 50:
-#         raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
-#     if not password:
-#         raise HTTPException(status_code=400, detail="Password required")
-
-#     s3_key = None
-#     try:
-#         file_content = await file.read()
-#         s3_key = upload_to_s3(file_content, file.filename)
-#         decrypted_pdf = remove_pdf_password(file_content, password)
-#         if not decrypted_pdf:
-#             raise HTTPException(status_code=500, detail="Password removal failed")
-
-#         return StreamingResponse(
-#             io.BytesIO(decrypted_pdf),
-#             media_type="application/pdf",
-#             headers={"Content-Disposition": 'attachment; filename="decrypted_pdf.pdf"'}
-#         )
-#     except Exception as e:
-#         logger.error(f"Password removal error: {e}")
-#         raise HTTPException(status_code=500, detail=f"Password removal failed: {str(e)}")
-#     finally:
-#         if s3_key:
-#             cleanup_s3_file(s3_key)
-#         gc.collect()
-
-
 
 @app.post("/reorder_pages")
 async def reorder_pages(file: UploadFile = File(...), page_order: str = Form(...)):
+    logger.info(f"Received reorder pages request for {file.filename}, page_order: {page_order}")
     try:
-        print(f"Received page_order: {page_order}")  # Debug log
-        pdf_reader = PyPDF2.PdfReader(file.file)
+        file_content = await file.read()
+        if not USE_S3:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
         num_pages = len(pdf_reader.pages)
         
         page_indices = [int(p) - 1 for p in page_order.split(",") if p.strip()]
@@ -1034,7 +1059,6 @@ async def reorder_pages(file: UploadFile = File(...), page_order: str = Form(...
         pdf_writer.write(output)
         output.seek(0)
         
-        # Create a generator function to stream the content
         def iterfile():
             yield output.getvalue()
             output.close()
@@ -1045,8 +1069,15 @@ async def reorder_pages(file: UploadFile = File(...), page_order: str = Form(...
             headers={"Content-Disposition": f"attachment; filename=reordered_{file.filename}"}
         )
     except Exception as e:
-        print(f"Error processing PDF: {str(e)}")
+        logger.error(f"Error processing PDF: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error processing PDF: {str(e)}")
+    finally:
+        logger.info("No S3 cleanup needed (in-memory processing)")
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
+        gc.collect()
 
 @app.post("/add_page_numbers")
 async def add_page_numbers_endpoint(
@@ -1055,15 +1086,32 @@ async def add_page_numbers_endpoint(
     alignment: str = Form("center"),
     format: str = Form("page_x")
 ):
-    pdf_bytes = await file.read()
-    result = add_page_numbers(pdf_bytes, position, alignment, format)
-    if result is None:
-        raise HTTPException(status_code=500, detail="Failed to add page numbers")
-    return StreamingResponse(
-        io.BytesIO(result),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=numbered_{file.filename}"}
-    )
+    logger.info(f"Received add page numbers request for {file.filename}")
+    try:
+        file_content = await file.read()
+        if not USE_S3:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
+        result = add_page_numbers(file_content, position, alignment, format)
+        if result is None:
+            raise HTTPException(status_code=500, detail="Failed to add page numbers")
+        return StreamingResponse(
+            io.BytesIO(result),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=numbered_{file.filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Error adding page numbers: {e}")
+        raise HTTPException(status_code=500, detail=f"Error adding page numbers: {str(e)}")
+    finally:
+        logger.info("No S3 cleanup needed (in-memory processing)")
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
+        gc.collect()
 
 @app.post("/add_signature")
 async def add_signature_endpoint(
@@ -1075,13 +1123,19 @@ async def add_signature_endpoint(
     alignment: str = Form(...),
     remove_bg: bool = Form(False)
 ):
+    logger.info(f"Received add signature request: pdf={pdf_file.filename}, signature={signature_file.filename}")
     try:
-        logger.info(f"Received request: pdf={pdf_file.filename}, signature={signature_file.filename}, specific_pages={specific_pages}, size={size}, position={position}, alignment={alignment}")
-        # Read input files
         pdf_bytes = await pdf_file.read()
         signature_bytes = await signature_file.read()
+        if not USE_S3:
+            pdf_path = os.path.join("input_pdfs", f"{hashlib.md5(pdf_bytes).hexdigest()}_{pdf_file.filename}")
+            sig_path = os.path.join("input_pdfs", f"{hashlib.md5(signature_bytes).hexdigest()}_{signature_file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(pdf_path, "wb") as f:
+                f.write(pdf_bytes)
+            with open(sig_path, "wb") as f:
+                f.write(signature_bytes)
 
-        # Validate inputs
         if not pdf_file.filename.lower().endswith('.pdf'):
             logger.error("Invalid PDF file type")
             raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files allowed.")
@@ -1095,7 +1149,6 @@ async def add_signature_endpoint(
             logger.error("Signature file too large")
             raise HTTPException(status_code=400, detail="Signature file size exceeds 10MB.")
 
-        # Parse page numbers
         try:
             pages = [int(p) for p in specific_pages.split(',')] if specific_pages else []
             logger.info(f"Pages to sign: {pages}")
@@ -1103,8 +1156,6 @@ async def add_signature_endpoint(
             logger.error("Invalid page numbers format")
             raise HTTPException(status_code=400, detail="Invalid page numbers format.")
 
-  
-        # Add signature
         logger.info("Calling add_signature function")
         result = add_signature(
             pdf_bytes=pdf_bytes,
@@ -1113,14 +1164,13 @@ async def add_signature_endpoint(
             size=size,
             position=position,
             alignment=alignment,
-            remove_bg=remove_bg  # <-- this was missing
+            remove_bg=remove_bg
         )
 
         if result is None:
             logger.error("add_signature returned None")
             raise HTTPException(status_code=500, detail="Failed to add signature")
 
-        # Return the signed PDF
         return StreamingResponse(
             io.BytesIO(result),
             media_type="application/pdf",
@@ -1131,42 +1181,52 @@ async def add_signature_endpoint(
     except Exception as e:
         logger.error(f"Unexpected error in add_signature_endpoint: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    finally:
+        logger.info("No S3 cleanup needed (in-memory processing)")
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
+        gc.collect()
 
-# @app.get("/videos")
-# async def list_videos():
-#     try:
-#         response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
-#         videos = []
-        
-#         if "Contents" in response:
-#             for obj in response["Contents"]:
-#                 key = obj["Key"]
-#                 if key.lower().endswith((".mp4", ".webm", ".ogg")):
-#                     try:
-#                         head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
-#                         metadata = head.get('Metadata', {})
-#                         content_type = head.get('ContentType', 'video/mp4')
-                        
-#                         # Dynamically generate the direct S3 URL for each object
-#                         url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}"
-#                         logger.info(f"Direct URL for {key}: {url}")
-                        
-#                         videos.append({
-#                             "name": key.split('/')[-1],
-#                             "url": url,
-#                             "description": metadata.get('description', ''),
-#                             "type": content_type
-#                         })
-#                     except ClientError as e:
-#                         logger.error(f"Error processing {key}: {e}")
-#                         continue
-        
-#         return JSONResponse(content=videos)
+@app.post("/remove_background")
+async def remove_background_endpoint(file: UploadFile = File(...)):
+    logger.info(f"Received remove background request for {file.filename}")
+    try:
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Uploaded file must be an image")
+        file_content = await file.read()
+        if not file_content:
+            raise HTTPException(status_code=400, detail="Empty image file")
+        if not USE_S3:
+            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
+            os.makedirs("input_pdfs", exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_content)
 
-#     except Exception as e:
-#         logger.error(f"Error listing videos: {e}")
-#         raise HTTPException(status_code=500, detail="Failed to list videos")
+        logger.info("Processing image for background removal")
+        processed_image = remove_background_rembg(file_content)
+        if not processed_image.getvalue():
+            raise HTTPException(status_code=500, detail="Failed to process image")
 
+        return StreamingResponse(
+            content=processed_image,
+            media_type="image/png",
+            headers={"Content-Disposition": f"attachment; filename=processed_image.png"}
+        )
+    except ValueError as e:
+        logger.error(f"Error processing image: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        logger.info("No S3 cleanup needed (in-memory processing)")
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
+        gc.collect()
 
 @app.get("/videos")
 async def list_videos():
@@ -1345,6 +1405,16 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+    finally:
+        logger.info(f"S3 cleanup: {'Running' if s3_keys else 'Skipping (no S3 keys)'}")
+        for s3_key in s3_keys:
+            cleanup_s3_file(s3_key)
+        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
+        if not USE_S3:
+            cleanup_local_files()
+        logger.info("Running garbage collection")
+        gc.collect()
 
 
 if __name__ == "__main__":
