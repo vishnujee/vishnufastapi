@@ -288,14 +288,16 @@ def initialize_pinecone():
         if index_name not in pc.list_indexes().names():
             pc.create_index(
                 name=index_name,
-                dimension=1536,
+                dimension=512,
                 metric="cosine",
                 spec=ServerlessSpec(cloud="aws", region="us-east-1")
             )
             logger.info("Created new Pinecone index")
             time.sleep(30)
         index = pc.Index(index_name)
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-large", dimensions=1536)
+        # embeddings = OpenAIEmbeddings(model="text-embedding-3-large", dimensions=1536)
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512)
+
         stats = index.describe_index_stats()
         if stats.get("namespaces", {}).get("vishnu_ai_docs", {}).get("vector_count", 0) == 0:
             logger.info("Processing initial documents...")
@@ -375,7 +377,8 @@ def process_new_file(s3_key):
                 separators=["\n\n", "\nTABLE_END\n"]
             )
             splits = text_splitter.split_documents([doc])
-            embeddings = OpenAIEmbeddings(model="text-embedding-3-large", dimensions=1536)
+            # embeddings = OpenAIEmbeddings(model="text-embedding-3-large", dimensions=1536)
+            embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512)
             vectors = []
             for i, split in enumerate(splits):
                 embedding = embeddings.embed_query(split.page_content)

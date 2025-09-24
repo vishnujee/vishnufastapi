@@ -30,6 +30,7 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.callbacks.manager import CallbackManagerForRetrieverRun
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.documents import Document
+from concurrent.futures import ThreadPoolExecutor
 
 #langchain
 # LangChain & Embeddings
@@ -134,7 +135,7 @@ else:
 
 # PDF_S3_KEY = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"  # Ensure case consistency
 # PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"
-PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/websitepdf.pdf"
+PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/websitepdf24sep25.pdf"
 S3_PREFIX = "Amazingvideo/"
 
 
@@ -202,11 +203,7 @@ class PineconeRetriever(BaseRetriever):
         return self._get_relevant_documents(input)
 
 
-
-
-
-
-
+# Replace your current initialize_vectorstore function with this optimized version
 def initialize_vectorstore():
     try:
         pc = Pinecone(api_key=PINECONE_API_KEY)
@@ -216,65 +213,81 @@ def initialize_vectorstore():
         if index_name not in pc.list_indexes().names():
             pc.create_index(
                 name=index_name,
-                dimension=1536,
+                dimension=512,  # Reduced dimension for faster processing
                 metric="cosine",
                 spec=ServerlessSpec(cloud="aws", region="us-east-1")
             )
             logger.info(f"Created new index: {index_name}")
-            time.sleep(30)  # Wait for index to be ready
+            time.sleep(20)  # Reduced wait time
         
         index = pc.Index(index_name)
-        embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+        # Use smaller embedding model
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512)
         
-        # Check if namespace has data
+        # Efficient empty check
         stats = index.describe_index_stats()
-        if stats.get("namespaces", {}).get("vishnu_ai_docs", {}).get("vector_count", 0) == 0:
-            # Process and upsert documents
+        namespace_stats = stats.get("namespaces", {}).get("vishnu_ai_docs", {})
+        
+        if namespace_stats.get("vector_count", 0) == 0:
+            logger.info("Index is empty, processing documents...")
+            
+            # Stream PDF processing
             pdf_bytes = download_from_url(PDF_URL)
+            
             documents = []
             with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
                 for page_num, page in enumerate(pdf.pages):
-                    text = page.extract_text(layout=True) or ""
+                    # Fast text extraction
+                    text = page.extract_text() or ""
                     if text.strip():
                         documents.append(Document(
-                            page_content=text,
+                            page_content=text[:1500],  # Limit text length
                             metadata={
                                 "source": PDF_URL,
                                 "page": page_num + 1,
-                                "content_type": "text",
-                                "document_type": "education_records"
                             }
                         ))
             
+            # Efficient splitting
             text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200
+                chunk_size=600,  # Smaller chunks
+                chunk_overlap=80
             )
             splits = text_splitter.split_documents(documents)
             
-            vectors = []
-            for i, doc in enumerate(splits):
-                embedding = embeddings.embed_query(doc.page_content)
-                vectors.append({
-                    "id": f"doc_{i}",
-                    "values": embedding,
-                    "metadata": {
-                        "page_content": doc.page_content,
-                        "source": doc.metadata.get("source", PDF_URL),
-                        "page": doc.metadata.get("page", i+1),
-                        "text": doc.page_content
-                    }
-                })
-                if len(vectors) == 100 or i == len(splits)-1:
+            # Batch processing with progress
+            batch_size = 100
+            for i in range(0, len(splits), batch_size):
+                batch = splits[i:i + batch_size]
+                texts = [doc.page_content for doc in batch]
+                
+                # Batch embed for efficiency
+                embeddings_list = embeddings.embed_documents(texts)
+                
+                vectors = []
+                for j, (doc, embedding) in enumerate(zip(batch, embeddings_list)):
+                    vectors.append({
+                        "id": f"doc_{i+j}",
+                        "values": embedding,
+                        "metadata": {
+                            "page_content": doc.page_content[:800],
+                            "source": doc.metadata.get("source", PDF_URL),
+                            "page": doc.metadata.get("page", i+j+1),
+                        }
+                    })
+                
+                if vectors:
                     index.upsert(vectors=vectors, namespace="vishnu_ai_docs")
-                    vectors = []
             
             logger.info(f"Successfully upserted {len(splits)} documents")
         
         return index, embeddings
+        
     except Exception as e:
         logger.error(f"Vectorstore initialization failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Vectorstore init failed: {str(e)}")
+        return None, None
+
+
 
 # Initialize LLM
 def get_llm():
@@ -288,18 +301,56 @@ def get_llm():
 
 
 # Initialize vectorstore and retriever
-index, embeddings = initialize_vectorstore()
-retriever = PineconeRetriever(
-    index=index,
-    embeddings=embeddings,
-    search_type="mmr",
-    search_kwargs={
-        "k": 5,
-        "filter": {"document_type": "education_records"}
-    }
-)
+# index, embeddings = initialize_vectorstore()
+# retriever = PineconeRetriever(
+#     index=index,
+#     embeddings=embeddings,
+#     search_type="mmr",
+#     search_kwargs={
+#         "k": 5,
+#         "filter": {"document_type": "education_records"}
+#     }
+# )
 
-llm = get_llm()
+# llm = get_llm()
+
+
+retriever = None
+llm = None
+thread_pool = ThreadPoolExecutor(max_workers=4)
+
+@app.on_event("startup")
+async def startup_event():
+    global retriever, llm
+    logger.info("Initializing AI services...")
+    
+    try:
+        # Initialize only once at startup
+        index, embeddings = initialize_vectorstore()
+        retriever = PineconeRetriever(
+            index=index,
+            embeddings=embeddings,
+            search_type="similarity",  # Changed from "mmr" for speed
+            search_kwargs={
+                "k": 3,  # Reduced from 5 for speed
+                "filter": {"document_type": "education_records"}
+            }
+        )
+        llm = get_llm()
+        logger.info("AI services initialized successfully")
+    except Exception as e:
+        logger.error(f"Startup initialization failed: {e}")
+        # Set fallback values
+        from langchain_core.retrievers import BaseRetriever
+        from langchain_core.documents import Document
+        
+        class FallbackRetriever(BaseRetriever):
+            def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
+                return [Document(page_content="System initializing...", metadata={})]
+        
+        retriever = FallbackRetriever()
+        llm = get_llm()  # Still try to get LLM even if vectorstore fails
+
 
 # System Prompt
 system_prompt = (
@@ -375,41 +426,175 @@ async def serve_index():
 
 chat_history = []
 
+
+
+
+
+# Add thread pool for synchronous operations
+# thread_pool = ThreadPoolExecutor(max_workers=4)
+
 @app.post("/chat")
 async def chat(query: str = Form(...), typewriter: bool = Form(False)):
     if not query.strip() or len(query) > 250:
         raise HTTPException(status_code=400, detail="Invalid query length")
     
-    try:
-        # Use invoke() instead of get_relevant_documents()
-        raw_docs = retriever.invoke(query)
-        
-        if not raw_docs:
-            answer = "No relevant information found in the PDF."
-        else:
-            question_answer_chain = create_stuff_documents_chain(llm, prompt)
-            rag_chain = create_retrieval_chain(retriever, question_answer_chain)
-            response = rag_chain.invoke({
-                "input": query,
-                "context": raw_docs
-            })
-            answer = response.get("answer", "").strip() or "No relevant information found."
+    start_time = time.time()
+    timings = {}
 
-        chat_history.insert(0, f"You: {query}\nAI: {answer}")
-        chat_history[:] = chat_history[:10]
-        full_history = "\n\n".join(chat_history)
+    try:
+        loop = asyncio.get_event_loop()
+
+        # ---------------- Retrieval ----------------
+        retrieval_start = time.time()
+
+   
+
+# Add timeout to prevent hanging
+        try:
+            raw_docs = await asyncio.wait_for(
+                loop.run_in_executor(
+                    thread_pool, 
+                    lambda: retriever.invoke(query) if retriever else []
+                ),
+                timeout=5.0  # 5 second timeout
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"Retrieval timeout for query: {query}")
+            raw_docs = []  # Fallback to empty docs
+        # raw_docs = await loop.run_in_executor(
+        #     thread_pool, 
+        #     lambda: retriever.invoke(query) if retriever else []
+        # )
+        retrieval_end = time.time()
+        timings["retrieval_time"] = retrieval_end - retrieval_start
+        logger.info(f"Retrieval took: {timings['retrieval_time']:.2f}s")
+
+        # ---------------- Generation ----------------
+        generation_start = time.time()
+        if not raw_docs:
+            answer = "I couldn't find specific information about that. Is there anything else I can help you with?"
+        else:
+            simplified_prompt = ChatPromptTemplate.from_messages([
+                ("system", "You are a helpful AI assistant. Provide concise answers based on the context."),
+                ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
+            ])
+
+            question_answer_chain = create_stuff_documents_chain(llm, simplified_prompt)
+
+            limited_docs = raw_docs[:2]  # Only top 2 docs
+
+            response = await loop.run_in_executor(
+                thread_pool,
+                lambda: question_answer_chain.invoke({
+                    "input": query,
+                    "context": limited_docs
+                })
+            )
+            answer = response.strip()
+        generation_end = time.time()
+        timings["generation_time"] = generation_end - generation_start
+        logger.info(f"Generation took: {timings['generation_time']:.2f}s")
+
+        # ---------------- History Update ----------------
+        history_start = time.time()
+        chat_entry = f"You: {query}\nAI: {answer}"
+        chat_history.insert(0, chat_entry)
+        if len(chat_history) > 3:
+            chat_history.pop()
+        history_end = time.time()
+        timings["history_update_time"] = history_end - history_start
+        logger.info(f"History update took: {timings['history_update_time']:.2f}s")
+
+        # ---------------- Total Time ----------------
+        total_end = time.time()
+        timings["total_time"] = total_end - start_time
+        logger.info(f"Total processing time: {timings['total_time']:.2f}s")
 
         return {
             "answer": answer,
-            "history": full_history,
-            "typewriter": typewriter
+            "history": "\n\n".join(chat_history),
+            "typewriter": typewriter,
+            "timings": {k: f"{v:.2f}s" for k, v in timings.items()}
         }
 
     except Exception as e:
-        logger.error(f"Chat error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Chat processing failed")
+        logger.error(f"Chat error: {e}")
+        return {
+            "answer": "I'm experiencing high load. Please try again in a moment.",
+            "history": "\n\n".join(chat_history),
+            "typewriter": False,
+            "error": True
+        }
 
 
+
+# @app.post("/chat")
+# async def chat(query: str = Form(...), typewriter: bool = Form(False)):
+#     if not query.strip() or len(query) > 250:
+#         raise HTTPException(status_code=400, detail="Invalid query length")
+    
+#     start_time = time.time()
+    
+#     try:
+#         # Fast retrieval with smaller context
+#         loop = asyncio.get_event_loop()
+#         raw_docs = await loop.run_in_executor(
+#             thread_pool, 
+#             lambda: retriever.invoke(query) if retriever else []
+#         )
+        
+#         retrieval_time = time.time()
+#         logger.info(f"Retrieval took: {retrieval_time - start_time:.2f}s")
+        
+#         if not raw_docs:
+#             # Fast response for no docs found
+#             answer = "I couldn't find specific information about that. Is there anything else I can help you with?"
+#         else:
+#             # Use simpler prompt for faster generation
+#             simplified_prompt = ChatPromptTemplate.from_messages([
+#                 ("system", "You are a helpful AI assistant. Provide concise answers based on the context."),
+#                 ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
+#             ])
+            
+#             # Create efficient chain
+#             question_answer_chain = create_stuff_documents_chain(llm, simplified_prompt)
+            
+#             # Limit context size for faster processing
+#             limited_docs = raw_docs[:2]  # Only use top 2 most relevant docs
+            
+#             response = await loop.run_in_executor(
+#                 thread_pool,
+#                 lambda: question_answer_chain.invoke({
+#                     "input": query,
+#                     "context": limited_docs
+#                 })
+#             )
+#             answer = response.strip()
+        
+#         generation_time = time.time()
+#         logger.info(f"Total processing time: {generation_time - start_time:.2f}s")
+
+#         # Update history efficiently
+#         chat_entry = f"You: {query}\nAI: {answer}"
+#         chat_history.insert(0, chat_entry)
+#         if len(chat_history) > 3:  # Keep only last 3 exchanges
+#             chat_history.pop()
+        
+#         return {
+#             "answer": answer,
+#             "history": "\n\n".join(chat_history),
+#             "typewriter": typewriter,
+#             "response_time": f"{(generation_time - start_time):.2f}s"
+#         }
+
+#     except Exception as e:
+#         logger.error(f"Chat error: {e}")
+#         return {
+#             "answer": "I'm experiencing high load. Please try again in a moment.",
+#             "history": "\n\n".join(chat_history),
+#             "typewriter": False,
+#             "error": True
+#         }
 
 @app.post("/merge_pdf")
 async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("PyPDF2"), file_order: Optional[str] = Form(None)):
