@@ -456,7 +456,7 @@ async def chat(query: str = Form(...), typewriter: bool = Form(False)):
                     thread_pool, 
                     lambda: retriever.invoke(query) if retriever else []
                 ),
-                timeout=5.0  # 5 second timeout
+                timeout=25.0  # 25 second timeout
             )
         except asyncio.TimeoutError:
             logger.warning(f"Retrieval timeout for query: {query}")
