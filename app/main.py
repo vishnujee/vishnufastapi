@@ -457,14 +457,14 @@ async def chat(query: str = Form(...), typewriter: bool = Form(False)):
             answer = "I couldn't find specific information about that. Is there anything else I can help you with?"
         else:
             # Alternative more detailed prompt
-            simplified_prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are a helpful AI assistant. Provide direct, conversational answers. Integrate the context naturally without referencing it explicitly."),
-                ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-            ])
             # simplified_prompt = ChatPromptTemplate.from_messages([
-            #     ("system", "You are a helpful AI assistant. Provide concise answers based on the context."),
+            #     ("system", "You are a helpful AI assistant. Provide direct, conversational answers. Integrate the context naturally without referencing it explicitly."),
             #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
             # ])
+            simplified_prompt = ChatPromptTemplate.from_messages([
+                ("system", "You are a helpful AI assistant. Provide concise answers based on the context."),
+                ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
+            ])
 
             question_answer_chain = create_stuff_documents_chain(llm, simplified_prompt)
 
