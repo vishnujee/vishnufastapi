@@ -300,19 +300,7 @@ def get_llm():
     )
 
 
-# Initialize vectorstore and retriever
-# index, embeddings = initialize_vectorstore()
-# retriever = PineconeRetriever(
-#     index=index,
-#     embeddings=embeddings,
-#     search_type="mmr",
-#     search_kwargs={
-#         "k": 5,
-#         "filter": {"document_type": "education_records"}
-#     }
-# )
 
-# llm = get_llm()
 
 
 retriever = None
@@ -358,7 +346,7 @@ system_prompt = (
     "When responding:\n"
     "1. Prioritize the most recent data (latest date) unless the user specifies otherwise.\n"
     "2. Extract key information from the context.\n"
-    "3. Never say in response- Based on the provided context/portfolio...\n"
+    "3. Never say in response- Based on the provided context/portfolio/text...\n"
     "4. Summarize main points concisely.\n"
     "5. Provide general information apart from provided pdf.\n\n"
     "**For tables**:\n"
@@ -414,10 +402,7 @@ async def memory_usage_stream(request: Request):
             "Connection": "keep-alive",
         }
     )
-# @app.get("/", response_class=HTMLResponse)
-# async def serve_index():
-#     with open("app/static/index.html", "r") as f:
-#         return HTMLResponse(content=f.read())
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
     index_path = os.path.join(static_dir, "index.html")
@@ -429,9 +414,6 @@ chat_history = []
 
 
 
-
-# Add thread pool for synchronous operations
-# thread_pool = ThreadPoolExecutor(max_workers=4)
 
 @app.post("/chat")
 async def chat(query: str = Form(...), typewriter: bool = Form(False)):
@@ -474,10 +456,15 @@ async def chat(query: str = Form(...), typewriter: bool = Form(False)):
         if not raw_docs:
             answer = "I couldn't find specific information about that. Is there anything else I can help you with?"
         else:
+            # Alternative more detailed prompt
             simplified_prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are a helpful AI assistant. Provide concise answers based on the context."),
+                ("system", "You are a helpful AI assistant. Provide direct, conversational answers. Integrate the context naturally without referencing it explicitly."),
                 ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
             ])
+            # simplified_prompt = ChatPromptTemplate.from_messages([
+            #     ("system", "You are a helpful AI assistant. Provide concise answers based on the context."),
+            #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
+            # ])
 
             question_answer_chain = create_stuff_documents_chain(llm, simplified_prompt)
 
@@ -528,73 +515,7 @@ async def chat(query: str = Form(...), typewriter: bool = Form(False)):
 
 
 
-# @app.post("/chat")
-# async def chat(query: str = Form(...), typewriter: bool = Form(False)):
-#     if not query.strip() or len(query) > 250:
-#         raise HTTPException(status_code=400, detail="Invalid query length")
-    
-#     start_time = time.time()
-    
-#     try:
-#         # Fast retrieval with smaller context
-#         loop = asyncio.get_event_loop()
-#         raw_docs = await loop.run_in_executor(
-#             thread_pool, 
-#             lambda: retriever.invoke(query) if retriever else []
-#         )
-        
-#         retrieval_time = time.time()
-#         logger.info(f"Retrieval took: {retrieval_time - start_time:.2f}s")
-        
-#         if not raw_docs:
-#             # Fast response for no docs found
-#             answer = "I couldn't find specific information about that. Is there anything else I can help you with?"
-#         else:
-#             # Use simpler prompt for faster generation
-#             simplified_prompt = ChatPromptTemplate.from_messages([
-#                 ("system", "You are a helpful AI assistant. Provide concise answers based on the context."),
-#                 ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-#             ])
-            
-#             # Create efficient chain
-#             question_answer_chain = create_stuff_documents_chain(llm, simplified_prompt)
-            
-#             # Limit context size for faster processing
-#             limited_docs = raw_docs[:2]  # Only use top 2 most relevant docs
-            
-#             response = await loop.run_in_executor(
-#                 thread_pool,
-#                 lambda: question_answer_chain.invoke({
-#                     "input": query,
-#                     "context": limited_docs
-#                 })
-#             )
-#             answer = response.strip()
-        
-#         generation_time = time.time()
-#         logger.info(f"Total processing time: {generation_time - start_time:.2f}s")
 
-#         # Update history efficiently
-#         chat_entry = f"You: {query}\nAI: {answer}"
-#         chat_history.insert(0, chat_entry)
-#         if len(chat_history) > 3:  # Keep only last 3 exchanges
-#             chat_history.pop()
-        
-#         return {
-#             "answer": answer,
-#             "history": "\n\n".join(chat_history),
-#             "typewriter": typewriter,
-#             "response_time": f"{(generation_time - start_time):.2f}s"
-#         }
-
-#     except Exception as e:
-#         logger.error(f"Chat error: {e}")
-#         return {
-#             "answer": "I'm experiencing high load. Please try again in a moment.",
-#             "history": "\n\n".join(chat_history),
-#             "typewriter": False,
-#             "error": True
-#         }
 
 @app.post("/merge_pdf")
 async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("PyPDF2"), file_order: Optional[str] = Form(None)):
@@ -1071,32 +992,7 @@ async def convert_pdf_to_ppt_endpoint(
         gc.collect()
 
 
-# @app.post("/convert_pdf_to_ppt")
-# async def convert_pdf_to_ppt_endpoint(file: UploadFile = File(...)):
-#     logger.info(f"Received convert to PPT request for {file.filename}")
-#     if file.size / (1024 * 1024) > 50:
-#         raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
 
-#     s3_key = None
-#     try:
-#         file_content = await file.read()
-#         s3_key = upload_to_s3(file_content, file.filename)
-#         ppt_bytes = convert_pdf_to_ppt(file_content)
-#         if not ppt_bytes:
-#             raise HTTPException(status_code=500, detail="Conversion failed")
-
-#         return StreamingResponse(
-#             io.BytesIO(ppt_bytes),
-#             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-#             headers={"Content-Disposition": 'attachment; filename="converted_output.pptx"'}
-#         )
-#     except Exception as e:
-#         logger.error(f"PDF to PPT error: {e}")
-#         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
-#     finally:
-#         if s3_key:
-#             cleanup_s3_file(s3_key)
-#         gc.collect()
 
 @app.post("/convert_image_to_pdf")
 async def convert_image_to_pdf_endpoint(
