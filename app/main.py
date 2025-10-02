@@ -13,6 +13,8 @@ import psutil
 import time
 import PyPDF2
 import io
+import re
+import pandas as pd
 import json
 import asyncio
 # Initialize colorama
@@ -135,7 +137,8 @@ else:
 
 # PDF_S3_KEY = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"  # Ensure case consistency
 # PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"
-PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/websitepdf24sep25.pdf"
+PDF_URL_TABULAR = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/2.pdf"  # Your main PDF with tables
+PDF_URL_NONTABULAR = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/1.pdf"
 S3_PREFIX = "Amazingvideo/"
 
 
@@ -151,11 +154,382 @@ def download_from_url(url):
     
 
 
+######################################################### NEW IMPLEMENTATION FOR RAG #########################################################
+
+
+# Configurable lists for table detection
+HEADER_KEYWORDS = [
+    "Company", "Duration", 
+]
+
+TITLE_KEYWORDS = [
+    "Work Experience"
+]
+
+
+
+
+def is_raw_table_text(text):
+    """Detect table data rows - LESS AGGRESSIVE VERSION"""
+    line = text.strip()
+    if not line:
+        return False
+
+    # Split into words
+    words = line.split()
+    
+    # REMOVED: starts_with_number check (too restrictive)
+    # starts_with_number = bool(re.match(r'^\d+[\s\.]', line))  # REMOVE THIS
+    
+    # Count numbers (integers or decimals)
+    number_count = len(re.findall(r'\b\d+\b|\d+\.\d+', line))
+    
+    # Check for tabular structure (4 or more words - increased from 3)
+    has_tabular = len(words) >= 4  # Increased threshold
+    
+    # Exclude header-like keywords
+    has_header_keywords = any(h.lower() in line.lower() for h in HEADER_KEYWORDS)
+    
+    # Check for table-specific patterns
+    # has_table_patterns = bool(re.search(r'\b(NO\.|KM|NOS|Mtr)\b|\d{6,}', line))
+
+    # MORE RELAXED table detection
+    return (
+        (number_count >= 3 and has_tabular and not has_header_keywords) or  # Increased to 2 numbers
+        (has_tabular and not has_header_keywords)
+    )
+
+
+
+def is_table_title(line, title_keywords=TITLE_KEYWORDS):
+    """Detect if a line is a potential table title."""
+    if not line.strip() or len(line) > 100:
+        return False
+    if re.search(r'^\d+\s', line) or re.search(r'\s\d+\.\d+\s', line):
+        return False
+    return any(k.lower() in line.lower() for k in title_keywords)
+
+def is_header_row(row_str, header_keywords=HEADER_KEYWORDS, min_matches=1):
+    """Determine if a row is a header row based on keyword matching."""
+    if not row_str.strip():
+        return False
+
+    lower_row = row_str.lower()
+    matches = sum(1 for kw in header_keywords if kw.lower() in lower_row)
+
+    if "project name" in lower_row or "duration" in lower_row or "company" in lower_row:
+        return True
+    return matches >= min_matches
+
+
+
+
+def normalize_text(text):
+    """Normalize text by removing extra spaces and standardizing."""
+    return ' '.join(text.strip().split())
+
+def is_substring_match(line, table_content_set):
+    """Check if a line is an exact or partial match of table content."""
+    norm_line = normalize_text(line)
+    for table_content in table_content_set:
+        if norm_line == table_content:
+            return True
+        # Strict substring match for longer lines
+        if len(norm_line) > 15 and len(table_content) > 15:
+            if norm_line.lower() in table_content.lower():
+                return True
+    return False
+
+def extract_text_from_nontabular_pdf(pdf_bytes):
+    """Improved PDF extraction that preserves both text and tables without over-filtering"""
+    full_text = []
+    
+    try:
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            total_pages = len(pdf.pages)
+            
+            for i, page in enumerate(pdf.pages, 1):
+                # Extract raw text first (preserve layout)
+                text = page.extract_text(layout=True)
+                if text:
+                    full_text.append(f"--- PAGE {i} ---\n{text}")
+                
+                # Extract tables separately
+                tables = page.extract_tables()
+                for table in tables:
+                    try:
+                        # Convert table to markdown format
+                        df = pd.DataFrame(table)
+                        markdown_table = df.to_markdown(index=False)
+                        full_text.append(f"\nTABLE (Page {i}):\n{markdown_table}\n")
+                    except Exception as e:
+                        # Fallback to raw table if conversion fails
+                        full_text.append(f"\nTABLE_RAW (Page {i}):\n{str(table)}\n")
+    
+    except Exception as e:
+        raise Exception(f"Error processing PDF: {e}")
+    
+    return "\n".join(full_text)
+
+def extract_text_with_tables(pdf_bytes):
+    """Enhanced PDF extraction with robust table detection"""
+    full_text = []
+    
+    try:
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            total_pages = len(pdf.pages)
+            
+            for i, page in enumerate(pdf.pages, 1):
+                text = page.extract_text()
+                table_content = set()  # Track all table-related content
+                filtered_lines = []  # Non-table text
+                cleaned_tables = []  # Collect cleaned tables
+
+                # Extract tables
+                tables = page.extract_tables() or []
+                for table in tables:
+                    cleaned_table = []
+                    header_row = None
+                    title_row = None
+
+                    for row in table:
+                        # Handle None cells
+                        row = ["" if cell is None else str(cell).strip() for cell in row]
+                        row_str = ' '.join(cell for cell in row if cell)
+                        if not row_str.strip():
+                            continue
+
+                        # Normalize row string
+                        norm_row_str = normalize_text(row_str)
+                        table_content.add(norm_row_str)
+
+                        # Add individual cell content, handling multi-line cells
+                        for cell in row:
+                            if cell:
+                                cell_lines = cell.split('\n')
+                                for cell_line in cell_lines:
+                                    if cell_line.strip():
+                                        table_content.add(normalize_text(cell_line))
+
+                        if is_table_title(row_str, TITLE_KEYWORDS):
+                            title_row = row_str
+                            continue
+
+                        if header_row is None and is_header_row(row_str, HEADER_KEYWORDS):
+                            header_row = row
+                            continue
+
+                        cleaned_table.append(row)
+
+                    if cleaned_table:
+                        cleaned_tables.append((title_row, header_row, cleaned_table))
+
+                # Process text lines (only if text exists)
+                if text:
+                    lines = text.split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if not line:
+                            continue
+
+                        # Normalize line for comparison
+                        norm_line = normalize_text(line)
+                        
+                        # Skip lines that are table-related
+                        if (norm_line in table_content or
+                            is_substring_match(line, table_content) or
+                            is_table_title(line, TITLE_KEYWORDS) or
+                            is_header_row(line, HEADER_KEYWORDS) or
+                            is_raw_table_text(line)):
+                            continue
+                            
+                        # # Additional table content checks
+                        # if (re.match(r'^\d+\s', line) or  
+                        #     any(x in line.lower() for x in ['no', 'nos', 'qty', 'km', 'mtr']) or
+                        #     re.search(r'\d{4,}', line)):  # Long numbers
+                        #     continue
+
+                        filtered_lines.append(line)
+
+                # Add filtered text to full_text
+                if filtered_lines:
+                    full_text.append(f"--- PAGE {i} ---\n" + "\n".join(filtered_lines))
+
+                # Add tables to full_text
+                for title_row, header_row, cleaned_table in cleaned_tables:
+                    try:
+                        # Ensure consistent column lengths
+                        max_cols = max(len(row) for row in cleaned_table)
+                        cleaned_table = [row + [""] * (max_cols - len(row)) for row in cleaned_table]
+
+                        if header_row and cleaned_table:
+                            df = pd.DataFrame(cleaned_table, columns=header_row)
+                        else:
+                            df = pd.DataFrame(cleaned_table[1:], columns=cleaned_table[0]) if len(cleaned_table) > 1 else pd.DataFrame(cleaned_table)
+
+                        markdown_table = df.to_markdown(index=False)
+                        if title_row:  # If we found a natural title
+                            full_text.append(f"\n{title_row}\n{markdown_table}\n")
+                        else:  # Otherwise use the default header
+                            full_text.append(f"\nTABLE (Page {i}):\n{markdown_table}\n")
+                    except Exception as e:
+                        full_text.append(f"\nTABLE_RAW (Page {i}):\n{str(cleaned_table)}\n")
+
+        return "\n".join(full_text)
+
+    except pdfplumber.exceptions.PDFSyntaxError as e:
+        raise Exception(f"Invalid PDF format: {e}")
+    except Exception as e:
+        raise Exception(f"Error processing PDF: {e}")
+
+
+
+# ====================== Enhanced Logging Functions ======================
+
+def log_retrieved_documents(docs: List[Document], query: str):
+    """Log the top retrieved documents with full content"""
+    logger.info(f"\n{'='*80}")
+    logger.info(f"QUERY: {query}")
+    logger.info(f"RETRIEVED {len(docs)} DOCUMENTS:")
+    logger.info(f"{'='*80}")
+    
+    for i, doc in enumerate(docs, 1):
+        logger.info(f"\n📄 DOCUMENT #{i}:")
+        logger.info(f"📁 Source: {doc.metadata.get('source', 'Unknown')}")
+        logger.info(f"📄 Content Type: {doc.metadata.get('content_type', 'Unknown')}")
+        logger.info(f"📊 Score: {doc.metadata.get('score', 'N/A')}")
+        logger.info(f"📝 Content (FULL):\n{doc.page_content}")
+        logger.info(f"🏷️ Metadata: {doc.metadata}")
+        logger.info(f"{'-'*60}")
+
+def log_final_documents(docs: List[Document], query: str):
+    """Log the documents being sent to LLM"""
+    logger.info(f"\n{'='*80}")
+    logger.info(f"FINAL DOCUMENTS BEING SENT TO LLM FOR QUERY: {query}")
+    logger.info(f"Total documents: {len(docs)}")
+    logger.info(f"{'='*80}")
+    
+    for i, doc in enumerate(docs, 1):
+        logger.info(f"\n📤 DOCUMENT #{i} SENT TO LLM:")
+        logger.info(f"📁 Source: {doc.metadata.get('source', 'Unknown')}")
+        logger.info(f"📄 Content Type: {doc.metadata.get('content_type', 'Unknown')}")
+        
+        # Check for table markers
+        has_table_start = "TABLE_START" in doc.page_content
+        has_table_end = "TABLE_END" in doc.page_content
+        logger.info(f"📊 Table Markers - START: {has_table_start}, END: {has_table_end}")
+        
+        if has_table_start and has_table_end:
+            # Extract and log table content separately
+            table_sections = doc.page_content.split("TABLE_START")
+            for j, section in enumerate(table_sections[1:], 1):
+                if "TABLE_END" in section:
+                    table_content = section.split("TABLE_END")[0]
+                    logger.info(f"📋 TABLE CONTENT #{j}:\n{table_content}")
+        
+        logger.info(f"📝 FULL CONTENT:\n{doc.page_content}")
+        logger.info(f"🏷️ Metadata: {doc.metadata}")
+        logger.info(f"{'-'*60}")
+
+def log_embedding_process(documents: List[Document], source: str):
+    """Log the embedding process for documents"""
+    logger.info(f"\n{'='*80}")
+    logger.info(f"EMBEDDING PROCESS FOR: {source}")
+    logger.info(f"Total documents to embed: {len(documents)}")
+    logger.info(f"{'='*80}")
+    
+    for i, doc in enumerate(documents, 1):
+        logger.info(f"\n🔤 DOCUMENT #{i} TO BE EMBEDDED:")
+        logger.info(f"📁 Source: {doc.metadata.get('source', 'Unknown')}")
+        logger.info(f"📄 Content Type: {doc.metadata.get('content_type', 'Unknown')}")
+        # logger.info(f"📝 Content Preview (first 500 chars):\n{doc.page_content[:500]}...")
+        logger.info(f"📝 Full Content Preview:\n{doc.page_content}")
+        logger.info(f"📏 Content Length: {len(doc.page_content)} characters")
+        logger.info(f"🏷️ Metadata: {doc.metadata}")
+        logger.info(f"{'-'*60}")
+
+# ====================== Enhanced Document Processing ======================
+def post_process_retrieved_docs(docs, query):
+    """Enhanced post-processing for work experience tables"""
+    processed = []
+    table_headers = ["Project Name", "Duration", "Company", "Project Description"]
+    
+    query_lower = query.lower().strip()
+
+    for doc in docs:
+        content = doc.page_content
+        source = doc.metadata.get("source", "unknown")
+        logger.info(f"🔧 Processing document from {source}")
+
+        # Check if it's a work experience table
+        is_work_table = (
+            content.count("|") > 3 and 
+            any(header in content for header in table_headers) and
+            "2.pdf" in source  # Only process tables from the work experience PDF
+        )
+
+        if is_work_table:
+            doc.metadata["content_type"] = "work_experience_table"
+            
+            # Extract and highlight relevant company information
+            lines = content.split("\n")
+            enhanced_content = []
+            
+            # Find and highlight matching companies
+            for line in lines:
+                if "|" in line and any(company in line.lower() for company in [
+                    "kei", "larsen", "toubro", "vindhya", "punj", "gng"
+                ]):
+                    # Highlight relevant rows
+                    enhanced_content.append(f"⭐ {line}")
+                else:
+                    enhanced_content.append(line)
+            
+            if enhanced_content:
+                doc.page_content = "WORK_EXPERIENCE_TABLE_START\n" + "\n".join(enhanced_content) + "\nWORK_EXPERIENCE_TABLE_END"
+            
+            doc.metadata["table_type"] = "work_experience"
+            
+        else:
+            doc.metadata["content_type"] = "text"
+
+        processed.append(doc)
+
+    return processed
+def ensure_tabular_inclusion(docs, query, min_tabular=2):
+    """Ensure work experience tables are included in final context"""
+    query_lower = query.lower()
+    
+    # Check if query is about work/companies
+    is_work_query = any(keyword in query_lower for keyword in [
+        'company', 'work', 'experience', 'job', 'project',
+        'kei', 'larsen', 'toubro', 'vindhya', 'punj', 'gng'
+    ])
+    
+    if not is_work_query:
+        return docs[:5]  # Return top 5 for non-work queries
+    
+    tabular_docs = [d for d in docs if "2.pdf" in d.metadata.get("source", "")]
+    other_docs = [d for d in docs if "2.pdf" not in d.metadata.get("source", "")]
+    
+    # Force include tabular docs first
+    final_docs = tabular_docs[:min_tabular]
+    
+    # Add top-scoring other docs to reach desired count
+    remaining_slots = 5 - len(final_docs)
+    if remaining_slots > 0:
+        final_docs.extend(other_docs[:remaining_slots])
+    
+    logger.info(f"📊 Final docs for work query: {len(final_docs)} total, {len(tabular_docs)} from work experience PDF")
+    return final_docs
+
+
+
+
 
 
 
 ###  PINECONE CLOUD 
-
 
 class PineconeRetriever(BaseRetriever):
     index: Any = Field(...)
@@ -170,28 +544,59 @@ class PineconeRetriever(BaseRetriever):
         run_manager: CallbackManagerForRetrieverRun = None
     ) -> List[Document]:
         try:
+            logger.info(f"🔍 Starting retrieval for query: {query}")
             query_embedding = self.embeddings.embed_query(query)
-            results = self.index.query(
-                vector=query_embedding,
-                top_k=self.search_kwargs.get("k", 5),
-                include_metadata=True,
-                namespace="vishnu_ai_docs"
-            )
+            logger.info(f"✅ Query embedding generated, length: {len(query_embedding)}")
+
+             # Add timeout configuration
+            import requests
+            from requests.adapters import HTTPAdapter
+            from urllib3.util.retry import Retry
+            
+            # Configure session with timeout
+            session = requests.Session()
+            session.timeout = 30  # 30 second timeout
+            
+            # Add timeout and retry logic
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    results = self.index.query(
+                        vector=query_embedding,
+                        top_k=self.search_kwargs.get("k", 5),
+                        include_metadata=True,
+                        namespace="vishnu_ai_docs"
+                    )
+                    break
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        raise e
+                    logger.warning(f"⚠️ Pinecone query attempt {attempt + 1} failed: {e}")
+                    time.sleep(1)  # Wait before retry
+            
+            logger.info(f"📊 Pinecone returned {len(results['matches'])} matches")
+            
             documents = []
             for match in results["matches"]:
                 text_content = match["metadata"].get("page_content", match["metadata"].get("text", ""))
-                documents.append(Document(
+                document = Document(
                     page_content=text_content,
                     metadata={
                         "source": match["metadata"].get("source", ""),
                         "page": match["metadata"].get("page", 0),
-                        "score": match["score"]
+                        "score": match["score"],
+                        "content_type": match["metadata"].get("content_type", "unknown"),
+                        "document_type": match["metadata"].get("document_type", "unknown")
                     }
-                ))
+                )
+                documents.append(document)
+                logger.info(f"📄 Retrieved doc - Score: {match['score']:.4f}, Source: {document.metadata['source']}")
+            
             return documents
         except Exception as e:
-            logger.error(f"Retrieval failed: {e}")
-            raise HTTPException(status_code=500, detail=f"Retrieval failed: {str(e)}")
+            logger.error(f"❌ Retrieval failed: {e}", exc_info=True)
+            # Return empty list instead of raising exception to allow fallback
+            return []
 
     def invoke(
         self, 
@@ -202,90 +607,230 @@ class PineconeRetriever(BaseRetriever):
         """Handle invoke calls with config parameter"""
         return self._get_relevant_documents(input)
 
-
-# Replace your current initialize_vectorstore function with this optimized version
 def initialize_vectorstore():
     try:
+        logger.info("🚀 Starting vectorstore initialization...")
         pc = Pinecone(api_key=PINECONE_API_KEY)
         index_name = "vishnu-ai-docs"
         
         # Check if index exists
         if index_name not in pc.list_indexes().names():
+            logger.info(f"📦 Creating new index: {index_name}")
             pc.create_index(
                 name=index_name,
-                dimension=512,  # Reduced dimension for faster processing
+                dimension=1536,  # Updated to match text-embedding-3-large
                 metric="cosine",
                 spec=ServerlessSpec(cloud="aws", region="us-east-1")
             )
-            logger.info(f"Created new index: {index_name}")
-            time.sleep(20)  # Reduced wait time
+            logger.info(f"✅ Created new index: {index_name}")
+            time.sleep(20)
         
         index = pc.Index(index_name)
-        # Use smaller embedding model
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512)
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-large", dimensions=1536)  # Updated to large model
         
         # Efficient empty check
         stats = index.describe_index_stats()
         namespace_stats = stats.get("namespaces", {}).get("vishnu_ai_docs", {})
         
         if namespace_stats.get("vector_count", 0) == 0:
-            logger.info("Index is empty, processing documents...")
+            logger.info("📭 Index is empty, processing documents with enhanced extraction...")
             
-            # Stream PDF processing
-            pdf_bytes = download_from_url(PDF_URL)
+            all_documents = []
             
-            documents = []
-            with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-                for page_num, page in enumerate(pdf.pages):
-                    # Fast text extraction
-                    text = page.extract_text() or ""
-                    if text.strip():
-                        documents.append(Document(
-                            page_content=text[:1500],  # Limit text length
-                            metadata={
-                                "source": PDF_URL,
-                                "page": page_num + 1,
-                            }
-                        ))
+            # Process Tabular PDF
+            logger.info("📊 Processing tabular PDF...")
+            pdf_bytes_tabular = download_from_url(PDF_URL_TABULAR)
+            logger.info(f"📥 Downloaded tabular PDF, size: {len(pdf_bytes_tabular)} bytes")
             
-            # Efficient splitting
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=600,  # Smaller chunks
-                chunk_overlap=80
+            # Use enhanced PDF extraction for tabular data
+            tabular_text = extract_text_with_tables(pdf_bytes_tabular)
+            logger.info(f"📄 Extracted tabular text length: {len(tabular_text)} characters")
+            
+            # Create document with metadata for tabular content
+            tabular_doc = Document(
+                page_content=tabular_text,
+                metadata={
+                    "source": PDF_URL_TABULAR,
+                    "content_type": "mixed_text_and_tables",
+                    "document_type": "tabular",
+                    "section": "work_experience",
+                    "processed_at": time.time()
+                }
             )
-            splits = text_splitter.split_documents(documents)
+            all_documents.append(tabular_doc)
+            
+            # Process Non-Tabular PDF
+            logger.info("📝 Processing non-tabular PDF...")
+            try:
+                pdf_bytes_nontabular = download_from_url(PDF_URL_NONTABULAR)
+                logger.info(f"📥 Downloaded non-tabular PDF, size: {len(pdf_bytes_nontabular)} bytes")
+                
+                # Use non-tabular extraction for better text preservation
+                nontabular_text = extract_text_from_nontabular_pdf(pdf_bytes_nontabular)
+                logger.info(f"📄 Extracted non-tabular text length: {len(nontabular_text)} characters")
+                
+                # Split non-tabular content into logical sections
+                sections = split_into_logical_sections(nontabular_text)
+                
+                for section_name, section_content in sections.items():
+                    if section_content.strip():
+                        section_doc = Document(
+                            page_content=section_content,
+                            metadata={
+                                "source": PDF_URL_NONTABULAR,
+                                "content_type": "text_heavy",
+                                "document_type": "nontabular",
+                                "section": section_name,
+                                "processed_at": time.time()
+                            }
+                        )
+                        all_documents.append(section_doc)
+                        logger.info(f"📑 Created section: {section_name} ({len(section_content)} chars)")
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to process non-tabular PDF: {e}. Continuing with tabular PDF only.")
+            
+            # Define separate text splitters for tabular and non-tabular documents
+            tabular_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=5090,  # Chunk size for tabular content
+                chunk_overlap=300,
+                separators=["\n\n", "\n", "•", " - ", "|", " "]
+            )
+            
+            nontabular_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=2000,  # Chunk size for non-tabular content
+                chunk_overlap=200,
+                separators=["\n\n", "\n", "•", " - ", "|", " "]
+            )
+            
+            # Split documents based on their type
+            splits = []
+            for doc in all_documents:
+                if doc.metadata.get("document_type") == "tabular":
+                    splits.extend(tabular_splitter.split_documents([doc]))
+                else:
+                    splits.extend(nontabular_splitter.split_documents([doc]))
+            
+            logger.info(f"✂️ Split into {len(splits)} chunks from {len(all_documents)} documents")
+            
+            # Log embedding process
+            log_embedding_process(splits, "combined_pdfs")
             
             # Batch processing with progress
-            batch_size = 100
+            batch_size = 50
+            total_vectors = 0
+
+
             for i in range(0, len(splits), batch_size):
                 batch = splits[i:i + batch_size]
                 texts = [doc.page_content for doc in batch]
                 
-                # Batch embed for efficiency
-                embeddings_list = embeddings.embed_documents(texts)
+                logger.info(f"🔤 Embedding batch {i//batch_size + 1}/{(len(splits)-1)//batch_size + 1}")
                 
-                vectors = []
-                for j, (doc, embedding) in enumerate(zip(batch, embeddings_list)):
-                    vectors.append({
-                        "id": f"doc_{i+j}",
-                        "values": embedding,
-                        "metadata": {
-                            "page_content": doc.page_content[:800],
-                            "source": doc.metadata.get("source", PDF_URL),
-                            "page": doc.metadata.get("page", i+j+1),
-                        }
-                    })
-                
-                if vectors:
-                    index.upsert(vectors=vectors, namespace="vishnu_ai_docs")
+                try:
+                    # Batch embed for efficiency
+                    embeddings_list = embeddings.embed_documents(texts)
+                    
+                    # ✅ ADD THESE LINES
+                    logger.info(f"🔤 Generated {len(embeddings_list)} embeddings for batch")
+                    if embeddings_list:
+                        logger.info(f"📏 First embedding dimensions: {len(embeddings_list[0])}")
+                    
+                    logger.info(f"✅ Embedded {len(embeddings_list)} documents in batch")
+                    
+                    vectors = []
+                    for j, (doc, embedding) in enumerate(zip(batch, embeddings_list)):
+                        # vectors.append({
+                        #     "id": f"doc_{i+j}",
+                        #     "values": embedding,
+                        #     "metadata": {
+                        #         "page_content": doc.page_content[:800],
+                        #         "source": doc.metadata.get("source", "unknown"),
+                        #         "content_type": doc.metadata.get("content_type", "mixed"),
+                        #         "document_type": doc.metadata.get("document_type", "unknown"),
+                        #         "section": doc.metadata.get("section", "general"),
+                        #         "chunk_index": i+j
+                        #     }
+                        # })
+                        vectors.append({
+                            "id": f"doc_{i+j}",
+                            "values": embedding,
+                            "metadata": {
+                                "page_content": doc.page_content,  # ✅ NO TRUNCATION
+                                "source": doc.metadata.get("source", "unknown"),
+                                "content_type": doc.metadata.get("content_type", "mixed"),
+                                "document_type": doc.metadata.get("document_type", "unknown"),
+                                "section": doc.metadata.get("section", "general"),
+                                "chunk_index": i+j
+                            }
+                        })
+                                            
+                    if vectors:
+                        logger.info(f"📤 About to upsert {len(vectors)} vectors to Pinecone")
+                        
+                        # Upsert to Pinecone
+                        upsert_response = index.upsert(vectors=vectors, namespace="vishnu_ai_docs")
+                        
+                        logger.info(f"📤 Successfully upserted {len(vectors)} vectors to Pinecone")
+                        logger.info(f"📊 Upsert response: {upsert_response}")
+                        
+                        total_vectors += len(vectors)
+                        logger.info(f"📤 Upserted batch {i//batch_size + 1} with {len(vectors)} vectors")
+                    else:
+                        logger.warning("⚠️ No vectors to upsert in this batch")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Batch {i//batch_size + 1} failed: {e}", exc_info=True)
+                    continue  # Continue with next batch
             
-            logger.info(f"Successfully upserted {len(splits)} documents")
+            
+            
+            logger.info(f"🎉 Successfully upserted {total_vectors} documents to Pinecone from {len(all_documents)} source documents")
         
+        logger.info("✅ Vectorstore initialization completed successfully")
         return index, embeddings
         
     except Exception as e:
-        logger.error(f"Vectorstore initialization failed: {e}")
+        logger.error(f"❌ Vectorstore initialization failed: {e}", exc_info=True)
         return None, None
+
+def split_into_logical_sections(text):
+    """Split text into logical sections for better retrieval"""
+    sections = {
+        "personal_info": "",
+        "education": "", 
+        "work_experience": "",
+        "skills": "",
+        "awards": "",
+        "pdf_guide": "",
+        "other": ""
+    }
+    
+    lines = text.split('\n')
+    current_section = "other"
+    
+    for line in lines:
+        line_lower = line.lower().strip()
+        
+        # Detect section headers
+        if any(keyword in line_lower for keyword in ['about', 'personal', 'date of birth', 'hometown']):
+            current_section = "personal_info"
+        elif any(keyword in line_lower for keyword in ['education', 'qualification', '10th', '12th', 'b.tech']):
+            current_section = "education"
+        elif any(keyword in line_lower for keyword in ['experience', 'project', 'company', 'duration']):
+            current_section = "work_experience"
+        elif any(keyword in line_lower for keyword in ['skill', 'web development', 'ai', 'machine learning']):
+            current_section = "skills"
+        elif any(keyword in line_lower for keyword in ['award', 'recognition', 'trophy']):
+            current_section = "awards"
+        elif any(keyword in line_lower for keyword in ['pdf', 'tool', 'guide', 'operation']):
+            current_section = "pdf_guide"
+        
+        # Add line to current section
+        if line.strip():
+            sections[current_section] += line + "\n"
+    
+    return sections
 
 
 
@@ -302,15 +847,20 @@ def get_llm():
 
 
 
-
 retriever = None
 llm = None
 thread_pool = ThreadPoolExecutor(max_workers=4)
+chat_history = []
+
+
+
+
+# ====================== Startup Event ======================
 
 @app.on_event("startup")
 async def startup_event():
     global retriever, llm
-    logger.info("Initializing AI services...")
+    logger.info("🚀 Starting AI services initialization...")
     
     try:
         # Initialize only once at startup
@@ -318,26 +868,27 @@ async def startup_event():
         retriever = PineconeRetriever(
             index=index,
             embeddings=embeddings,
-            search_type="similarity",  # Changed from "mmr" for speed
+            search_type="similarity",
             search_kwargs={
-                "k": 3,  # Reduced from 5 for speed
-                "filter": {"document_type": "education_records"}
+                "k": 10,  # Increased for better coverage
+                "score_threshold": 0.3
             }
         )
         llm = get_llm()
-        logger.info("AI services initialized successfully")
+        logger.info("✅ AI services initialized successfully")
     except Exception as e:
-        logger.error(f"Startup initialization failed: {e}")
+        logger.error(f"❌ Startup initialization failed: {e}", exc_info=True)
         # Set fallback values
         from langchain_core.retrievers import BaseRetriever
         from langchain_core.documents import Document
         
         class FallbackRetriever(BaseRetriever):
             def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
+                logger.warning("⚠️ Using fallback retriever")
                 return [Document(page_content="System initializing...", metadata={})]
         
         retriever = FallbackRetriever()
-        llm = get_llm()  # Still try to get LLM even if vectorstore fails
+        llm = get_llm()
 
 
 # System Prompt
@@ -360,7 +911,6 @@ prompt = ChatPromptTemplate.from_messages([
     ("system", system_prompt),
     ("human", "{input}"),
 ])
-
 
 
 
@@ -392,7 +942,7 @@ async def memory_usage_stream(request: Request):
             }
             
             yield f"data: {json.dumps(data)}\n\n"
-            await asyncio.sleep(1)  # Non-blocking sleep
+            await asyncio.sleep(1)
     
     return StreamingResponse(
         event_stream(),
@@ -403,117 +953,377 @@ async def memory_usage_stream(request: Request):
         }
     )
 
+
+
+def analyze_table_chunking(docs, query):
+    """Analyze how table content is chunked across documents"""
+    table_docs = [d for d in docs if "2.pdf" in d.metadata.get("source", "")]
+    
+    logger.info(f"📊 TABLE CHUNK ANALYSIS FOR QUERY: '{query}'")
+    logger.info(f"📋 Found {len(table_docs)} documents from work experience PDF")
+    
+    for i, doc in enumerate(table_docs, 1):
+        content = doc.page_content
+        logger.info(f"\n🔍 TABLE CHUNK #{i}:")
+        logger.info(f"📏 Content length: {len(content)} characters")
+        logger.info(f"📄 Metadata: {doc.metadata}")
+        
+        # Check table structure
+        lines = content.split('\n')
+        table_lines = [line for line in lines if '|' in line]
+        logger.info(f"📊 Table lines count: {len(table_lines)}")
+        
+        # Check for specific companies
+        companies_to_check = ['KEI', 'Larsen', 'Toubro', 'Vindhya', 'Punj', 'GNG']
+        found_companies = []
+        for company in companies_to_check:
+            if company.lower() in content.lower():
+                found_companies.append(company)
+        
+        logger.info(f"🏢 Companies found in this chunk: {found_companies}")
+        
+        # Log first 500 chars of content
+        preview = content[:500] + "..." if len(content) > 500 else content
+        logger.info(f"👀 Content preview:\n{preview}")
+    
+    return table_docs
+
+def check_complete_table_in_vectorstore():
+    """Check if the complete table exists as a single chunk in vector store"""
+    try:
+        pc = Pinecone(api_key=PINECONE_API_KEY)
+        index = pc.Index("vishnu-ai-docs")
+        
+        # Get all documents from PDF 2
+        results = index.query(
+            vector=[0] * 1536,  # Dummy vector to get all docs
+            top_k=100,
+            include_metadata=True,
+            namespace="vishnu_ai_docs",
+            filter={
+                "source": {"$eq": "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/2.pdf"}
+            }
+        )
+        
+        logger.info("🔍 COMPLETE TABLE CHUNK ANALYSIS IN VECTOR STORE")
+        logger.info("=" * 80)
+        
+        all_companies = ['KEI', 'Larsen', 'Toubro', 'Vindhya', 'Punj', 'GNG']
+        found_companies = set()
+        
+        for i, match in enumerate(results['matches'], 1):
+            content = match['metadata'].get('page_content', '')
+            logger.info(f"\n📄 CHUNK #{i}:")
+            logger.info(f"📏 Length: {len(content)} chars")
+            logger.info(f"📊 Score: {match['score']:.4f}")
+            
+            # Check companies in this chunk
+            chunk_companies = [c for c in all_companies if c.lower() in content.lower()]
+            logger.info(f"🏢 Companies: {chunk_companies}")
+            found_companies.update(chunk_companies)
+            
+            # Show FULL content for table chunks
+            if "TABLE" in content:
+                logger.info(f"📋 FULL TABLE CONTENT:\n{content}")
+            else:
+                logger.info(f"📝 Content preview: {content[:200]}...")
+            
+            logger.info("-" * 50)
+        
+        logger.info(f"\n🎯 SUMMARY:")
+        logger.info(f"Total table chunks: {len(results['matches'])}")
+        logger.info(f"Companies found across all chunks: {sorted(found_companies)}")
+        logger.info(f"Missing companies: {set(all_companies) - found_companies}")
+        
+        return len(results['matches']), found_companies
+        
+    except Exception as e:
+        logger.error(f"❌ Vector store analysis failed: {e}")
+        return 0, set()
+
+
+def quick_table_analysis(retriever, query):
+    """Fast table analysis - remove if you want maximum speed"""
+    try:
+        query_embedding = retriever.embeddings.embed_query(query)
+        all_table_results = retriever.index.query(
+            vector=query_embedding,
+            top_k=5,  # Reduced from 20
+            include_metadata=True,
+            namespace="vishnu_ai_docs",
+            filter={
+                "source": {"$eq": "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/2.pdf"}
+            }
+        )
+        logger.info(f"📋 Table docs in store: {len(all_table_results['matches'])}")
+    except Exception:
+        pass  # Silent fail - this is just diagnostic
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
     index_path = os.path.join(static_dir, "index.html")
-    with open(index_path, "r",encoding="utf-8") as f:
+    with open(index_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
-chat_history = []
-
-
+@app.get("/debug-table-chunking")
+async def debug_table_chunking():
+    """Debug endpoint to check table chunking"""
+    chunk_count, companies = check_complete_table_in_vectorstore()
+    
+    return {
+        "total_table_chunks": chunk_count,
+        "companies_found": list(companies),
+        "message": "Check logs for detailed analysis"
+    }
 
 
 
 @app.post("/chat")
-async def chat(query: str = Form(...), typewriter: bool = Form(False)):
+async def chat(query: str = Form(...)):
     if not query.strip() or len(query) > 250:
         raise HTTPException(status_code=400, detail="Invalid query length")
     
     start_time = time.time()
     timings = {}
+    logger.info(f"\n🎯 NEW CHAT QUERY: '{query}'")
 
     try:
         loop = asyncio.get_event_loop()
 
-        # ---------------- Retrieval ----------------
+        # ---------------- OPTIMIZED RETRIEVAL ----------------
         retrieval_start = time.time()
+        logger.info("🔍 Starting document retrieval...")
 
-   
-
-# Add timeout to prevent hanging
         try:
             raw_docs = await asyncio.wait_for(
                 loop.run_in_executor(
                     thread_pool, 
                     lambda: retriever.invoke(query) if retriever else []
                 ),
-                timeout=25.0  # 25 second timeout
+                timeout=45.0
             )
         except asyncio.TimeoutError:
-            logger.warning(f"Retrieval timeout for query: {query}")
-            raw_docs = []  # Fallback to empty docs
-        # raw_docs = await loop.run_in_executor(
-        #     thread_pool, 
-        #     lambda: retriever.invoke(query) if retriever else []
-        # )
+            logger.warning(f"⏰ Retrieval timeout for query: {query}")
+            raw_docs = []
+        except Exception as e:
+            logger.error(f"❌ Retrieval error: {e}")
+            raw_docs = []
+
         retrieval_end = time.time()
         timings["retrieval_time"] = retrieval_end - retrieval_start
-        logger.info(f"Retrieval took: {timings['retrieval_time']:.2f}s")
-
-        # ---------------- Generation ----------------
-        generation_start = time.time()
-        if not raw_docs:
-            answer = "I couldn't find specific information about that. Is there anything else I can help you with?"
+        
+        if raw_docs:
+            logger.info(f"✅ Retrieval completed in {timings['retrieval_time']:.2f}s, found {len(raw_docs)} documents")
         else:
-            # Alternative more detailed prompt
-            # simplified_prompt = ChatPromptTemplate.from_messages([
-            #     ("system", "You are a helpful AI assistant. Provide direct, conversational answers. Integrate the context naturally without referencing it explicitly."),
-            #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-            # ])
-            simplified_prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are a helpful AI assistant. Provide concise answers based on the context."),
+            logger.warning(f"⚠️ Retrieval completed in {timings['retrieval_time']:.2f}s, but found 0 documents")
+
+        # Log retrieved documents
+        log_retrieved_documents(raw_docs, query)
+
+        # ---------------- DOCUMENT PROCESSING ----------------
+        processing_start = time.time()
+        
+        final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
+        processed_docs = post_process_retrieved_docs(final_docs, query)
+        
+        processing_end = time.time()
+        timings["processing_time"] = processing_end - processing_start
+        logger.info(f"✅ Document processing completed in {timings['processing_time']:.2f}s")
+
+        # ---------------- GENERATION ----------------
+        generation_start = time.time()
+        
+        if not processed_docs:
+            answer = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
+            logger.warning("⚠️ No relevant documents found for query")
+        else:
+            table_context = any("2.pdf" in doc.metadata.get("source", "") for doc in processed_docs)
+            if table_context:
+                logger.info("✅ TABLE DATA IS IN LLM CONTEXT!")
+            else:
+                logger.info("ℹ️ No table data in context for this query")
+
+
+                # ✅ PREPARE LLM CHAIN (fast - no need for parallel)
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", "You are a helpful AI assistant. Provide direct, conversational answers."),
                 ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
             ])
 
-            question_answer_chain = create_stuff_documents_chain(llm, simplified_prompt)
+            question_answer_chain = create_stuff_documents_chain(llm, prompt)
 
-            limited_docs = raw_docs[:2]  # Only top 2 docs
+            try:
+                response = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        thread_pool,
+                        lambda: question_answer_chain.invoke({
+                            "input": query,
+                            "context": processed_docs
+                        })
+                    ),
+                    timeout=10.0
+                )
+                answer = response.strip()
+                logger.info(f"✅ LLM generation completed, response length: {len(answer)}")
+            except asyncio.TimeoutError:
+                logger.warning("⏰ LLM generation timeout")
+                answer = "I'm taking too long to generate a response. Please try again."
 
-            response = await loop.run_in_executor(
-                thread_pool,
-                lambda: question_answer_chain.invoke({
-                    "input": query,
-                    "context": limited_docs
-                })
-            )
-            answer = response.strip()
         generation_end = time.time()
         timings["generation_time"] = generation_end - generation_start
-        logger.info(f"Generation took: {timings['generation_time']:.2f}s")
+        logger.info(f"✅ Generation completed in {timings['generation_time']:.2f}s")
 
-        # ---------------- History Update ----------------
-        history_start = time.time()
+        # ---------------- RESPONSE ----------------
         chat_entry = f"You: {query}\nAI: {answer}"
         chat_history.insert(0, chat_entry)
         if len(chat_history) > 3:
             chat_history.pop()
-        history_end = time.time()
-        timings["history_update_time"] = history_end - history_start
-        logger.info(f"History update took: {timings['history_update_time']:.2f}s")
 
-        # ---------------- Total Time ----------------
         total_end = time.time()
         timings["total_time"] = total_end - start_time
-        logger.info(f"Total processing time: {timings['total_time']:.2f}s")
+        logger.info(f"🎉 Total processing time: {timings['total_time']:.2f}s")
 
         return {
             "answer": answer,
             "history": "\n\n".join(chat_history),
-            "typewriter": typewriter,
-            "timings": {k: f"{v:.2f}s" for k, v in timings.items()}
+            "timings": {k: f"{v:.2f}s" for k, v in timings.items()},
+            "retrieved_docs_count": len(raw_docs),
+            "processed_docs_count": len(processed_docs)
         }
 
     except Exception as e:
-        logger.error(f"Chat error: {e}")
+        logger.error(f"❌ Chat error: {e}", exc_info=True)
         return {
-            "answer": "I'm experiencing high load. Please try again in a moment.",
+            "answer": "I'm experiencing technical issues. Please try again in a moment.",
             "history": "\n\n".join(chat_history),
-            "typewriter": False,
             "error": True
         }
 
+# @app.post("/chat")
+# async def chat(query: str = Form(...), typewriter: bool = Form(False)):
+#     if not query.strip() or len(query) > 250:
+#         raise HTTPException(status_code=400, detail="Invalid query length")
+    
+#     start_time = time.time()
+#     timings = {}
+#     logger.info(f"\n🎯 NEW CHAT QUERY: '{query}'")
 
+#     try:
+#         loop = asyncio.get_event_loop()
+
+#         # ---------------- OPTIMIZED RETRIEVAL ----------------
+#         retrieval_start = time.time()
+#         logger.info("🔍 Starting document retrieval...")
+
+#         try:
+#             # ✅ REDUCED TIMEOUT + BETTER ERROR HANDLING
+#             raw_docs = await asyncio.wait_for(
+#                 loop.run_in_executor(
+#                     thread_pool, 
+#                     lambda: retriever.invoke(query) if retriever else []
+#                 ),
+#                 timeout=30.0  # ⬇️ Reduced from 60s to 15s
+#             )
+#         except asyncio.TimeoutError:
+#             logger.warning(f"⏰ Retrieval timeout for query: {query}")
+#             raw_docs = []
+#         except Exception as e:
+#             logger.error(f"❌ Retrieval error: {e}")
+#             raw_docs = []
+
+#         retrieval_end = time.time()
+#         timings["retrieval_time"] = retrieval_end - retrieval_start
+        
+#         if raw_docs:
+#             logger.info(f"✅ Retrieval completed in {timings['retrieval_time']:.2f}s, found {len(raw_docs)} documents")
+#         else:
+#             logger.warning(f"⚠️ Retrieval completed in {timings['retrieval_time']:.2f}s, but found 0 documents")
+
+#         # Log retrieved documents
+#         log_retrieved_documents(raw_docs, query)
+
+#         # ---------------- DOCUMENT PROCESSING ----------------
+#         processing_start = time.time()
+        
+#         # ✅ KEEP YOUR WORKING FUNCTIONS
+#         final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
+#         processed_docs = post_process_retrieved_docs(final_docs, query)
+        
+#         processing_end = time.time()
+#         timings["processing_time"] = processing_end - processing_start
+#         logger.info(f"✅ Document processing completed in {timings['processing_time']:.2f}s")
+
+#         # ---------------- GENERATION ----------------
+#         generation_start = time.time()
+        
+#         if not processed_docs:
+#             answer = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
+#             logger.warning("⚠️ No relevant documents found for query")
+#         else:
+#             # Quick table context check
+#             table_context = any("2.pdf" in doc.metadata.get("source", "") for doc in processed_docs)
+#             if table_context:
+#                 logger.info("✅ TABLE DATA IS IN LLM CONTEXT!")
+#             else:
+#                 logger.info("ℹ️ No table data in context for this query")
+
+#             # ✅ PREPARE LLM CHAIN (fast - no need for parallel)
+#             prompt = ChatPromptTemplate.from_messages([
+#                 ("system", "You are a helpful AI assistant. Provide direct, conversational answers."),
+#                 ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
+#             ])
+#             question_answer_chain = create_stuff_documents_chain(llm, prompt)
+
+#             # ✅ LLM CALL WITH TIMEOUT
+#             try:
+#                 response = await asyncio.wait_for(
+#                     loop.run_in_executor(
+#                         thread_pool,
+#                         lambda: question_answer_chain.invoke({
+#                             "input": query,
+#                             "context": processed_docs
+#                         })
+#                     ),
+#                     timeout=10.0  # LLM timeout
+#                 )
+#                 answer = response.strip()
+#                 logger.info(f"✅ LLM generation completed, response length: {len(answer)}")
+#             except asyncio.TimeoutError:
+#                 logger.warning("⏰ LLM generation timeout")
+#                 answer = "I'm taking too long to generate a response. Please try again."
+
+#         generation_end = time.time()
+#         timings["generation_time"] = generation_end - generation_start
+#         logger.info(f"✅ Generation completed in {timings['generation_time']:.2f}s")
+
+#         # ---------------- RESPONSE ----------------
+#         chat_entry = f"You: {query}\nAI: {answer}"
+#         chat_history.insert(0, chat_entry)
+#         if len(chat_history) > 3:
+#             chat_history.pop()
+
+#         total_end = time.time()
+#         timings["total_time"] = total_end - start_time
+#         logger.info(f"🎉 Total processing time: {timings['total_time']:.2f}s")
+
+#         return {
+#             "answer": answer,
+#             "history": "\n\n".join(chat_history),
+#             "typewriter": typewriter,
+#             "timings": {k: f"{v:.2f}s" for k, v in timings.items()},
+#             "retrieved_docs_count": len(raw_docs),
+#             "processed_docs_count": len(processed_docs)
+#         }
+
+#     except Exception as e:
+#         logger.error(f"❌ Chat error: {e}", exc_info=True)
+#         return {
+#             "answer": "I'm experiencing technical issues. Please try again in a moment.",
+#             "history": "\n\n".join(chat_history),
+#             "typewriter": False,
+#             "error": True
+#         }
 
 
 
@@ -1537,3 +2347,5 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080, workers=1) 
+
+
