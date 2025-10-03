@@ -1,8 +1,4 @@
     // Memory Monitoring Code
-    
-
-
-
     document.addEventListener('DOMContentLoaded', function() {
         const ramBar = document.getElementById('ram-bar');
         const ramStats = document.getElementById('ram-stats');
