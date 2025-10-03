@@ -496,8 +496,9 @@ def post_process_retrieved_docs(docs, query):
         processed.append(doc)
 
     return processed
+
 def ensure_tabular_inclusion(docs, query, min_tabular=2):
-    """Ensure work experience tables are included in final context"""
+    """Ensure relevant content is included based on query type"""
     query_lower = query.lower()
     
     # Check if query is about work/companies
@@ -506,22 +507,74 @@ def ensure_tabular_inclusion(docs, query, min_tabular=2):
         'kei', 'larsen', 'toubro', 'vindhya', 'punj', 'gng','l&t'
     ])
     
-    if not is_work_query:
-        return docs[:5]  # Return top 5 for non-work queries
+    # NEW: Check if query is about websites
+    is_website_query = any(keyword in query_lower for keyword in [
+        'website', 'site', 'url', 'link', 'web',
+        'recallmind', 'parcelfile', 'vishnuji', 'file transfer',
+        'cloud storage', 'pdf editing', 'portfolio'
+    ])
     
-    tabular_docs = [d for d in docs if "2.pdf" in d.metadata.get("source", "")]
-    other_docs = [d for d in docs if "2.pdf" not in d.metadata.get("source", "")]
+    if is_work_query:
+        tabular_docs = [d for d in docs if "2.pdf" in d.metadata.get("source", "")]
+        other_docs = [d for d in docs if "2.pdf" not in d.metadata.get("source", "")]
+        
+        # Force include tabular docs first
+        final_docs = tabular_docs[:min_tabular]
+        
+        # Add top-scoring other docs to reach desired count
+        remaining_slots = 5 - len(final_docs)
+        if remaining_slots > 0:
+            final_docs.extend(other_docs[:remaining_slots])
+        
+        logger.info(f"📊 Final docs for work query: {len(final_docs)} total, {len(tabular_docs)} from work experience PDF")
     
-    # Force include tabular docs first
-    final_docs = tabular_docs[:min_tabular]
+    elif is_website_query:
+        # NEW: Prioritize website-related documents
+        website_docs = [d for d in docs if any(keyword in d.page_content.lower() for keyword in [
+            'recallmind', 'parcelfile', 'vishnuji.com', 'website', 'file transfer'
+        ])]
+        
+        other_docs = [d for d in docs if d not in website_docs]
+        
+        # Include website docs first, then others
+        final_docs = website_docs[:3]  # Get up to 3 website-specific docs
+        remaining_slots = 5 - len(final_docs)
+        if remaining_slots > 0:
+            final_docs.extend(other_docs[:remaining_slots])
+            
+        logger.info(f"🌐 Final docs for website query: {len(final_docs)} total, {len(website_docs)} website-specific")
     
-    # Add top-scoring other docs to reach desired count
-    remaining_slots = 5 - len(final_docs)
-    if remaining_slots > 0:
-        final_docs.extend(other_docs[:remaining_slots])
+    else:
+        final_docs = docs[:5]  # Return top 5 for general queries
     
-    logger.info(f"📊 Final docs for work query: {len(final_docs)} total, {len(tabular_docs)} from work experience PDF")
     return final_docs
+
+# def ensure_tabular_inclusion(docs, query, min_tabular=2):
+#     """Ensure work experience tables are included in final context"""
+#     query_lower = query.lower()
+    
+#     # Check if query is about work/companies
+#     is_work_query = any(keyword in query_lower for keyword in [
+#         'company', 'work', 'experience', 'job', 'project',
+#         'kei', 'larsen', 'toubro', 'vindhya', 'punj', 'gng','l&t'
+#     ])
+    
+#     if not is_work_query:
+#         return docs[:5]  # Return top 5 for non-work queries
+    
+#     tabular_docs = [d for d in docs if "2.pdf" in d.metadata.get("source", "")]
+#     other_docs = [d for d in docs if "2.pdf" not in d.metadata.get("source", "")]
+    
+#     # Force include tabular docs first
+#     final_docs = tabular_docs[:min_tabular]
+    
+#     # Add top-scoring other docs to reach desired count
+#     remaining_slots = 5 - len(final_docs)
+#     if remaining_slots > 0:
+#         final_docs.extend(other_docs[:remaining_slots])
+    
+#     logger.info(f"📊 Final docs for work query: {len(final_docs)} total, {len(tabular_docs)} from work experience PDF")
+#     return final_docs
 
 
 
@@ -802,7 +855,9 @@ def split_into_logical_sections(text):
         "work_experience": "",
         "skills": "",
         "awards": "",
+        "websites": "",  # NEW: Add websites section
         "pdf_guide": "",
+        "file_transfer": "",  # NEW: Specific section for file transfer
         "other": ""
     }
     
@@ -812,7 +867,7 @@ def split_into_logical_sections(text):
     for line in lines:
         line_lower = line.lower().strip()
         
-        # Detect section headers
+        # Detect section headers - ENHANCED WITH WEBSITE KEYWORDS
         if any(keyword in line_lower for keyword in ['about', 'personal', 'date of birth', 'hometown']):
             current_section = "personal_info"
         elif any(keyword in line_lower for keyword in ['education', 'qualification', '10th', '12th', 'b.tech']):
@@ -823,6 +878,10 @@ def split_into_logical_sections(text):
             current_section = "skills"
         elif any(keyword in line_lower for keyword in ['award', 'recognition', 'trophy']):
             current_section = "awards"
+        elif any(keyword in line_lower for keyword in ['website', 'recallmind', 'parcelfile', 'vishnuji.com']):
+            current_section = "websites"
+        elif any(keyword in line_lower for keyword in ['file transfer', 'p2p', 'cloud storage', 'parcelfile']):
+            current_section = "file_transfer"
         elif any(keyword in line_lower for keyword in ['pdf', 'tool', 'guide', 'operation']):
             current_section = "pdf_guide"
         
@@ -831,6 +890,45 @@ def split_into_logical_sections(text):
             sections[current_section] += line + "\n"
     
     return sections
+
+
+# def split_into_logical_sections(text):
+#     """Split text into logical sections for better retrieval"""
+#     sections = {
+#         "personal_info": "",
+#         "education": "", 
+#         "work_experience": "",
+#         "skills": "",
+#         "awards": "",
+#         "pdf_guide": "",
+#         "other": ""
+#     }
+    
+#     lines = text.split('\n')
+#     current_section = "other"
+    
+#     for line in lines:
+#         line_lower = line.lower().strip()
+        
+#         # Detect section headers
+#         if any(keyword in line_lower for keyword in ['about', 'personal', 'date of birth', 'hometown']):
+#             current_section = "personal_info"
+#         elif any(keyword in line_lower for keyword in ['education', 'qualification', '10th', '12th', 'b.tech']):
+#             current_section = "education"
+#         elif any(keyword in line_lower for keyword in ['experience', 'project', 'company', 'duration']):
+#             current_section = "work_experience"
+#         elif any(keyword in line_lower for keyword in ['skill', 'web development', 'ai', 'machine learning']):
+#             current_section = "skills"
+#         elif any(keyword in line_lower for keyword in ['award', 'recognition', 'trophy']):
+#             current_section = "awards"
+#         elif any(keyword in line_lower for keyword in ['pdf', 'tool', 'guide', 'operation']):
+#             current_section = "pdf_guide"
+        
+#         # Add line to current section
+#         if line.strip():
+#             sections[current_section] += line + "\n"
+    
+#     return sections
 
 
 
@@ -1093,6 +1191,34 @@ async def debug_table_chunking():
         "message": "Check logs for detailed analysis"
     }
 
+
+@app.post("/debug-retrieval")
+async def debug_retrieval(query: str = Form(...)):
+    """Debug endpoint to see what documents are retrieved for a query"""
+    if not retriever:
+        return {"error": "Retriever not initialized"}
+    
+    raw_docs = retriever.invoke(query)
+    
+    debug_info = {
+        "query": query,
+        "total_docs_retrieved": len(raw_docs),
+        "docs": []
+    }
+    
+    for i, doc in enumerate(raw_docs):
+        debug_info["docs"].append({
+            "rank": i + 1,
+            "source": doc.metadata.get("source", ""),
+            "content_type": doc.metadata.get("content_type", "unknown"),
+            "score": doc.metadata.get("score", "N/A"),
+            "content_preview": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content,
+            "has_website_keywords": any(keyword in doc.page_content.lower() for keyword in [
+                'recallmind', 'parcelfile', 'file transfer', 'website'
+            ])
+        })
+    
+    return debug_info
 
 
 @app.post("/chat")
