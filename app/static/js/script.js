@@ -1,3 +1,7 @@
+marked.use({
+    gfm: true,  // Enables auto-linking of raw URLs
+    breaks: true  // Line breaks as <br>
+});
 
 const BASE_URL = window.location.origin;
 
@@ -853,13 +857,29 @@ function formatMarkdownInline(text) {
     return text;
 }
 
-async function typewriterEffect(element, text, speed = 20) {
-    const formattedText = formatResponse(text);
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = formattedText;
+// async function typewriterEffect(element, text, speed = 20) {
+//     const formattedText = formatResponse(text);
+//     const tempDiv = document.createElement('div');
+//     tempDiv.innerHTML = formattedText;
+//     element.innerHTML = '';
+//     await typewriterProcessNodes(element, tempDiv.childNodes, speed);
+// }
+
+async function typewriterEffect(element, text, callback) {
+    const speed = 20;
+    // First, clear the element and type out the text
     element.innerHTML = '';
-    await typewriterProcessNodes(element, tempDiv.childNodes, speed);
+    
+    // Type out the plain text
+    await typewriterAddText(element, text, speed);
+    
+    // After typing is complete, execute the callback to convert to HTML with marked
+    if (callback && typeof callback === 'function') {
+        callback();
+    }
 }
+
+
 
 async function typewriterProcessNodes(parent, nodes, speed) {
     for (const node of nodes) {
@@ -884,6 +904,20 @@ async function typewriterProcessNodes(parent, nodes, speed) {
     }
 }
 
+// async function typewriterAddText(element, text, speed) {
+//     for (let i = 0; i < text.length; i++) {
+//         element.textContent += text[i];
+//         if (i < text.length - 1) {
+//             const cursor = document.createElement('span');
+//             cursor.className = 'blinking-cursor';
+//             cursor.textContent = '|';
+//             element.appendChild(cursor);
+//             await new Promise(resolve => setTimeout(resolve, speed));
+//             element.removeChild(cursor);
+//         }
+//     }
+// }
+
 async function typewriterAddText(element, text, speed) {
     for (let i = 0; i < text.length; i++) {
         element.textContent += text[i];
@@ -897,6 +931,7 @@ async function typewriterAddText(element, text, speed) {
         }
     }
 }
+
 
 async function sendChat() {
     const chatInput = document.getElementById('chatInput');
@@ -942,7 +977,9 @@ async function sendChat() {
 
         chatInput.value = '';
 
-        await typewriterEffect(aiResponse, data.answer);
+        // Use marked.parse directly for HTML with clickable links
+        aiResponse.innerHTML = marked.parse(data.answer);
+
     } catch (error) {
         console.error("Chat error:", error);
         const errorDiv = document.createElement('div');
@@ -957,6 +994,52 @@ async function sendChat() {
         progressText.textContent = '';
     }
 }
+
+    // try {
+    //     const response = await fetch('/chat', {
+    //         method: 'POST',
+    //         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    //         body: `query=${encodeURIComponent(chatInput.value.trim())}&typewriter=true`
+    //     });
+
+    //     if (!response.ok) {
+    //         const errorData = await response.json();
+    //         throw new Error(errorData.detail || 'Chat error');
+    //     }
+
+    //     const data = await response.json();
+
+    //     const messageDiv = document.createElement('div');
+    //     messageDiv.className = 'mb-4';
+
+    //     const userQuery = document.createElement('p');
+    //     userQuery.className = 'font-semibold text-blue-600';
+    //     userQuery.textContent = `You: ${chatInput.value.trim()}`;
+    //     messageDiv.appendChild(userQuery);
+
+    //     const aiResponse = document.createElement('div');
+    //     aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
+    //     messageDiv.appendChild(aiResponse);
+
+    //     chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
+
+    //     chatInput.value = '';
+
+    //     await typewriterEffect(aiResponse, data.answer);
+    // } catch (error) {
+    //     console.error("Chat error:", error);
+    //     const errorDiv = document.createElement('div');
+    //     errorDiv.className = 'text-red-600 mb-4';
+    //     errorDiv.innerHTML = `
+    //         <p>Error: ${error.message}</p>
+    //         <p class="text-sm text-gray-600">Please try again or refresh the page.</p>
+    //     `;
+    //     chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
+    // } finally {
+    //     progressDiv.style.display = 'none';
+    //     progressText.textContent = '';
+    // }
+
 
 function showTool(toolId) {
     localStorage.setItem('lastTool', toolId);
