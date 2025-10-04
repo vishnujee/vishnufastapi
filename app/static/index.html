@@ -227,6 +227,159 @@
             </div>
             <h2 class="text-2xl font-semibold text-gray-800">Vishnu AI Assistant</h2>
           </div>
+          <!-- Click to Expand Text -->
+<div class="flex justify-center gap-3 flex-nowrap mt-6 py-2">
+  <div onclick="toggleText()" style="
+      display: flex;
+      align-items: left;
+      gap: 0.3rem;
+      padding: 0.3rem 0.8rem;
+      background: rgb(255, 255, 255);
+      border-radius: 8px;
+      animation: glow1 2s ease-in-out infinite alternate;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: -30px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+  ">
+      <i class="fas fa-bolt" style="
+          font-size: 0.9rem;
+          color: #920bec;
+          padding-top: 5px;
+          padding-bottom: 1px;
+          animation: iconGlow1 1.5s ease-in-out infinite alternate;
+      "></i>
+      <span style="
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: #e7082d;
+          text-shadow: 0 0 10px #00f7ff;
+          padding-top: 1px;
+          padding-bottom: 1px;
+      ">Lightning Fast Now: Click Me</span>
+  </div>
+</div>
+
+<!-- Hidden Text that appears on click -->
+<div id="expandableText" style="
+  display: none;
+  text-align: left;
+  margin-top: 10px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 247, 255, 0.3);
+  color: rgb(8, 8, 8);
+  font-size: 0.9rem;
+  animation: fadeIn 0.5s ease-in-out;
+">
+  <p>🚀 Earlier chat repsonse time was 10 sec now reduced to 3 to 5 sec</p>
+  <p>💡 Ask more details about vishnu</p>
+  <p>🔒 chats and Files are never stored on servers.</p>
+</div>
+
+<style>
+/* Simple Glow Animations */
+@keyframes glow1 {
+  0% {
+      box-shadow: 0 0 3px #00f7ff,
+                  inset 0 0 3px #00f7ff;
+      transform: scale(1);
+  }
+  100% {
+      box-shadow: 0 0 15px #00f7ff,
+                  0 0 20px #ff00cc,
+                  inset 0 0 8px #00f7ff;
+      transform: scale(1.03);
+  }
+}
+
+@keyframes glow2 {
+  0% {
+      box-shadow: 0 0 3px #00f7ff,
+                  inset 0 0 3px #00f7ff;
+      transform: scale(1);
+  }
+  100% {
+      box-shadow: 0 0 15px #00f7ff,
+                  0 0 20px #ff00cc,
+                  inset 0 0 8px #00f7ff;
+      transform: scale(1.03);
+  }
+}
+
+@keyframes glow3 {
+  0% {
+      box-shadow: 0 0 3px #00f7ff,
+                  inset 0 0 3px #00f7ff;
+      transform: scale(1);
+  }
+  100% {
+      box-shadow: 0 0 15px #00f7ff,
+                  0 0 20px #ff00cc,
+                  inset 0 0 8px #00f7ff;
+      transform: scale(1.03);
+  }
+}
+
+@keyframes iconGlow1 {
+  0% {
+      text-shadow: 0 0 3px #00f7ff;
+      transform: scale(1);
+  }
+  100% {
+      text-shadow: 0 0 10px #ff00cc;
+      transform: scale(1.1);
+  }
+}
+
+@keyframes iconGlow2 {
+  0% {
+      text-shadow: 0 0 3px #00f7ff;
+      transform: scale(1);
+  }
+  100% {
+      text-shadow: 0 0 10px #ff00cc;
+      transform: scale(1.1);
+  }
+}
+
+@keyframes iconGlow3 {
+  0% {
+      text-shadow: 0 0 3px #00f7ff;
+      transform: scale(1);
+  }
+  100% {
+      text-shadow: 0 0 10px #ff00cc;
+      transform: scale(1.1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+      opacity: 0;
+      transform: translateY(-10px);
+  }
+  to {
+      opacity: 1;
+      transform: translateY(0);
+  }
+}
+</style>
+
+<script>
+function toggleText() {
+  const textDiv = document.getElementById('expandableText');
+  if (textDiv.style.display === 'none' || textDiv.style.display === '') {
+      textDiv.style.display = 'block';
+  } else {
+      textDiv.style.display = 'none';
+  }
+}
+</script>
+
           <div class="space-y-4">
             <div class="flex space-x-2">
               <input type="text" id="chatInput" placeholder="Ask me anything about Vishnu..." maxlength="250" class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
