@@ -549,33 +549,6 @@ def ensure_tabular_inclusion(docs, query, min_tabular=2):
     
     return final_docs
 
-# def ensure_tabular_inclusion(docs, query, min_tabular=2):
-#     """Ensure work experience tables are included in final context"""
-#     query_lower = query.lower()
-    
-#     # Check if query is about work/companies
-#     is_work_query = any(keyword in query_lower for keyword in [
-#         'company', 'work', 'experience', 'job', 'project',
-#         'kei', 'larsen', 'toubro', 'vindhya', 'punj', 'gng','l&t'
-#     ])
-    
-#     if not is_work_query:
-#         return docs[:5]  # Return top 5 for non-work queries
-    
-#     tabular_docs = [d for d in docs if "2.pdf" in d.metadata.get("source", "")]
-#     other_docs = [d for d in docs if "2.pdf" not in d.metadata.get("source", "")]
-    
-#     # Force include tabular docs first
-#     final_docs = tabular_docs[:min_tabular]
-    
-#     # Add top-scoring other docs to reach desired count
-#     remaining_slots = 5 - len(final_docs)
-#     if remaining_slots > 0:
-#         final_docs.extend(other_docs[:remaining_slots])
-    
-#     logger.info(f"📊 Final docs for work query: {len(final_docs)} total, {len(tabular_docs)} from work experience PDF")
-#     return final_docs
-
 
 
 
@@ -588,7 +561,7 @@ class PineconeRetriever(BaseRetriever):
     index: Any = Field(...)
     embeddings: Any = Field(...)
     search_type: str = Field(default="similarity")
-    search_kwargs: Optional[Dict] = Field(default_factory=lambda: {"k": 6})
+    search_kwargs: Optional[Dict] = Field(default_factory=lambda: {"k": 10})
 
     def _get_relevant_documents(
         self, 
@@ -616,7 +589,7 @@ class PineconeRetriever(BaseRetriever):
                 try:
                     results = self.index.query(
                         vector=query_embedding,
-                        top_k=self.search_kwargs.get("k", 5),
+                        top_k=self.search_kwargs.get("k", 10),
                         include_metadata=True,
                         namespace="vishnu_ai_docs"
                     )
@@ -893,52 +866,15 @@ def split_into_logical_sections(text):
     return sections
 
 
-# def split_into_logical_sections(text):
-#     """Split text into logical sections for better retrieval"""
-#     sections = {
-#         "personal_info": "",
-#         "education": "", 
-#         "work_experience": "",
-#         "skills": "",
-#         "awards": "",
-#         "pdf_guide": "",
-#         "other": ""
-#     }
-    
-#     lines = text.split('\n')
-#     current_section = "other"
-    
-#     for line in lines:
-#         line_lower = line.lower().strip()
-        
-#         # Detect section headers
-#         if any(keyword in line_lower for keyword in ['about', 'personal', 'date of birth', 'hometown']):
-#             current_section = "personal_info"
-#         elif any(keyword in line_lower for keyword in ['education', 'qualification', '10th', '12th', 'b.tech']):
-#             current_section = "education"
-#         elif any(keyword in line_lower for keyword in ['experience', 'project', 'company', 'duration']):
-#             current_section = "work_experience"
-#         elif any(keyword in line_lower for keyword in ['skill', 'web development', 'ai', 'machine learning']):
-#             current_section = "skills"
-#         elif any(keyword in line_lower for keyword in ['award', 'recognition', 'trophy']):
-#             current_section = "awards"
-#         elif any(keyword in line_lower for keyword in ['pdf', 'tool', 'guide', 'operation']):
-#             current_section = "pdf_guide"
-        
-#         # Add line to current section
-#         if line.strip():
-#             sections[current_section] += line + "\n"
-    
-#     return sections
-
 
 
 # Initialize LLM
 def get_llm():
     return ChatGoogleGenerativeAI(
         model="gemini-2.0-flash",
+        # model="gemini-2.5-pro",
         temperature=0.3,
-        max_tokens=800,
+        max_tokens=1500,
         timeout=None,
         api_key=GOOGLE_API_KEY
     )
@@ -969,7 +905,7 @@ async def startup_event():
             embeddings=embeddings,
             search_type="similarity",
             search_kwargs={
-                "k": 6,  # Increased for better coverage
+                "k": 10,  # Increased for better coverage
                 "score_threshold": 0.3
             }
         )
@@ -1360,7 +1296,7 @@ async def chat(query: str = Form(...)):
                             "context": processed_docs
                         })
                     ),
-                    timeout=10.0
+                    timeout=15.0
                 )
                 answer = response.strip()
                 logger.info(f"✅ LLM generation completed, response length: {len(answer)}")

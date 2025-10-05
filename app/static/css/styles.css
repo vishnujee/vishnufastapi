@@ -603,4 +603,15 @@ input[type="range"]:focus {
   } */
 
 
-  
+  .underline-link {
+    color: #2563eb;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1.5px;
+    transition: all 0.2s ease;
+}
+
+.underline-link:hover {
+    color: #1d4ed8;
+    text-decoration-thickness: 2px;
+}

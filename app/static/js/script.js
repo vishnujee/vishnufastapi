@@ -845,10 +845,86 @@ function formatResponse(text) {
         return match;
     });
 
-    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank">$1</a>');
+    // UPDATED LINK FORMATTING WITH UNDERLINES
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline underline-offset-2 decoration-1" target="_blank" rel="noopener noreferrer">$1</a>');
+
+    // Also handle raw URLs that might not be in markdown format
+    text = text.replace(/(https?:\/\/[^\s]+|www\.[^\s]+)/g, '<a href="$1" class="text-blue-600 hover:underline underline-offset-2 decoration-1" target="_blank" rel="noopener noreferrer">$1</a>');
 
     return text;
 }
+// Add this CSS
+const linkStyles = `
+    .chat-link {
+        color: #2563eb;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        text-decoration-thickness: 1.5px;
+        transition: all 0.2s ease;
+        font-weight: 500;
+    }
+    .chat-link:hover {
+        color: #1d4ed8;
+        text-decoration-thickness: 2px;
+        background-color: rgba(37, 99, 235, 0.05);
+    }
+`;
+
+// Add styles to document
+if (!document.querySelector('#chat-link-styles')) {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'chat-link-styles';
+    styleEl.textContent = linkStyles;
+    document.head.appendChild(styleEl);
+}
+
+// function formatResponse(text) {
+//     if (!text) return '';
+
+//     text = text.replace(/(\|[^\n]+\|\r?\n\|[-: |]+\|\r?\n)((?:\|[^\n]+\|\r?\n?)+)/g, function (match, header, body) {
+//         let html = '<div class="overflow-x-auto"><table class="w-full border-collapse my-3">';
+//         const headers = header.split('|').slice(1, -1).map(h => h.trim());
+//         html += '<thead><tr class="bg-gray-100">';
+//         headers.forEach(h => {
+//             html += `<th class="p-2 border text-left">${h}</th>`;
+//         });
+//         html += '</tr></thead><tbody>';
+//         const rows = body.trim().split('\n');
+//         rows.forEach(row => {
+//             const cells = row.split('|').slice(1, -1).map(c => c.trim());
+//             html += '<tr>';
+//             cells.forEach(cell => {
+//                 html += `<td class="p-2 border">${formatMarkdownInline(cell)}</td>`;
+//             });
+//             html += '</tr>';
+//         });
+//         html += '</tbody></table></div>';
+//         return html;
+//     });
+
+//     text = text.replace(/^([*-]|\d+\.)\s+(.+)$/gm, function (match, bullet, content) {
+//         return `<li class="ml-5">${formatMarkdownInline(content)}</li>`;
+//     });
+
+//     text = text.replace(/(<li>.*<\/li>)+/g, function (match) {
+//         const listType = match.includes('<li class="ml-5">') ? 'ul' : 'ol';
+//         return `<${listType} class="list-disc pl-5 my-2">${match}</${listType}>`;
+//     });
+
+//     text = formatMarkdownInline(text);
+
+//     text = text.replace(/\n/g, function (match, offset, fullText) {
+//         if (!fullText.substring(offset).match(/^\n*(<table|<ul|<ol)/) &&
+//             !fullText.substring(0, offset).match(/(<\/table|<\/ul|<\/ol>)\n*$/)) {
+//             return '<br>';
+//         }
+//         return match;
+//     });
+
+//     text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank">$1</a>');
+
+//     return text;
+// }
 
 function formatMarkdownInline(text) {
     if (!text) return '';
