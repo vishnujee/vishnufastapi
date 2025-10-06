@@ -1,10 +1,3 @@
-if (typeof marked !== 'undefined') {
-    marked.use({
-        gfm: true,  // Enables auto-linking of raw URLs
-        breaks: true  // Line breaks as <br>
-    });
-}
-
 
 const BASE_URL = window.location.origin;
 
@@ -845,86 +838,10 @@ function formatResponse(text) {
         return match;
     });
 
-    // UPDATED LINK FORMATTING WITH UNDERLINES
-    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline underline-offset-2 decoration-1" target="_blank" rel="noopener noreferrer">$1</a>');
-
-    // Also handle raw URLs that might not be in markdown format
-    text = text.replace(/(https?:\/\/[^\s]+|www\.[^\s]+)/g, '<a href="$1" class="text-blue-600 hover:underline underline-offset-2 decoration-1" target="_blank" rel="noopener noreferrer">$1</a>');
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank">$1</a>');
 
     return text;
 }
-// Add this CSS
-const linkStyles = `
-    .chat-link {
-        color: #2563eb;
-        text-decoration: underline;
-        text-underline-offset: 3px;
-        text-decoration-thickness: 1.5px;
-        transition: all 0.2s ease;
-        font-weight: 500;
-    }
-    .chat-link:hover {
-        color: #1d4ed8;
-        text-decoration-thickness: 2px;
-        background-color: rgba(37, 99, 235, 0.05);
-    }
-`;
-
-// Add styles to document
-if (!document.querySelector('#chat-link-styles')) {
-    const styleEl = document.createElement('style');
-    styleEl.id = 'chat-link-styles';
-    styleEl.textContent = linkStyles;
-    document.head.appendChild(styleEl);
-}
-
-// function formatResponse(text) {
-//     if (!text) return '';
-
-//     text = text.replace(/(\|[^\n]+\|\r?\n\|[-: |]+\|\r?\n)((?:\|[^\n]+\|\r?\n?)+)/g, function (match, header, body) {
-//         let html = '<div class="overflow-x-auto"><table class="w-full border-collapse my-3">';
-//         const headers = header.split('|').slice(1, -1).map(h => h.trim());
-//         html += '<thead><tr class="bg-gray-100">';
-//         headers.forEach(h => {
-//             html += `<th class="p-2 border text-left">${h}</th>`;
-//         });
-//         html += '</tr></thead><tbody>';
-//         const rows = body.trim().split('\n');
-//         rows.forEach(row => {
-//             const cells = row.split('|').slice(1, -1).map(c => c.trim());
-//             html += '<tr>';
-//             cells.forEach(cell => {
-//                 html += `<td class="p-2 border">${formatMarkdownInline(cell)}</td>`;
-//             });
-//             html += '</tr>';
-//         });
-//         html += '</tbody></table></div>';
-//         return html;
-//     });
-
-//     text = text.replace(/^([*-]|\d+\.)\s+(.+)$/gm, function (match, bullet, content) {
-//         return `<li class="ml-5">${formatMarkdownInline(content)}</li>`;
-//     });
-
-//     text = text.replace(/(<li>.*<\/li>)+/g, function (match) {
-//         const listType = match.includes('<li class="ml-5">') ? 'ul' : 'ol';
-//         return `<${listType} class="list-disc pl-5 my-2">${match}</${listType}>`;
-//     });
-
-//     text = formatMarkdownInline(text);
-
-//     text = text.replace(/\n/g, function (match, offset, fullText) {
-//         if (!fullText.substring(offset).match(/^\n*(<table|<ul|<ol)/) &&
-//             !fullText.substring(0, offset).match(/(<\/table|<\/ul|<\/ol>)\n*$/)) {
-//             return '<br>';
-//         }
-//         return match;
-//     });
-
-//     text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank">$1</a>');
-
-//     return text;
-// }
 
 function formatMarkdownInline(text) {
     if (!text) return '';
@@ -999,7 +916,7 @@ async function sendChat() {
         const response = await fetch('/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `query=${encodeURIComponent(chatInput.value.trim())}`
+            body: `query=${encodeURIComponent(chatInput.value.trim())}&typewriter=true`
         });
 
         if (!response.ok) {
@@ -1025,14 +942,7 @@ async function sendChat() {
 
         chatInput.value = '';
 
-        // Use marked.parse for proper markdown rendering with clickable links
-        if (typeof marked !== 'undefined') {
-            aiResponse.innerHTML = marked.parse(data.answer);
-        } else {
-            // Fallback if marked is not available
-            aiResponse.textContent = data.answer;
-        }
-
+        await typewriterEffect(aiResponse, data.answer);
     } catch (error) {
         console.error("Chat error:", error);
         const errorDiv = document.createElement('div');
@@ -1047,68 +957,6 @@ async function sendChat() {
         progressText.textContent = '';
     }
 }
-
-
-
-// async function sendChat() {
-//     const chatInput = document.getElementById('chatInput');
-//     const chatOutput = document.getElementById('chatOutput');
-//     const progressDiv = document.getElementById('progress-chat');
-//     const progressText = document.getElementById('progress-text-chat');
-
-//     if (!chatInput || !chatInput.value.trim()) {
-//         chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
-//         return;
-//     }
-
-//     progressDiv.style.display = 'block';
-//     progressText.textContent = 'Processing query...';
-
-//     try {
-//         const response = await fetch('/chat', {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-//             body: `query=${encodeURIComponent(chatInput.value.trim())}&typewriter=true`
-//         });
-
-//         if (!response.ok) {
-//             const errorData = await response.json();
-//             throw new Error(errorData.detail || 'Chat error');
-//         }
-
-//         const data = await response.json();
-
-//         const messageDiv = document.createElement('div');
-//         messageDiv.className = 'mb-4';
-
-//         const userQuery = document.createElement('p');
-//         userQuery.className = 'font-semibold text-blue-600';
-//         userQuery.textContent = `You: ${chatInput.value.trim()}`;
-//         messageDiv.appendChild(userQuery);
-
-//         const aiResponse = document.createElement('div');
-//         aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
-//         messageDiv.appendChild(aiResponse);
-
-//         chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
-
-//         chatInput.value = '';
-
-//         await typewriterEffect(aiResponse, data.answer);
-//     } catch (error) {
-//         console.error("Chat error:", error);
-//         const errorDiv = document.createElement('div');
-//         errorDiv.className = 'text-red-600 mb-4';
-//         errorDiv.innerHTML = `
-//             <p>Error: ${error.message}</p>
-//             <p class="text-sm text-gray-600">Please try again or refresh the page.</p>
-//         `;
-//         chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
-//     } finally {
-//         progressDiv.style.display = 'none';
-//         progressText.textContent = '';
-//     }
-// }
 
 function showTool(toolId) {
     localStorage.setItem('lastTool', toolId);
@@ -1430,7 +1278,3 @@ function clearAllForms() {
     
     // alert('All forms cleared successfully!');
   }
-
-  
-//    new js
-
