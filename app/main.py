@@ -871,8 +871,8 @@ def split_into_logical_sections(text):
 # Initialize LLM
 def get_llm():
     return ChatGoogleGenerativeAI(
-        # model="gemini-2.0-flash",
-        model="gemini-2.5-pro",
+        model="gemini-2.0-flash",
+        # model="gemini-2.5-pro",
         temperature=0.3,
         max_tokens=1500,
         timeout=None,
@@ -988,17 +988,17 @@ async def memory_usage_stream(request: Request):
         }
     )
 
-# async def process_docs_parallel(docs, query):
-#     # Wrap sync funcs in executor
-#     loop = asyncio.get_event_loop()
-#     tasks = [
-#         loop.run_in_executor(thread_pool, lambda d: post_process_retrieved_docs([d], query)[0], doc)
-#         for doc in docs
-#     ] + [
-#         loop.run_in_executor(thread_pool, lambda: ensure_tabular_inclusion(docs, query), docs)
-#     ]
-#     processed = await asyncio.gather(*tasks, return_exceptions=True)
-#     return processed[0] if isinstance(processed[0], list) else docs  # Handle returns
+async def process_docs_parallel(docs, query):
+    # Wrap sync funcs in executor
+    loop = asyncio.get_event_loop()
+    tasks = [
+        loop.run_in_executor(thread_pool, lambda d: post_process_retrieved_docs([d], query)[0], doc)
+        for doc in docs
+    ] + [
+        loop.run_in_executor(thread_pool, lambda: ensure_tabular_inclusion(docs, query), docs)
+    ]
+    processed = await asyncio.gather(*tasks, return_exceptions=True)
+    return processed[0] if isinstance(processed[0], list) else docs  # Handle returns
 
 def analyze_table_chunking(docs, query):
     """Analyze how table content is chunked across documents"""
@@ -1169,28 +1169,28 @@ async def debug_retrieval(query: str = Form(...)):
 
 
 
-# from cachetools import TTLCache
-# from functools import wraps  # For retry decorator
-# import time  # Already imported
+from cachetools import TTLCache
+from functools import wraps  # For retry decorator
+import time  # Already imported
 
-# query_cache = TTLCache(maxsize=100, ttl=300)
+query_cache = TTLCache(maxsize=100, ttl=300)
 
-# # Retry decorator for slow steps
-# def retry(max_attempts=3, delay=1):
-#     def decorator(func):
-#         @wraps(func)
-#         def wrapper(*args, **kwargs):
-#             for attempt in range(max_attempts):
-#                 try:
-#                     return func(*args, **kwargs)
-#                 except Exception as e:
-#                     if attempt == max_attempts - 1:
-#                         raise
-#                     logger.warning(f"Attempt {attempt+1} failed: {e}. Retrying in {delay}s...")
-#                     time.sleep(delay * (2 ** attempt))  # Exponential backoff
-#             return None
-#         return wrapper
-#     return decorator
+# Retry decorator for slow steps
+def retry(max_attempts=3, delay=1):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_attempts - 1:
+                        raise
+                    logger.warning(f"Attempt {attempt+1} failed: {e}. Retrying in {delay}s...")
+                    time.sleep(delay * (2 ** attempt))  # Exponential backoff
+            return None
+        return wrapper
+    return decorator
 
 # Fix the system prompt to work with RAG chain
 system_prompt = (
