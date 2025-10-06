@@ -871,8 +871,8 @@ def split_into_logical_sections(text):
 # Initialize LLM
 def get_llm():
     return ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-        # model="gemini-2.5-pro",
+        # model="gemini-2.0-flash",
+        model="gemini-2.5-pro",
         temperature=0.3,
         max_tokens=1500,
         timeout=None,
