@@ -275,7 +275,7 @@
   font-size: 0.9rem;
   animation: fadeIn 0.5s ease-in-out;
 ">
-  <p>🚀 Chat response time improved — previously it was 8 seconds, and now it's reduced to just 3–5 seconds</p>
+  <p>🚀 Chat response time improved — previously it was 8 seconds, and now it's reduced to just 2-3 seconds</p>
   <p>💡 Ask more details about Vishnu</p>
   <p>🔒 chats and Files are never stored on servers.</p>
 </div>
@@ -379,6 +379,23 @@ function toggleText() {
   }
 }
 </script>
+<!-- Chat Modes Toggle and Select -->
+<div class="flex items-center mb-4">
+    <label class="inline-flex items-center cursor-pointer">
+        <input type="checkbox" id="mode-toggle" class="sr-only peer">
+        <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+        <span class="ms-3 text-sm font-medium text-gray-900">Enable Chat Modes</span>
+    </label>
+</div>
+
+<select id="mode-select" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent mt-2" disabled>
+    <option value="">Select Mode (General by default)</option>
+    <option value="general">General Chat</option>
+    <option value="creative">Creative Storytelling</option>
+    <option value="debate">Balanced Debate</option>
+    <option value="funny">Humorous Responses</option>
+</select>
+
 
           <div class="space-y-4">
             <div class="flex space-x-2">
@@ -397,6 +414,8 @@ function toggleText() {
           </div>
         </div>
       </div>
+
+
      
       <!-- PDF Tools Sections -->
       <div class="text-center my-4" id="clear-all-btn-container"  style="display: none;">

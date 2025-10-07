@@ -27,7 +27,7 @@ import pathlib
 import gc
 
 from typing import Any, Dict, List, Optional
-from pydantic import Field,BaseModel
+from pydantic import Field
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.callbacks.manager import CallbackManagerForRetrieverRun
 from langchain_core.runnables.config import RunnableConfig
@@ -1212,42 +1212,20 @@ system_prompt = (
 
 
 
-######## new chat
-#from fastapi import FastAPI, Form
-#from pydantic import BaseModel
-#import os
-
-#app = FastAPI()
-
-class ChatRequest(BaseModel):
-    query: str
-    mode: str = None  # Optional chat mode selection
-
-# Predefined chat modes with custom prompts (bypassing RAG)
-CHAT_MODES = {
-    "general": {
-        "label": "General Chat",
-        "prompt": "You are a helpful AI assistant in general chat mode. Ignore any document-based or RAG retrieval. Respond freely and informatively to the user's query on any topic, using your broad knowledge. Be engaging, accurate, and concise."
-    },
-    "creative": {
-        "label": "Creative Storytelling",
-        "prompt": "Enter creative mode: Bypass all document sources. Respond as a storyteller, generating imaginative, original content based on the query. Make it fun, detailed, and narrative-driven without relying on facts from docs."
-    },
-    "debate": {
-        "label": "Balanced Debate",
-        "prompt": "Activate debate mode: Do not use RAG or document info. Provide a neutral, balanced discussion on the topic, presenting multiple viewpoints equally. Encourage critical thinking and end with open questions."
-    },
-    "funny": {
-        "label": "Humorous Responses",
-        "prompt": "Humor mode on: Ignore documents entirely. Answer the query in a witty, sarcastic, or pun-filled way. Keep it light-hearted, entertaining, and relevant, but always truthful at core."
-    },
-    # Add more modes as needed
-}
 
 @app.post("/chat")
-async def chat(query: str = Form(...), mode: str = Form(None)):
-    if not query.strip() or len(query) > 250:
+async def chat(query: str = Form(...)):
+#    if not query.strip() or len(query) > 250:
+#        raise HTTPException(status_code=400, detail="Invalid query length")
+
+
+    original_query = query.strip()
+    if not original_query or len(original_query) > 250:
         raise HTTPException(status_code=400, detail="Invalid query length")
+    normalized_query = re.sub(r'[^\w\s]', '', original_query.lower().strip())
+
+
+
     
     start_time = time.time()
     timings = {}
@@ -1256,111 +1234,88 @@ async def chat(query: str = Form(...), mode: str = Form(None)):
     try:
         loop = asyncio.get_event_loop()
 
-        if mode and mode in CHAT_MODES:
-            # Bypass RAG: Use mode-specific prompt and call LLM directly
-            system_prompt = CHAT_MODES[mode]["prompt"]
-            generation_start = time.time()
+        # ---------------- OPTIMIZED RETRIEVAL ----------------
+        retrieval_start = time.time()
+        logger.info("🔍 Starting document retrieval...")
+
+        try:
+            raw_docs = await asyncio.wait_for(
+                loop.run_in_executor(
+                    thread_pool,
+                    lambda: retriever.invoke(normalized_query) if retriever else []
+                ),
+                timeout=45.0
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"⏰ Retrieval timeout for query: {query}")
+            raw_docs = []
+        except Exception as e:
+            logger.error(f"❌ Retrieval error: {e}")
+            raw_docs = []
+
+        retrieval_end = time.time()
+        timings["retrieval_time"] = retrieval_end - retrieval_start
+        
+        if raw_docs:
+            logger.info(f"✅ Retrieval completed in {timings['retrieval_time']:.2f}s, found {len(raw_docs)} documents")
+        else:
+            logger.warning(f"⚠️ Retrieval completed in {timings['retrieval_time']:.2f}s, but found 0 documents")
+
+        # Log retrieved documents
+        log_retrieved_documents(raw_docs, query)
+
+        # ---------------- DOCUMENT PROCESSING ----------------
+        processing_start = time.time()
+        
+        final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
+        processed_docs = post_process_retrieved_docs(final_docs, query)
+        
+        processing_end = time.time()
+        timings["processing_time"] = processing_end - processing_start
+        logger.info(f"✅ Document processing completed in {timings['processing_time']:.2f}s")
+
+        # ---------------- GENERATION ----------------
+        generation_start = time.time()
+        
+        if not processed_docs:
+            answer = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
+            logger.warning("⚠️ No relevant documents found for query")
+        else:
+            table_context = any("2.pdf" in doc.metadata.get("source", "") for doc in processed_docs)
+            if table_context:
+                logger.info("✅ TABLE DATA IS IN LLM CONTEXT!")
+            else:
+                logger.info("ℹ️ No table data in context for this query")
+
+
+                # ✅ PREPARE LLM CHAIN (fast - no need for parallel)
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", "You are a helpful AI assistant. Provide direct, conversational answers."),
+                ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
+            ])
+
+            question_answer_chain = create_stuff_documents_chain(llm, prompt)
+
             try:
                 response = await asyncio.wait_for(
                     loop.run_in_executor(
                         thread_pool,
-                        lambda: llm.invoke([("system", system_prompt), ("human", query)])
+                        lambda: question_answer_chain.invoke({
+                            "input": original_query,
+                            "context": processed_docs
+                        })
                     ),
                     timeout=15.0
                 )
-                answer = response.content if hasattr(response, 'content') else str(response)
-                logger.info(f"✅ LLM generation completed in mode '{mode}', response length: {len(answer)}")
+                answer = response.strip()
+                logger.info(f"✅ LLM generation completed, response length: {len(answer)}")
             except asyncio.TimeoutError:
-                logger.warning("⏰ LLM generation timeout in mode")
+                logger.warning("⏰ LLM generation timeout")
                 answer = "I'm taking too long to generate a response. Please try again."
-            generation_end = time.time()
-            timings["generation_time"] = generation_end - generation_start
-            timings["retrieval_time"] = 0.0
-            timings["processing_time"] = 0.0
-            raw_docs = []
-            processed_docs = []
-        else:
-            # ---------------- OPTIMIZED RETRIEVAL ----------------
-            retrieval_start = time.time()
-            logger.info("🔍 Starting document retrieval...")
 
-            try:
-                raw_docs = await asyncio.wait_for(
-                    loop.run_in_executor(
-                        thread_pool, 
-                        lambda: retriever.invoke(query) if retriever else []
-                    ),
-                    timeout=45.0
-                )
-            except asyncio.TimeoutError:
-                logger.warning(f"⏰ Retrieval timeout for query: {query}")
-                raw_docs = []
-            except Exception as e:
-                logger.error(f"❌ Retrieval error: {e}")
-                raw_docs = []
-
-            retrieval_end = time.time()
-            timings["retrieval_time"] = retrieval_end - retrieval_start
-            
-            if raw_docs:
-                logger.info(f"✅ Retrieval completed in {timings['retrieval_time']:.2f}s, found {len(raw_docs)} documents")
-            else:
-                logger.warning(f"⚠️ Retrieval completed in {timings['retrieval_time']:.2f}s, but found 0 documents")
-
-            # Log retrieved documents
-            log_retrieved_documents(raw_docs, query)
-
-            # ---------------- DOCUMENT PROCESSING ----------------
-            processing_start = time.time()
-            
-            final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
-            processed_docs = post_process_retrieved_docs(final_docs, query)
-            
-            processing_end = time.time()
-            timings["processing_time"] = processing_end - processing_start
-            logger.info(f"✅ Document processing completed in {timings['processing_time']:.2f}s")
-
-            # ---------------- GENERATION ----------------
-            generation_start = time.time()
-            
-            if not processed_docs:
-                answer = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
-                logger.warning("⚠️ No relevant documents found for query")
-            else:
-                table_context = any("2.pdf" in doc.metadata.get("source", "") for doc in processed_docs)
-                if table_context:
-                    logger.info("✅ TABLE DATA IS IN LLM CONTEXT!")
-                else:
-                    logger.info("ℹ️ No table data in context for this query")
-
-                # ✅ PREPARE LLM CHAIN (fast - no need for parallel)
-                prompt = ChatPromptTemplate.from_messages([
-                    ("system", "You are a helpful AI assistant. Provide direct, conversational answers."),
-                    ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-                ])
-
-                question_answer_chain = create_stuff_documents_chain(llm, prompt)
-
-                try:
-                    response = await asyncio.wait_for(
-                        loop.run_in_executor(
-                            thread_pool,
-                            lambda: question_answer_chain.invoke({
-                                "input": query,
-                                "context": processed_docs
-                            })
-                        ),
-                        timeout=15.0
-                    )
-                    answer = response.strip()
-                    logger.info(f"✅ LLM generation completed, response length: {len(answer)}")
-                except asyncio.TimeoutError:
-                    logger.warning("⏰ LLM generation timeout")
-                    answer = "I'm taking too long to generate a response. Please try again."
-
-            generation_end = time.time()
-            timings["generation_time"] = generation_end - generation_start
-            logger.info(f"✅ Generation completed in {timings['generation_time']:.2f}s")
+        generation_end = time.time()
+        timings["generation_time"] = generation_end - generation_start
+        logger.info(f"✅ Generation completed in {timings['generation_time']:.2f}s")
 
         # ---------------- RESPONSE ----------------
         chat_entry = f"You: {query}\nAI: {answer}"
@@ -1387,139 +1342,6 @@ async def chat(query: str = Form(...), mode: str = Form(None)):
             "history": "\n\n".join(chat_history),
             "error": True
         }
-
-
-
-
-######
-
-
-#@app.post("/chat")
-#async def chat(query: str = Form(...)):
-
-#    original_query = query.strip()
-#    if not original_query or len(original_query) > 250:
-#        raise HTTPException(status_code=400, detail="Invalid query length")
-#    normalized_query = re.sub(r'[^\w\s]', '', original_query.lower().strip())
-
-
-
-    
-#    start_time = time.time()
-#    timings = {}
-#    logger.info(f"\n🎯 NEW CHAT QUERY: '{query}'")
-
-#    try:
-#        loop = asyncio.get_event_loop()
-
-        # ---------------- OPTIMIZED RETRIEVAL ----------------
-#        retrieval_start = time.time()
-#        logger.info("🔍 Starting document retrieval...")
-
-#        try:
-#            raw_docs = await asyncio.wait_for(
-#                loop.run_in_executor(
-#                    thread_pool,
-#                    lambda: retriever.invoke(normalized_query) if retriever else []
-#                ),
-#                timeout=45.0
-#            )
-#        except asyncio.TimeoutError:
-#            logger.warning(f"⏰ Retrieval timeout for query: {query}")
-#            raw_docs = []
-#        except Exception as e:
-#            logger.error(f"❌ Retrieval error: {e}")
-#            raw_docs = []
-
-#        retrieval_end = time.time()
-#        timings["retrieval_time"] = retrieval_end - retrieval_start
-        
-#        if raw_docs:
-#            logger.info(f"✅ Retrieval completed in {timings['retrieval_time']:.2f}s, found {len(raw_docs)} documents")
-#        else:
-#            logger.warning(f"⚠️ Retrieval completed in {timings['retrieval_time']:.2f}s, but found 0 documents")
-
-###        # Log retrieved documents
-#        log_retrieved_documents(raw_docs, query)
-
-###        # ---------------- DOCUMENT PROCESSING ----------------
-#        processing_start = time.time()
-        
-#        final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
-#        processed_docs = post_process_retrieved_docs(final_docs, query)
-        
-#        processing_end = time.time()
-#        timings["processing_time"] = processing_end - processing_start
-#        logger.info(f"✅ Document processing completed in {timings['processing_time']:.2f}s")
-
- ##       # ---------------- GENERATION ----------------
-#        generation_start = time.time()
-        
-#        if not processed_docs:
-#            answer = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
-#            logger.warning("⚠️ No relevant documents found for query")
-#        else:
-#            table_context = any("2.pdf" in doc.metadata.get("source", "") for doc in processed_docs)
-#            if table_context:
-#                logger.info("✅ TABLE DATA IS IN LLM CONTEXT!")
-#            else:
-#                logger.info("ℹ️ No table data in context for this query")
-
-
- ###               # ✅ PREPARE LLM CHAIN (fast - no need for parallel)
-#            prompt = ChatPromptTemplate.from_messages([
-#                ("system", "You are a helpful AI assistant. Provide direct, conversational answers."),
-#                ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-#            ])
-
-#            question_answer_chain = create_stuff_documents_chain(llm, prompt)
-
-#            try:
-#                response = await asyncio.wait_for(
-#                    loop.run_in_executor(
-#                        thread_pool,
-#                        lambda: question_answer_chain.invoke({
-#                            "input": original_query,
-#                            "context": processed_docs
-#                        })
-#                    ),
-#                    timeout=15.0
-#                )
-#                answer = response.strip()
-#                logger.info(f"✅ LLM generation completed, response length: {len(answer)}")
-#            except asyncio.TimeoutError:
-#                logger.warning("⏰ LLM generation timeout")
-#                answer = "I'm taking too long to generate a response. Please try again."
-
-#        generation_end = time.time()
-#        timings["generation_time"] = generation_end - generation_start
-#        logger.info(f"✅ Generation completed in {timings['generation_time']:.2f}s")
-
-        # ---------------- RESPONSE ----------------
-#        chat_entry = f"You: {query}\nAI: {answer}"
-#        chat_history.insert(0, chat_entry)
-#        if len(chat_history) > 3:
-#            chat_history.pop()
-
-#        total_end = time.time()
-#        timings["total_time"] = total_end - start_time
-#        logger.info(f"🎉 Total processing time: {timings['total_time']:.2f}s")
-
-#        return {
-#            "answer": answer,
-#            "history": "\n\n".join(chat_history),
-#            "timings": {k: f"{v:.2f}s" for k, v in timings.items()},
-#            "retrieved_docs_count": len(raw_docs),
-#            "processed_docs_count": len(processed_docs)
-#        }
-
-#    except Exception as e:
-#        logger.error(f"❌ Chat error: {e}", exc_info=True)
-#        return {
-#            "answer": "I'm experiencing technical issues. Please try again in a moment.",
-#            "history": "\n\n".join(chat_history),
-#            "error": True
-#        }
 
 
 

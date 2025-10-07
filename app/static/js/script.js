@@ -981,6 +981,8 @@ async function typewriterAddText(element, text, speed) {
     }
 }
 
+// new send chat
+
 async function sendChat() {
     const chatInput = document.getElementById('chatInput');
     const chatOutput = document.getElementById('chatOutput');
@@ -996,10 +998,19 @@ async function sendChat() {
     progressText.textContent = 'Processing query...';
 
     try {
+        const normalizedQuery = chatInput.value.trim().toLowerCase();
+        const modeSelect = document.getElementById('mode-select');
+        const mode = modeSelect && !modeSelect.disabled ? modeSelect.value : null;
+        
+        const body = new URLSearchParams({
+            query: normalizedQuery,
+            mode: mode || ''
+        });
+
         const response = await fetch('/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `query=${encodeURIComponent(chatInput.value.trim())}`
+            body: body
         });
 
         if (!response.ok) {
@@ -1049,6 +1060,77 @@ async function sendChat() {
 }
 
 
+//
+//async function sendChat() {
+//    const chatInput = document.getElementById('chatInput');
+//    const chatOutput = document.getElementById('chatOutput');
+//    const progressDiv = document.getElementById('progress-chat');
+//    const progressText = document.getElementById('progress-text-chat');
+
+//    if (!chatInput || !chatInput.value.trim()) {
+//        chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
+//        return;
+//    }
+
+//    progressDiv.style.display = 'block';
+//    progressText.textContent = 'Processing query...';
+
+//    try {
+
+//	const normalizedQuery = chatInput.value.trim().toLowerCase();
+//        const response = await fetch('/chat', {
+//            method: 'POST',
+//            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+//            body: `query=${encodeURIComponent(normalizedQuery)}`
+//        });
+
+//        if (!response.ok) {
+//            const errorData = await response.json();
+//            throw new Error(errorData.detail || 'Chat error');
+//        }
+
+//        const data = await response.json();
+
+//        const messageDiv = document.createElement('div');
+//        messageDiv.className = 'mb-4';
+
+//        const userQuery = document.createElement('p');
+//        userQuery.className = 'font-semibold text-blue-600';
+//        userQuery.textContent = `You: ${chatInput.value.trim()}`;
+//        messageDiv.appendChild(userQuery);
+
+//        const aiResponse = document.createElement('div');
+//        aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
+//        messageDiv.appendChild(aiResponse);
+
+//        chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
+
+//        chatInput.value = '';
+
+  //      // Use marked.parse for proper markdown rendering with clickable links
+//        if (typeof marked !== 'undefined') {
+//            aiResponse.innerHTML = marked.parse(data.answer);
+//        } else {
+//            // Fallback if marked is not available
+//            aiResponse.textContent = data.answer;
+//        }
+
+//    } catch (error) {
+//        console.error("Chat error:", error);
+//        const errorDiv = document.createElement('div');
+//        errorDiv.className = 'text-red-600 mb-4';
+//        errorDiv.innerHTML = `
+//            <p>Error: ${error.message}</p>
+//            <p class="text-sm text-gray-600">Please try again or refresh the page.</p>
+//        `;
+//        chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
+//    } finally {
+//        progressDiv.style.display = 'none';
+//        progressText.textContent = '';
+//    }
+//}
+
+//////
 
 // async function sendChat() {
 //     const chatInput = document.getElementById('chatInput');
