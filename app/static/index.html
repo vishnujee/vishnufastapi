@@ -277,30 +277,30 @@
 
         <div class="flex justify-between items-center mb-4">
           <div class="flex items-center">
-              <div class="bg-green-100 p-2 rounded-full mr-3">
-                  <i class="fas fa-robot text-green-600 text-xl"></i>
-              </div>
-              <h2 class="text-2xl font-semibold text-gray-800">Vishnu AI Assistant</h2>
+            <div class="bg-green-100 p-2 rounded-full mr-3">
+              <i class="fas fa-robot text-green-600 text-xl"></i>
+            </div>
+            <h2 class="text-2xl font-semibold text-gray-800">Vishnu AI Assistant</h2>
           </div>
-        
-      </div>
+
+        </div>
         <!-- Click to Expand Text -->
         <div class="flex justify-center gap-3 flex-nowrap mt-6 py-2">
           <div onclick="toggleText()" style="
-      display: flex;
-      align-items: left;
-      gap: 0.3rem;
-      padding: 0.3rem 0.8rem;
-      background: rgb(255, 255, 255);
-      border-radius: 8px;
-      animation: glow1 2s ease-in-out infinite alternate;
-      white-space: nowrap;
-      flex-shrink: 0;
-      margin-top: -30px;
-      margin-bottom: 5px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-  ">
+              display: flex;
+              align-items: left;
+              gap: 0.3rem;
+              padding: 0.3rem 0.8rem;
+              background: rgb(255, 255, 255);
+              border-radius: 8px;
+              animation: glow1 2s ease-in-out infinite alternate;
+              white-space: nowrap;
+              flex-shrink: 0;
+              margin-top: -30px;
+              margin-bottom: 5px;
+              cursor: pointer;
+              transition: all 0.3s ease;
+          ">
             <i class="fas fa-bolt" style="
           font-size: 0.9rem;
           color: #920bec;
@@ -309,32 +309,34 @@
           animation: iconGlow1 1.5s ease-in-out infinite alternate;
       "></i>
             <span style="
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: #e7082d;
-          text-shadow: 0 0 10px #00f7ff;
-          padding-top: 1px;
-          padding-bottom: 1px;
-      ">Lightning Fast Now: Click Me</span>
+                font-size: 0.8rem;
+                font-weight: 600;
+                color: #e7082d;
+                text-shadow: 0 0 10px #00f7ff;
+                padding-top: 1px;
+                padding-bottom: 1px;
+            ">Lightning Fast Now: <span id="hideMePart">Click Me</span></span>
           </div>
         </div>
 
         <!-- Hidden Text that appears on click -->
         <div id="expandableText" style="
-  display: none;
-  text-align: left;
-  margin-top: 10px;
-  padding: 15px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  border: 1px solid rgba(0, 247, 255, 0.3);
-  color: rgb(8, 8, 8);
-  font-size: 0.9rem;
-  animation: fadeIn 0.5s ease-in-out;
-">
+              display: none;
+              text-align: left;
+              margin-top: 10px;
+              padding: 15px;
+              background: rgba(255, 255, 255, 0.1);
+              border-radius: 10px;
+              border: 1px solid rgba(0, 247, 255, 0.3);
+              color: rgb(8, 8, 8);
+              font-size: 0.9rem;
+              animation: fadeIn 0.5s ease-in-out;
+            ">
           <p>🚀 Chat response time improved for Vishnu mode— <br> </p>
           <p style="margin-left: 25px;">previously it was 8 seconds, and now it's reduced to just 2-3 seconds</p>
           <p>💡 Ask more details about Vishnu</p>
+          <p>✨ New Feature: Added Tone Selector with multiple unique modes, something even ChatGPT
+            doesn’t have!</p>
           <!-- <p>🔒 chats and Files are never stored on servers.</p> -->
         </div>
 
@@ -437,14 +439,24 @@
         <script>
           function toggleText() {
             const textDiv = document.getElementById('expandableText');
+            const hideMeSpan = document.getElementById('hideMePart');
+
             if (textDiv.style.display === 'none' || textDiv.style.display === '') {
               textDiv.style.display = 'block';
+              hideMeSpan.textContent = 'Hide Me';
+              hideMeSpan.style.color = '#26E815'; // only "Hide Me" changes color
+              hideMeSpan.style.textDecoration = 'underline';
             } else {
               textDiv.style.display = 'none';
+              hideMeSpan.textContent = 'Click Me';
+              hideMeSpan.style.color = '#e7082d'; // original color
+              hideMeSpan.style.textDecoration = 'none';
+              
             }
           }
         </script>
-    
+
+
         <div id="tone-selector-section" class="flex items-center mb-4">
           <label class="inline-flex items-center cursor-pointer mr-4">
             <input type="checkbox" id="mode-toggle" class="sr-only peer">
@@ -464,45 +476,43 @@
             <option value="debate">Balanced Debate ⚖️🗣️</option>
             <option value="funny">Humorous Responses 😂</option>
             <option value="baby">Baby Mode (Easy) 🍼 👶</option>
-            <option value="gate_coach" hidden >GATE Solver 🔢🎯</option>
-            
+            <option value="gate_coach" hidden>GATE Solver 🔢🎯</option>
+
           </select>
         </div>
 
 
         <div class="space-y-4">
-          <div class="flex flex-col space-y-2">  <!-- Changed to column layout -->
-            <textarea 
-              id="chatInput" 
-              placeholder="Ask me anything about Vishnu..." 
-              maxlength="25000"  
-              rows="5" 
+          <div class="flex flex-col space-y-2"> <!-- Changed to column layout -->
+            <textarea id="chatInput" placeholder="Ask me anything about Vishnu..." maxlength="25000" rows="5"
               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-y min-h-[120px] max-h-[300px]"
-              style="font-family: inherit; font-size: inherit;" 
-            ></textarea>
-            
+              style="font-family: inherit; font-size: inherit;"></textarea>
+
             <div class="flex justify-between items-center">
               <!-- <span id="charCount" class="text-sm text-gray-500">0/2500 characters</span> -->
-              <button onclick="sendChat()" class="bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors flex items-center">
-                <i class="fas fa-paper-plane mr-2"></i> Send 
+              <button onclick="sendChat()"
+                class="bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors flex items-center">
+                <i class="fas fa-paper-plane mr-2"></i> Send
               </button>
-              <button onclick="clearChatHistory()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+              <button onclick="clearChatHistory()"
+                class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition-colors">
                 <i class="fas fa-trash mr-1"></i> Clear Chat
-            </button>
+              </button>
             </div>
           </div>
-          
+
           <div class="progress" id="progress-chat">
-          
+
           </div>
-          <div class="progress-text" id="progress-text-chat" style="font-family: sans-serif; font-size: 18px; font-weight: bold;"></div>
-          
+          <div class="progress-text" id="progress-text-chat"
+            style="font-family: sans-serif; font-size: 18px; font-weight: bold;"></div>
+
           <div id="chatOutput" class="text-gray-700 bg-gray-50 p-4 rounded-lg min-h-32"></div>
         </div>
 
 
 
-        
+
       </div>
     </div>
 
@@ -1663,22 +1673,22 @@
     // cleaer chat function
 
     function clearChatHistory() {
-    chatHistory = [];
-    document.getElementById('chatOutput').innerHTML = '';
-    // Optional: Show confirmation message
-    const chatOutput = document.getElementById('chatOutput');
-    const clearMsg = document.createElement('div');
-    clearMsg.className = 'text-green-600 mb-4 text-center';
-    clearMsg.innerHTML = '<p><i class="fas fa-check-circle mr-2"></i>Chat history cleared</p>';
-    chatOutput.insertBefore(clearMsg, chatOutput.firstChild);
-    
-    // Remove the message after 2 seconds
-    setTimeout(() => {
+      chatHistory = [];
+      document.getElementById('chatOutput').innerHTML = '';
+      // Optional: Show confirmation message
+      const chatOutput = document.getElementById('chatOutput');
+      const clearMsg = document.createElement('div');
+      clearMsg.className = 'text-green-600 mb-4 text-center';
+      clearMsg.innerHTML = '<p><i class="fas fa-check-circle mr-2"></i>Chat history cleared</p>';
+      chatOutput.insertBefore(clearMsg, chatOutput.firstChild);
+
+      // Remove the message after 2 seconds
+      setTimeout(() => {
         if (clearMsg.parentNode) {
-            clearMsg.parentNode.removeChild(clearMsg);
+          clearMsg.parentNode.removeChild(clearMsg);
         }
-    }, 2000);
-}
+      }, 2000);
+    }
 
   </script>
 </body>
