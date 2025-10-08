@@ -268,12 +268,22 @@
     <!-- Chat Section -->
     <div id="chat-section" class="tool-section mb-12">
       <div class="bg-white p-6 rounded-xl shadow-md tool-card">
-        <div class="flex items-center mb-4">
+        <!-- <div class="flex items-center mb-4">
           <div class="bg-green-100 p-2 rounded-full mr-3">
             <i class="fas fa-robot text-green-600 text-xl"></i>
           </div>
           <h2 class="text-2xl font-semibold text-gray-800">Vishnu AI Assistant</h2>
-        </div>
+        </div> -->
+
+        <div class="flex justify-between items-center mb-4">
+          <div class="flex items-center">
+              <div class="bg-green-100 p-2 rounded-full mr-3">
+                  <i class="fas fa-robot text-green-600 text-xl"></i>
+              </div>
+              <h2 class="text-2xl font-semibold text-gray-800">Vishnu AI Assistant</h2>
+          </div>
+        
+      </div>
         <!-- Click to Expand Text -->
         <div class="flex justify-center gap-3 flex-nowrap mt-6 py-2">
           <div onclick="toggleText()" style="
@@ -454,7 +464,7 @@
             <option value="debate">Balanced Debate ⚖️🗣️</option>
             <option value="funny">Humorous Responses 😂</option>
             <option value="baby">Baby Mode (Easy) 🍼 👶</option>
-            <option value="gate_coach">GATE Solver 🔢🎯</option>
+            <option value="gate_coach" hidden >GATE Solver 🔢🎯</option>
             
           </select>
         </div>
@@ -476,6 +486,9 @@
               <button onclick="sendChat()" class="bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors flex items-center">
                 <i class="fas fa-paper-plane mr-2"></i> Send 
               </button>
+              <button onclick="clearChatHistory()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+                <i class="fas fa-trash mr-1"></i> Clear Chat
+            </button>
             </div>
           </div>
           
@@ -1644,6 +1657,28 @@
     }
 
     document.addEventListener('DOMContentLoaded', initializeChatModes);
+
+
+
+    // cleaer chat function
+
+    function clearChatHistory() {
+    chatHistory = [];
+    document.getElementById('chatOutput').innerHTML = '';
+    // Optional: Show confirmation message
+    const chatOutput = document.getElementById('chatOutput');
+    const clearMsg = document.createElement('div');
+    clearMsg.className = 'text-green-600 mb-4 text-center';
+    clearMsg.innerHTML = '<p><i class="fas fa-check-circle mr-2"></i>Chat history cleared</p>';
+    chatOutput.insertBefore(clearMsg, chatOutput.firstChild);
+    
+    // Remove the message after 2 seconds
+    setTimeout(() => {
+        if (clearMsg.parentNode) {
+            clearMsg.parentNode.removeChild(clearMsg);
+        }
+    }, 2000);
+}
 
   </script>
 </body>

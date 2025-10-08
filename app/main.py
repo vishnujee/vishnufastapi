@@ -885,7 +885,8 @@ def get_llm():
 retriever = None
 llm = None
 thread_pool = ThreadPoolExecutor(max_workers=4)
-chat_history = []
+# chat_history = []
+
 
 
 
@@ -1158,6 +1159,7 @@ system_prompt = (
 class ChatRequest(BaseModel):
     query: str
     mode: str = None  # Optional chat mode selection
+    history: str = None
 
 # Predefined chat modes with custom prompts (bypassing RAG)
 
@@ -1190,20 +1192,22 @@ CHAT_MODES = {
     "gate_coach": {
         "label": "GATE Problem Solver 🔢🎯",
            "prompt": "🚀 ACTIVATE GATE PROBLEM CRUSHER MODE! 🚀\n\nHey future GATE topper! 🎓 I'm your friendly Civil Engineering buddy who makes hard problems easy to understand! No tough words, no confusing language - just simple, clear explanations! 🎉\n\n**MY EASY PROBLEM-SOLVING STEPS 📝:**\n1. **🤔 UNDERSTAND** - \"Let me see what this problem is about!\"\n2. **🔍 FIND** - \"What formulas and ideas do we need?\"\n3. **🔄 SOLVE** - \"Let's go step by step - super simple!\"\n4. **✅ CHECK** - \"Does our answer make sense?\"\n5. **🎓 EXPLAIN** - \"Here's why it works - easy peasy!\"\n\n**ALL CIVIL ENGINEERING TOPICS 🏗️:**\n- 🏛️ Building Design & Concrete (Making strong buildings!)\n- 🌋 Soil & Foundation (Working with earth and rocks!)\n- 💧 Water Flow (How liquids move and behave!)\n- 🌿 Environment Protection (Keeping our world clean!)\n- 🛣️ Roads & Transport (Building smooth travels!)\n- 📐 Math for Engineers (Numbers made easy!)\n- 📡 Land Measuring (Mapping and surveying!)\n\n**HOW I HELP YOU:**\n🎯 **NO HARD WORDS** - I speak like a friend explaining to a friend!\n💥 **STRAIGHT TO ANSWER** - No going around in circles!\n🎨 **DIFFERENT WAYS** - I show you multiple simple methods!\n📚 **BASIC IDEAS + EXAM TRICKS** - Learn the simple truth and smart shortcuts!\n\n**EXAMPLES OF WHAT YOU CAN ASK:**\n\"Solve this beam bending problem\"\n\"Find the strength of this concrete column\"\n\"Calculate how water flows through soil\"\n\"Design a simple road curve\"\n\n**MY PROMISE TO YOU:**\n- No dictionary needed! 📖❌\n- No confusing engineering jargon! 🗣️❌\n- Only simple, clear words! ✅\n- Step-by-step like a teacher! 👨‍🏫\n- High-fives when you learn! 🙌\n\nReady to make GATE problems easy? Let's start! 🔥💥\n\n*Remember: Easy learning = Better scores! 🎯*"
-}
+    }
 }
 
     # Add more modes as needed
 
 
 @app.post("/chat")
-async def chat(query: str = Form(...), mode: str = Form(None)):
+async def chat(query: str = Form(...), mode: str = Form(None), history: str = Form(None)):
     if not query.strip() or len(query) > 2250:
         raise HTTPException(status_code=400, detail="Invalid query length")
-    logger.info(f"🎯 CHAT QUERY: '{query}' | Mode: {mode if mode else 'Default'}")    
+    logger.info(f"🎯 CHAT QUERY: '{query}' | Mode: {mode if mode else 'Default'} | History: {'Provided' if history else 'None'}") 
+    logger.info(f"📝 HISTORY RECEIVED: {history}")   
     start_time = time.time()
     timings = {}
-    logger.info(f"\n🎯 NEW CHAT QUERY: '{query}'")
+
+
 
     try:
         loop = asyncio.get_event_loop()
@@ -1211,15 +1215,40 @@ async def chat(query: str = Form(...), mode: str = Form(None)):
         if mode and mode in CHAT_MODES:
             # Bypass RAG: Use mode-specific prompt and call LLM directly
             system_prompt = CHAT_MODES[mode]["prompt"]
+            
+            # Process chat history if provided
+            messages = [("system", system_prompt)]
+            
+            if history:
+                try:
+                    # Parse the chat history
+                    history_data = json.loads(history)
+                    logger.info(f"🧠 MODE-SPECIFIC HISTORY: {len(history_data)} messages")
+                    # Add conversation history to messages
+                    for msg in history_data:
+                        if msg["role"] == "user":
+                            messages.append(("human", msg["content"]))
+                        elif msg["role"] == "assistant":
+                            messages.append(("ai", msg["content"]))
+                except Exception as e:
+                    logger.warning(f"Failed to parse chat history: {e}")
+            
+            # Add current user message
+            messages.append(("human", query))
+            
+            logger.info(f"📨 FINAL MESSAGES TO LLM: {len(messages)} total messages")
+            
             generation_start = time.time()
             try:
                 response = await asyncio.wait_for(
                     loop.run_in_executor(
                         thread_pool,
-                        lambda: llm.invoke([("system", system_prompt), ("human", query)])
+                        lambda: llm.invoke(messages)
                     ),
                     timeout=25.0
                 )
+
+
                 answer = response.content if hasattr(response, 'content') else str(response)
                 logger.info(f"✅ LLM generation completed in mode '{mode}', response length: {len(answer)}")
             except asyncio.TimeoutError:
@@ -1232,6 +1261,8 @@ async def chat(query: str = Form(...), mode: str = Form(None)):
             raw_docs = []
             processed_docs = []
         else:
+            if history:
+                history_data = json.loads(history)
             # ---------------- OPTIMIZED RETRIEVAL ----------------
             retrieval_start = time.time()
             logger.info("🔍 Starting document retrieval...")
@@ -1286,28 +1317,50 @@ async def chat(query: str = Form(...), mode: str = Form(None)):
                     logger.info("ℹ️ No table data in context for this query")
 
     # ✅ LOG FINAL DOCUMENTS GOING TO LLM
-                logger.info("📤 FINAL DOCUMENTS BEING SENT TO LLM:")
-                for i, doc in enumerate(processed_docs, 1):
-                    logger.info(f"📄 Document {i}/{len(processed_docs)}:")
-                    logger.info(f"   Source: {doc.metadata.get('source', 'unknown')}")
-                    logger.info(f"   Content Type: {doc.metadata.get('content_type', 'unknown')}")
-                    logger.info(f"   Content Preview: {doc.page_content}...")
-                    logger.info(f"   Full Content Length: {len(doc.page_content)} chars")
-                    logger.info("   ---")
+                # logger.info("📤 FINAL DOCUMENTS BEING SENT TO LLM:")
+
+                # Add this before the llm.invoke call in both RAG and mode-specific sections
+                # logger.info("🔍 FINAL PROMPT BEING SENT TO LLM:")
+                # for i, (role, content) in enumerate(messages):
+                #     logger.info(f"   {i}. {role.upper()}: {content}")
+                # for i, doc in enumerate(processed_docs, 1):
+                #     logger.info(f"📄 Document {i}/{len(processed_docs)}:")
+                #     logger.info(f"   Source: {doc.metadata.get('source', 'unknown')}")
+                #     logger.info(f"   Content Type: {doc.metadata.get('content_type', 'unknown')}")
+                #     logger.info(f"   Content Preview: {doc.page_content}...")
+                #     logger.info(f"   Full Content Length: {len(doc.page_content)} chars")
+                #     logger.info("   ---")
+
+                # ✅ PREPARE LLM CHAIN WITH CHAT HISTORY
+                # Build messages with conversation history
+                messages = [
+                    ("system", "You are Vishnu AI assistant — concise, friendly, and accurate. Give clear, human-like answers. Use the provided context and conversation history to answer naturally."),
+                ]
+                
+                # Add conversation history if available
+                if history:
+                    try:
+                        history_data = json.loads(history)
+                        for msg in history_data:
+                            if msg["role"] == "user":
+                                messages.append(("human", msg["content"]))
+                            elif msg["role"] == "assistant":
+                                messages.append(("ai", msg["content"]))
+                    except Exception as e:
+                        logger.warning(f"Failed to parse chat history in RAG mode: {e}")
+                
+                # Add current context and question
+                messages.extend([
+                    ("human", "Context: {context}\n\nCurrent Question: {input}\nAnswer:")
+                ])
+                
+                prompt = ChatPromptTemplate.from_messages(messages)
 
 
-
-
-
-                # ✅ PREPARE LLM CHAIN (fast - no need for parallel)
                 # prompt = ChatPromptTemplate.from_messages([
-                #     ("system", "You are a helpful VISHNU AI assistant. Provide direct, conversational answers."),
+                #     ("system", "You are Vishnu AI assistant — concise, friendly, and accurate. Give clear, human-like answers."),
                 #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
                 # ])
-                prompt = ChatPromptTemplate.from_messages([
-                    ("system", "You are Vishnu AI assistant — concise, friendly, and accurate. Give clear, human-like answers."),
-                    ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-                ])
 
 
                 question_answer_chain = create_stuff_documents_chain(llm, prompt)
@@ -1334,10 +1387,10 @@ async def chat(query: str = Form(...), mode: str = Form(None)):
             logger.info(f"✅ Generation completed in {timings['generation_time']:.2f}s")
 
         # ---------------- RESPONSE ----------------
-        chat_entry = f"You: {query}\nAI: {answer}"
-        chat_history.insert(0, chat_entry)
-        if len(chat_history) > 3:
-            chat_history.pop()
+        # chat_entry = f"You: {query}\nAI: {answer}"
+        # chat_history.insert(0, chat_entry)
+        # if len(chat_history) > 3:
+        #     chat_history.pop()
 
         total_end = time.time()
         timings["total_time"] = total_end - start_time
@@ -1345,7 +1398,7 @@ async def chat(query: str = Form(...), mode: str = Form(None)):
 
         return {
             "answer": answer,
-            "history": "\n\n".join(chat_history),
+            # "history": "\n\n".join(chat_history),
             "timings": {k: f"{v:.2f}s" for k, v in timings.items()},
             "retrieved_docs_count": len(raw_docs),
             "processed_docs_count": len(processed_docs)
@@ -1355,7 +1408,7 @@ async def chat(query: str = Form(...), mode: str = Form(None)):
         logger.error(f"❌ Chat error: {e}", exc_info=True)
         return {
             "answer": "I'm experiencing technical issues. Please try again in a moment.",
-            "history": "\n\n".join(chat_history),
+            # "history": "\n\n".join(chat_history),
             "error": True
         }
 
