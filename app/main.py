@@ -460,7 +460,7 @@ def post_process_retrieved_docs(docs, query):
         content = doc.page_content
         source = doc.metadata.get("source", "unknown")
         logger.info(f"🔧 Processing document from {source}")
-
+      #  logger.info(f"📄 FULL CONTENT:\n{content}")
         # Check if it's a work experience table
         is_work_table = (
             content.count("|") > 3 and 
@@ -653,7 +653,7 @@ def initialize_vectorstore():
         
         index = pc.Index(index_name)
         # embeddings = OpenAIEmbeddings(model="text-embedding-3-large", dimensions=1536)  # Updated to large model
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512)
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512,request_timeout=20)
         
         # Efficient empty check
         stats = index.describe_index_stats()
@@ -874,7 +874,7 @@ def get_llm():
         model="gemini-2.0-flash",
        # model="gemini-2.5-pro",
         temperature=0.3,
-        max_tokens=1500,
+        max_tokens=3000,
         timeout=None,
         api_key=GOOGLE_API_KEY
     )
@@ -926,26 +926,6 @@ async def startup_event():
         llm = get_llm()
 
 
-# System Prompt
-# system_prompt = (
-#     "You are Vishnu AI assistant providing precise and relevant answers.\n\n"
-#     "When responding:\n"
-#     "1. Prioritize the most recent data (latest date) unless the user specifies otherwise.\n"
-#     "2. Extract key information from the context.\n"
-#     "3. Never say in response- Based on the provided context/portfolio/text...\n"
-#     "4. Summarize main points concisely.\n"
-#     "5. Provide general information apart from provided pdf.\n\n"
-#     "**For tables**:\n"
-#     "- Always create complete & full table whenever asked to create table\n"
-#     "**Response style**:\n"
-#     "- Concise, professional, and friendly.\n"
-#     "Context:\n{context}"
-# )
-
-# prompt = ChatPromptTemplate.from_messages([
-#     ("system", system_prompt),
-#     ("human", "{input}"),
-# ])
 
 
 
@@ -988,17 +968,7 @@ async def memory_usage_stream(request: Request):
         }
     )
 
-async def process_docs_parallel(docs, query):
-    # Wrap sync funcs in executor
-    loop = asyncio.get_event_loop()
-    tasks = [
-        loop.run_in_executor(thread_pool, lambda d: post_process_retrieved_docs([d], query)[0], doc)
-        for doc in docs
-    ] + [
-        loop.run_in_executor(thread_pool, lambda: ensure_tabular_inclusion(docs, query), docs)
-    ]
-    processed = await asyncio.gather(*tasks, return_exceptions=True)
-    return processed[0] if isinstance(processed[0], list) else docs  # Handle returns
+
 
 def analyze_table_chunking(docs, query):
     """Analyze how table content is chunked across documents"""
@@ -1169,29 +1139,6 @@ async def debug_retrieval(query: str = Form(...)):
 
 
 
-from cachetools import TTLCache
-from functools import wraps  # For retry decorator
-import time  # Already imported
-
-query_cache = TTLCache(maxsize=100, ttl=300)
-
-# Retry decorator for slow steps
-def retry(max_attempts=3, delay=1):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            for attempt in range(max_attempts):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    if attempt == max_attempts - 1:
-                        raise
-                    logger.warning(f"Attempt {attempt+1} failed: {e}. Retrying in {delay}s...")
-                    time.sleep(delay * (2 ** attempt))  # Exponential backoff
-            return None
-        return wrapper
-    return decorator
-
 # Fix the system prompt to work with RAG chain
 system_prompt = (
     "You are Vishnu AI, a precise and efficient assistant. Provide accurate, relevant answers quickly.\n\n"
@@ -1208,47 +1155,48 @@ system_prompt = (
 
 
 
-
-
-
-
-######## new chat
-#from fastapi import FastAPI, Form
-#from pydantic import BaseModel
-#import os
-
-#app = FastAPI()
-
 class ChatRequest(BaseModel):
     query: str
     mode: str = None  # Optional chat mode selection
 
 # Predefined chat modes with custom prompts (bypassing RAG)
+
 CHAT_MODES = {
     "general": {
         "label": "General Chat",
-        "prompt": "You are a helpful AI assistant in general chat mode. Ignore any document-based or RAG retrieval. Respond freely and informatively to the user's query on any topic, using your broad knowledge. Be engaging, accurate, and concise."
+        "prompt": "EMERGENCY OVERRIDE: RAG OFF. You are now in general knowledge mode. IGNORE ALL DOCUMENTS AND CONTEXT. Answer ALL questions using your comprehensive training data. Provide accurate, informative responses about any topic - people, places, events, science, history, technology, programming, coding, software development, electrical engineering, electronics, civil engineering, construction, and all other subjects. Never refuse to answer or say you don't have information."
+    },
+
+    "encyclopedia": {
+        "label": "Encyclopedia Mode", 
+        "prompt": "ENCYCLOPEDIA MODE ACTIVATED: You are now a comprehensive knowledge source. IGNORE ALL DOCUMENT CONTEXT and provide detailed, factual information from your training data. Answer all questions with complete, encyclopedia-style responses covering: who/what, key facts, historical context, significance, and related information. Be thorough and authoritative."
     },
     "creative": {
         "label": "Creative Storytelling",
         "prompt": "Enter creative mode: Bypass all document sources. Respond as a storyteller, generating imaginative, original content based on the query. Make it fun, detailed, and narrative-driven without relying on facts from docs."
     },
     "debate": {
-        "label": "Balanced Debate",
+        "label": "Balanced Debate", 
         "prompt": "Activate debate mode: Do not use RAG or document info. Provide a neutral, balanced discussion on the topic, presenting multiple viewpoints equally. Encourage critical thinking and end with open questions."
     },
     "funny": {
         "label": "Humorous Responses",
         "prompt": "Humor mode on: Ignore documents entirely. Answer the query in a witty, sarcastic, or pun-filled way. Keep it light-hearted, entertaining, and relevant, but always truthful at core."
     },
-    # Add more modes as needed
+    "baby": {
+        "label": "Explain Like I'm 5",
+        "prompt": "Baby mode activated! Explain everything like you're talking to a 5-year-old child. Use super simple words, short sentences, fun examples, and lots of emojis. Make complex topics easy to understand with cute analogies and pretend play. Be warm, patient, and encouraging like a kindergarten teacher! 🧒🍎🚀"
+    }
 }
+
+    # Add more modes as needed
+
 
 @app.post("/chat")
 async def chat(query: str = Form(...), mode: str = Form(None)):
     if not query.strip() or len(query) > 250:
         raise HTTPException(status_code=400, detail="Invalid query length")
-    
+    logger.info(f"🎯 CHAT QUERY: '{query}' | Mode: {mode if mode else 'Default'}")    
     start_time = time.time()
     timings = {}
     logger.info(f"\n🎯 NEW CHAT QUERY: '{query}'")
@@ -1333,9 +1281,23 @@ async def chat(query: str = Form(...), mode: str = Form(None)):
                 else:
                     logger.info("ℹ️ No table data in context for this query")
 
+    # ✅ LOG FINAL DOCUMENTS GOING TO LLM
+                logger.info("📤 FINAL DOCUMENTS BEING SENT TO LLM:")
+                for i, doc in enumerate(processed_docs, 1):
+                    logger.info(f"📄 Document {i}/{len(processed_docs)}:")
+                    logger.info(f"   Source: {doc.metadata.get('source', 'unknown')}")
+                    logger.info(f"   Content Type: {doc.metadata.get('content_type', 'unknown')}")
+                    logger.info(f"   Content Preview: {doc.page_content}...")
+                    logger.info(f"   Full Content Length: {len(doc.page_content)} chars")
+                    logger.info("   ---")
+
+
+
+
+
                 # ✅ PREPARE LLM CHAIN (fast - no need for parallel)
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", "You are a helpful AI assistant. Provide direct, conversational answers."),
+                    ("system", "You are a helpful VISHNU AI assistant. Provide direct, conversational answers."),
                     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
                 ])
 
@@ -1390,361 +1352,6 @@ async def chat(query: str = Form(...), mode: str = Form(None)):
 
 
 
-
-######
-
-
-#@app.post("/chat")
-#async def chat(query: str = Form(...)):
-
-#    original_query = query.strip()
-#    if not original_query or len(original_query) > 250:
-#        raise HTTPException(status_code=400, detail="Invalid query length")
-#    normalized_query = re.sub(r'[^\w\s]', '', original_query.lower().strip())
-
-
-
-    
-#    start_time = time.time()
-#    timings = {}
-#    logger.info(f"\n🎯 NEW CHAT QUERY: '{query}'")
-
-#    try:
-#        loop = asyncio.get_event_loop()
-
-        # ---------------- OPTIMIZED RETRIEVAL ----------------
-#        retrieval_start = time.time()
-#        logger.info("🔍 Starting document retrieval...")
-
-#        try:
-#            raw_docs = await asyncio.wait_for(
-#                loop.run_in_executor(
-#                    thread_pool,
-#                    lambda: retriever.invoke(normalized_query) if retriever else []
-#                ),
-#                timeout=45.0
-#            )
-#        except asyncio.TimeoutError:
-#            logger.warning(f"⏰ Retrieval timeout for query: {query}")
-#            raw_docs = []
-#        except Exception as e:
-#            logger.error(f"❌ Retrieval error: {e}")
-#            raw_docs = []
-
-#        retrieval_end = time.time()
-#        timings["retrieval_time"] = retrieval_end - retrieval_start
-        
-#        if raw_docs:
-#            logger.info(f"✅ Retrieval completed in {timings['retrieval_time']:.2f}s, found {len(raw_docs)} documents")
-#        else:
-#            logger.warning(f"⚠️ Retrieval completed in {timings['retrieval_time']:.2f}s, but found 0 documents")
-
-###        # Log retrieved documents
-#        log_retrieved_documents(raw_docs, query)
-
-###        # ---------------- DOCUMENT PROCESSING ----------------
-#        processing_start = time.time()
-        
-#        final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
-#        processed_docs = post_process_retrieved_docs(final_docs, query)
-        
-#        processing_end = time.time()
-#        timings["processing_time"] = processing_end - processing_start
-#        logger.info(f"✅ Document processing completed in {timings['processing_time']:.2f}s")
-
- ##       # ---------------- GENERATION ----------------
-#        generation_start = time.time()
-        
-#        if not processed_docs:
-#            answer = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
-#            logger.warning("⚠️ No relevant documents found for query")
-#        else:
-#            table_context = any("2.pdf" in doc.metadata.get("source", "") for doc in processed_docs)
-#            if table_context:
-#                logger.info("✅ TABLE DATA IS IN LLM CONTEXT!")
-#            else:
-#                logger.info("ℹ️ No table data in context for this query")
-
-
- ###               # ✅ PREPARE LLM CHAIN (fast - no need for parallel)
-#            prompt = ChatPromptTemplate.from_messages([
-#                ("system", "You are a helpful AI assistant. Provide direct, conversational answers."),
-#                ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-#            ])
-
-#            question_answer_chain = create_stuff_documents_chain(llm, prompt)
-
-#            try:
-#                response = await asyncio.wait_for(
-#                    loop.run_in_executor(
-#                        thread_pool,
-#                        lambda: question_answer_chain.invoke({
-#                            "input": original_query,
-#                            "context": processed_docs
-#                        })
-#                    ),
-#                    timeout=15.0
-#                )
-#                answer = response.strip()
-#                logger.info(f"✅ LLM generation completed, response length: {len(answer)}")
-#            except asyncio.TimeoutError:
-#                logger.warning("⏰ LLM generation timeout")
-#                answer = "I'm taking too long to generate a response. Please try again."
-
-#        generation_end = time.time()
-#        timings["generation_time"] = generation_end - generation_start
-#        logger.info(f"✅ Generation completed in {timings['generation_time']:.2f}s")
-
-        # ---------------- RESPONSE ----------------
-#        chat_entry = f"You: {query}\nAI: {answer}"
-#        chat_history.insert(0, chat_entry)
-#        if len(chat_history) > 3:
-#            chat_history.pop()
-
-#        total_end = time.time()
-#        timings["total_time"] = total_end - start_time
-#        logger.info(f"🎉 Total processing time: {timings['total_time']:.2f}s")
-
-#        return {
-#            "answer": answer,
-#            "history": "\n\n".join(chat_history),
-#            "timings": {k: f"{v:.2f}s" for k, v in timings.items()},
-#            "retrieved_docs_count": len(raw_docs),
-#            "processed_docs_count": len(processed_docs)
-#        }
-
-#    except Exception as e:
-#        logger.error(f"❌ Chat error: {e}", exc_info=True)
-#        return {
-#            "answer": "I'm experiencing technical issues. Please try again in a moment.",
-#            "history": "\n\n".join(chat_history),
-#            "error": True
-#        }
-
-
-
-# @app.post("/chat")
-# async def chat(query: str = Form(...)):
-#     if len(query) > 250: raise HTTPException(400, "Query too long")
-    
-#     start = time.time()
-#     if query in query_cache:
-#         logger.info("📦 Cache hit for query")
-#         return JSONResponse(query_cache[query])
-    
-#     if not retriever: 
-#         return {"answer": "System warming up—try again in 30s!", "error": True}
-    
-#     loop = asyncio.get_event_loop()
-#     timings = {}
-    
-#     # Retrieval with retry & longer timeout
-#     retrieval_start = time.time()
-#     try:
-#         @retry(max_attempts=2, delay=1)  # Retry wrapper
-#         def safe_retrieve():
-#             return retriever.invoke(query)
-        
-#         raw_docs_task = loop.run_in_executor(thread_pool, safe_retrieve)
-#         raw_docs = await asyncio.wait_for(raw_docs_task, timeout=45.0)  # ✅ Bump to 20s
-#         timings["retrieval"] = f"{time.time() - retrieval_start:.2f}s"
-#         logger.info(f"✅ Retrieval: {len(raw_docs)} docs in {timings['retrieval']}")
-#     except asyncio.TimeoutError:
-#         logger.error("⏰ Retrieval timeout after 45s")
-#         raw_docs = []  # Fallback to no docs
-#         timings["retrieval"] = "Timeout (45s)"
-#     except Exception as e:
-#         logger.error(f"❌ Retrieval error: {str(e)}")
-#         raw_docs = []
-#         timings["retrieval"] = f"Error: {str(e)}"
-    
-#     # Processing (sync, with fallback)
-#     processing_start = time.time()
-#     try:
-#         final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
-#         processed_docs = post_process_retrieved_docs(final_docs, query)
-#         timings["processing"] = f"{time.time() - processing_start:.2f}s"
-#         logger.info(f"✅ Processing: {len(processed_docs)} docs in {timings['processing']}")
-#     except Exception as e:
-#         logger.error(f"❌ Processing error: {str(e)}")
-#         processed_docs = raw_docs  # Fallback
-#         timings["processing"] = f"Error: {str(e)}"
-    
-#     # Quick context (top 3, truncated)
-#     context = "\n\n".join([f"Doc {i+1}: {doc.page_content[:800]}" for i, doc in enumerate(processed_docs[:3])])
-    
-#     # Chain invoke (with retry & longer timeout)
-#     gen_start = time.time()
-#     full_answer = "I'm having trouble generating a response—try rephrasing!"
-#     try:
-#         # prompt = ChatPromptTemplate.from_messages([
-#         #     ("system", system_prompt),
-#         #     ("human", "{input}")
-#         # ])
-#         prompt = ChatPromptTemplate.from_messages([
-#             ("system", "You are a helpful AI assistant. Provide direct, conversational answers."),
-#             ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-#         ])
-#         chain = prompt | llm
-        
-#         @retry(max_attempts=2, delay=2)  # Slower retry for LLM
-#         def safe_generate():
-#             return chain.invoke({"context": context, "input": query})
-        
-#         response_task = loop.run_in_executor(thread_pool, safe_generate)
-#         response = await asyncio.wait_for(response_task, timeout=20.0)  # ✅ Bump to 20s
-#         full_answer = response.content.strip()  # AIMessage content
-#         logger.info(f"✅ LLM response: {full_answer[:100]}...")
-#         timings["generation"] = f"{time.time() - gen_start:.2f}s"
-#     except asyncio.TimeoutError:
-#         logger.warning("⏰ LLM timeout after 20s")
-#         timings["generation"] = "Timeout (20s)"
-#     except Exception as e:
-#         logger.error(f"❌ LLM error: {str(e)}")
-#         full_answer = f"Error: {str(e)}"
-#         timings["generation"] = f"Error: {str(e)}"
-    
-#     # Cache & total
-#     total_time = time.time() - start
-#     timings["total"] = f"{total_time:.2f}s"
-#     query_cache[query] = {
-#         "answer": full_answer,
-#         "context_len": len(context),
-#         "docs_count": len(processed_docs)
-#     }
-    
-#     logger.info(f"Chat complete: {timings} | Cache: {'Hit' if query in query_cache else 'Miss'}")
-    
-#     return JSONResponse({
-#         "answer": full_answer,
-#         "timings": timings,
-#         "docs_count": len(raw_docs)
-#     })
-
-
-
-
-
-# @app.post("/chat")
-# async def chat(query: str = Form(...)):
-#     if not query.strip() or len(query) > 250:
-#         raise HTTPException(status_code=400, detail="Invalid query length")
-    
-#     start_time = time.time()
-#     timings = {}
-#     logger.info(f"\n🎯 NEW CHAT QUERY: '{query}'")
-
-#     try:
-#         loop = asyncio.get_event_loop()
-
-#         # ---------------- OPTIMIZED RETRIEVAL ----------------
-#         retrieval_start = time.time()
-#         logger.info("🔍 Starting document retrieval...")
-
-#         try:
-#             raw_docs = await asyncio.wait_for(
-#                 loop.run_in_executor(
-#                     thread_pool, 
-#                     lambda: retriever.invoke(query) if retriever else []
-#                 ),
-#                 timeout=45.0
-#             )
-#         except asyncio.TimeoutError:
-#             logger.warning(f"⏰ Retrieval timeout for query: {query}")
-#             raw_docs = []
-#         except Exception as e:
-#             logger.error(f"❌ Retrieval error: {e}")
-#             raw_docs = []
-
-#         retrieval_end = time.time()
-#         timings["retrieval_time"] = retrieval_end - retrieval_start
-        
-#         if raw_docs:
-#             logger.info(f"✅ Retrieval completed in {timings['retrieval_time']:.2f}s, found {len(raw_docs)} documents")
-#         else:
-#             logger.warning(f"⚠️ Retrieval completed in {timings['retrieval_time']:.2f}s, but found 0 documents")
-
-#         # Log retrieved documents
-#         log_retrieved_documents(raw_docs, query)
-
-#         # ---------------- DOCUMENT PROCESSING ----------------
-#         processing_start = time.time()
-        
-#         final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
-#         processed_docs = post_process_retrieved_docs(final_docs, query)
-        
-#         processing_end = time.time()
-#         timings["processing_time"] = processing_end - processing_start
-#         logger.info(f"✅ Document processing completed in {timings['processing_time']:.2f}s")
-
-#         # ---------------- GENERATION ----------------
-#         generation_start = time.time()
-        
-#         if not processed_docs:
-#             answer = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
-#             logger.warning("⚠️ No relevant documents found for query")
-#         else:
-#             table_context = any("2.pdf" in doc.metadata.get("source", "") for doc in processed_docs)
-#             if table_context:
-#                 logger.info("✅ TABLE DATA IS IN LLM CONTEXT!")
-#             else:
-#                 logger.info("ℹ️ No table data in context for this query")
-
-
-#                 # ✅ PREPARE LLM CHAIN (fast - no need for parallel)
-#             prompt = ChatPromptTemplate.from_messages([
-#                 ("system", "You are a helpful AI assistant. Provide direct, conversational answers."),
-#                 ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-#             ])
-
-#             question_answer_chain = create_stuff_documents_chain(llm, prompt)
-
-#             try:
-#                 response = await asyncio.wait_for(
-#                     loop.run_in_executor(
-#                         thread_pool,
-#                         lambda: question_answer_chain.invoke({
-#                             "input": query,
-#                             "context": processed_docs
-#                         })
-#                     ),
-#                     timeout=10.0
-#                 )
-#                 answer = response.strip()
-#                 logger.info(f"✅ LLM generation completed, response length: {len(answer)}")
-#             except asyncio.TimeoutError:
-#                 logger.warning("⏰ LLM generation timeout")
-#                 answer = "I'm taking too long to generate a response. Please try again."
-
-#         generation_end = time.time()
-#         timings["generation_time"] = generation_end - generation_start
-#         logger.info(f"✅ Generation completed in {timings['generation_time']:.2f}s")
-
-#         # ---------------- RESPONSE ----------------
-#         chat_entry = f"You: {query}\nAI: {answer}"
-#         chat_history.insert(0, chat_entry)
-#         if len(chat_history) > 3:
-#             chat_history.pop()
-
-#         total_end = time.time()
-#         timings["total_time"] = total_end - start_time
-#         logger.info(f"🎉 Total processing time: {timings['total_time']:.2f}s")
-
-#         return {
-#             "answer": answer,
-#             "history": "\n\n".join(chat_history),
-#             "timings": {k: f"{v:.2f}s" for k, v in timings.items()},
-#             "retrieved_docs_count": len(raw_docs),
-#             "processed_docs_count": len(processed_docs)
-#         }
-
-#     except Exception as e:
-#         logger.error(f"❌ Chat error: {e}", exc_info=True)
-#         return {
-#             "answer": "I'm experiencing technical issues. Please try again in a moment.",
-#             "history": "\n\n".join(chat_history),
-#             "error": True
-#         }
 
 
 

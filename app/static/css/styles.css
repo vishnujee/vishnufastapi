@@ -615,3 +615,51 @@ input[type="range"]:focus {
     color: #1d4ed8;
     text-decoration-thickness: 2px;
 }
+
+
+
+
+
+
+########## new css for chat mode
+
+
+/* Chat mode styles */
+.dropdown-enabled {
+    border-left: 4px solid #10b981;
+    background-color: #f0fdf4;
+}
+
+.mode-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.mode-general { background-color: #3b82f6; }
+.mode-creative { background-color: #8b5cf6; }
+.mode-debate { background-color: #f59e0b; }
+.mode-funny { background-color: #ef4444; }
+
+/* Smooth transitions */
+#mode-select {
+    transition: all 0.3s ease;
+}
+
+#mode-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Toggle switch styling */
+.toggle-checkbox:checked {
+    right: 0;
+    border-color: #10b981;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+    background-color: #10b981;
+}
+

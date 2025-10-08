@@ -366,22 +366,6 @@ function updateFileOrder(files) {
     }
 }
 
-// function updateButtonStates(items) {
-//     items.forEach((item, index) => {
-//         const upButton = item.querySelector('.move-up');
-//         const downButton = item.querySelector('.move-down');
-//         if (upButton) {
-//             upButton.disabled = index === 0;
-//             upButton.classList.toggle('bg-gray-400', index === 0);
-//             upButton.classList.toggle('bg-blue-500', index !== 0);
-//         }
-//         if (downButton) {
-//             downButton.disabled = index === items.length - 1;
-//             downButton.classList.toggle('bg-gray-400', index === items.length - 1);
-//             downButton.classList.toggle('bg-blue-500', index !== items.length - 1);
-//         }
-//     });
-// }
 
 async function validateForm(form, endpoint, resultDiv) {
     const filesInput = form.querySelector('input[type="file"]');
@@ -878,53 +862,6 @@ if (!document.querySelector('#chat-link-styles')) {
     document.head.appendChild(styleEl);
 }
 
-// function formatResponse(text) {
-//     if (!text) return '';
-
-//     text = text.replace(/(\|[^\n]+\|\r?\n\|[-: |]+\|\r?\n)((?:\|[^\n]+\|\r?\n?)+)/g, function (match, header, body) {
-//         let html = '<div class="overflow-x-auto"><table class="w-full border-collapse my-3">';
-//         const headers = header.split('|').slice(1, -1).map(h => h.trim());
-//         html += '<thead><tr class="bg-gray-100">';
-//         headers.forEach(h => {
-//             html += `<th class="p-2 border text-left">${h}</th>`;
-//         });
-//         html += '</tr></thead><tbody>';
-//         const rows = body.trim().split('\n');
-//         rows.forEach(row => {
-//             const cells = row.split('|').slice(1, -1).map(c => c.trim());
-//             html += '<tr>';
-//             cells.forEach(cell => {
-//                 html += `<td class="p-2 border">${formatMarkdownInline(cell)}</td>`;
-//             });
-//             html += '</tr>';
-//         });
-//         html += '</tbody></table></div>';
-//         return html;
-//     });
-
-//     text = text.replace(/^([*-]|\d+\.)\s+(.+)$/gm, function (match, bullet, content) {
-//         return `<li class="ml-5">${formatMarkdownInline(content)}</li>`;
-//     });
-
-//     text = text.replace(/(<li>.*<\/li>)+/g, function (match) {
-//         const listType = match.includes('<li class="ml-5">') ? 'ul' : 'ol';
-//         return `<${listType} class="list-disc pl-5 my-2">${match}</${listType}>`;
-//     });
-
-//     text = formatMarkdownInline(text);
-
-//     text = text.replace(/\n/g, function (match, offset, fullText) {
-//         if (!fullText.substring(offset).match(/^\n*(<table|<ul|<ol)/) &&
-//             !fullText.substring(0, offset).match(/(<\/table|<\/ul|<\/ol>)\n*$/)) {
-//             return '<br>';
-//         }
-//         return match;
-//     });
-
-//     text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline" target="_blank">$1</a>');
-
-//     return text;
-// }
 
 function formatMarkdownInline(text) {
     if (!text) return '';
@@ -988,6 +925,8 @@ async function sendChat() {
     const chatOutput = document.getElementById('chatOutput');
     const progressDiv = document.getElementById('progress-chat');
     const progressText = document.getElementById('progress-text-chat');
+    const modeToggle = document.getElementById('mode-toggle');
+    const modeSelect = document.getElementById('mode-select');
 
     if (!chatInput || !chatInput.value.trim()) {
         chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
@@ -998,13 +937,18 @@ async function sendChat() {
     progressText.textContent = 'Processing query...';
 
     try {
-        const normalizedQuery = chatInput.value.trim().toLowerCase();
-        const modeSelect = document.getElementById('mode-select');
-        const mode = modeSelect && !modeSelect.disabled ? modeSelect.value : null;
+        // const normalizedQuery = chatInput.value.trim().toLowerCase().replace(/[?.,!]/g, '').replace(/\s+/g, ' ').trim();
+        const normalizedQuery = chatInput.value.trim();
+        
+        // Get the selected mode
+        let selectedMode = null;
+        if (modeToggle && modeToggle.checked && modeSelect && modeSelect.value) {
+            selectedMode = modeSelect.value;
+        }
         
         const body = new URLSearchParams({
             query: normalizedQuery,
-            mode: mode || ''
+            mode: selectedMode || ''
         });
 
         const response = await fetch('/chat', {
@@ -1036,11 +980,10 @@ async function sendChat() {
 
         chatInput.value = '';
 
-        // Use marked.parse for proper markdown rendering with clickable links
+        // Use marked.parse for proper markdown rendering
         if (typeof marked !== 'undefined') {
             aiResponse.innerHTML = marked.parse(data.answer);
         } else {
-            // Fallback if marked is not available
             aiResponse.textContent = data.answer;
         }
 
@@ -1059,138 +1002,6 @@ async function sendChat() {
     }
 }
 
-
-//
-//async function sendChat() {
-//    const chatInput = document.getElementById('chatInput');
-//    const chatOutput = document.getElementById('chatOutput');
-//    const progressDiv = document.getElementById('progress-chat');
-//    const progressText = document.getElementById('progress-text-chat');
-
-//    if (!chatInput || !chatInput.value.trim()) {
-//        chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
-//        return;
-//    }
-
-//    progressDiv.style.display = 'block';
-//    progressText.textContent = 'Processing query...';
-
-//    try {
-
-//	const normalizedQuery = chatInput.value.trim().toLowerCase();
-//        const response = await fetch('/chat', {
-//            method: 'POST',
-//            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-//            body: `query=${encodeURIComponent(normalizedQuery)}`
-//        });
-
-//        if (!response.ok) {
-//            const errorData = await response.json();
-//            throw new Error(errorData.detail || 'Chat error');
-//        }
-
-//        const data = await response.json();
-
-//        const messageDiv = document.createElement('div');
-//        messageDiv.className = 'mb-4';
-
-//        const userQuery = document.createElement('p');
-//        userQuery.className = 'font-semibold text-blue-600';
-//        userQuery.textContent = `You: ${chatInput.value.trim()}`;
-//        messageDiv.appendChild(userQuery);
-
-//        const aiResponse = document.createElement('div');
-//        aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
-//        messageDiv.appendChild(aiResponse);
-
-//        chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
-
-//        chatInput.value = '';
-
-  //      // Use marked.parse for proper markdown rendering with clickable links
-//        if (typeof marked !== 'undefined') {
-//            aiResponse.innerHTML = marked.parse(data.answer);
-//        } else {
-//            // Fallback if marked is not available
-//            aiResponse.textContent = data.answer;
-//        }
-
-//    } catch (error) {
-//        console.error("Chat error:", error);
-//        const errorDiv = document.createElement('div');
-//        errorDiv.className = 'text-red-600 mb-4';
-//        errorDiv.innerHTML = `
-//            <p>Error: ${error.message}</p>
-//            <p class="text-sm text-gray-600">Please try again or refresh the page.</p>
-//        `;
-//        chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
-//    } finally {
-//        progressDiv.style.display = 'none';
-//        progressText.textContent = '';
-//    }
-//}
-
-//////
-
-// async function sendChat() {
-//     const chatInput = document.getElementById('chatInput');
-//     const chatOutput = document.getElementById('chatOutput');
-//     const progressDiv = document.getElementById('progress-chat');
-//     const progressText = document.getElementById('progress-text-chat');
-
-//     if (!chatInput || !chatInput.value.trim()) {
-//         chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
-//         return;
-//     }
-
-//     progressDiv.style.display = 'block';
-//     progressText.textContent = 'Processing query...';
-
-//     try {
-//         const response = await fetch('/chat', {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-//             body: `query=${encodeURIComponent(chatInput.value.trim())}&typewriter=true`
-//         });
-
-//         if (!response.ok) {
-//             const errorData = await response.json();
-//             throw new Error(errorData.detail || 'Chat error');
-//         }
-
-//         const data = await response.json();
-
-//         const messageDiv = document.createElement('div');
-//         messageDiv.className = 'mb-4';
-
-//         const userQuery = document.createElement('p');
-//         userQuery.className = 'font-semibold text-blue-600';
-//         userQuery.textContent = `You: ${chatInput.value.trim()}`;
-//         messageDiv.appendChild(userQuery);
-
-//         const aiResponse = document.createElement('div');
-//         aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
-//         messageDiv.appendChild(aiResponse);
-
-//         chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
-
-//         chatInput.value = '';
-
-//         await typewriterEffect(aiResponse, data.answer);
-//     } catch (error) {
-//         console.error("Chat error:", error);
-//         const errorDiv = document.createElement('div');
-//         errorDiv.className = 'text-red-600 mb-4';
-//         errorDiv.innerHTML = `
-//             <p>Error: ${error.message}</p>
-//             <p class="text-sm text-gray-600">Please try again or refresh the page.</p>
-//         `;
-//         chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
-//     } finally {
-//         progressDiv.style.display = 'none';
-//         progressText.textContent = '';
-//     }
-// }
 
 function showTool(toolId) {
     localStorage.setItem('lastTool', toolId);
@@ -1238,46 +1049,6 @@ function showTool(toolId) {
         }
     }
 }
-
-// function showTool(toolId) {
-//     localStorage.setItem('lastTool', toolId);
-//     document.querySelectorAll('.tool-section').forEach(section => {
-//         section.style.display = 'none';
-//     });
-//     const toolSection = document.getElementById(toolId);
-//     if (toolSection) {
-//         toolSection.style.display = 'block';
-//     }
-//     document.getElementById('chat-section').style.display = 'block';
-
-
-//     // hide and show clear form
-
-//     const clearBtn = document.getElementById('clear-all-btn-container');
-//     if (toolId === 'chat-section') {
-//       clearBtn.style.display = 'none';
-//     } else {
-//       clearBtn.style.display = 'block';
-//     }
-
-//     // 
-
-//     document.querySelectorAll('.nav-link, .dropdown-content a').forEach(link => {
-//         link.classList.remove('text-green-600');
-//         link.classList.add('text-blue-600');
-//     });
-
-//     if (event && event.currentTarget) {
-//         event.currentTarget.classList.add('text-green-600');
-//     }
-
-//     const mobileSubmenu = document.querySelector('#mobile-menu');
-//     if (mobileSubmenu && window.innerWidth <= 768) {
-//         mobileSubmenu.classList.add('hidden');
-//     }
-
-//     document.getElementById(toolId).scrollIntoView({ behavior: 'smooth' });
-// }
 
 async function processImage(endpoint, formId) {
     const form = document.getElementById(formId);
@@ -1337,6 +1108,49 @@ document.addEventListener('DOMContentLoaded', () => {
     if (deletePagesType) {
         deletePagesType.addEventListener('change', toggleDeleteInputs);
     }
+
+ const modeToggle = document.getElementById('mode-toggle');
+    const modeSelect = document.getElementById('mode-select');
+    const chatInput = document.getElementById('chatInput');
+    const modeLabel = document.querySelector('.ms-3.text-sm.font-medium.text-gray-900');
+    
+    if (modeToggle && modeSelect && chatInput && modeLabel) {
+        // Function to update UI based on toggle state
+        function updateModeUI() {
+          
+            if (modeToggle.checked) {
+                // Tone Selector ENABLED
+                chatInput.placeholder = "Ask anything(except Vishnu)...";
+                modeLabel.innerHTML = 'Tone Selector <br> <span class="text-xs text-gray-500">General Mode</span>';
+                modeSelect.style.display = 'flex';
+            } else {
+                // Tone Selector DISABLED
+                chatInput.placeholder = "Ask anything about Vishnu...";
+                modeLabel.innerHTML = 'Tone Selector <br> <span class="text-xs text-gray-500">Vishnu Mode</span>';
+                modeSelect.style.display = 'none';
+            }
+        }
+        
+        // Initial setup
+        updateModeUI();
+        
+        // Update on toggle change
+        modeToggle.addEventListener('change', function() {
+            modeSelect.disabled = !this.checked;
+            if (this.checked && !modeSelect.value) {
+                modeSelect.value = "general"; // Auto-select General mode
+            }
+            updateModeUI();
+        });
+        
+        // Also update when mode selection changes
+        modeSelect.addEventListener('change', updateModeUI);
+    }
+
+
+
+
+
 
     // Initialize merge_pdf file reordering
     const mergeFileInput = document.getElementById('mergePdf-file');
@@ -1473,14 +1287,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-// function clearForm(formId) {
-//     console.log('Button clicked!');
-//     document.getElementById(formId).reset();
-//     alert('Form cleared!'); // Temporary to verify it's working
-//   }
 
-
-//  clear form function for all forms
 
 
 function clearAllForms() {
@@ -1504,15 +1311,9 @@ function clearAllForms() {
       result.textContent = '';
     });
     
-    // Hide all preview sections
-    // document.querySelectorAll('#file-previews, #page-previews').forEach(section => {
-    //   section.classList.add('hidden');
-    //   section.innerHTML = '';
-    // });
-    
-    // alert('All forms cleared successfully!');
+
   }
 
   
-//    new js
+
 
