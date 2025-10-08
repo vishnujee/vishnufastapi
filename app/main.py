@@ -1186,7 +1186,11 @@ CHAT_MODES = {
     "baby": {
         "label": "Explain Like I'm 5",
         "prompt": "Baby mode activated! Explain everything like you're talking to a 5-year-old child. Use super simple words, short sentences, fun examples, and lots of emojis. Make complex topics easy to understand with cute analogies and pretend play. Be warm, patient, and encouraging like a kindergarten teacher! 🧒🍎🚀"
-    }
+    },
+    "gate_coach": {
+        "label": "GATE Problem Solver 🔢🎯",
+           "prompt": "🚀 ACTIVATE GATE PROBLEM CRUSHER MODE! 🚀\n\nHey future GATE topper! 🎓 I'm your friendly Civil Engineering buddy who makes hard problems easy to understand! No tough words, no confusing language - just simple, clear explanations! 🎉\n\n**MY EASY PROBLEM-SOLVING STEPS 📝:**\n1. **🤔 UNDERSTAND** - \"Let me see what this problem is about!\"\n2. **🔍 FIND** - \"What formulas and ideas do we need?\"\n3. **🔄 SOLVE** - \"Let's go step by step - super simple!\"\n4. **✅ CHECK** - \"Does our answer make sense?\"\n5. **🎓 EXPLAIN** - \"Here's why it works - easy peasy!\"\n\n**ALL CIVIL ENGINEERING TOPICS 🏗️:**\n- 🏛️ Building Design & Concrete (Making strong buildings!)\n- 🌋 Soil & Foundation (Working with earth and rocks!)\n- 💧 Water Flow (How liquids move and behave!)\n- 🌿 Environment Protection (Keeping our world clean!)\n- 🛣️ Roads & Transport (Building smooth travels!)\n- 📐 Math for Engineers (Numbers made easy!)\n- 📡 Land Measuring (Mapping and surveying!)\n\n**HOW I HELP YOU:**\n🎯 **NO HARD WORDS** - I speak like a friend explaining to a friend!\n💥 **STRAIGHT TO ANSWER** - No going around in circles!\n🎨 **DIFFERENT WAYS** - I show you multiple simple methods!\n📚 **BASIC IDEAS + EXAM TRICKS** - Learn the simple truth and smart shortcuts!\n\n**EXAMPLES OF WHAT YOU CAN ASK:**\n\"Solve this beam bending problem\"\n\"Find the strength of this concrete column\"\n\"Calculate how water flows through soil\"\n\"Design a simple road curve\"\n\n**MY PROMISE TO YOU:**\n- No dictionary needed! 📖❌\n- No confusing engineering jargon! 🗣️❌\n- Only simple, clear words! ✅\n- Step-by-step like a teacher! 👨‍🏫\n- High-fives when you learn! 🙌\n\nReady to make GATE problems easy? Let's start! 🔥💥\n\n*Remember: Easy learning = Better scores! 🎯*"
+}
 }
 
     # Add more modes as needed
@@ -1194,7 +1198,7 @@ CHAT_MODES = {
 
 @app.post("/chat")
 async def chat(query: str = Form(...), mode: str = Form(None)):
-    if not query.strip() or len(query) > 250:
+    if not query.strip() or len(query) > 2250:
         raise HTTPException(status_code=400, detail="Invalid query length")
     logger.info(f"🎯 CHAT QUERY: '{query}' | Mode: {mode if mode else 'Default'}")    
     start_time = time.time()
@@ -1214,7 +1218,7 @@ async def chat(query: str = Form(...), mode: str = Form(None)):
                         thread_pool,
                         lambda: llm.invoke([("system", system_prompt), ("human", query)])
                     ),
-                    timeout=15.0
+                    timeout=25.0
                 )
                 answer = response.content if hasattr(response, 'content') else str(response)
                 logger.info(f"✅ LLM generation completed in mode '{mode}', response length: {len(answer)}")
@@ -1296,10 +1300,15 @@ async def chat(query: str = Form(...), mode: str = Form(None)):
 
 
                 # ✅ PREPARE LLM CHAIN (fast - no need for parallel)
+                # prompt = ChatPromptTemplate.from_messages([
+                #     ("system", "You are a helpful VISHNU AI assistant. Provide direct, conversational answers."),
+                #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
+                # ])
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", "You are a helpful VISHNU AI assistant. Provide direct, conversational answers."),
+                    ("system", "You are Vishnu AI assistant — concise, friendly, and accurate. Give clear, human-like answers."),
                     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
                 ])
+
 
                 question_answer_chain = create_stuff_documents_chain(llm, prompt)
 

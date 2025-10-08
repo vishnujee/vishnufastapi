@@ -446,13 +446,15 @@
 
           <select id="mode-select" class="w-44 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             disabled>
-            <option value="">Select Mode</option>
-            <option value="general">General Chat</option>
-            <option value="encyclopedia">Encyclopedia Mode</option>
-            <option value="creative">Creative Storytelling</option>
-            <option value="debate">Balanced Debate</option>
-            <option value="funny">Humorous Responses</option>
-            <option value="baby">Baby Mode (Simple & Fun)</option>
+            <option value="" disabled selected>Select Mode</option>
+            <option value="general">General Chat 💬</option>
+            <option value="encyclopedia">Encyclopedia Mode 📚</option>
+            <option value="creative">Creative Storytelling ✨📖</option>
+            <option value="debate">Balanced Debate ⚖️🗣️</option>
+            <option value="funny">Humorous Responses 😂🎭</option>
+            <option value="baby">Baby Mode (Simple & Fun) 🍼🐣</option>
+            <option value="gate_coach">GATE Solver 🔢🎯</option>
+            
           </select>
         </div>
 
@@ -463,13 +465,13 @@
               id="chatInput" 
               placeholder="Ask me anything about Vishnu..." 
               maxlength="25000"  
-              rows="6" 
+              rows="5" 
               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-y min-h-[120px] max-h-[300px]"
               style="font-family: inherit; font-size: inherit;" 
             ></textarea>
             
             <div class="flex justify-between items-center">
-              <span id="charCount" class="text-sm text-gray-500">0/2500 characters</span>
+              <!-- <span id="charCount" class="text-sm text-gray-500">0/2500 characters</span> -->
               <button onclick="sendChat()" class="bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors flex items-center">
                 <i class="fas fa-paper-plane mr-2"></i> Send 
               </button>
@@ -481,7 +483,7 @@
           </div>
           <div class="progress-text" id="progress-text-chat" style="font-family: sans-serif; font-size: 18px; font-weight: bold;"></div>
           
-          <div id="chatOutput" class="text-gray-700 bg-gray-50 p-4 rounded-lg min-h-32 max-h-[500px] overflow-y-auto"></div>
+          <div id="chatOutput" class="text-gray-700 bg-gray-50 p-4 rounded-lg min-h-32"></div>
         </div>
 
 
