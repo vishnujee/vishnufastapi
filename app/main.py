@@ -1272,9 +1272,22 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             timings["processing_time"] = 0.0
             raw_docs = []
             processed_docs = []
+      
         else:
+            # ✅ ADD THIS: Parse and limit history for RAG mode too
+            limited_history = []
             if history:
-                history_data = json.loads(history)
+                try:
+                    history_data = json.loads(history)
+                    # Keep only last 8 messages (4 conversations)
+                    limited_history = history_data[-6:]
+                    logger.info(f"📝 HISTORY RECEIVED: {len(history_data)} messages, LIMITED TO: {len(limited_history)} messages")
+                except Exception as e:
+                    logger.warning(f"Failed to parse chat history: {e}")
+                    limited_history = []
+            else:
+                logger.info(f"📝 HISTORY RECEIVED: None")
+            
             # ---------------- OPTIMIZED RETRIEVAL ----------------
             retrieval_start = time.time()
             logger.info("🔍 Starting document retrieval...")
@@ -1328,28 +1341,12 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 else:
                     logger.info("ℹ️ No table data in context for this query")
 
-    # ✅ LOG FINAL DOCUMENTS GOING TO LLM
-                # logger.info("📤 FINAL DOCUMENTS BEING SENT TO LLM:")
-
-                # Add this before the llm.invoke call in both RAG and mode-specific sections
-                # logger.info("🔍 FINAL PROMPT BEING SENT TO LLM:")
-                # for i, (role, content) in enumerate(messages):
-                #     logger.info(f"   {i}. {role.upper()}: {content}")
-                # for i, doc in enumerate(processed_docs, 1):
-                #     logger.info(f"📄 Document {i}/{len(processed_docs)}:")
-                #     logger.info(f"   Source: {doc.metadata.get('source', 'unknown')}")
-                #     logger.info(f"   Content Type: {doc.metadata.get('content_type', 'unknown')}")
-                #     logger.info(f"   Content Preview: {doc.page_content}...")
-                #     logger.info(f"   Full Content Length: {len(doc.page_content)} chars")
-                #     logger.info("   ---")
-
-                # ✅ PREPARE LLM CHAIN WITH CHAT HISTORY
-                # Build messages with conversation history
+                # ✅ PREPARE LLM CHAIN WITH LIMITED CHAT HISTORY
                 messages = [
                     ("system", "You are Vishnu AI assistant — concise, friendly, and accurate. Give clear, human-like answers. Use the provided context and conversation history to answer naturally."),
                 ]
                 
-                # Add LIMITED conversation history if available
+                # ✅ USE LIMITED_HISTORY instead of full history
                 if limited_history:
                     for msg in limited_history:
                         if msg["role"] == "user":
@@ -1361,15 +1358,11 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 messages.extend([
                     ("human", "Context: {context}\n\nCurrent Question: {input}\nAnswer:")
                 ])
+
+                    
+                logger.info(f"📨 FINAL MESSAGES TO LLM: {len(messages)} total messages")
                 
                 prompt = ChatPromptTemplate.from_messages(messages)
-
-
-                # prompt = ChatPromptTemplate.from_messages([
-                #     ("system", "You are Vishnu AI assistant — concise, friendly, and accurate. Give clear, human-like answers."),
-                #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-                # ])
-
 
                 question_answer_chain = create_stuff_documents_chain(llm, prompt)
 
