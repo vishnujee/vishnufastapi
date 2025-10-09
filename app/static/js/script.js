@@ -928,8 +928,13 @@ async function sendChat() {
     const modeToggle = document.getElementById('mode-toggle');
     const modeSelect = document.getElementById('mode-select');
 
-    if (!chatInput || !chatInput.value.trim()) {
-        chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
+    // if (!chatInput || !chatInput.value.trim()) {
+    //     chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
+    //     return;
+    // }
+
+    if (!chatInput || !chatInput.value.trim() || chatInput.value.length > 10000) {
+        chatOutput.innerHTML = `<p class="text-red-600">${!chatInput.value.trim() ? 'Please enter a query.' : 'Query too long (max 10000 characters)'}</p>`;
         return;
     }
 
@@ -1027,192 +1032,6 @@ async function sendChat() {
     }
 }
 
-
-
-// async function sendChat() {
-//     const chatInput = document.getElementById('chatInput');
-//     const chatOutput = document.getElementById('chatOutput');
-//     const progressDiv = document.getElementById('progress-chat');
-//     const progressText = document.getElementById('progress-text-chat');
-//     const modeToggle = document.getElementById('mode-toggle');
-//     const modeSelect = document.getElementById('mode-select');
-
-//     if (!chatInput || !chatInput.value.trim()) {
-//         chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
-//         return;
-//     }
-
-//     const userMessage = chatInput.value.trim();
-    
-//     // DEBUG: Log before adding current message
-//     console.log("📝 Current chatHistory BEFORE adding new message:", chatHistory);
-
-//     progressDiv.style.display = 'block';
-//     progressText.textContent = 'Processing query...';
-
-//     try {
-//         // Get the selected mode
-//         let selectedMode = null;
-//         if (modeToggle && modeToggle.checked && modeSelect && modeSelect.value) {
-//             selectedMode = modeSelect.value;
-//         }
-        
-//         // ✅ FIX: Send history WITHOUT the current user message
-//         const body = new URLSearchParams({
-//             query: userMessage,
-//             mode: selectedMode || '',
-//             history: JSON.stringify(chatHistory) // Send existing history only
-//         });
-
-//         console.log("📤 Sending to backend - Query:", userMessage);
-//         console.log("📤 Sending to backend - History:", JSON.stringify(chatHistory));
-
-//         const response = await fetch('/chat', {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-//             body: body
-//         });
-
-//         if (!response.ok) {
-//             const errorData = await response.json();
-//             throw new Error(errorData.detail || 'Chat error');
-//         }
-
-//         const data = await response.json();
-
-//         // ✅ FIX: Add BOTH user message and AI response to history AFTER getting response
-//         chatHistory.push({ role: 'user', content: userMessage });
-//         chatHistory.push({ role: 'assistant', content: data.answer });
-
-//         // Update UI
-//         const messageDiv = document.createElement('div');
-//         messageDiv.className = 'mb-4';
-
-//         const userQuery = document.createElement('p');
-//         userQuery.className = 'font-semibold text-blue-600';
-//         userQuery.textContent = `You: ${userMessage}`;
-//         messageDiv.appendChild(userQuery);
-
-//         const aiResponse = document.createElement('div');
-//         aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
-//         messageDiv.appendChild(aiResponse);
-
-//         chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
-
-//         chatInput.value = '';
-
-//         // Use marked.parse for proper markdown rendering
-//         if (typeof marked !== 'undefined') {
-//             aiResponse.innerHTML = marked.parse(data.answer);
-//         } else {
-//             aiResponse.textContent = data.answer;
-//         }
-
-//         // Limit history to prevent token overflow (keep last 10 exchanges = 20 messages)
-//         if (chatHistory.length > 20) {
-//             chatHistory = chatHistory.slice(-20);
-//         }
-
-//         // DEBUG: Log after updating history
-//         console.log("📝 Updated chatHistory AFTER response:", chatHistory);
-
-//     } catch (error) {
-//         console.error("Chat error:", error);
-//         // Don't add failed message to history
-//         const errorDiv = document.createElement('div');
-//         errorDiv.className = 'text-red-600 mb-4';
-//         errorDiv.innerHTML = `
-//             <p>Error: ${error.message}</p>
-//             <p class="text-sm text-gray-600">Please try again or refresh the page.</p>
-//         `;
-//         chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
-//     } finally {
-//         progressDiv.style.display = 'none';
-//         progressText.textContent = '';
-//     }
-// }
-
-// async function sendChat() {
-//     const chatInput = document.getElementById('chatInput');
-//     const chatOutput = document.getElementById('chatOutput');
-//     const progressDiv = document.getElementById('progress-chat');
-//     const progressText = document.getElementById('progress-text-chat');
-//     const modeToggle = document.getElementById('mode-toggle');
-//     const modeSelect = document.getElementById('mode-select');
-
-//     if (!chatInput || !chatInput.value.trim()) {
-//         chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
-//         return;
-//     }
-
-//     progressDiv.style.display = 'block';
-//     progressText.textContent = 'Processing query...';
-
-//     try {
-//         // const normalizedQuery = chatInput.value.trim().toLowerCase().replace(/[?.,!]/g, '').replace(/\s+/g, ' ').trim();
-//         const normalizedQuery = chatInput.value.trim();
-        
-//         // Get the selected mode
-//         let selectedMode = null;
-//         if (modeToggle && modeToggle.checked && modeSelect && modeSelect.value) {
-//             selectedMode = modeSelect.value;
-//         }
-        
-//         const body = new URLSearchParams({
-//             query: normalizedQuery,
-//             mode: selectedMode || ''
-//         });
-
-//         const response = await fetch('/chat', {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-//             body: body
-//         });
-
-//         if (!response.ok) {
-//             const errorData = await response.json();
-//             throw new Error(errorData.detail || 'Chat error');
-//         }
-
-//         const data = await response.json();
-
-//         const messageDiv = document.createElement('div');
-//         messageDiv.className = 'mb-4';
-
-//         const userQuery = document.createElement('p');
-//         userQuery.className = 'font-semibold text-blue-600';
-//         userQuery.textContent = `You: ${chatInput.value.trim()}`;
-//         messageDiv.appendChild(userQuery);
-
-//         const aiResponse = document.createElement('div');
-//         aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
-//         messageDiv.appendChild(aiResponse);
-
-//         chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
-
-//         chatInput.value = '';
-
-//         // Use marked.parse for proper markdown rendering
-//         if (typeof marked !== 'undefined') {
-//             aiResponse.innerHTML = marked.parse(data.answer);
-//         } else {
-//             aiResponse.textContent = data.answer;
-//         }
-
-//     } catch (error) {
-//         console.error("Chat error:", error);
-//         const errorDiv = document.createElement('div');
-//         errorDiv.className = 'text-red-600 mb-4';
-//         errorDiv.innerHTML = `
-//             <p>Error: ${error.message}</p>
-//             <p class="text-sm text-gray-600">Please try again or refresh the page.</p>
-//         `;
-//         chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
-//     } finally {
-//         progressDiv.style.display = 'none';
-//         progressText.textContent = '';
-//     }
-// }
 
 
 function showTool(toolId) {
