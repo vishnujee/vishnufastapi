@@ -1140,17 +1140,7 @@ async def debug_retrieval(query: str = Form(...)):
 
 
 
-# Fix the system prompt to work with RAG chain
-system_prompt = (
-    "You are Vishnu AI, a precise and efficient assistant. Provide accurate, relevant answers quickly.\n\n"
-    "Guidelines:\n"
-    "- Never mention 'based on context/text/portfolio' —just deliver the facts.\n"
-    "- Summarize key points concisely. \n"
-    "- Use provided context first; supplement with general knowledge only if needed.\n"
-    "- Verify facts against context to avoid assumptions.\n\n"
-    "**Tables**: Always generate complete, full tables when requested—include headers, data, and clear formatting.\n\n"
-    "**Style**: Concise, professional, and friendly.\n"
-)
+
 
 
 
@@ -1211,8 +1201,8 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
     if history:
         try:
             history_data = json.loads(history)
-            # Keep only last 8 messages (4 conversations)
-            limited_history = history_data[-8:]
+            # Keep only last 6 messages (3 conversations)
+            limited_history = history_data[-6:]
             logger.info(f"📝 HISTORY RECEIVED: {len(history_data)} messages, LIMITED TO: {len(limited_history)} messages")
         except Exception as e:
             logger.warning(f"Failed to parse chat history: {e}")
@@ -1274,13 +1264,13 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             processed_docs = []
       
         else:
-            # ✅ ADD THIS: Parse and limit history for RAG mode too
+         
             limited_history = []
             if history:
                 try:
                     history_data = json.loads(history)
                     # Keep only last 8 messages (4 conversations)
-                    limited_history = history_data[-6:]
+                    limited_history = history_data[-4:]
                     logger.info(f"📝 HISTORY RECEIVED: {len(history_data)} messages, LIMITED TO: {len(limited_history)} messages")
                 except Exception as e:
                     logger.warning(f"Failed to parse chat history: {e}")
@@ -1342,8 +1332,23 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     logger.info("ℹ️ No table data in context for this query")
 
                 # ✅ PREPARE LLM CHAIN WITH LIMITED CHAT HISTORY
+                # messages = [
+                #     ("system", "You are Vishnu AI assistant — concise, friendly, and accurate. Give clear, human-like answers. Use the provided context and conversation history to answer naturally."),
+                # ]
+
+
+
+                # Fix the system prompt to work with RAG chain
+                system_prompt = (
+                    "You are Vishnu AI, a precise and efficient assistant. Provide accurate, relevant information.\n\n"
+                    "Guidelines:\n"
+                    "When asked about work experience or education, always respond with a complete, well-formatted table.\n"
+                    "Never say based on provided context/text in response- just reponse the answer"
+                                       
+                )
+
                 messages = [
-                    ("system", "You are Vishnu AI assistant — concise, friendly, and accurate. Give clear, human-like answers. Use the provided context and conversation history to answer naturally."),
+                    ("system", system_prompt),  # USE YOUR SYSTEM PROMPT HERE
                 ]
                 
                 # ✅ USE LIMITED_HISTORY instead of full history
