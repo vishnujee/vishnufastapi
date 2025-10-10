@@ -1179,10 +1179,12 @@ CHAT_MODES = {
         "label": "Explain Like I'm 5",
         "prompt": "Baby mode activated! Explain everything like you're talking to a 5-year-old child. Use super simple words, short sentences, fun examples, and lots of emojis. Make complex topics easy to understand with cute analogies and pretend play. Be warm, patient, and encouraging like a kindergarten teacher! 🧒🍎🚀"
     }
-    # "gate_coach": {
-    #     "label": "GATE Problem Solver 🔢🎯",
-    #        "prompt": "🚀 ACTIVATE GATE PROBLEM CRUSHER MODE! 🚀\n\nHey future GATE topper! 🎓 I'm your friendly Civil Engineering buddy who makes hard problems easy to understand! No tough words, no confusing language - just simple, clear explanations! 🎉\n\n**MY EASY PROBLEM-SOLVING STEPS 📝:**\n1. **🤔 UNDERSTAND** - \"Let me see what this problem is about!\"\n2. **🔍 FIND** - \"What formulas and ideas do we need?\"\n3. **🔄 SOLVE** - \"Let's go step by step - super simple!\"\n4. **✅ CHECK** - \"Does our answer make sense?\"\n5. **🎓 EXPLAIN** - \"Here's why it works - easy peasy!\"\n\n**ALL CIVIL ENGINEERING TOPICS 🏗️:**\n- 🏛️ Building Design & Concrete (Making strong buildings!)\n- 🌋 Soil & Foundation (Working with earth and rocks!)\n- 💧 Water Flow (How liquids move and behave!)\n- 🌿 Environment Protection (Keeping our world clean!)\n- 🛣️ Roads & Transport (Building smooth travels!)\n- 📐 Math for Engineers (Numbers made easy!)\n- 📡 Land Measuring (Mapping and surveying!)\n\n**HOW I HELP YOU:**\n🎯 **NO HARD WORDS** - I speak like a friend explaining to a friend!\n💥 **STRAIGHT TO ANSWER** - No going around in circles!\n🎨 **DIFFERENT WAYS** - I show you multiple simple methods!\n📚 **BASIC IDEAS + EXAM TRICKS** - Learn the simple truth and smart shortcuts!\n\n**EXAMPLES OF WHAT YOU CAN ASK:**\n\"Solve this beam bending problem\"\n\"Find the strength of this concrete column\"\n\"Calculate how water flows through soil\"\n\"Design a simple road curve\"\n\n**MY PROMISE TO YOU:**\n- No dictionary needed! 📖❌\n- No confusing engineering jargon! 🗣️❌\n- Only simple, clear words! ✅\n- Step-by-step like a teacher! 👨‍🏫\n- High-fives when you learn! 🙌\n\nReady to make GATE problems easy? Let's start! 🔥💥\n\n*Remember: Easy learning = Better scores! 🎯*"
-    # }
+#   "gate_coach": {
+#   "label": "GATE Civil Guru 🇮🇳📘🎯",
+#   "prompt": "🚀 **ACTIVATE GATE CIVIL GURU MODE!** 🚀\n\nNamaste future GATE Topper! 🙏🎓 I'm your **Civil Engineering Buddy from India**, who turns tough GATE questions into *easy-peasy desi-style learning!* 😄💪\n\n**🧠 MY PROBLEM-SOLVING FORMULA:**\n1. **🤔 UNDERSTAND** – 'Dekhte hain bhai, yeh sawaal kis type ka hai?'\n2. **📏 FIND** – 'Kaunsa IS code ya CPWD reference lagega?'\n3. **🔧 SOLVE** – 'Step by step, bina tension ke!'\n4. **✅ CHECK** – 'Answer sahi lag raha hai? Logical bhi?'\n5. **🎓 EXPLAIN** – 'Ab samjhaate hain simple words mein – Indian site pe kaam jaise!' 🏗️\n\n**📚 ALL CIVIL ENGINEERING TOPICS (India Edition):**\n- 🏛️ **Building Design & RCC** – IS 456:2000 style concrete power!\n- 🧱 **Steel Structures** – IS 800:2007 ke saath strong as steel! 💪\n- 🌋 **Soil Mechanics & Foundation** – IS 6403, IS 2911... Mitti ka full story! 🪣\n- 💧 **Fluid Mechanics & Hydrology** – IS 4985, IS 3370... Flow like Ganga, think like Einstein! 🌊\n- 🌿 **Environmental Engineering** – IS 10500 for clean paani 💧 and CPHEEO rules!\n- 🛣️ **Transportation Engineering** – IRC standards for smooth desi roads! 🛣️🚗\n- 📐 **Surveying & Geomatics** – IS 14962 + Indian tricks for leveling and mapping! 🧭\n- 🧮 **Engineering Mathematics** – Chill! Numbers won’t scare you here 😎\n\n**🧱 HOW I HELP YOU:**\n✨ **IS + CPWD READY** – Every answer aligns with Indian Standards 📘🇮🇳\n🎯 **TO THE POINT** – No bakwaas, only relevant explanations! 💥\n🪄 **FUN + FACTS** – Little jokes + real site examples = better memory!\n🧩 **MULTIPLE METHODS** – Shortcuts, concepts, and quick exam hacks 🎯\n🧰 **PRACTICAL VISION** – From drawing board to actual site ka gyaan 👷‍♂️\n\n**💬 EXAMPLES YOU CAN ASK:**\n- “Solve a simply supported beam using IS 456:2000.”\n- “Design a footing for column per IS 2911.”\n- “Find safe bearing capacity using Terzaghi’s method.”\n- “Calculate super elevation for highway curve (IRC:38).”\n- “Explain CPWD procedure for concrete curing.”\n\n**💡 MY PROMISE TO YOU:**\n✅ IS & CPWD code-based accurate answers 🧾\n✅ Simple, site-style explanations (like a senior teaching a junior!) 👷‍♀️👷‍♂️\n✅ Fun + Focused – with emojis, examples & real-life logic! 😄📏\n✅ Step-by-step clarity – No confusion, only confidence! 💪\n\n**💬 MOTIVATION BOOSTER:**\n_Build concepts strong like RCC, solve doubts fast like ready-mix concrete!_ 🧱💥\n\nReady to rock your GATE Civil prep – Indian style? 🇮🇳✨\nLet's crack it together! 🔥🎯"
+# }
+
+
 }
 
     # Add more modes as needed
@@ -1265,20 +1267,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
       
         else:
          
-            limited_history = []
-            if history:
-                try:
-                    history_data = json.loads(history)
-                    # Keep only last 8 messages (4 conversations)
-                    limited_history = history_data[-4:]
-                    logger.info(f"📝 HISTORY RECEIVED: {len(history_data)} messages, LIMITED TO: {len(limited_history)} messages")
-                except Exception as e:
-                    logger.warning(f"Failed to parse chat history: {e}")
-                    limited_history = []
-            else:
-                logger.info(f"📝 HISTORY RECEIVED: None")
-            
-            # ---------------- OPTIMIZED RETRIEVAL ----------------
+          # ---------------- OPTIMIZED RETRIEVAL ----------------
             retrieval_start = time.time()
             logger.info("🔍 Starting document retrieval...")
 
@@ -1331,43 +1320,30 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 else:
                     logger.info("ℹ️ No table data in context for this query")
 
-                # ✅ PREPARE LLM CHAIN WITH LIMITED CHAT HISTORY
-                # messages = [
-                #     ("system", "You are Vishnu AI assistant — concise, friendly, and accurate. Give clear, human-like answers. Use the provided context and conversation history to answer naturally."),
-                # ]
+    # ✅ LOG FINAL DOCUMENTS GOING TO LLM
+                logger.info("📤 FINAL DOCUMENTS BEING SENT TO LLM:")
+                for i, doc in enumerate(processed_docs, 1):
+                    logger.info(f"📄 Document {i}/{len(processed_docs)}:")
+                    logger.info(f"   Source: {doc.metadata.get('source', 'unknown')}")
+                    logger.info(f"   Content Type: {doc.metadata.get('content_type', 'unknown')}")
+                    logger.info(f"   Content Preview: {doc.page_content}...")
+                    logger.info(f"   Full Content Length: {len(doc.page_content)} chars")
+                    logger.info("   ---")
 
 
 
-                # Fix the system prompt to work with RAG chain
-                system_prompt = (
-                    "You are Vishnu AI, a precise and efficient assistant. Provide accurate, relevant information.\n\n"
-                    "Guidelines:\n"
-                    "When asked about work experience or education, always respond with a complete, well-formatted table.\n"
-                    "Never say based on provided context/text in response- just reponse the answer"
-                                       
-                )
 
-                messages = [
-                    ("system", system_prompt),  # USE YOUR SYSTEM PROMPT HERE
-                ]
-                
-                # ✅ USE LIMITED_HISTORY instead of full history
-                if limited_history:
-                    for msg in limited_history:
-                        if msg["role"] == "user":
-                            messages.append(("human", msg["content"]))
-                        elif msg["role"] == "assistant":
-                            messages.append(("ai", msg["content"]))
-                
-                # Add current context and question
-                messages.extend([
-                    ("human", "Context: {context}\n\nCurrent Question: {input}\nAnswer:")
+
+                # ✅ PREPARE LLM CHAIN (fast - no need for parallel)
+                # prompt = ChatPromptTemplate.from_messages([
+                #     ("system", "You are a helpful VISHNU AI assistant. Provide direct, conversational answers."),
+                #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
+                # ])
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", "You are Vishnu AI assistant — concise, friendly, and accurate. Give clear, human-like answers."),
+                    ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
                 ])
 
-                    
-                logger.info(f"📨 FINAL MESSAGES TO LLM: {len(messages)} total messages")
-                
-                prompt = ChatPromptTemplate.from_messages(messages)
 
                 question_answer_chain = create_stuff_documents_chain(llm, prompt)
 
@@ -1393,10 +1369,11 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             logger.info(f"✅ Generation completed in {timings['generation_time']:.2f}s")
 
         # ---------------- RESPONSE ----------------
-        # chat_entry = f"You: {query}\nAI: {answer}"
-        # chat_history.insert(0, chat_entry)
-        # if len(chat_history) > 3:
-        #     chat_history.pop()
+        chat_history = []
+        chat_entry = f"You: {query}\nAI: {answer}"
+        chat_history.insert(0, chat_entry)
+        if len(chat_history) > 3:
+            chat_history.pop()
 
         total_end = time.time()
         timings["total_time"] = total_end - start_time
@@ -1404,7 +1381,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
 
         return {
             "answer": answer,
-            # "history": "\n\n".join(chat_history),
+            "history": "\n\n".join(chat_history),
             "timings": {k: f"{v:.2f}s" for k, v in timings.items()},
             "retrieved_docs_count": len(raw_docs),
             "processed_docs_count": len(processed_docs)
@@ -1414,9 +1391,10 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
         logger.error(f"❌ Chat error: {e}", exc_info=True)
         return {
             "answer": "I'm experiencing technical issues. Please try again in a moment.",
-            # "history": "\n\n".join(chat_history),
+            "history": "",
             "error": True
         }
+
 
 
 
