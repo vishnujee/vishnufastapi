@@ -126,6 +126,67 @@
         transform: rotate(360deg);
       }
     }
+
+
+    .merge-progress {
+      transition: all 0.3s ease;
+    }
+
+    .file-loading {
+      opacity: 0.7;
+      background-color: #f0f8ff;
+    }
+
+    /* merge css */
+
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background-color: white;
+}
+
+.file-item span {
+  flex: 1;
+  margin-right: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-item .move-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.file-item button {
+  padding: 6px 10px;
+  min-width: 40px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640px) {
+  .file-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .file-item span {
+    margin-right: 0;
+    width: 100%;
+  }
+  
+  .file-item .move-buttons {
+    align-self: flex-end;
+  }
+}
+
   </style>
 </head>
 
@@ -585,17 +646,23 @@
           </div>
           <input type="hidden" id="merge-file-order" name="file_order">
           <div>
-            <label for="merge-method" class="block text-sm font-medium text-gray-600 mb-1">Merge Method</label>
-            <select id="merge-method" name="method"
+            <label for="merge-method" class="block text-sm font-medium text-gray-600 mb-1" style="display: none;">Merge
+              Method</label>
+            <select id="merge-method" name="method" style="display: none;"
               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
               <option value="PyPDF2">PyPDF2 (Fast, up to 51 files)</option>
               <option value="Ghostscript">Ghostscript (Slower, up to 30 files)</option>
             </select>
           </div>
-          <button type="button"
+          <!-- <button type="button"
             onclick="updateFileOrder(document.querySelectorAll('.file-preview')); processPDF('merge_pdf', 'mergeForm')"
             class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-            <i class="fas fa-object-group mr-2"></i> Merge PDFs </button>
+            <i class="fas fa-object-group mr-2"></i> Merge PDFs </button> -->
+
+          <button type="button" onclick="mergePDFsClientSide()"
+            class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+            <i class="fas fa-object-group mr-2"></i> Merge PDFs
+          </button>
           <div class="progress" id="progress-mergeForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
             <div class="progress-text" id="progress-text-mergeForm"></div>
@@ -1272,7 +1339,8 @@
             <div id="signature-page-previews" class="hidden">
               <div class="flex items-center mb-2">
                 <input type="checkbox" id="select-all-pages" class="mr-2">
-                <label for="select-all-pages" class="text-sm font-medium text-gray-600">Select All Pages</label>
+                <label for="select-all-pages" class="text-sm font-medium text-gray-600">Select All Pages(Wait all page
+                  to load)</label>
               </div>
               <h3 class="text-lg font-medium text-gray-700 mb-2">Page Previews</h3>
               <div id="signature-page-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
@@ -1415,6 +1483,20 @@
     function updatePageOrder(pages) {
       const pageOrder = Array.from(pages).map(page => page.dataset.pageNum);
       document.getElementById('reorder-page-order').value = pageOrder.join(',');
+    }
+
+    function updateFileOrder(fileElements) {
+      const fileOrder = Array.from(fileElements).map(fileElement => {
+        return fileElement.dataset.fileIndex;
+      });
+
+      const fileOrderInput = document.getElementById('merge-file-order');
+      if (fileOrderInput) {
+        fileOrderInput.value = fileOrder.join(',');
+        console.log("Updated file order:", fileOrderInput.value);
+        console.log("File elements count:", fileElements.length);
+        console.log("File order array:", fileOrder);
+      }
     }
 
     function updateButtonStates(pages) {
@@ -1601,55 +1683,62 @@
       const resultDiv = document.getElementById('result-mergeForm');
       const filePreviews = document.getElementById('file-previews');
       const fileList = document.getElementById('file-list');
+
       if (files.length < 2) {
         filePreviews.classList.add('hidden');
         resultDiv.textContent = 'Please select at least 2 PDF files.';
         resultDiv.classList.add('text-red-600');
         return;
       }
+
       fileList.innerHTML = '';
       const fileDivs = [];
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         console.log('Processing file:', file.name, file.size, file.type);
+
         const fileDiv = document.createElement('div');
-        fileDiv.className = 'file-preview';
+        fileDiv.className = 'file-item flex justify-between items-center mb-2';
         fileDiv.dataset.fileIndex = i;
+
         fileDiv.innerHTML = `
-                    
-																																																		<div class="file-controls">
-																																																			<button type="button" class="move-up">
-																																																				<i class="fas fa-arrow-up"></i>
-																																																			</button>
-																																																			<button type="button" class="move-down">
-																																																				<i class="fas fa-arrow-down"></i>
-																																																			</button>
-																																																		</div>
-																																																		<span class="text-gray-600">${file.name}</span>
-                `;
+      <span class="text-gray-600">${file.name}</span>
+      <div>
+        <button type="button" class="move-up bg-blue-600 text-white px-2 py-1 rounded mr-2">Up</button>
+        <button type="button" class="move-down bg-blue-600 text-white px-2 py-1 rounded">Down</button>
+      </div>
+    `;
+
         fileList.appendChild(fileDiv);
         fileDivs.push(fileDiv);
-        // fileDiv.querySelector('.move-up').disabled = i === 0;
-        // fileDiv.querySelector('.move-down').disabled = i === files.length - 1;
-        fileDiv.querySelector('.move-up').addEventListener('click', () => {
+
+        // 🆕 FIX: Add event listeners with preventDefault
+        fileDiv.querySelector('.move-up').addEventListener('click', (event) => {
+          event.preventDefault(); // Prevent form submission
+          event.stopPropagation(); // Stop event bubbling
+
           const prev = fileDiv.previousSibling;
           if (prev) {
             fileList.insertBefore(fileDiv, prev);
-            updateFileOrder(fileDivs);
-            // updateFileButtonStates(fileDivs);
+            updateFileOrder(Array.from(fileList.querySelectorAll('.file-item')));
             console.log('Moved file up, new order:', document.getElementById('merge-file-order').value);
           }
         });
-        fileDiv.querySelector('.move-down').addEventListener('click', () => {
+
+        fileDiv.querySelector('.move-down').addEventListener('click', (event) => {
+          event.preventDefault(); // Prevent form submission
+          event.stopPropagation(); // Stop event bubbling
+
           const next = fileDiv.nextSibling;
           if (next) {
             fileList.insertBefore(next, fileDiv);
-            updateFileOrder(fileDivs);
-            // updateFileButtonStates(fileDivs);
+            updateFileOrder(Array.from(fileList.querySelectorAll('.file-item')));
             console.log('Moved file down, new order:', document.getElementById('merge-file-order').value);
           }
         });
       }
+
       filePreviews.classList.remove('hidden');
       updateFileOrder(fileDivs);
       console.log('Initial file order set:', document.getElementById('merge-file-order').value);
@@ -1657,6 +1746,11 @@
       resultDiv.classList.remove('text-red-600');
       resultDiv.classList.add('text-green-600');
     });
+
+
+
+    ///////
+
     updateFileLabel('signature-pdf-file', 'signature-pdf-file-name');
     updateFileLabel('signature-image-file', 'signature-image-file-name');
     // Function to update selected pages in the hidden input

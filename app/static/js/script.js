@@ -29,7 +29,7 @@ function updateFileSize() {
 // //
 async function computeAllCompressionSizes() {
     console.log('Computing all compression sizes including custom...');
-    
+
     const form = document.getElementById('compressForm');
     const fileInput = form.querySelector('input[type="file"]');
     const resultDiv = document.getElementById('result-compressForm');
@@ -71,9 +71,9 @@ async function computeAllCompressionSizes() {
         // Get custom settings if Custom is selected
         const presetSelect = document.getElementById('compress-preset');
         const currentPreset = presetSelect ? presetSelect.value : 'Medium';
-        
+
         // Define all presets including ULTRA Low and custom
-      // In computeAllCompressionSizes function - UPDATE THESE:
+        // In computeAllCompressionSizes function - UPDATE THESE:
         const presets = [
             { name: 'High Compression', dpi: 72, quality: 0.6 },      // More aggressive
             { name: 'Medium Compression', dpi: 85, quality: 0.7 },   // Balanced
@@ -84,7 +84,7 @@ async function computeAllCompressionSizes() {
         if (currentPreset === 'Custom') {
             const customDpi = parseInt(document.getElementById('custom_dpi').value) || 100;
             const customQuality = (parseInt(document.getElementById('custom_quality').value) || 70) / 100;
-            
+
             presets.push({
                 name: 'Custom Compression',
                 dpi: customDpi,
@@ -96,17 +96,17 @@ async function computeAllCompressionSizes() {
             <li class="font-semibold mb-2 text-gray-800">Original Size: ${originalSizeMB} MB</li>
             <hr class="my-2 border-gray-300">
         `;
-        
+
         // Show computing message
         if (resultDiv) {
             resultDiv.innerHTML = '<div class="text-blue-600">🔄 Computing compression sizes... This may take a moment.</div>';
         }
 
         let computedCount = 0;
-        
+
         for (const preset of presets) {
             console.log(`Testing ${preset.name}...`);
-            
+
             // Update progress in results
             if (compressionSizes) {
                 const progress = Math.round((computedCount / presets.length) * 100);
@@ -115,20 +115,20 @@ async function computeAllCompressionSizes() {
                     <li class="text-sm text-gray-500">Currently testing: ${preset.name}</li>
                 `;
             }
-            
+
             try {
                 const compressedBlob = await advancedPDFCompression(
-                    file, 
-                    preset.dpi, 
+                    file,
+                    preset.dpi,
                     preset.quality
                 );
-                
+
                 if (compressedBlob) {
                     const sizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(2);
                     const savings = (((file.size - compressedBlob.size) / file.size) * 100).toFixed(1);
-                    
+
                     const savingsColor = savings >= 50 ? 'text-green-600' : savings >= 20 ? 'text-yellow-600' : 'text-red-600';
-                    
+
                     sizesHTML += `
                         <li class="mb-2 p-3 bg-white rounded-lg border border-gray-200">
                             <strong class="text-gray-800">${preset.name}</strong><br>
@@ -149,68 +149,68 @@ async function computeAllCompressionSizes() {
                     </li>
                 `;
             }
-            
+
             computedCount++;
         }
 
         // Display final results
 
         // Display final results
-if (compressionSizes) {
-    compressionSizes.innerHTML = sizesHTML;
-}
+        if (compressionSizes) {
+            compressionSizes.innerHTML = sizesHTML;
+        }
 
-if (compressionResults) {
-    compressionResults.classList.remove('hidden');
-}
+        if (compressionResults) {
+            compressionResults.classList.remove('hidden');
+        }
 
-// 🆕 SIMPLE VERSION: Check for negative savings
-if (resultDiv) {
-    // Count how many presets have negative savings
-    const negativeCount = (sizesHTML.match(/Reduction:.*?-\d+\.?\d*%/g) || []).length;
-    const totalPresets = presets.length;
-    
-    if (negativeCount === totalPresets) {
-        // All presets resulted in larger files
-        resultDiv.innerHTML = `
+        // 🆕 SIMPLE VERSION: Check for negative savings
+        if (resultDiv) {
+            // Count how many presets have negative savings
+            const negativeCount = (sizesHTML.match(/Reduction:.*?-\d+\.?\d*%/g) || []).length;
+            const totalPresets = presets.length;
+
+            if (negativeCount === totalPresets) {
+                // All presets resulted in larger files
+                resultDiv.innerHTML = `
             <div class="text-blue-600">
                 📊 <strong>PDF Analysis Complete</strong><br>
                 <small>This PDF is already highly optimized and cannot be compressed further.</small>
             </div>
         `;
-    } else if (negativeCount >= totalPresets / 2) {
-        // Majority of presets resulted in larger files
-        resultDiv.innerHTML = `
+            } else if (negativeCount >= totalPresets / 2) {
+                // Majority of presets resulted in larger files
+                resultDiv.innerHTML = `
             <div class="text-yellow-600">
                 📊 <strong>Limited Compression Potential</strong><br>
                 <small>This PDF is already well-compressed. Some presets may increase file size.</small>
             </div>
         `;
-    } else {
-        // Good compression results
-        resultDiv.innerHTML = `
+            } else {
+                // Good compression results
+                resultDiv.innerHTML = `
             <div class="text-green-600">
                 ✅ <strong>Compression Size Estimation Completed!</strong><br>
                 <small>Check the table above for size reduction estimates.</small>
             </div>
         `;
-    }
-}
+            }
+        }
         // if (compressionSizes) {
         //     compressionSizes.innerHTML = sizesHTML;
         // }
-        
+
         // if (compressionResults) {
         //     compressionResults.classList.remove('hidden');
         // }
-        
+
         // if (resultDiv) {
         //     resultDiv.innerHTML = '<div class="text-green-600">✅ Compression size estimation completed!</div>';
         // }
 
     } catch (error) {
         console.error('Size computation failed:', error);
-        
+
         if (resultDiv) {
             resultDiv.innerHTML = `
                 <div class="text-red-600">
@@ -219,7 +219,7 @@ if (resultDiv) {
                 </div>
             `;
         }
-        
+
     } finally {
         // Re-enable button
         if (computeButton) {
@@ -239,7 +239,7 @@ if (resultDiv) {
 
 async function processSignatureClientSide() {
     console.log('Starting client-side signature processing...');
-    
+
     const form = document.getElementById('signatureForm');
     const pdfFileInput = document.getElementById('signature-pdf-file');
     const signatureFileInput = document.getElementById('signature-image-file');
@@ -248,7 +248,7 @@ async function processSignatureClientSide() {
     const positionSelect = document.getElementById('signature-position');
     const alignmentSelect = document.getElementById('signature-alignment');
     const removeBgCheckbox = document.getElementById('remove-bg');
-    
+
     // Safely get progress elements with null checks
     const progressDiv = document.getElementById('progress-signatureForm');
     const progressText = document.getElementById('progress-text-signatureForm');
@@ -263,7 +263,7 @@ async function processSignatureClientSide() {
         }
         return;
     }
-    
+
     if (!signatureFileInput || !signatureFileInput.files[0]) {
         if (resultDiv) {
             resultDiv.textContent = 'Please select a signature image.';
@@ -271,13 +271,13 @@ async function processSignatureClientSide() {
         }
         return;
     }
-    
+
     // Validate signature file type
     const signatureFile = signatureFileInput.files[0];
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
     const allowedExtensions = ['.png', '.jpg', '.jpeg'];
     const fileExtension = signatureFile.name.toLowerCase().substring(signatureFile.name.lastIndexOf('.'));
-    
+
     if (!allowedTypes.includes(signatureFile.type) && !allowedExtensions.includes(fileExtension)) {
         if (resultDiv) {
             resultDiv.textContent = 'Please select a PNG or JPEG image file.';
@@ -285,7 +285,7 @@ async function processSignatureClientSide() {
         }
         return;
     }
-    
+
     if (!selectedPagesInput || !selectedPagesInput.value) {
         if (resultDiv) {
             resultDiv.textContent = 'Please select at least one page.';
@@ -327,7 +327,7 @@ async function processSignatureClientSide() {
         if (progressText) progressText.textContent = 'Processing signature client-side...';
 
         console.log('Calling addSignatureClientSide...');
-        
+
         // Process signature
         const signedPdfBlob = await addSignatureClientSide(
             pdfFile, signatureFile, selectedPages, size, position, alignment, removeBg
@@ -355,15 +355,15 @@ async function processSignatureClientSide() {
 
     } catch (error) {
         console.error('Client-side signature error:', error);
-        
+
         if (resultDiv) {
             resultDiv.textContent = `Error: ${error.message}. Trying server-side fallback...`;
             resultDiv.classList.add('text-red-600');
         }
-        
+
         // Fallback to server-side processing WITHOUT circular call
         await fallbackToServerSideSignature(form);
-        
+
     } finally {
         // Clean up safely
         if (submitButton) submitButton.disabled = false;
@@ -375,10 +375,10 @@ async function processSignatureClientSide() {
 // Separate fallback function to avoid circular dependency
 async function fallbackToServerSideSignature(form) {
     console.log('Falling back to server-side processing...');
-    
+
     // Create a new form data object
     const formData = new FormData();
-    
+
     // Get all form elements safely
     const pdfFileInput = document.getElementById('signature-pdf-file');
     const signatureFileInput = document.getElementById('signature-image-file');
@@ -387,7 +387,7 @@ async function fallbackToServerSideSignature(form) {
     const positionSelect = document.getElementById('signature-position');
     const alignmentSelect = document.getElementById('signature-alignment');
     const removeBgCheckbox = document.getElementById('remove-bg');
-    
+
     // Add files to form data
     if (pdfFileInput && pdfFileInput.files[0]) {
         formData.append('pdf_file', pdfFileInput.files[0]);
@@ -395,7 +395,7 @@ async function fallbackToServerSideSignature(form) {
     if (signatureFileInput && signatureFileInput.files[0]) {
         formData.append('signature_file', signatureFileInput.files[0]);
     }
-    
+
     // Add other form data
     if (selectedPagesInput && selectedPagesInput.value) {
         formData.append('specific_pages', selectedPagesInput.value);
@@ -412,13 +412,13 @@ async function fallbackToServerSideSignature(form) {
     if (removeBgCheckbox) {
         formData.append('remove_bg', removeBgCheckbox.checked.toString());
     }
-    
+
     try {
         const response = await fetch('/add_signature', {
             method: 'POST',
             body: formData
         });
-        
+
         if (response.ok) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -427,7 +427,7 @@ async function fallbackToServerSideSignature(form) {
             a.download = `signed_${pdfFileInput.files[0].name}`;
             a.click();
             window.URL.revokeObjectURL(url);
-            
+
             const resultDiv = document.getElementById('result-signatureForm');
             if (resultDiv) {
                 resultDiv.textContent = 'Signature added successfully (server-side fallback)!';
@@ -452,38 +452,38 @@ async function addSignatureClientSide(pdfFile, signatureFile, pages, size, posit
     if (typeof PDFLib === 'undefined') {
         throw new Error('PDF library not loaded. Please refresh the page.');
     }
-    
+
     const { PDFDocument } = PDFLib;
-    
+
     try {
         console.log('Starting client-side signature addition...');
         console.log('Signature file type:', signatureFile.type, 'name:', signatureFile.name);
-        
+
         // Load PDF document
         const pdfBytes = await pdfFile.arrayBuffer();
         const pdfDoc = await PDFDocument.load(pdfBytes);
-        
+
         // Process signature image - support PNG, JPG, JPEG
         let signatureImage;
         const signatureBytes = await signatureFile.arrayBuffer();
-        
+
         if (removeBg) {
             console.log('Removing background client-side...');
             const processedSignature = await removeBackgroundClientSide(signatureFile);
             const processedBytes = await processedSignature.arrayBuffer();
-            
+
             // After background removal, it's always PNG
             signatureImage = await pdfDoc.embedPng(processedBytes);
         } else {
             // Handle PNG, JPG, JPEG based on file type and auto-detection
             const fileType = signatureFile.type.toLowerCase();
             const fileName = signatureFile.name.toLowerCase();
-            
+
             if (fileType === 'image/png' || fileName.endsWith('.png')) {
                 console.log('Detected PNG file');
                 signatureImage = await pdfDoc.embedPng(signatureBytes);
-            } else if (fileType === 'image/jpeg' || fileType === 'image/jpg' || 
-                       fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+            } else if (fileType === 'image/jpeg' || fileType === 'image/jpg' ||
+                fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
                 console.log('Detected JPEG file');
                 signatureImage = await pdfDoc.embedJpg(signatureBytes);
             } else {
@@ -498,37 +498,37 @@ async function addSignatureClientSide(pdfFile, signatureFile, pages, size, posit
                 }
             }
         }
-        
+
         // Size mapping
-        const sizeFactors = { 
-            small: 0.15, 
-            medium: 0.25, 
-            large: 0.35 
+        const sizeFactors = {
+            small: 0.15,
+            medium: 0.25,
+            large: 0.35
         };
         const scale = sizeFactors[size] || 0.25;
-        
+
         // Get scaled dimensions
         const { width: originalWidth, height: originalHeight } = signatureImage.scale(1);
         const scaledWidth = originalWidth * scale;
         const scaledHeight = originalHeight * scale;
-        
+
         console.log(`Signature size: ${scaledWidth}x${scaledHeight}, Pages: ${pages}`);
-        
+
         // Add signature to selected pages
         const pageIndices = pages.map(p => p - 1); // Convert to 0-based indexing
-        
+
         for (const pageIndex of pageIndices) {
             if (pageIndex >= 0 && pageIndex < pdfDoc.getPageCount()) {
                 const page = pdfDoc.getPage(pageIndex);
                 const { width: pageWidth, height: pageHeight } = page.getSize();
-                
+
                 // Calculate position
                 const coordinates = calculateSignaturePosition(
                     pageWidth, pageHeight, scaledWidth, scaledHeight, position, alignment
                 );
-                
+
                 console.log(`Adding signature to page ${pageIndex + 1} at position:`, coordinates);
-                
+
                 // Draw signature image
                 page.drawImage(signatureImage, {
                     x: coordinates.x,
@@ -538,11 +538,11 @@ async function addSignatureClientSide(pdfFile, signatureFile, pages, size, posit
                 });
             }
         }
-        
+
         // Save the modified PDF
         const pdfBytesWithSignature = await pdfDoc.save();
         return new Blob([pdfBytesWithSignature], { type: 'application/pdf' });
-        
+
     } catch (error) {
         console.error('Client-side signature addition failed:', error);
         throw new Error(`Client-side processing failed: ${error.message}`);
@@ -553,7 +553,7 @@ async function addSignatureClientSide(pdfFile, signatureFile, pages, size, posit
 function calculateSignaturePosition(pageWidth, pageHeight, sigWidth, sigHeight, position, alignment) {
     const margin = 50;
     let x, y;
-    
+
     // Vertical position
     switch (position) {
         case 'top':
@@ -567,7 +567,7 @@ function calculateSignaturePosition(pageWidth, pageHeight, sigWidth, sigHeight, 
             y = margin;
             break;
     }
-    
+
     // Horizontal alignment
     switch (alignment) {
         case 'left':
@@ -582,7 +582,7 @@ function calculateSignaturePosition(pageWidth, pageHeight, sigWidth, sigHeight, 
         default:
             x = (pageWidth - sigWidth) / 2;
     }
-    
+
     return { x, y };
 }
 
@@ -591,34 +591,34 @@ async function removeBackgroundClientSide(imageFile) {
         const img = new Image();
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        
-        img.onload = function() {
+
+        img.onload = function () {
             try {
                 canvas.width = img.width;
                 canvas.height = img.height;
-                
+
                 // Draw the image
                 ctx.drawImage(img, 0, 0);
-                
+
                 // Get image data
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
-                
+
                 // Simple white background removal
                 for (let i = 0; i < data.length; i += 4) {
                     const r = data[i];
                     const g = data[i + 1];
                     const b = data[i + 2];
-                    
+
                     // Remove white/light background (adjust threshold as needed)
                     if (r > 200 && g > 200 && b > 200) {
                         data[i + 3] = 0; // Set alpha to transparent
                     }
                 }
-                
+
                 // Put the modified image back
                 ctx.putImageData(imageData, 0, 0);
-                
+
                 // Convert to PNG blob (always output PNG for transparency)
                 canvas.toBlob(blob => {
                     if (blob) {
@@ -627,16 +627,16 @@ async function removeBackgroundClientSide(imageFile) {
                         reject(new Error('Canvas to blob conversion failed'));
                     }
                 }, 'image/png');
-                
+
             } catch (error) {
                 reject(error);
             }
         };
-        
-        img.onerror = function() {
+
+        img.onerror = function () {
             reject(new Error('Failed to load signature image'));
         };
-        
+
         img.src = URL.createObjectURL(imageFile);
     });
 }
@@ -652,7 +652,7 @@ async function removeBackgroundClientSide(imageFile) {
 
 async function compressPDFClientSide() {
     console.log('Starting optimized client-side compression...');
-    
+
     const form = document.getElementById('compressForm');
     const fileInput = form.querySelector('input[type="file"]');
     const resultDiv = document.getElementById('result-compressForm');
@@ -685,14 +685,14 @@ async function compressPDFClientSide() {
         // Get compression settings - OPTIMIZED VALUES
         const presetSelect = document.getElementById('compress-preset');
         const preset = presetSelect ? presetSelect.value : 'Medium';
-        
+
         let dpi, quality;
-        
+
         if (preset === 'High') {
-            dpi = 72; 
+            dpi = 72;
             quality = 0.6;  // Reduced from 0.5 to 0.3
         } else if (preset === 'Medium') {
-            dpi = 85; 
+            dpi = 85;
             quality = 0.7;  // Reduced from 0.7 to 0.5
         } else if (preset === 'Low') {
             dpi = 95;      // Reduced from 150 to 120
@@ -703,7 +703,7 @@ async function compressPDFClientSide() {
         } else if (preset === 'Custom') {
             const dpiInput = document.getElementById('custom_dpi');
             const qualityInput = document.getElementById('custom_quality');
-            
+
             dpi = dpiInput ? parseInt(dpiInput.value) || 100 : 100;  // Reduced from 150 to 100
             const qualityPercent = qualityInput ? parseInt(qualityInput.value) || 70 : 70;  // Reduced from 80 to 50
             quality = qualityPercent / 100;
@@ -713,7 +713,7 @@ async function compressPDFClientSide() {
 
         // Use the advanced compression function
         progressText.textContent = 'Processing PDF pages... (0%)';
-        
+
         let compressedBlob = await advancedPDFCompression(file, dpi, quality, (progress) => {
             progressText.textContent = `Processing pages... (${progress}%)`;
         });
@@ -730,24 +730,24 @@ async function compressPDFClientSide() {
         if (parseFloat(compressedSizeMB) > parseFloat(originalSizeMB)) {
             console.warn('Compression made file larger, using aggressive fallback...');
             progressText.textContent = 'Optimizing compression...';
-            
+
             // Use more aggressive settings
             const aggressiveDpi = Math.max(72, dpi - 30);
             const aggressiveQuality = Math.max(0.3, quality - 0.2);
-            
+
             const aggressiveBlob = await advancedPDFCompression(file, aggressiveDpi, aggressiveQuality);
-            
+
             if (aggressiveBlob && aggressiveBlob.size < file.size) {
                 compressedBlob = aggressiveBlob;
                 usedFallback = true;
-                
+
                 // Recalculate stats
                 const newCompressedSizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(2);
                 savings = (((file.size - compressedBlob.size) / file.size) * 100).toFixed(1);
-                
+
                 console.log('Fallback compression successful:', {
                     original: originalSizeMB + 'MB',
-                    compressed: newCompressedSizeMB + 'MB', 
+                    compressed: newCompressedSizeMB + 'MB',
                     savings: savings + '%',
                     settings: { dpi: aggressiveDpi, quality: aggressiveQuality }
                 });
@@ -756,17 +756,17 @@ async function compressPDFClientSide() {
 
         console.log('Final compression results:', {
             original: originalSizeMB + 'MB',
-            compressed: compressedSizeMB + 'MB', 
+            compressed: compressedSizeMB + 'MB',
             savings: savings + '%',
             preset: preset,
             usedFallback: usedFallback
         });
 
         // Download the compressed file
-        const filename = usedFallback 
+        const filename = usedFallback
             ? `compressed_${file.name.replace('.pdf', '')}_optimized.pdf`
             : `compressed_${file.name.replace('.pdf', '')}_${preset.replace(' ', '_')}.pdf`;
-        
+
         if (typeof download === 'function') {
             download(compressedBlob, filename, "application/pdf");
         } else {
@@ -784,7 +784,7 @@ async function compressPDFClientSide() {
         // Show results with optimization info
         const savingsColor = savings >= 50 ? 'text-green-600' : savings >= 20 ? 'text-yellow-600' : 'text-red-600';
         const fallbackText = usedFallback ? '<br>🔄 <small class="text-blue-600">(Auto-optimized for better compression)</small>' : '';
-        
+
         resultDiv.innerHTML = `
             <div class="text-green-600">
                 ✅ <strong>Compression Successful!</strong>${fallbackText}<br>
@@ -797,19 +797,19 @@ async function compressPDFClientSide() {
 
     } catch (error) {
         console.error('Compression failed:', error);
-        
+
         resultDiv.innerHTML = `
             <div class="text-red-600">
                 ❌ Compression failed: ${error.message}<br>
                 <small>Falling back to basic compression...</small>
             </div>
         `;
-        
+
         // Fallback to basic compression
         setTimeout(() => {
             basicPDFCompressionFallback(file, resultDiv, progressText);
         }, 1000);
-        
+
     } finally {
         progressDiv.style.display = 'none';
         submitButton.disabled = false;
@@ -820,40 +820,40 @@ async function compressPDFClientSide() {
 // Enhanced advanced compression function
 async function advancedPDFCompression(file, dpi = 100, quality = 0.5, progressCallback) {
     console.log('Starting optimized PDF compression...');
-    
+
     const { PDFDocument } = PDFLib;
-    
+
     try {
         if (progressCallback) progressCallback(10);
-        
+
         // Load the PDF with PDF.js
         const arrayBuffer = await file.arrayBuffer();
-        
+
         if (progressCallback) progressCallback(20);
-        
+
         const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const numPages = pdfDoc.numPages;
-        
+
         const newPdfDoc = await PDFDocument.create();
-        
+
         console.log(`Processing ${numPages} pages with ${dpi} DPI, ${quality * 100}% quality...`);
-        
+
         // 🆕 OPTIMIZATION: Adaptive settings based on file characteristics
         let finalQuality = quality;
         let finalDpi = dpi;
-        
+
         // For very small files, use better quality
         if (file.size < 500000) { // 500KB
             console.log('Small file detected, using better quality...');
             finalQuality = Math.max(quality, 0.7);
         }
-        
+
         // For multi-page documents, be more aggressive
         if (numPages > 10) {
             console.log('Multi-page document, optimizing compression...');
             finalQuality = Math.max(0.3, quality - 0.1);
         }
-        
+
         // For very high DPI, reduce to save space
         if (dpi > 150) {
             console.log('High DPI detected, optimizing...');
@@ -863,35 +863,35 @@ async function advancedPDFCompression(file, dpi = 100, quality = 0.5, progressCa
         for (let pageNum = 1; pageNum <= numPages; pageNum++) {
             const progress = 20 + ((pageNum - 1) / numPages) * 70;
             if (progressCallback) progressCallback(Math.round(progress));
-            
+
             const page = await pdfDoc.getPage(pageNum);
             const viewport = page.getViewport({ scale: 1.0 });
             const { width, height } = viewport;
-            
+
             const canvas = document.createElement('canvas');
             const scale = finalDpi / 72;
             canvas.width = width * scale;
             canvas.height = height * scale;
-            
+
             const context = canvas.getContext('2d');
-            
+
             // White background
             context.fillStyle = 'white';
             context.fillRect(0, 0, canvas.width, canvas.height);
-            
+
             // Render PDF page
             const renderContext = {
                 canvasContext: context,
                 viewport: page.getViewport({ scale: scale }),
             };
-            
+
             await page.render(renderContext).promise;
-            
+
             // Convert to compressed JPEG
             const imageData = canvas.toDataURL('image/jpeg', finalQuality);
             const base64Data = imageData.split(',')[1];
             const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-            
+
             // Embed in new PDF
             const image = await newPdfDoc.embedJpg(imageBytes);
             const newPage = newPdfDoc.addPage([width, height]);
@@ -901,20 +901,20 @@ async function advancedPDFCompression(file, dpi = 100, quality = 0.5, progressCa
                 width: width,
                 height: height,
             });
-            
+
             canvas.remove();
         }
-        
+
         if (progressCallback) progressCallback(95);
-        
+
         const compressedBytes = await newPdfDoc.save({
             useObjectStreams: true,
         });
-        
+
         if (progressCallback) progressCallback(100);
-        
+
         return new Blob([compressedBytes], { type: 'application/pdf' });
-        
+
     } catch (error) {
         console.error('Advanced compression failed:', error);
         throw error;
@@ -925,26 +925,26 @@ async function advancedPDFCompression(file, dpi = 100, quality = 0.5, progressCa
 async function basicPDFCompressionFallback(file, resultDiv, progressText) {
     try {
         if (progressText) progressText.textContent = 'Using basic optimization...';
-        
+
         const { PDFDocument } = PDFLib;
         const arrayBuffer = await file.arrayBuffer();
         const pdfDoc = await PDFDocument.load(arrayBuffer);
-        
+
         // Basic optimization - remove metadata, optimize structure
         const pdfBytes = await pdfDoc.save({
             useObjectStreams: true,
             addDefaultPage: false,
         });
-        
+
         const compressedBlob = new Blob([pdfBytes], { type: 'application/pdf' });
         const originalSizeMB = (file.size / (1024 * 1024)).toFixed(2);
         const compressedSizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(2);
         const savings = (((file.size - compressedBlob.size) / file.size) * 100).toFixed(1);
-        
+
         // Download
         const filename = `basic_compressed_${file.name}`;
         download(compressedBlob, filename, "application/pdf");
-        
+
         resultDiv.innerHTML = `
             <div class="text-yellow-600">
                 ⚠️ <strong>Basic Compression Applied</strong><br>
@@ -953,7 +953,7 @@ async function basicPDFCompressionFallback(file, resultDiv, progressText) {
                 <small>(Limited compression - text preserved but smaller size reduction)</small>
             </div>
         `;
-        
+
     } catch (finalError) {
         resultDiv.innerHTML = `
             <div class="text-red-600">
@@ -964,9 +964,197 @@ async function basicPDFCompressionFallback(file, resultDiv, progressText) {
     }
 }
 // 
+//////////////////////// merge pdf opertion client side
+async function mergePDFsClientSide() {
+    console.log('Starting client-side PDF merge...');
+
+    const form = document.getElementById('mergeForm');
+    const fileInput = document.getElementById('merge-files');
+    const resultDiv = document.getElementById('result-mergeForm');
+    const progressDiv = document.getElementById('progress-mergeForm');
+    const progressText = document.getElementById('progress-text-mergeForm');
+    const submitButton = form.querySelector('button[type="button"]');
+    const fileOrderInput = document.getElementById('merge-file-order');
+
+    // Validation
+    if (!fileInput || !fileInput.files || fileInput.files.length < 2) {
+        alert('Please select at least 2 PDF files.');
+        return;
+    }
+
+    const files = fileInput.files;
+    
+    // 🆕 DEBUG: Log the file order input value
+    console.log("File order input value:", fileOrderInput.value);
+    console.log("Original files:", Array.from(files).map(f => f.name));
+
+    // 🆕 CRITICAL FIX: Get the ordered files based on user selection
+    let orderedFiles = Array.from(files);
+    
+    if (fileOrderInput && fileOrderInput.value) {
+        try {
+            const order = fileOrderInput.value.split(',').map(i => parseInt(i.trim()));
+            console.log("File order from UI:", order);
+            
+            if (order.length === files.length) {
+                orderedFiles = order.map(index => {
+                    console.log(`Mapping index ${index} to file:`, files[index].name);
+                    return files[index];
+                });
+                console.log("Final ordered files:", orderedFiles.map(f => f.name));
+            } else {
+                console.warn('File order length mismatch, using original order');
+                console.log('Order length:', order.length, 'Files length:', files.length);
+            }
+        } catch (e) {
+            console.warn('Invalid file order, using original order:', e);
+        }
+    }
 
 
+    const validation = validateFilesForClientMerge(files);
+    if (!validation.valid) {
+        alert(validation.message);
+        return;
+    }
 
+    // Show progress
+    progressDiv.style.display = 'block';
+    progressText.textContent = 'Starting merge...';
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-object-group mr-2"></i> Merging...';
+
+    try {
+        progressText.textContent = 'Loading PDF files... (0%)';
+
+        // 🆕 Use the orderedFiles instead of original files
+        const pdfDocs = [];
+        for (let i = 0; i < orderedFiles.length; i++) {
+            const progress = Math.round((i / orderedFiles.length) * 50);
+            progressText.textContent = `Loading PDF files... (${progress}%)`;
+
+            const file = orderedFiles[i];
+            console.log(`Loading PDF ${i + 1}/${orderedFiles.length}:`, file.name);
+
+            const arrayBuffer = await file.arrayBuffer();
+            const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+            pdfDocs.push(pdfDoc);
+        }
+
+        // Rest of your existing merge code...
+        progressText.textContent = 'Merging PDFs... (50%)';
+
+        // Create new PDF document
+        const mergedPdf = await PDFLib.PDFDocument.create();
+
+        // Copy pages from all PDFs in the correct order
+        for (let i = 0; i < pdfDocs.length; i++) {
+            const progress = 50 + Math.round((i / pdfDocs.length) * 45);
+            progressText.textContent = `Merging PDFs... (${progress}%)`;
+
+            const pdfDoc = pdfDocs[i];
+            const pages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
+            pages.forEach(page => mergedPdf.addPage(page));
+            
+            console.log(`Added file: ${orderedFiles[i].name}`);
+        }
+
+        progressText.textContent = 'Finalizing merge... (95%)';
+
+        // Save the merged PDF
+        const mergedPdfBytes = await mergedPdf.save();
+        const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+
+        progressText.textContent = 'Downloading... (100%)';
+
+        // Download the merged PDF
+        const filename = `merged_${Date.now()}.pdf`;
+        const url = URL.createObjectURL(mergedBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Show success message
+        let totalSize = 0;
+        for (let file of orderedFiles) {
+            totalSize += file.size;
+        }
+        const totalSizeMB = totalSize / (1024 * 1024);
+
+        resultDiv.innerHTML = `
+            <div class="text-green-600">
+                ✅ <strong>PDFs Merged Successfully!</strong><br>
+                📁 Merged ${orderedFiles.length} files in your specified order (${totalSizeMB.toFixed(2)}MB total)<br>
+                ⚡ <small>Files merged in the exact order you arranged</small>
+            </div>
+        `;
+
+        console.log('Client-side merge completed with correct file order');
+
+    } catch (error) {
+        console.error('Client-side merge failed:', error);
+        resultDiv.innerHTML = `
+            <div class="text-red-600">
+                ❌ Merge failed: ${error.message}<br>
+                <small>Falling back to server processing...</small>
+            </div>
+        `;
+
+        // Fallback to server processing
+        setTimeout(() => {
+            updateFileOrder(document.querySelectorAll('.file-preview'));
+            processPDF('merge_pdf', 'mergeForm');
+        }, 2000);
+
+    } finally {
+        // Clean up
+        progressDiv.style.display = 'none';
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-object-group mr-2"></i> Merge PDFs';
+    }
+}
+
+function validateFilesForClientMerge(files) {
+    const maxFiles = 100;
+    const maxTotalSizeMB = 350;
+    const maxFileSizeMB = 50;
+
+    if (files.length > maxFiles) {
+        return {
+            valid: false,
+            message: `Too many files. Client-side merge supports maximum ${maxFiles} files.`
+        };
+    }
+
+    let totalSize = 0;
+    for (let file of files) {
+        const fileSizeMB = file.size / (1024 * 1024);
+        if (fileSizeMB > maxFileSizeMB) {
+            return {
+                valid: false,
+                message: `File "${file.name}" is too large (${fileSizeMB.toFixed(2)}MB). Maximum file size is ${maxFileSizeMB}MB.`
+            };
+        }
+        totalSize += file.size;
+    }
+
+    const totalSizeMB = totalSize / (1024 * 1024);
+    if (totalSizeMB > maxTotalSizeMB) {
+        return {
+            valid: false,
+            message: `Total file size (${totalSizeMB.toFixed(2)}MB) exceeds maximum ${maxTotalSizeMB}MB limit.`
+        };
+    }
+
+    return { valid: true, totalSizeMB: totalSizeMB };
+}
+
+
+// ////////////////////
 
 function initSliders() {
     const dpiSlider = document.getElementById('custom_dpi');
@@ -1207,19 +1395,30 @@ async function processPDF(endpoint, formId) {
     }
 }
 
-function updateFileOrder(files) {
-    const fileOrder = Array.from(files).map((file, index) => {
-        if (!file.dataset.fileIndex) {
-            file.dataset.fileIndex = index;
-        }
-        return file.dataset.fileIndex;
+// function updateFileOrder(files) {
+//     const fileOrder = Array.from(files).map((file, index) => {
+//         if (!file.dataset.fileIndex) {
+//             file.dataset.fileIndex = index;
+//         }
+//         return file.dataset.fileIndex;
+//     });
+//     const fileOrderInput = document.getElementById('merge-file-order');
+//     if (fileOrderInput) {
+//         fileOrderInput.value = fileOrder.join(',');
+//     }
+// }
+
+function updateFileOrder(fileElements) {
+    const fileOrder = Array.from(fileElements).map(fileElement => {
+        return fileElement.dataset.fileIndex;
     });
+    
     const fileOrderInput = document.getElementById('merge-file-order');
     if (fileOrderInput) {
         fileOrderInput.value = fileOrder.join(',');
+        console.log("Updated file order:", fileOrderInput.value);
     }
 }
-
 
 async function validateForm(form, endpoint, resultDiv) {
     const filesInput = form.querySelector('input[type="file"]');
@@ -1260,8 +1459,8 @@ async function validateForm(form, endpoint, resultDiv) {
             resultDiv.classList.add('text-red-600');
             return false;
         }
-        const validPositions = ['top', 'bottom', 'top-left', 'top-center', 'top-right', 
-                               'bottom-left', 'bottom-center', 'bottom-right', 'custom'];
+        const validPositions = ['top', 'bottom', 'top-left', 'top-center', 'top-right',
+            'bottom-left', 'bottom-center', 'bottom-right', 'custom'];
         if (!validPositions.includes(position)) {
             resultDiv.textContent = `Invalid description position: ${position}.`;
             resultDiv.classList.add('text-red-600');
@@ -1795,7 +1994,7 @@ async function sendChat() {
     }
 
     const userMessage = chatInput.value.trim();
-    
+
     console.log("📝 Current chatHistory BEFORE adding new message:", chatHistory);
 
     progressDiv.style.display = 'block';
@@ -1807,10 +2006,10 @@ async function sendChat() {
         if (modeToggle && modeToggle.checked && modeSelect && modeSelect.value) {
             selectedMode = modeSelect.value;
         }
-        
+
         // ✅ FIX: Send only LAST 4 conversations (8 messages) to LLM
         const recentHistory = chatHistory.slice(-8); // Last 4 conversations (4 user + 4 assistant)
-        
+
         const body = new URLSearchParams({
             query: userMessage,
             mode: selectedMode || '',
@@ -1892,8 +2091,8 @@ async function sendChat() {
 
 function showTool(toolId) {
     localStorage.setItem('lastTool', toolId);
-    console.log("checking toolid ",toolId);
-    
+    console.log("checking toolid ", toolId);
+
     document.querySelectorAll('.tool-section').forEach(section => {
         section.style.display = 'none';
     });
@@ -1906,9 +2105,9 @@ function showTool(toolId) {
     // hide and show clear form
     const clearBtn = document.getElementById('clear-all-btn-container');
     if (toolId === 'chat-section') {
-      clearBtn.style.display = 'none';
+        clearBtn.style.display = 'none';
     } else {
-      clearBtn.style.display = 'block';
+        clearBtn.style.display = 'block';
     }
 
     // 
@@ -1996,15 +2195,15 @@ document.addEventListener('DOMContentLoaded', () => {
         deletePagesType.addEventListener('change', toggleDeleteInputs);
     }
 
- const modeToggle = document.getElementById('mode-toggle');
+    const modeToggle = document.getElementById('mode-toggle');
     const modeSelect = document.getElementById('mode-select');
     const chatInput = document.getElementById('chatInput');
     const modeLabel = document.querySelector('.ms-3.text-sm.font-medium.text-gray-900');
-    
+
     if (modeToggle && modeSelect && chatInput && modeLabel) {
         // Function to update UI based on toggle state
         function updateModeUI() {
-          
+
             if (modeToggle.checked) {
                 // Tone Selector ENABLED
                 chatInput.placeholder = "Ask anything (except Vishnu)...";
@@ -2017,19 +2216,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 modeSelect.style.display = 'none';
             }
         }
-        
+
         // Initial setup
         updateModeUI();
-        
+
         // Update on toggle change
-        modeToggle.addEventListener('change', function() {
+        modeToggle.addEventListener('change', function () {
             modeSelect.disabled = !this.checked;
             if (this.checked && !modeSelect.value) {
                 modeSelect.value = "general"; // Auto-select General mode
             }
             updateModeUI();
         });
-        
+
         // Also update when mode selection changes
         modeSelect.addEventListener('change', updateModeUI);
     }
@@ -2134,7 +2333,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const imageToPdfFile = document.getElementById('imageToPdf-file');
         const descriptionPosition = document.getElementById('description-position');
         if (imageToPdfFile) {
-            imageToPdfFile.addEventListener('change', function() {
+            imageToPdfFile.addEventListener('change', function () {
                 const fileName = this.files[0] ? this.files[0].name : 'No file selected';
                 const fileNameElement = document.getElementById('imageToPdf-file-name');
                 if (fileNameElement) {
@@ -2148,7 +2347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (descriptionPosition) {
-            descriptionPosition.addEventListener('change', function() {
+            descriptionPosition.addEventListener('change', function () {
                 const customContainer = document.getElementById('custom-position-container');
                 const customX = document.getElementById('custom-x');
                 const customY = document.getElementById('custom-y');
@@ -2180,27 +2379,27 @@ document.addEventListener('DOMContentLoaded', () => {
 function clearAllForms() {
     // Reset all forms on the page
     document.querySelectorAll('form').forEach(form => form.reset());
-    
+
     // Clear all file inputs
     document.querySelectorAll('input[type="file"]').forEach(input => {
-      input.value = '';
-      // Trigger change event to update UI
-      input.dispatchEvent(new Event('change'));
+        input.value = '';
+        // Trigger change event to update UI
+        input.dispatchEvent(new Event('change'));
     });
-    
+
     // Reset all file name displays
     document.querySelectorAll('[id$="-file-name"], [id$="-files-count"]').forEach(display => {
-      display.textContent = 'No file selected';
+        display.textContent = 'No file selected';
     });
-    
+
     // Clear all result messages
     document.querySelectorAll('[id^="result-"]').forEach(result => {
-      result.textContent = '';
+        result.textContent = '';
     });
-    
 
-  }
 
-  
+}
+
+
 
 
