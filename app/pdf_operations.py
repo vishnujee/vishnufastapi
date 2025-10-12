@@ -67,6 +67,7 @@ logger = logging.getLogger(__name__)
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")  
 
 
 
@@ -84,6 +85,7 @@ if USE_S3:
         "s3",
         aws_access_key_id=AWS_ACCESS_KEY,
         aws_secret_access_key=AWS_SECRET_KEY,
+        region_name=AWS_REGION
     )
     # Use the IAM role attached to the Lambda function (no need to pass keys)
     # s3 = boto3.client("s3")

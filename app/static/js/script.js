@@ -73,17 +73,17 @@ async function computeAllCompressionSizes() {
         const currentPreset = presetSelect ? presetSelect.value : 'Medium';
         
         // Define all presets including ULTRA Low and custom
+      // In computeAllCompressionSizes function - UPDATE THESE:
         const presets = [
-            { name: 'High Compression', dpi: 72, quality: 0.5 },
-            { name: 'Medium Compression', dpi: 100, quality: 0.7 },
-            { name: 'Low Compression', dpi: 120, quality: 0.9 },
-            { name: 'ULTRA Low Compression', dpi: 150, quality: 1.0 }  // NEW ULTRA LOW
+            { name: 'High Compression', dpi: 72, quality: 0.6 },      // More aggressive
+            { name: 'Medium Compression', dpi: 85, quality: 0.7 },   // Balanced
+            { name: 'Low Compression', dpi: 95, quality: 0.8 },      // Light compression
+            { name: 'New Compression', dpi: 110, quality: 0.9 }  // 
         ];
-
         // Add custom preset if Custom is selected
         if (currentPreset === 'Custom') {
-            const customDpi = parseInt(document.getElementById('custom_dpi').value) || 150;
-            const customQuality = (parseInt(document.getElementById('custom_quality').value) || 50) / 100;
+            const customDpi = parseInt(document.getElementById('custom_dpi').value) || 100;
+            const customQuality = (parseInt(document.getElementById('custom_quality').value) || 70) / 100;
             
             presets.push({
                 name: 'Custom Compression',
@@ -154,17 +154,59 @@ async function computeAllCompressionSizes() {
         }
 
         // Display final results
-        if (compressionSizes) {
-            compressionSizes.innerHTML = sizesHTML;
-        }
+
+        // Display final results
+if (compressionSizes) {
+    compressionSizes.innerHTML = sizesHTML;
+}
+
+if (compressionResults) {
+    compressionResults.classList.remove('hidden');
+}
+
+// 🆕 SIMPLE VERSION: Check for negative savings
+if (resultDiv) {
+    // Count how many presets have negative savings
+    const negativeCount = (sizesHTML.match(/Reduction:.*?-\d+\.?\d*%/g) || []).length;
+    const totalPresets = presets.length;
+    
+    if (negativeCount === totalPresets) {
+        // All presets resulted in larger files
+        resultDiv.innerHTML = `
+            <div class="text-blue-600">
+                📊 <strong>PDF Analysis Complete</strong><br>
+                <small>This PDF is already highly optimized and cannot be compressed further.</small>
+            </div>
+        `;
+    } else if (negativeCount >= totalPresets / 2) {
+        // Majority of presets resulted in larger files
+        resultDiv.innerHTML = `
+            <div class="text-yellow-600">
+                📊 <strong>Limited Compression Potential</strong><br>
+                <small>This PDF is already well-compressed. Some presets may increase file size.</small>
+            </div>
+        `;
+    } else {
+        // Good compression results
+        resultDiv.innerHTML = `
+            <div class="text-green-600">
+                ✅ <strong>Compression Size Estimation Completed!</strong><br>
+                <small>Check the table above for size reduction estimates.</small>
+            </div>
+        `;
+    }
+}
+        // if (compressionSizes) {
+        //     compressionSizes.innerHTML = sizesHTML;
+        // }
         
-        if (compressionResults) {
-            compressionResults.classList.remove('hidden');
-        }
+        // if (compressionResults) {
+        //     compressionResults.classList.remove('hidden');
+        // }
         
-        if (resultDiv) {
-            resultDiv.innerHTML = '<div class="text-green-600">✅ Compression size estimation completed!</div>';
-        }
+        // if (resultDiv) {
+        //     resultDiv.innerHTML = '<div class="text-green-600">✅ Compression size estimation completed!</div>';
+        // }
 
     } catch (error) {
         console.error('Size computation failed:', error);
@@ -186,105 +228,430 @@ async function computeAllCompressionSizes() {
         }
     }
 }
-//
-
-// async function computeAllCompressionSizes() {
-//     console.log('Computing all compression sizes');
-//     const form = document.getElementById('compressForm');
-//     const fileInput = form.querySelector('input[type="file"]');
-//     const resultDiv = document.getElementById('result-compressForm');
-//     const progressDiv = document.getElementById('progress-compressForm');
-//     const progressText = document.getElementById('progress-text-compressForm');
-//     const compressionResults = document.getElementById('compression-results');
-//     const compressionSizes = document.getElementById('compression-sizes');
-//     const computeButton = form.querySelector('button[onclick="computeAllCompressionSizes()"]');
-
-//     if (!fileInput || !fileInput.files.length) {
-//         resultDiv.textContent = 'Please select a PDF file.';
-//         resultDiv.classList.add('text-red-600');
-//         return;
-//     }
-
-//     const file = fileInput.files[0];
-//     const sizeMB = file.size / (1024 * 1024);
-//     if (sizeMB > 160) {
-//         resultDiv.textContent = `File ${file.name} exceeds 160MB limit.`;
-//         resultDiv.classList.add('text-red-600');
-//         return;
-//     }
-//     if (file.type !== 'application/pdf') {
-//         resultDiv.textContent = `File ${file.name} must be a PDF.`;
-//         resultDiv.classList.add('text-red-600');
-//         return;
-//     }
-
-//     const customDpi = form.querySelector('input[name="custom_dpi"]').value;
-//     const customQuality = form.querySelector('input[name="custom_quality"]').value;
-//     if (customDpi && customQuality) {
-//         const dpi = parseInt(customDpi);
-//         console.log('Custom DPI:', dpi);
-//         const quality = parseInt(customQuality);
-//         if (dpi < 50 || dpi > 250 || quality < 10 || quality > 100) {
-//             resultDiv.textContent = 'Invalid custom DPI (50-400) or quality (10-100).';
-//             resultDiv.classList.add('text-red-600');
-//             return;
-//         }
-//     }
-
-//     resultDiv.textContent = '';
-//     resultDiv.classList.remove('text-red-600', 'text-green-600');
-//     progressDiv.style.display = 'block';
-//     progressText.textContent = 'Estimating sizes...';
-//     computeButton.disabled = true;
-
-//     const formData = new FormData();
-//     formData.append('file', file);
-//     formData.append('custom_dpi', customDpi || '180');
-//     formData.append('custom_quality', customQuality || '50');
-
-//     try {
-//         const response = await fetch(`${BASE_URL}/estimate_compression_sizes`, {
-//             method: 'POST',
-//             body: formData
-//         });
-
-//         progressDiv.style.display = 'none';
-//         computeButton.disabled = false;
-
-//         if (response.ok) {
-//             const sizes = await response.json();
-//             compressionSizes.innerHTML = `
-//                 <li>High Compression (72 DPI, 20% Quality): ${sizes.high.toFixed(2)} MB</li>
-//                 <li>Medium Compression (100 DPI, 30% Quality): ${sizes.medium.toFixed(2)} MB</li>
-//                 <li>Low Compression (120 DPI, 40% Quality): ${sizes.low.toFixed(2)} MB</li>
-//                 <li>Custom Compression (${customDpi || 180} DPI, ${customQuality || 50}% Quality): ${sizes.custom.toFixed(2)} MB</li>
-//             `;
-//             compressionResults.classList.remove('hidden');
-//             resultDiv.textContent = 'Estimated sizes calculated successfully!';
-//             resultDiv.classList.add('text-green-600');
-//         } else {
-//             const error = await response.json();
-//             console.error('Estimation error:', error);
-//             resultDiv.textContent = `Error: ${error.detail || 'Unknown error'}`;
-//             resultDiv.classList.add('text-red-600');
-//         }
-//     } catch (e) {
-//         console.error('Fetch error:', e);
-//         progressDiv.style.display = 'none';
-//         computeButton.disabled = false;
-//         resultDiv.textContent = `Error: ${e.message}. Please check the server logs.`;
-//         resultDiv.classList.add('text-red-600');
-//     }
-// }
 
 
-// //////////////////////////// new compression
 
 
-// Add this new function to your script.js
+// // /// //  // NEW ADD SIGNATURE FOR CLIENT SIDE
+
+// Client-side signature addition functions
+
+
+async function processSignatureClientSide() {
+    console.log('Starting client-side signature processing...');
+    
+    const form = document.getElementById('signatureForm');
+    const pdfFileInput = document.getElementById('signature-pdf-file');
+    const signatureFileInput = document.getElementById('signature-image-file');
+    const selectedPagesInput = document.getElementById('signature-selected-pages');
+    const sizeSelect = document.getElementById('signature-size');
+    const positionSelect = document.getElementById('signature-position');
+    const alignmentSelect = document.getElementById('signature-alignment');
+    const removeBgCheckbox = document.getElementById('remove-bg');
+    
+    // Safely get progress elements with null checks
+    const progressDiv = document.getElementById('progress-signatureForm');
+    const progressText = document.getElementById('progress-text-signatureForm');
+    const resultDiv = document.getElementById('result-signatureForm');
+    const submitButton = form ? form.querySelector('button') : null;
+
+    // Validation with better error handling
+    if (!pdfFileInput || !pdfFileInput.files[0]) {
+        if (resultDiv) {
+            resultDiv.textContent = 'Please select a PDF file.';
+            resultDiv.classList.add('text-red-600');
+        }
+        return;
+    }
+    
+    if (!signatureFileInput || !signatureFileInput.files[0]) {
+        if (resultDiv) {
+            resultDiv.textContent = 'Please select a signature image.';
+            resultDiv.classList.add('text-red-600');
+        }
+        return;
+    }
+    
+    // Validate signature file type
+    const signatureFile = signatureFileInput.files[0];
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    const allowedExtensions = ['.png', '.jpg', '.jpeg'];
+    const fileExtension = signatureFile.name.toLowerCase().substring(signatureFile.name.lastIndexOf('.'));
+    
+    if (!allowedTypes.includes(signatureFile.type) && !allowedExtensions.includes(fileExtension)) {
+        if (resultDiv) {
+            resultDiv.textContent = 'Please select a PNG or JPEG image file.';
+            resultDiv.classList.add('text-red-600');
+        }
+        return;
+    }
+    
+    if (!selectedPagesInput || !selectedPagesInput.value) {
+        if (resultDiv) {
+            resultDiv.textContent = 'Please select at least one page.';
+            resultDiv.classList.add('text-red-600');
+        }
+        return;
+    }
+
+    const pdfFile = pdfFileInput.files[0];
+    const selectedPages = selectedPagesInput.value.split(',').map(p => parseInt(p.trim()));
+    const size = sizeSelect ? sizeSelect.value : 'medium';
+    const position = positionSelect ? positionSelect.value : 'bottom';
+    const alignment = alignmentSelect ? alignmentSelect.value : 'center';
+    const removeBg = removeBgCheckbox ? removeBgCheckbox.checked : false;
+
+    // Validate file sizes
+    const pdfSizeMB = pdfFile.size / (1024 * 1024);
+    if (pdfSizeMB > 150) {
+        if (resultDiv) {
+            resultDiv.textContent = 'PDF file exceeds 150MB limit.';
+            resultDiv.classList.add('text-red-600');
+        }
+        return;
+    }
+
+    const sigSizeMB = signatureFile.size / (1024 * 1024);
+    if (sigSizeMB > 10) {
+        if (resultDiv) {
+            resultDiv.textContent = 'Signature image exceeds 10MB limit.';
+            resultDiv.classList.add('text-red-600');
+        }
+        return;
+    }
+
+    try {
+        // Show progress safely
+        if (submitButton) submitButton.disabled = true;
+        if (progressDiv) progressDiv.style.display = 'block';
+        if (progressText) progressText.textContent = 'Processing signature client-side...';
+
+        console.log('Calling addSignatureClientSide...');
+        
+        // Process signature
+        const signedPdfBlob = await addSignatureClientSide(
+            pdfFile, signatureFile, selectedPages, size, position, alignment, removeBg
+        );
+
+        if (!signedPdfBlob) {
+            throw new Error('Signature addition failed - no blob returned');
+        }
+
+        // Download the result
+        const url = URL.createObjectURL(signedPdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `signed_${pdfFile.name}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        if (resultDiv) {
+            resultDiv.textContent = 'Signature added successfully using client-side processing!';
+            resultDiv.classList.remove('text-red-600');
+            resultDiv.classList.add('text-green-600');
+        }
+
+    } catch (error) {
+        console.error('Client-side signature error:', error);
+        
+        if (resultDiv) {
+            resultDiv.textContent = `Error: ${error.message}. Trying server-side fallback...`;
+            resultDiv.classList.add('text-red-600');
+        }
+        
+        // Fallback to server-side processing WITHOUT circular call
+        await fallbackToServerSideSignature(form);
+        
+    } finally {
+        // Clean up safely
+        if (submitButton) submitButton.disabled = false;
+        if (progressDiv) progressDiv.style.display = 'none';
+        if (progressText) progressText.textContent = '';
+    }
+}
+
+// Separate fallback function to avoid circular dependency
+async function fallbackToServerSideSignature(form) {
+    console.log('Falling back to server-side processing...');
+    
+    // Create a new form data object
+    const formData = new FormData();
+    
+    // Get all form elements safely
+    const pdfFileInput = document.getElementById('signature-pdf-file');
+    const signatureFileInput = document.getElementById('signature-image-file');
+    const selectedPagesInput = document.getElementById('signature-selected-pages');
+    const sizeSelect = document.getElementById('signature-size');
+    const positionSelect = document.getElementById('signature-position');
+    const alignmentSelect = document.getElementById('signature-alignment');
+    const removeBgCheckbox = document.getElementById('remove-bg');
+    
+    // Add files to form data
+    if (pdfFileInput && pdfFileInput.files[0]) {
+        formData.append('pdf_file', pdfFileInput.files[0]);
+    }
+    if (signatureFileInput && signatureFileInput.files[0]) {
+        formData.append('signature_file', signatureFileInput.files[0]);
+    }
+    
+    // Add other form data
+    if (selectedPagesInput && selectedPagesInput.value) {
+        formData.append('specific_pages', selectedPagesInput.value);
+    }
+    if (sizeSelect) {
+        formData.append('size', sizeSelect.value);
+    }
+    if (positionSelect) {
+        formData.append('position', positionSelect.value);
+    }
+    if (alignmentSelect) {
+        formData.append('alignment', alignmentSelect.value);
+    }
+    if (removeBgCheckbox) {
+        formData.append('remove_bg', removeBgCheckbox.checked.toString());
+    }
+    
+    try {
+        const response = await fetch('/add_signature', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `signed_${pdfFileInput.files[0].name}`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            const resultDiv = document.getElementById('result-signatureForm');
+            if (resultDiv) {
+                resultDiv.textContent = 'Signature added successfully (server-side fallback)!';
+                resultDiv.classList.add('text-green-600');
+            }
+        } else {
+            throw new Error('Server-side processing failed');
+        }
+    } catch (serverError) {
+        console.error('Server-side fallback failed:', serverError);
+        const resultDiv = document.getElementById('result-signatureForm');
+        if (resultDiv) {
+            resultDiv.textContent = `Both client-side and server-side processing failed: ${serverError.message}`;
+            resultDiv.classList.add('text-red-600');
+        }
+    }
+}
+
+
+async function addSignatureClientSide(pdfFile, signatureFile, pages, size, position, alignment, removeBg = false) {
+    // Check if PDF-LIB is available
+    if (typeof PDFLib === 'undefined') {
+        throw new Error('PDF library not loaded. Please refresh the page.');
+    }
+    
+    const { PDFDocument } = PDFLib;
+    
+    try {
+        console.log('Starting client-side signature addition...');
+        console.log('Signature file type:', signatureFile.type, 'name:', signatureFile.name);
+        
+        // Load PDF document
+        const pdfBytes = await pdfFile.arrayBuffer();
+        const pdfDoc = await PDFDocument.load(pdfBytes);
+        
+        // Process signature image - support PNG, JPG, JPEG
+        let signatureImage;
+        const signatureBytes = await signatureFile.arrayBuffer();
+        
+        if (removeBg) {
+            console.log('Removing background client-side...');
+            const processedSignature = await removeBackgroundClientSide(signatureFile);
+            const processedBytes = await processedSignature.arrayBuffer();
+            
+            // After background removal, it's always PNG
+            signatureImage = await pdfDoc.embedPng(processedBytes);
+        } else {
+            // Handle PNG, JPG, JPEG based on file type and auto-detection
+            const fileType = signatureFile.type.toLowerCase();
+            const fileName = signatureFile.name.toLowerCase();
+            
+            if (fileType === 'image/png' || fileName.endsWith('.png')) {
+                console.log('Detected PNG file');
+                signatureImage = await pdfDoc.embedPng(signatureBytes);
+            } else if (fileType === 'image/jpeg' || fileType === 'image/jpg' || 
+                       fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+                console.log('Detected JPEG file');
+                signatureImage = await pdfDoc.embedJpg(signatureBytes);
+            } else {
+                // Auto-detect format by trying both
+                console.log('Auto-detecting file format...');
+                try {
+                    signatureImage = await pdfDoc.embedPng(signatureBytes);
+                    console.log('Auto-detected as PNG');
+                } catch (pngError) {
+                    console.log('Auto-detected as JPEG');
+                    signatureImage = await pdfDoc.embedJpg(signatureBytes);
+                }
+            }
+        }
+        
+        // Size mapping
+        const sizeFactors = { 
+            small: 0.15, 
+            medium: 0.25, 
+            large: 0.35 
+        };
+        const scale = sizeFactors[size] || 0.25;
+        
+        // Get scaled dimensions
+        const { width: originalWidth, height: originalHeight } = signatureImage.scale(1);
+        const scaledWidth = originalWidth * scale;
+        const scaledHeight = originalHeight * scale;
+        
+        console.log(`Signature size: ${scaledWidth}x${scaledHeight}, Pages: ${pages}`);
+        
+        // Add signature to selected pages
+        const pageIndices = pages.map(p => p - 1); // Convert to 0-based indexing
+        
+        for (const pageIndex of pageIndices) {
+            if (pageIndex >= 0 && pageIndex < pdfDoc.getPageCount()) {
+                const page = pdfDoc.getPage(pageIndex);
+                const { width: pageWidth, height: pageHeight } = page.getSize();
+                
+                // Calculate position
+                const coordinates = calculateSignaturePosition(
+                    pageWidth, pageHeight, scaledWidth, scaledHeight, position, alignment
+                );
+                
+                console.log(`Adding signature to page ${pageIndex + 1} at position:`, coordinates);
+                
+                // Draw signature image
+                page.drawImage(signatureImage, {
+                    x: coordinates.x,
+                    y: coordinates.y,
+                    width: scaledWidth,
+                    height: scaledHeight,
+                });
+            }
+        }
+        
+        // Save the modified PDF
+        const pdfBytesWithSignature = await pdfDoc.save();
+        return new Blob([pdfBytesWithSignature], { type: 'application/pdf' });
+        
+    } catch (error) {
+        console.error('Client-side signature addition failed:', error);
+        throw new Error(`Client-side processing failed: ${error.message}`);
+    }
+}
+
+
+function calculateSignaturePosition(pageWidth, pageHeight, sigWidth, sigHeight, position, alignment) {
+    const margin = 50;
+    let x, y;
+    
+    // Vertical position
+    switch (position) {
+        case 'top':
+            y = pageHeight - sigHeight - margin;
+            break;
+        case 'center':
+            y = (pageHeight - sigHeight) / 2;
+            break;
+        case 'bottom':
+        default:
+            y = margin;
+            break;
+    }
+    
+    // Horizontal alignment
+    switch (alignment) {
+        case 'left':
+            x = margin;
+            break;
+        case 'center':
+            x = (pageWidth - sigWidth) / 2;
+            break;
+        case 'right':
+            x = pageWidth - sigWidth - margin;
+            break;
+        default:
+            x = (pageWidth - sigWidth) / 2;
+    }
+    
+    return { x, y };
+}
+
+async function removeBackgroundClientSide(imageFile) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        img.onload = function() {
+            try {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                // Draw the image
+                ctx.drawImage(img, 0, 0);
+                
+                // Get image data
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                // Simple white background removal
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // Remove white/light background (adjust threshold as needed)
+                    if (r > 200 && g > 200 && b > 200) {
+                        data[i + 3] = 0; // Set alpha to transparent
+                    }
+                }
+                
+                // Put the modified image back
+                ctx.putImageData(imageData, 0, 0);
+                
+                // Convert to PNG blob (always output PNG for transparency)
+                canvas.toBlob(blob => {
+                    if (blob) {
+                        resolve(blob);
+                    } else {
+                        reject(new Error('Canvas to blob conversion failed'));
+                    }
+                }, 'image/png');
+                
+            } catch (error) {
+                reject(error);
+            }
+        };
+        
+        img.onerror = function() {
+            reject(new Error('Failed to load signature image'));
+        };
+        
+        img.src = URL.createObjectURL(imageFile);
+    });
+}
+
+
+
+
+
+
+// // /// //  // NEW ADD SIGNATURE FOR CLIENT SIDE
+
+// new function to your script.js
 
 async function compressPDFClientSide() {
-    console.log('Starting client-side compression...');
+    console.log('Starting optimized client-side compression...');
     
     const form = document.getElementById('compressForm');
     const fileInput = form.querySelector('input[type="file"]');
@@ -315,7 +682,7 @@ async function compressPDFClientSide() {
     submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Compressing...';
 
     try {
-        // Get compression settings - INCLUDES ULTRA LOW
+        // Get compression settings - OPTIMIZED VALUES
         const presetSelect = document.getElementById('compress-preset');
         const preset = presetSelect ? presetSelect.value : 'Medium';
         
@@ -323,35 +690,31 @@ async function compressPDFClientSide() {
         
         if (preset === 'High') {
             dpi = 72; 
-            quality = 0.5;
+            quality = 0.6;  // Reduced from 0.5 to 0.3
         } else if (preset === 'Medium') {
-            dpi = 100; 
-            quality = 0.7;
+            dpi = 85; 
+            quality = 0.7;  // Reduced from 0.7 to 0.5
         } else if (preset === 'Low') {
-            dpi = 120; 
-            quality = 0.9;
+            dpi = 95;      // Reduced from 150 to 120
+            quality = 0.8;  // Reduced from 0.9 to 0.7
         } else if (preset === 'ULTRA Low') {
-            dpi = 150; 
-            quality = 1.0;  // 60% quality
+            dpi = 110;       // Reduced from 120 to 96
+            quality = 0.9;  // Reduced from 0.6 to 0.4
         } else if (preset === 'Custom') {
-            // Get custom values
             const dpiInput = document.getElementById('custom_dpi');
             const qualityInput = document.getElementById('custom_quality');
             
-            dpi = dpiInput ? parseInt(dpiInput.value) || 150 : 150;
-            // Convert quality percentage (0-100) to decimal (0-1)
-            const qualityPercent = qualityInput ? parseInt(qualityInput.value) || 50 : 50;
+            dpi = dpiInput ? parseInt(dpiInput.value) || 100 : 100;  // Reduced from 150 to 100
+            const qualityPercent = qualityInput ? parseInt(qualityInput.value) || 70 : 70;  // Reduced from 80 to 50
             quality = qualityPercent / 100;
-            
-            console.log('Using custom settings:', { dpi, quality, qualityPercent });
         }
 
-        console.log('Compression settings:', { preset, dpi, quality });
+        console.log('Using optimized compression settings:', { preset, dpi, quality });
 
         // Use the advanced compression function
         progressText.textContent = 'Processing PDF pages... (0%)';
         
-        const compressedBlob = await advancedPDFCompression(file, dpi, quality, (progress) => {
+        let compressedBlob = await advancedPDFCompression(file, dpi, quality, (progress) => {
             progressText.textContent = `Processing pages... (${progress}%)`;
         });
 
@@ -359,18 +722,50 @@ async function compressPDFClientSide() {
             throw new Error('Compression returned empty result');
         }
 
+        // 🆕 CHECK: If compression made file LARGER, use aggressive fallback
         const compressedSizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(2);
-        const savings = (((file.size - compressedBlob.size) / file.size) * 100).toFixed(1);
+        let savings = (((file.size - compressedBlob.size) / file.size) * 100).toFixed(1);
+        let usedFallback = false;
 
-        console.log('Compression results:', {
+        if (parseFloat(compressedSizeMB) > parseFloat(originalSizeMB)) {
+            console.warn('Compression made file larger, using aggressive fallback...');
+            progressText.textContent = 'Optimizing compression...';
+            
+            // Use more aggressive settings
+            const aggressiveDpi = Math.max(72, dpi - 30);
+            const aggressiveQuality = Math.max(0.3, quality - 0.2);
+            
+            const aggressiveBlob = await advancedPDFCompression(file, aggressiveDpi, aggressiveQuality);
+            
+            if (aggressiveBlob && aggressiveBlob.size < file.size) {
+                compressedBlob = aggressiveBlob;
+                usedFallback = true;
+                
+                // Recalculate stats
+                const newCompressedSizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(2);
+                savings = (((file.size - compressedBlob.size) / file.size) * 100).toFixed(1);
+                
+                console.log('Fallback compression successful:', {
+                    original: originalSizeMB + 'MB',
+                    compressed: newCompressedSizeMB + 'MB', 
+                    savings: savings + '%',
+                    settings: { dpi: aggressiveDpi, quality: aggressiveQuality }
+                });
+            }
+        }
+
+        console.log('Final compression results:', {
             original: originalSizeMB + 'MB',
             compressed: compressedSizeMB + 'MB', 
             savings: savings + '%',
-            preset: preset
+            preset: preset,
+            usedFallback: usedFallback
         });
 
         // Download the compressed file
-        const filename = `compressed_${file.name.replace('.pdf', '')}_${preset.replace(' ', '_')}.pdf`;
+        const filename = usedFallback 
+            ? `compressed_${file.name.replace('.pdf', '')}_optimized.pdf`
+            : `compressed_${file.name.replace('.pdf', '')}_${preset.replace(' ', '_')}.pdf`;
         
         if (typeof download === 'function') {
             download(compressedBlob, filename, "application/pdf");
@@ -386,16 +781,17 @@ async function compressPDFClientSide() {
             window.URL.revokeObjectURL(url);
         }
 
-        // Show results with preset info
+        // Show results with optimization info
         const savingsColor = savings >= 50 ? 'text-green-600' : savings >= 20 ? 'text-yellow-600' : 'text-red-600';
+        const fallbackText = usedFallback ? '<br>🔄 <small class="text-blue-600">(Auto-optimized for better compression)</small>' : '';
         
         resultDiv.innerHTML = `
             <div class="text-green-600">
-                ✅ <strong>Compression Successful!</strong><br>
-                📁 Original: ${originalSizeMB}MB → Compressed: ${compressedSizeMB}MB<br>
+                ✅ <strong>Compression Successful!</strong>${fallbackText}<br>
+                📁 Original: ${originalSizeMB}MB → Compressed: ${(compressedBlob.size / (1024 * 1024)).toFixed(2)}MB<br>
                 💾 Size reduction: <strong class="${savingsColor}">${savings}%</strong><br>
                 ⚙️ Preset: <strong>${preset}</strong> (${dpi} DPI, ${Math.round(quality * 100)}% Quality)<br>
-                <small class="text-gray-600">(Client-side processing - no server load)</small>
+                <small class="text-gray-600">(Browser-side processing)</small>
             </div>
         `;
 
@@ -420,44 +816,60 @@ async function compressPDFClientSide() {
         submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Compress PDF';
     }
 }
-// Enhanced advanced compression function with progress tracking
-async function advancedPDFCompression(file, dpi = 100, quality = 0.7, progressCallback) {
-    console.log('Starting advanced PDF compression...');
+
+// Enhanced advanced compression function
+async function advancedPDFCompression(file, dpi = 100, quality = 0.5, progressCallback) {
+    console.log('Starting optimized PDF compression...');
     
     const { PDFDocument } = PDFLib;
     
     try {
         if (progressCallback) progressCallback(10);
         
-        // Load the PDF with PDF.js for proper rendering
+        // Load the PDF with PDF.js
         const arrayBuffer = await file.arrayBuffer();
         
         if (progressCallback) progressCallback(20);
         
-        // Load PDF with PDF.js
         const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const numPages = pdfDoc.numPages;
         
-        // Create new PDF with PDF-LIB
         const newPdfDoc = await PDFDocument.create();
         
-        console.log(`Processing ${numPages} pages...`);
+        console.log(`Processing ${numPages} pages with ${dpi} DPI, ${quality * 100}% quality...`);
         
-        // Process each page
+        // 🆕 OPTIMIZATION: Adaptive settings based on file characteristics
+        let finalQuality = quality;
+        let finalDpi = dpi;
+        
+        // For very small files, use better quality
+        if (file.size < 500000) { // 500KB
+            console.log('Small file detected, using better quality...');
+            finalQuality = Math.max(quality, 0.7);
+        }
+        
+        // For multi-page documents, be more aggressive
+        if (numPages > 10) {
+            console.log('Multi-page document, optimizing compression...');
+            finalQuality = Math.max(0.3, quality - 0.1);
+        }
+        
+        // For very high DPI, reduce to save space
+        if (dpi > 150) {
+            console.log('High DPI detected, optimizing...');
+            finalDpi = Math.min(150, dpi);
+        }
+
         for (let pageNum = 1; pageNum <= numPages; pageNum++) {
             const progress = 20 + ((pageNum - 1) / numPages) * 70;
             if (progressCallback) progressCallback(Math.round(progress));
             
-            console.log(`Processing page ${pageNum}/${numPages}`);
-            
-            // Get page from PDF.js
             const page = await pdfDoc.getPage(pageNum);
             const viewport = page.getViewport({ scale: 1.0 });
             const { width, height } = viewport;
             
-            // Create canvas for rendering
             const canvas = document.createElement('canvas');
-            const scale = dpi / 72;
+            const scale = finalDpi / 72;
             canvas.width = width * scale;
             canvas.height = height * scale;
             
@@ -467,7 +879,7 @@ async function advancedPDFCompression(file, dpi = 100, quality = 0.7, progressCa
             context.fillStyle = 'white';
             context.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Render PDF page to canvas
+            // Render PDF page
             const renderContext = {
                 canvasContext: context,
                 viewport: page.getViewport({ scale: scale }),
@@ -475,10 +887,8 @@ async function advancedPDFCompression(file, dpi = 100, quality = 0.7, progressCa
             
             await page.render(renderContext).promise;
             
-            // Convert to JPEG with compression
-            const imageData = canvas.toDataURL('image/jpeg', quality);
-            
-            // Remove data URL prefix
+            // Convert to compressed JPEG
+            const imageData = canvas.toDataURL('image/jpeg', finalQuality);
             const base64Data = imageData.split(',')[1];
             const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
             
@@ -492,13 +902,11 @@ async function advancedPDFCompression(file, dpi = 100, quality = 0.7, progressCa
                 height: height,
             });
             
-            // Clean up
             canvas.remove();
         }
         
         if (progressCallback) progressCallback(95);
         
-        // Save compressed PDF
         const compressedBytes = await newPdfDoc.save({
             useObjectStreams: true,
         });
@@ -513,52 +921,16 @@ async function advancedPDFCompression(file, dpi = 100, quality = 0.7, progressCa
     }
 }
 
-// Improved render function
-async function renderPageToCanvas(page, canvas, ctx, scale) {
-    try {
-        // Try PDF.js first for actual rendering
-        if (typeof pdfjsLib !== 'undefined') {
-            await renderWithPDFJS(canvas, ctx, scale);
-        } else {
-            // Fallback: Draw a placeholder
-            ctx.fillStyle = '#f8f9fa';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#6c757d';
-            ctx.font = '16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('PDF Page Content', canvas.width / 2, canvas.height / 2);
-            ctx.fillText('(Rendered as image for compression)', canvas.width / 2, canvas.height / 2 + 30);
-        }
-    } catch (error) {
-        console.warn('Rendering failed, using fallback:', error);
-        // Simple fallback
-        ctx.fillStyle = '#f8f9fa';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-}
-
-// PDF.js rendering function
-async function renderWithPDFJS(canvas, ctx, scale) {
-    // This is a simplified version - you'll need to load the PDF with PDF.js
-    // For now, we'll use a placeholder
-    ctx.fillStyle = '#e9ecef';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#495057';
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('PDF.js rendering would go here', canvas.width / 2, canvas.height / 2);
-}
-
-// Fallback basic compression
+// Basic fallback compression
 async function basicPDFCompressionFallback(file, resultDiv, progressText) {
     try {
-        if (progressText) progressText.textContent = 'Using basic compression...';
+        if (progressText) progressText.textContent = 'Using basic optimization...';
         
         const { PDFDocument } = PDFLib;
         const arrayBuffer = await file.arrayBuffer();
         const pdfDoc = await PDFDocument.load(arrayBuffer);
         
-        // Basic optimization
+        // Basic optimization - remove metadata, optimize structure
         const pdfBytes = await pdfDoc.save({
             useObjectStreams: true,
             addDefaultPage: false,
@@ -582,7 +954,7 @@ async function basicPDFCompressionFallback(file, resultDiv, progressText) {
             </div>
         `;
         
-    } catch (error) {
+    } catch (finalError) {
         resultDiv.innerHTML = `
             <div class="text-red-600">
                 ❌ All compression methods failed<br>
@@ -591,7 +963,6 @@ async function basicPDFCompressionFallback(file, resultDiv, progressText) {
         `;
     }
 }
-
 // 
 
 
@@ -938,63 +1309,65 @@ async function validateForm(form, endpoint, resultDiv) {
             return false;
         }
     } else if (endpoint === 'add_signature') {
-        const pdfFile = files[0];
-        const signatureFile = form.querySelector('input[name="signature_file"]').files[0];
-        const selectedPages = form.querySelector('input[name="specific_pages"]').value;
-        const size = form.querySelector('select[name="size"]').value;
-        const position = form.querySelector('select[name="position"]').value;
-        const alignment = form.querySelector('select[name="alignment"]').value;
+        await processSignatureClientSide();
+        return;
+        // const pdfFile = files[0];
+        // const signatureFile = form.querySelector('input[name="signature_file"]').files[0];
+        // const selectedPages = form.querySelector('input[name="specific_pages"]').value;
+        // const size = form.querySelector('select[name="size"]').value;
+        // const position = form.querySelector('select[name="position"]').value;
+        // const alignment = form.querySelector('select[name="alignment"]').value;
 
-        const pdfSizeMB = pdfFile.size / (1024 * 1024);
-        if (pdfSizeMB > 50) {
-            resultDiv.textContent = `PDF file ${pdfFile.name} exceeds 50MB limit.`;
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
-        if (pdfFile.type !== 'application/pdf') {
-            resultDiv.textContent = `File ${pdfFile.name} must be a PDF.`;
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
+        // const pdfSizeMB = pdfFile.size / (1024 * 1024);
+        // if (pdfSizeMB > 50) {
+        //     resultDiv.textContent = `PDF file ${pdfFile.name} exceeds 50MB limit.`;
+        //     resultDiv.classList.add('text-red-600');
+        //     return false;
+        // }
+        // if (pdfFile.type !== 'application/pdf') {
+        //     resultDiv.textContent = `File ${pdfFile.name} must be a PDF.`;
+        //     resultDiv.classList.add('text-red-600');
+        //     return false;
+        // }
 
-        const sigSizeMB = signatureFile.size / (1024 * 1024);
-        if (sigSizeMB > 10) {
-            resultDiv.textContent = `Signature file ${signatureFile.name} exceeds 10MB limit.`;
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
-        if (!['image/png', 'image/jpeg', 'image/jpg'].includes(signatureFile.type)) {
-            resultDiv.textContent = `Signature file ${signatureFile.name} must be PNG or JPEG.`;
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
+        // const sigSizeMB = signatureFile.size / (1024 * 1024);
+        // if (sigSizeMB > 10) {
+        //     resultDiv.textContent = `Signature file ${signatureFile.name} exceeds 10MB limit.`;
+        //     resultDiv.classList.add('text-red-600');
+        //     return false;
+        // }
+        // if (!['image/png', 'image/jpeg', 'image/jpg'].includes(signatureFile.type)) {
+        //     resultDiv.textContent = `Signature file ${signatureFile.name} must be PNG or JPEG.`;
+        //     resultDiv.classList.add('text-red-600');
+        //     return false;
+        // }
 
-        if (!selectedPages) {
-            resultDiv.textContent = 'Please select at least one page to sign.';
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
-        if (!/^[1-9]\d*(,[1-9]\d*)*$/.test(selectedPages)) {
-            resultDiv.textContent = 'Invalid page selection format. Pages must be comma-separated positive integers.';
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
+        // if (!selectedPages) {
+        //     resultDiv.textContent = 'Please select at least one page to sign.';
+        //     resultDiv.classList.add('text-red-600');
+        //     return false;
+        // }
+        // if (!/^[1-9]\d*(,[1-9]\d*)*$/.test(selectedPages)) {
+        //     resultDiv.textContent = 'Invalid page selection format. Pages must be comma-separated positive integers.';
+        //     resultDiv.classList.add('text-red-600');
+        //     return false;
+        // }
 
-        if (!['small', 'medium', 'large'].includes(size)) {
-            resultDiv.textContent = 'Invalid size. Choose small, medium, or large.';
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
-        if (!['top', 'center', 'bottom'].includes(position)) {
-            resultDiv.textContent = 'Invalid position. Choose top, center, or bottom.';
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
-        if (!['left', 'center', 'right'].includes(alignment)) {
-            resultDiv.textContent = 'Invalid alignment. Choose left, center, or right.';
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
+        // if (!['small', 'medium', 'large'].includes(size)) {
+        //     resultDiv.textContent = 'Invalid size. Choose small, medium, or large.';
+        //     resultDiv.classList.add('text-red-600');
+        //     return false;
+        // }
+        // if (!['top', 'center', 'bottom'].includes(position)) {
+        //     resultDiv.textContent = 'Invalid position. Choose top, center, or bottom.';
+        //     resultDiv.classList.add('text-red-600');
+        //     return false;
+        // }
+        // if (!['left', 'center', 'right'].includes(alignment)) {
+        //     resultDiv.textContent = 'Invalid alignment. Choose left, center, or right.';
+        //     resultDiv.classList.add('text-red-600');
+        //     return false;
+        // }
     } else if (endpoint === 'merge_pdf') {
         if (files.length < 2) {
             resultDiv.textContent = 'Please select at least 2 PDF files.';

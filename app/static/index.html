@@ -64,14 +64,14 @@
 
 
 
-<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
-<script src="https://unpkg.com/downloadjs@1.4.7"></script>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+  <script src="https://unpkg.com/downloadjs@1.4.7"></script>
 
   <!-- Structured Data for SEO -->
   <script type="application/ld+json">
-    
+
 {
   "@context": "https://schema.org",
   "@type": "WebApplication",
@@ -109,9 +109,23 @@
   <script src="/static/js/memscript.js"></script>
   <style>
     canvas {
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
-}
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
   </style>
 </head>
 
@@ -279,7 +293,7 @@
         <p class="text-xl text-gray-600 max-w-3xl mx-auto" style="color: #e7082d;padding-left: 0px;padding-right: 0px;">
           Loading own LLM model. Coming soon!
         </p>
-        
+
       </div>
     </div>
     <!-- <h1>System Memory Usage</h1><div class="memory-container"><div class="memory-card"><h2>RAM Usage</h2><div class="progress-container"><div class="progress-bar" id="ram-bar"></div></div><div class="memory-stats" id="ram-stats"></div></div><div class="memory-card"><h2>ROM (Swap) Usage</h2><div class="progress-container"><div class="progress-bar" id="rom-bar"></div></div><div class="memory-stats" id="rom-stats"></div></div></div> -->
@@ -469,7 +483,7 @@
               hideMeSpan.textContent = 'Click Me';
               hideMeSpan.style.color = '#e7082d'; // original color
               hideMeSpan.style.textDecoration = 'none';
-              
+
             }
           }
         </script>
@@ -616,23 +630,23 @@
           <div>
             <label for="compress-preset" class="block text-sm font-medium text-gray-600 mb-1">Compression Level</label>
             <select id="compress-preset" name="preset"
-            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            onchange="toggleCustomInputs()">
-            <option value="High">High Compression (72 DPI, 50% Quality)</option>
-            <option value="Medium">Medium Compression (100 DPI, 70% Quality)</option>
-            <option value="Low">Low Compression (150 DPI, 90% Quality)</option>
-            <option value="ULTRA Low">ULTRA Low Compression (120 DPI, 100% Quality)</option>
-            <option value="Custom">Custom</option>
-        </select>
+              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              onchange="toggleCustomInputs()">
+              <option value="High">High Compression (72 DPI, 60% Quality)</option>
+              <option value="Medium">Medium Compression (85 DPI, 70% Quality)</option>
+              <option value="Low">Low Compression (95 DPI, 80% Quality)</option>
+              <option value="ULTRA Low">New Compression (110 DPI, 90% Quality)</option>
+              <option value="Custom">Custom</option>
+            </select>
           </div>
           <div id="custom-compress-options" class="hidden space-y-4">
             <div>
               <label for="custom_dpi" class="block text-sm font-medium text-gray-600 mb-1">DPI (50-250)</label>
-              <input type="range" id="custom_dpi" name="custom_dpi" min="50" max="250" value="180"
+              <input type="range" id="custom_dpi" name="custom_dpi" min="50" max="200" value="100"
                 class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-              <span id="dpi-value" class="text-sm text-gray-600">180</span>
+              <span id="dpi-value" class="text-sm text-gray-600">100</span>
             </div>
-            <div style="display:none;">
+            <div>
               <label for="custom_quality" class="block text-sm font-medium text-gray-600 mb-1">Quality (10-100)</label>
               <input type="range" id="custom_quality" name="custom_quality" min="10" max="100" value="50"
                 class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
@@ -649,12 +663,12 @@
           </div> -->
           <!-- In your compress-section, change this line: -->
           <button type="button" onclick="compressPDFClientSide()"
-          class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-          <i class="fas fa-compress-alt mr-2"></i> Compress PDF (Advanced)
-      </button>
-<button type="button" onclick="computeAllCompressionSizes()"
-class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-<i class="fas fa-calculator mr-2"></i> Compute All Compression </button>
+            class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+            <i class="fas fa-compress-alt mr-2"></i> Compress PDF (Advanced)
+          </button>
+          <button type="button" onclick="computeAllCompressionSizes()"
+            class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+            <i class="fas fa-calculator mr-2"></i> Compute All Compression </button>
           <div id="compression-results" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
             <h3 class="text-lg font-medium text-gray-800 mb-2">Estimated Compression Sizes</h3>
             <ul id="compression-sizes" class="text-sm text-gray-600 space-y-1"></ul>
@@ -1234,8 +1248,9 @@ class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition
               </div>
             </div>
             <div>
-              <label for="signature-image-file" class="block text-sm font-medium text-gray-600 mb-1">Select Signature
-                Image</label>
+              <label for="signature-image-file" class="block text-sm font-medium text-gray-600 mb-1">
+                Select Signature Image (PNG or JPEG, max 10MB)
+              </label>
               <div class="flex items-center">
                 <label
                   class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
@@ -1244,11 +1259,15 @@ class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition
                 </label>
                 <span id="signature-image-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
               </div>
-              <div class="flex items-center mt-4">
+              <!-- <div class="flex items-center mt-4">
                 <input type="hidden" name="remove_bg" value="false">
                 <input type="checkbox" id="remove-bg" name="remove_bg" value="true" class="mr-2">
                 <label for="remove-bg" class="text-sm font-medium text-gray-600">Remove Image Background</label>
-              </div>
+              </div> -->
+              <!-- <label for="remove-bg" class="text-sm font-medium text-gray-600">Remove Image Background</label> -->
+              <!-- <a href="#remove-background" >Remove Image Background for best result</a> -->
+              <p>Remove Image Background for best result. Check in PDF Tools.</p>
+
             </div>
             <div id="signature-page-previews" class="hidden">
               <div class="flex items-center mb-2">
@@ -1287,65 +1306,70 @@ class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition
                 <option value="right">Right</option>
               </select>
             </div>
-            <button type="button" onclick="processPDF('add_signature', 'signatureForm')"
+            <!-- <button type="button" onclick="processPDF('add_signature', 'signatureForm')"
               class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
               <i class="fas fa-signature mr-2"></i> Add Signature </button>
-            <div class="progress" id="progress-signatureForm">
-              <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-              <div class="progress-text" id="progress-text-signatureForm"></div>
-            </div>
-            <p id="result-signatureForm" class="text-sm text-center"></p>
-          </form>
+            <div class="progress" id="progress-signatureForm"> -->
+
+            <button type="button" onclick="processSignatureClientSide()"
+              class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+              <i class="fas fa-signature mr-2"></i> Add Signature (Client-Side)
+            </button>
+            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+            <div class="progress-text" id="progress-text-signatureForm"></div>
         </div>
-      </div>
-      <!-- Remove Background -->
-      <div id="removeBackground-section" class="tool-section" style="display: none;">
-        <div class="bg-white p-6 rounded-xl shadow-md tool-card">
-          <div class="flex items-center mb-4">
-            <div class="bg-cyan-100 p-2 rounded-full mr-3">
-              <i class="fas fa-eraser text-cyan-600 text-xl"></i>
-            </div>
-            <h2 class="text-2xl font-semibold text-gray-800">Remove Image Background</h2>
-          </div>
-          <form id="removeBackgroundForm" class="space-y-4">
-            <div>
-              <label for="removeBackground-file" class="block text-sm font-medium text-gray-600 mb-1">Select Image
-                File</label>
-              <div class="flex items-center">
-                <label
-                  class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
-                  <i class="fas fa-image mr-2 text-cyan-500"></i> Choose Image <input type="file"
-                    id="removeBackground-file" name="file" accept="image/png,image/jpeg" required class="hidden">
-                </label>
-                <span id="removeBackground-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
-              </div>
-            </div>
-            <button type="button" onclick="processImage('remove_background', 'removeBackgroundForm')"
-              class="w-full bg-cyan-600 text-white p-3 rounded-lg hover:bg-cyan-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-              <i class="fas fa-eraser mr-2"></i> Remove Background </button>
-            <div class="progress" id="progress-removeBackgroundForm">
-              <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-              <div class="progress-text" id="progress-text-removeBackgroundForm"></div>
-            </div>
-            <p id="result-removeBackgroundForm" class="text-sm text-center"></p>
-          </form>
-        </div>
-      </div>
-      <!-- Amazing Fact Videos -->
-      <div id="videos-section" class="tool-section" style="display: none;">
-        <div class="bg-white p-6 rounded-xl shadow-md tool-card">
-          <div class="flex items-center mb-4">
-            <div class="bg-teal-100 p-2 rounded-full mr-3">
-              <i class="fas fa-video text-teal-600 text-xl"></i>
-            </div>
-            <h2 class="text-2xl font-semibold text-gray-800">Amazing Fact Videos</h2>
-          </div>
-          <button onclick="window.location.href='/static/videos.html'"
-            class="w-full bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center">
-            <i class="fas fa-video mr-2"></i> Click to See Amazing Fact Videos </button>
-        </div>
+        <p id="result-signatureForm" class="text-sm text-center"></p>
+        </form>
       </div>
     </div>
+    <!-- Remove Background -->
+    <div id="removeBackground-section" class="tool-section" style="display: none;">
+      <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+        <div class="flex items-center mb-4">
+          <div class="bg-cyan-100 p-2 rounded-full mr-3">
+            <i class="fas fa-eraser text-cyan-600 text-xl"></i>
+          </div>
+          <h2 class="text-2xl font-semibold text-gray-800">Remove Image Background</h2>
+        </div>
+        <form id="removeBackgroundForm" class="space-y-4">
+          <div>
+            <label for="removeBackground-file" class="block text-sm font-medium text-gray-600 mb-1">Select Image
+              File</label>
+            <div class="flex items-center">
+              <label
+                class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                <i class="fas fa-image mr-2 text-cyan-500"></i> Choose Image <input type="file"
+                  id="removeBackground-file" name="file" accept="image/png,image/jpeg" required class="hidden">
+              </label>
+              <span id="removeBackground-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+            </div>
+          </div>
+          <button type="button" onclick="processImage('remove_background', 'removeBackgroundForm')"
+            class="w-full bg-cyan-600 text-white p-3 rounded-lg hover:bg-cyan-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+            <i class="fas fa-eraser mr-2"></i> Remove Background </button>
+          <div class="progress" id="progress-removeBackgroundForm">
+            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+            <div class="progress-text" id="progress-text-removeBackgroundForm"></div>
+          </div>
+          <p id="result-removeBackgroundForm" class="text-sm text-center"></p>
+        </form>
+      </div>
+    </div>
+    <!-- Amazing Fact Videos -->
+    <div id="videos-section" class="tool-section" style="display: none;">
+      <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+        <div class="flex items-center mb-4">
+          <div class="bg-teal-100 p-2 rounded-full mr-3">
+            <i class="fas fa-video text-teal-600 text-xl"></i>
+          </div>
+          <h2 class="text-2xl font-semibold text-gray-800">Amazing Fact Videos</h2>
+        </div>
+        <button onclick="window.location.href='/static/videos.html'"
+          class="w-full bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center">
+          <i class="fas fa-video mr-2"></i> Click to See Amazing Fact Videos </button>
+      </div>
+    </div>
+  </div>
   </div>
   <!-- Footer -->
   <footer class="bg-gray-800 text-white py-6">
@@ -1384,9 +1408,22 @@ class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition
     }
     document.getElementById('mobile-menu-button').addEventListener('click', toggleMobileMenu);
     // 
+    // function updatePageOrder(pages) {
+    //   const pageOrder = Array.from(pages).map(page => page.dataset.pageNum);
+    //   document.getElementById('reorder-page-order').value = pageOrder.join(',');
+    // }
     function updatePageOrder(pages) {
       const pageOrder = Array.from(pages).map(page => page.dataset.pageNum);
       document.getElementById('reorder-page-order').value = pageOrder.join(',');
+    }
+
+    function updateButtonStates(pages) {
+      pages.forEach((page, index) => {
+        const upButton = page.querySelector('.move-up');
+        const downButton = page.querySelector('.move-down');
+        upButton.disabled = index === 0;
+        downButton.disabled = index === pages.length - 1;
+      });
     }
 
     function updateButtonStates(pages) {
@@ -1446,6 +1483,14 @@ class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition
       }
       console.log('Processing PDF file:', file.name, file.size, file.type);
       try {
+        // Show loading spinner
+        pagePreviews.classList.remove('hidden');
+        pageList.innerHTML = `
+            <div class="flex justify-center items-center py-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <span class="ml-3 text-gray-600">Loading pages...</span>
+            </div>
+        `;
         const arrayBuffer = await file.arrayBuffer();
         console.log('ArrayBuffer loaded, size:', arrayBuffer.byteLength);
         const pdf = await pdfjsLib.getDocument({
@@ -1456,6 +1501,7 @@ class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition
         if (numPages === 0) {
           throw new Error('PDF has no pages.');
         }
+        // Clear loading spinner and render pages
         pageList.innerHTML = '';
         const pages = [];
         for (let i = 1; i <= numPages; i++) {
@@ -1464,54 +1510,72 @@ class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition
           const viewport = page.getViewport({
             scale: 0.5
           });
+
           const canvas = document.createElement('canvas');
           canvas.width = viewport.width;
           canvas.height = viewport.height;
           const context = canvas.getContext('2d');
+
           await page.render({
             canvasContext: context,
             viewport
           }).promise;
+
           const pageDiv = document.createElement('div');
-          pageDiv.className = 'page-preview';
+          pageDiv.className = 'page-preview border border-gray-200 rounded-lg p-4 bg-white mb-4';
           pageDiv.dataset.pageNum = i;
           pageDiv.innerHTML = `
-                        
-																																																		<div class="page-controls">
-																																																			<button type="button" class="move-up">
-																																																				<i class="fas fa-arrow-up"></i>
-																																																			</button>
-																																																			<button type="button" class="move-down">
-																																																				<i class="fas fa-arrow-down"></i>
-																																																			</button>
-																																																		</div>
-																																																		<span class="text-gray-600">Page ${i}</span>
-                    `;
-          pageDiv.insertBefore(canvas, pageDiv.firstChild);
+                <div class="flex flex-col items-center">
+                    <canvas class="mb-2 border border-gray-300"></canvas>
+                    <div class="flex items-center justify-between w-full mt-2">
+                        <span class="text-gray-600 text-sm">Page ${i}</span>
+                        <div class="flex space-x-2">
+                            <button type="button" class="move-up bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                                <i class="fas fa-arrow-up"></i>
+                            </button>
+                            <button type="button" class="move-down bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                                <i class="fas fa-arrow-down"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+          // Replace the canvas with the rendered one
+          const previewCanvas = pageDiv.querySelector('canvas');
+          previewCanvas.width = canvas.width;
+          previewCanvas.height = canvas.height;
+          previewCanvas.getContext('2d').drawImage(canvas, 0, 0);
+
           pageList.appendChild(pageDiv);
           pages.push(pageDiv);
-          // Update button states
-          // pageDiv.querySelector('.move-up').disabled = i === 1;
-          // pageDiv.querySelector('.move-down').disabled = i === numPages;
-          // event listeners for reordering
-          pageDiv.querySelector('.move-up').addEventListener('click', () => {
+
+          // Add event listeners for move buttons
+          // Add event listeners for move buttons
+          pageDiv.querySelector('.move-up').addEventListener('click', (event) => {
+            event.preventDefault(); // Prevent default behavior
+            event.stopPropagation(); // Stop event bubbling
             const prev = pageDiv.previousSibling;
             if (prev) {
               pageList.insertBefore(pageDiv, prev);
-              updatePageOrder(pages);
-              // updateButtonStates(pages);
+              updatePageOrder(Array.from(pageList.querySelectorAll('.page-preview')));
               console.log('Moved page up, new order:', document.getElementById('reorder-page-order').value);
             }
           });
-          pageDiv.querySelector('.move-down').addEventListener('click', () => {
+
+          pageDiv.querySelector('.move-down').addEventListener('click', (event) => {
+            event.preventDefault(); // Prevent default behavior
+            event.stopPropagation(); // Stop event bubbling
             const next = pageDiv.nextSibling;
             if (next) {
               pageList.insertBefore(next, pageDiv);
-              updatePageOrder(pages);
-              // updateButtonStates(pages);
+              updatePageOrder(Array.from(pageList.querySelectorAll('.page-preview')));
               console.log('Moved page down, new order:', document.getElementById('reorder-page-order').value);
             }
           });
+
+          // Clean up temporary canvas
+          canvas.remove();
         }
         pagePreviews.classList.remove('hidden');
         updatePageOrder(pages);
@@ -1521,9 +1585,14 @@ class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition
         resultDiv.classList.add('text-green-600');
       } catch (err) {
         console.error('Error processing PDF:', err);
-        resultDiv.textContent = `Error loading PDF: ${err.message}`;
+        pageList.innerHTML = `
+            <div class="text-center py-4 text-red-600">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                Error loading PDF: ${err.message}
+            </div>
+        `;
+        resultDiv.textContent = `Error loading PDF: ${err.message}. Please ensure the file is a valid PDF and try again.`;
         resultDiv.classList.add('text-red-600');
-        pagePreviews.classList.add('hidden');
         document.getElementById('reorder-page-order').value = '';
       }
     });
@@ -1614,6 +1683,15 @@ class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition
       }
       console.log('Processing PDF file:', file.name, file.size, file.type);
       try {
+
+        // Show loading spinner
+        pagePreviews.classList.remove('hidden');
+        pageList.innerHTML = `
+            <div class="flex justify-center items-center py-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+                <span class="ml-3 text-gray-600">Loading pages...</span>
+            </div>
+        `;
         const arrayBuffer = await file.arrayBuffer();
         console.log('ArrayBuffer loaded, size:', arrayBuffer.byteLength);
         const pdf = await pdfjsLib.getDocument({
@@ -1632,33 +1710,48 @@ class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition
           const viewport = page.getViewport({
             scale: 0.5
           });
+
           const canvas = document.createElement('canvas');
           canvas.width = viewport.width;
           canvas.height = viewport.height;
           const context = canvas.getContext('2d');
+
           await page.render({
             canvasContext: context,
             viewport
           }).promise;
+
           const pageDiv = document.createElement('div');
-          pageDiv.className = 'page-preview';
+          pageDiv.className = 'page-preview border border-gray-200 rounded-lg p-4 bg-white';
           pageDiv.dataset.pageNum = i;
           pageDiv.innerHTML = `
-                            
-																																																		<div class="page-controls">
-																																																			<input type="checkbox" class="page-checkbox" data-page-num="${i}">
-																																																			</div>
-																																																			<span class="text-gray-600">Page ${i}</span>
-                        `;
-          pageDiv.insertBefore(canvas, pageDiv.firstChild);
+                <div class="flex flex-col items-center">
+                    <canvas class="mb-2 border border-gray-300"></canvas>
+                    <div class="flex items-center mt-2">
+                        <input type="checkbox" class="page-checkbox mr-2" data-page-num="${i}">
+                        <span class="text-gray-600 text-sm">Page ${i}</span>
+                    </div>
+                </div>
+            `;
+
+          // Replace the canvas with the rendered one
+          const previewCanvas = pageDiv.querySelector('canvas');
+          previewCanvas.width = canvas.width;
+          previewCanvas.height = canvas.height;
+          previewCanvas.getContext('2d').drawImage(canvas, 0, 0);
+
           pageList.appendChild(pageDiv);
           pages.push(pageDiv);
+
           // Add event listener for checkbox
           pageDiv.querySelector('.page-checkbox').addEventListener('change', () => {
             updateSelectedPages();
             const allChecked = Array.from(document.querySelectorAll('.page-checkbox')).every(cb => cb.checked);
             selectAllCheckbox.checked = allChecked;
           });
+
+          // Clean up temporary canvas
+          canvas.remove();
         }
         // Handle select all checkbox
         selectAllCheckbox.addEventListener('change', (e) => {
@@ -1673,11 +1766,22 @@ class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition
         resultDiv.classList.add('text-green-600');
       } catch (err) {
         console.error('Error processing PDF:', err);
+        pageList.innerHTML = `
+            <div class="text-center py-4 text-red-600">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                Error loading PDF: ${err.message}
+            </div>
+        `;
         resultDiv.textContent = `Error loading PDF: ${err.message}. Please ensure the file is a valid PDF and try again.`;
         resultDiv.classList.add('text-red-600');
-        pagePreviews.classList.add('hidden');
         document.getElementById('signature-selected-pages').value = '';
       }
+
+
+      // 
+
+
+
     });
 
     // clear form
@@ -1716,6 +1820,10 @@ class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition
         }
       }, 2000);
     }
+
+
+    // ///////
+
 
   </script>
 </body>

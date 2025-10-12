@@ -103,6 +103,7 @@ AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")  
 USE_S3 = all([BUCKET_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY])
 CORRECT_PASSWORD_HASH = os.getenv("CORRECT_PASSWORD_HASH")
 
@@ -110,6 +111,7 @@ s3_client = boto3.client(
     "s3",
     aws_access_key_id=AWS_ACCESS_KEY,
     aws_secret_access_key=AWS_SECRET_KEY,
+    region_name=AWS_REGION
 )
 if USE_S3:
     if "/" in BUCKET_NAME:
@@ -121,6 +123,7 @@ if USE_S3:
             "s3",
             aws_access_key_id=AWS_ACCESS_KEY,
             aws_secret_access_key=AWS_SECRET_KEY,
+            region_name=AWS_REGION 
         )
         logger.info("S3 client initialized successfully")
     except Exception as e:
