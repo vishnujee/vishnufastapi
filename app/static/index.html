@@ -60,9 +60,18 @@
   <meta name="theme-color" content="#4285f4">
   <meta name="msapplication-TileColor" content="#4285f4">
   <meta name="msapplication-config" content="/browserconfig.xml">
+  <!-- Add this to your head section -->
+
+
+
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://unpkg.com/downloadjs@1.4.7"></script>
 
   <!-- Structured Data for SEO -->
   <script type="application/ld+json">
+    
 {
   "@context": "https://schema.org",
   "@type": "WebApplication",
@@ -98,6 +107,12 @@
   <link href="/static/css/styles.css" rel="stylesheet">
   <script src="/static/js/script.js"></script>
   <script src="/static/js/memscript.js"></script>
+  <style>
+    canvas {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+  </style>
 </head>
 
 <body class="bg-gray-50 min-h-screen">
@@ -601,13 +616,14 @@
           <div>
             <label for="compress-preset" class="block text-sm font-medium text-gray-600 mb-1">Compression Level</label>
             <select id="compress-preset" name="preset"
-              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              onchange="toggleCustomInputs()">
-              <option value="High">High Compression (72 DPI, 20% Quality)</option>
-              <option value="Medium">Medium Compression (100 DPI, 30% Quality)</option>
-              <option value="Low">Low Compression (120 DPI, 40% Quality)</option>
-              <option value="Custom">Custom</option>
-            </select>
+            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            onchange="toggleCustomInputs()">
+            <option value="High">High Compression (72 DPI, 50% Quality)</option>
+            <option value="Medium">Medium Compression (100 DPI, 70% Quality)</option>
+            <option value="Low">Low Compression (150 DPI, 90% Quality)</option>
+            <option value="ULTRA Low">ULTRA Low Compression (120 DPI, 100% Quality)</option>
+            <option value="Custom">Custom</option>
+        </select>
           </div>
           <div id="custom-compress-options" class="hidden space-y-4">
             <div>
@@ -623,14 +639,22 @@
               <span id="quality-value" class="text-sm text-gray-600">50</span>
             </div>
           </div>
-          <div class="flex space-x-4">
+          <!-- <div class="flex space-x-4">
             <button type="button" onclick="processPDF('compress_pdf', 'compressForm')"
               class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
               <i class="fas fa-compress-alt mr-2"></i> Compress PDF </button>
             <button type="button" onclick="computeAllCompressionSizes()"
               class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
               <i class="fas fa-calculator mr-2"></i> Compute All Compression </button>
-          </div>
+          </div> -->
+          <!-- In your compress-section, change this line: -->
+          <button type="button" onclick="compressPDFClientSide()"
+          class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+          <i class="fas fa-compress-alt mr-2"></i> Compress PDF (Advanced)
+      </button>
+<button type="button" onclick="computeAllCompressionSizes()"
+class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+<i class="fas fa-calculator mr-2"></i> Compute All Compression </button>
           <div id="compression-results" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
             <h3 class="text-lg font-medium text-gray-800 mb-2">Estimated Compression Sizes</h3>
             <ul id="compression-sizes" class="text-sm text-gray-600 space-y-1"></ul>
