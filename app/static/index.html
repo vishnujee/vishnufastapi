@@ -60,9 +60,22 @@
   <meta name="theme-color" content="#4285f4">
   <meta name="msapplication-TileColor" content="#4285f4">
   <meta name="msapplication-config" content="/browserconfig.xml">
-  <!-- Add this to your head section -->
 
 
+  <!-- new -->
+  <!-- Add this with your other scripts -->
+
+
+  <!--  script for real PDF encryption -->
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+
+
+
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -105,7 +118,8 @@
   <!-- Font Awesome for icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="/static/css/styles.css" rel="stylesheet">
-  <script src="/static/js/script.js"></script>
+  <script src="/static/js/script.js" defer></script>
+  <script src="/static/js/newscript.js" defer></script>
   <script src="/static/js/memscript.js"></script>
   <style>
     canvas {
@@ -140,53 +154,105 @@
     /* merge css */
 
 
-.file-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  background-color: white;
-}
+    .file-item {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      background-color: white;
+      max-width: 300px;
+      text-align: center;
 
-.file-item span {
-  flex: 1;
-  margin-right: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.file-item .move-buttons {
-  display: flex;
-  gap: 6px;
-}
+    }
 
-.file-item button {
-  padding: 6px 10px;
-  min-width: 40px;
-}
+    .file-item span {
+      flex: 1;
+      margin-right: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      width: 100%;
 
-/* Mobile responsiveness */
-@media (max-width: 640px) {
-  .file-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .file-item span {
-    margin-right: 0;
-    width: 100%;
-  }
-  
-  .file-item .move-buttons {
-    align-self: flex-end;
-  }
-}
+    }
 
+    .file-item .move-buttons {
+      display: flex;
+      gap: 6px;
+    }
+
+
+
+    .file-item button {
+      padding: 6px 10px;
+      min-width: 40px;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 640px) {
+      .file-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .file-item span {
+        margin-right: 0;
+        width: 100%;
+        max-width: 300px;
+      }
+
+      .file-item .move-buttons {
+        align-self: flex-end;
+      }
+    }
+
+
+    /*  COMPRESS CSS */
+    /* Progress bar animations */
+    .progress-bar-transition {
+      transition: width 0.3s ease-in-out;
+    }
+
+    /* Pulse animation for active computation */
+    .pulse-computing {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.7;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    /* Smooth progress bar */
+    .smooth-progress {
+      background: linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6);
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: -200% 0;
+      }
+
+      100% {
+        background-position: 200% 0;
+      }
+    }
   </style>
 </head>
 
@@ -309,9 +375,9 @@
   </nav>
   <div class="container mx-auto px-4 py-8 max-w-6xl">
     <!-- Hero Section -->
-    <div class="text-center mb-12">
+    <div class="text-center mb-0">
       <!-- <h1 class="text-4xl font-bold text-gray-800 mb-4">Vishnu AI & PDF Tools</h1> -->
-      <div class="text-center mb-12">
+      <div class="text-center mb-6">
         <div style="
                     background: linear-gradient(135deg, #0f0c29, #302b63, #ff416c);
                     padding: 8px;
@@ -350,8 +416,22 @@
             }
           }
         </style>
-        <p class="text-xl text-gray-600 max-w-3xl mx-auto">All-in-one solution for PDF Editing</p>
-        <p class="text-xl text-gray-600 max-w-3xl mx-auto" style="color: #e7082d;padding-left: 0px;padding-right: 0px;">
+        <!-- <p class="text-xl text-gray-600 max-w-3xl mx-auto">All-in-one solution for PDF Editing</p> -->
+        <div class="text-center mb-2">
+          <h1 class="text-3xl font-bold text-gray-800 mb-2">
+            Fastest PDF Editing
+              <button onclick="toggleInfo('info2')" class="ml-2 text-green-500 hover:text-green-700">
+                  <i class="fas fa-info-circle"></i>
+              </button>
+          </h1>
+  
+          
+          <div id="info2" class="hidden mt-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p class="text-sm text-green-800" style="text-align: left;"><strong>Super Fast :</strong>  <br>Merge PDF, Compress PDF, PDF to Image, Split PDF, Delete Pages, PDF to PPT, Image to PDF, Reorder PDF pages, Add page Number, Add signature
+                 <br> <br><strong>Highly Precise and Accurate(bit slow)</strong>: <br> PDF TO WORD, PDF TO EXCEL, ADD PASSWORD TO PDF, REMOVE PASSWORD FROM PDF, REMOVE IMAGE BACKGROUND</p>
+          </div>
+      </div>
+        <p class="text-xl text-gray-600 max-w-3xl mx-auto mt-4" style="color: #e7082d;padding-left: 0px;padding-right: 0px;">
           Loading own LLM model. Coming soon!
         </p>
 
@@ -659,7 +739,7 @@
             class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
             <i class="fas fa-object-group mr-2"></i> Merge PDFs </button> -->
 
-          <button type="button" onclick="mergePDFsClientSide()"
+          <button type="button" id="merge-submit-btn" onclick="mergePDFsClientSide()"
             class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
             <i class="fas fa-object-group mr-2"></i> Merge PDFs
           </button>
@@ -736,6 +816,9 @@
           <button type="button" onclick="computeAllCompressionSizes()"
             class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
             <i class="fas fa-calculator mr-2"></i> Compute All Compression </button>
+          <!-- <button onclick="cancelCompression()" class="bg-red-600 text-white px-4 py-2 rounded ml-2">
+            <i class="fas fa-times mr-2"></i>Cancel Compression
+          </button> -->
           <div id="compression-results" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
             <h3 class="text-lg font-medium text-gray-800 mb-2">Estimated Compression Sizes</h3>
             <ul id="compression-sizes" class="text-sm text-gray-600 space-y-1"></ul>
@@ -777,6 +860,12 @@
           <button type="button" onclick="processPDF('encrypt_pdf', 'encryptForm')"
             class="w-full bg-yellow-600 text-white p-3 rounded-lg hover:bg-yellow-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
             <i class="fas fa-lock mr-2"></i> Encrypt PDF </button>
+          <!-- Change this line in encrypt-section -->
+
+          <!-- <button type="button" onclick="encryptPDFClientSide()"
+          class="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+          <i class="fas fa-lock mr-2"></i> Protect PDF 
+      </button> -->
           <div class="progress" id="progress-encryptForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
             <div class="progress-text" id="progress-text-encryptForm"></div>
@@ -806,9 +895,14 @@
               <span id="pdfToImages-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
             </div>
           </div>
-          <button type="button" onclick="processPDF('convert_pdf_to_images', 'pdfToImagesForm')"
+          <!-- <button type="button" onclick="processPDF('convert_pdf_to_images', 'pdfToImagesForm')"
             class="w-full bg-pink-600 text-white p-3 rounded-lg hover:bg-pink-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-            <i class="fas fa-file-image mr-2"></i> Convert to Images </button>
+            <i class="fas fa-file-image mr-2"></i> Convert to Images </button> -->
+          <!-- Change this line in pdfToImages-section -->
+          <button type="button" onclick="convertPDFToImagesClientSide()"
+            class="w-full bg-pink-600 text-white p-3 rounded-lg hover:bg-pink-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+            <i class="fas fa-file-image mr-2"></i> Convert to Images
+          </button>
           <div class="progress" id="progress-pdfToImagesForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
             <div class="progress-text" id="progress-text-pdfToImagesForm"></div>
@@ -838,9 +932,14 @@
               <span id="split-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
             </div>
           </div>
-          <button type="button" onclick="processPDF('split_pdf', 'splitForm')"
+          <!-- <button type="button" onclick="processPDF('split_pdf', 'splitForm')"
             class="w-full bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-            <i class="fas fa-cut mr-2"></i> Split PDF </button>
+            <i class="fas fa-cut mr-2"></i> Split PDF </button> -->
+          <!-- Change this line in split-section -->
+          <button type="button" onclick="splitPDFClientSide()"
+            class="w-full bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+            <i class="fas fa-cut mr-2"></i> Split PDF
+          </button>
           <div class="progress" id="progress-splitForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
             <div class="progress-text" id="progress-text-splitForm"></div>
@@ -860,53 +959,96 @@
         </div>
         <form id="deletePagesForm" class="space-y-4">
           <div>
-            <label for="deletePages-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF File (Max
-              50MB)</label>
+            <label for="deletePages-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF File (Max 50MB)</label>
             <div class="flex items-center">
-              <label
-                class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
-                <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File <input type="file" id="deletePages-file"
-                  name="file" accept=".pdf" required class="hidden"
-                  onchange="displayTotalPages('deletePages-file', 'deletePages-total')">
+              <label class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File 
+                <input type="file" id="deletePages-file" name="file" accept=".pdf" required class="hidden" onchange="displayTotalPages('deletePages-file', 'deletePages-total')">
               </label>
               <span id="deletePages-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
             </div>
             <p id="deletePages-total" class="text-sm text-gray-600 mt-2">Total Pages: Not loaded</p>
           </div>
+          
+          <!-- New: Selection Method Choice -->
           <div>
-            <label for="deletePages-type" class="block text-sm font-medium text-gray-600 mb-1">Delete Pages By</label>
-            <select id="deletePages-type" name="delete_type"
-              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              onchange="toggleDeleteInputs()">
-              <option value="specific">Specific Pages</option>
-              <option value="range">Page Range</option>
+            <label for="deletePages-method" class="block text-sm font-medium text-gray-600 mb-1">Select Deletion Method</label>
+            <select id="deletePages-method" name="delete_method" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent" onchange="toggleDeleteMethod()">
+              <option value="visual">Visual Selection (Click Pages)</option>
+              <option value="text">Text Input (Page Numbers)</option>
             </select>
           </div>
-          <div id="specific-pages-input">
-            <label for="deletePages-specific" class="block text-sm font-medium text-gray-600 mb-1">Specific Pages (e.g.,
-              1,12,32)</label>
-            <input type="text" id="deletePages-specific" name="pages" placeholder="Enter pages (e.g., 1,12,32)"
-              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+          
+          <!-- Visual Method Interface -->
+          <div id="visual-method-interface" class="hidden">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div class="flex items-center">
+                <i class="fas fa-mouse-pointer text-blue-500 mr-2"></i>
+                <span class="text-blue-800 font-medium">Visual Selection Method</span>
+              </div>
+              <p class="text-blue-700 text-sm mt-1">Click on page previews to select pages for deletion. Selected pages will be highlighted in red.</p>
+            </div>
+            <!-- Preview container will be dynamically inserted here -->
+            <div id="delete-pages-preview-container"></div>
           </div>
-          <div id="range-pages-input" class="hidden">
-            <label for="deletePages-range" class="block text-sm font-medium text-gray-600 mb-1">Page Range (e.g.,
-              10-23)</label>
-            <input type="text" id="deletePages-range" name="range" placeholder="Enter range (e.g., 10-23)"
-              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+          
+          <!-- Text Method Interface -->
+          <div id="text-method-interface" class="hidden">
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <div class="flex items-center">
+                <i class="fas fa-keyboard text-green-500 mr-2"></i>
+                <span class="text-green-800 font-medium">Text Input Method</span>
+              </div>
+              <p class="text-green-700 text-sm mt-1">Enter page numbers manually using the options below.</p>
+            </div>
+            
+            <div class="space-y-4">
+              <!-- <div>
+                <label for="deletePages-type" class="block text-sm font-medium text-gray-600 mb-1">Delete Pages By</label>
+                <select id="deletePages-type" name="delete_type" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent" onchange="toggleDeleteInputs()">
+                  <option value="specific">Specific Pages</option>
+                  <option value="range">Page Range</option>
+                </select>
+              </div> -->
+
+              <div id="specific-pages-input">
+                <label for="deletePages-specific" class="block text-sm font-medium text-gray-600 mb-1">
+                  Pages to Delete (e.g., 1,3,5-10,17)
+                </label>
+                <input type="text" id="deletePages-specific" name="pages" 
+                       placeholder="Enter pages or ranges (e.g., 1,3,5-10,17)" 
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+              </div>
+              
+              <!-- Remove or hide the range input since it's no longer needed -->
+              <div id="range-pages-input" class="hidden">
+                <label for="deletePages-range" class="block text-sm font-medium text-gray-600 mb-1">Page Range (e.g., 10-23)</label>
+                <input type="text" id="deletePages-range" name="range" placeholder="Enter range (e.g., 10-23)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+              </div>
+              
+              <!-- <div id="specific-pages-input">
+                <label for="deletePages-specific" class="block text-sm font-medium text-gray-600 mb-1">Specific Pages (e.g., 1,12,32)</label>
+                <input type="text" id="deletePages-specific" name="pages" placeholder="Enter pages (e.g., 1,12,32)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+              </div>
+              
+              <div id="range-pages-input" class="hidden">
+                <label for="deletePages-range" class="block text-sm font-medium text-gray-600 mb-1">Page Range (e.g., 10-23)</label>
+                <input type="text" id="deletePages-range" name="range" placeholder="Enter range (e.g., 10-23)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+              </div> -->
+              
+              <button type="button" onclick="processTextBasedDeletion()" class="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                <i class="fas fa-trash-alt mr-2"></i> Delete Pages (Text Method)
+              </button>
+            </div>
           </div>
-          <button type="button" onclick="processPDF('delete_pdf_pages', 'deletePagesForm')"
-            class="w-full bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-            <i class="fas fa-trash-alt mr-2"></i> Delete Pages
-          </button>
+          
+          <!-- Common Progress and Result Areas -->
           <div class="progress" id="progress-deletePagesForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
             <div class="progress-text" id="progress-text-deletePagesForm"></div>
           </div>
           <p id="result-deletePagesForm" class="text-sm text-center"></p>
         </form>
-
-
-
       </div>
     </div>
     <!-- Convert PDF to Word -->
@@ -975,9 +1117,15 @@
               </div>
             </div>
           </div>
-          <button type="button" onclick="processPDF('convert_pdf_to_ppt', 'pdfToPptForm')"
+
+          <button type="button" onclick="convertPDFToPPTClientSide()"
             class="w-full bg-orange-600 text-white p-3 rounded-lg hover:bg-orange-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-            <i class="fas fa-file-powerpoint mr-2"></i> Convert to PowerPoint </button>
+            <i class="fas fa-file-powerpoint mr-2"></i> Convert to PowerPoint
+          </button>
+
+          <!-- <button type="button" onclick="processPDF('convert_pdf_to_ppt', 'pdfToPptForm')"
+            class="w-full bg-orange-600 text-white p-3 rounded-lg hover:bg-orange-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+            <i class="fas fa-file-powerpoint mr-2"></i> Convert to PowerPoint </button> -->
           <div class="progress" id="progress-pdfToPptForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
             <div class="progress-text" id="progress-text-pdfToPptForm"></div>
@@ -1046,12 +1194,12 @@
             <label for="description-position">Description Position<span class="required"></span></label>
             <select id="description-position" name="description_position" required>
               <option value="top-center">Top Center</option>
-              <option value="bottom">Bottom</option>
+              <option value="bottom-center" selected>Bottom Center</option> <!-- Added selected -->
               <option value="top">Top</option>
               <option value="top-left">Top Left</option>
               <option value="top-right">Top Right</option>
+              <option value="bottom">Bottom</option>
               <option value="bottom-left">Bottom Left</option>
-              <option value="bottom-center">Bottom Center</option>
               <option value="bottom-right">Bottom Right</option>
               <option value="custom">Custom</option>
             </select>
@@ -1113,8 +1261,9 @@
             </select>
           </div>
           <div class="form-actions">
-            <button type="button" onclick="processPDF('convert_image_to_pdf', 'imageToPdfForm')"
-              class="submit-button">Convert to PDF</button>
+            <button type="button" onclick="convertImageToPDFClientSide()" class="submit-button">Convert to PDF </button>
+            <!-- <button type="button" onclick="processPDF('convert_image_to_pdf', 'imageToPdfForm')"
+              class="submit-button">Convert to PDF</button> -->
           </div>
           <div id="progress-imageToPdfForm" class="progress-container hidden">
             <progress value="0" max="100" aria-label="Conversion progress"></progress>
@@ -1182,6 +1331,8 @@
             <input type="password" id="removePassword-password" name="password" placeholder="Enter password" required
               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
           </div>
+
+
           <button type="button" onclick="processPDF('remove_pdf_password', 'removePasswordForm')"
             class="w-full bg-orange-600 text-white p-3 rounded-lg hover:bg-orange-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
             <i class="fas fa-unlock mr-2"></i> Remove Password </button>
@@ -1221,10 +1372,11 @@
               <div id="page-list"></div>
             </div>
             <input type="hidden" id="reorder-page-order" name="page_order">
-            <button type="button"
-              onclick="updatePageOrder(document.querySelectorAll('.page-preview')); processPDF('reorder_pages', 'reorderForm')"
+            <button type="button" id="reorder-submit-btn"
+              onclick="updatePageOrder(document.querySelectorAll('.page-preview')); reorderPDFPagesClientSide()"
               class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-              <i class="fas fa-sort-numeric-up mr-2"></i> Reorder and Download </button>
+              <i class="fas fa-sort-numeric-up mr-2"></i> Reorder and Download
+            </button>
             <div class="progress" id="progress-reorderForm">
               <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
               <div class="progress-text" id="progress-text-reorderForm"></div>
@@ -1280,9 +1432,15 @@
                 <option value="x">1, 2, 3, ...</option>
               </select>
             </div>
-            <button type="button" onclick="processPDF('add_page_numbers', 'pageNumbersForm')"
+
+            <!-- In your pageNumbers-section -->
+            <button type="button" onclick="addPageNumbersClientSide()"
               class="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-              <i class="fas fa-list-ol mr-2"></i> Add Page Numbers </button>
+              <i class="fas fa-list-ol mr-2"></i> Add Page Numbers
+            </button>
+            <!-- <button type="button" onclick="processPDF('add_page_numbers', 'pageNumbersForm')"
+              class="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+              <i class="fas fa-list-ol mr-2"></i> Add Page Numbers </button> -->
             <div class="progress" id="progress-pageNumbersForm">
               <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
               <div class="progress-text" id="progress-text-pageNumbersForm"></div>
@@ -1350,9 +1508,11 @@
               <label for="signature-size" class="block text-sm font-medium text-gray-600 mb-1">Size</label>
               <select id="signature-size" name="size"
                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                <option value="xsmall">Extra Small</option>
                 <option value="small">Small</option>
                 <option value="medium">Medium</option>
                 <option value="large">Large</option>
+                <option value="xlarge">Extra Large</option>
               </select>
             </div>
             <div>
@@ -1381,7 +1541,7 @@
 
             <button type="button" onclick="processSignatureClientSide()"
               class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-              <i class="fas fa-signature mr-2"></i> Add Signature (Client-Side)
+              <i class="fas fa-signature mr-2"></i> Add Signature
             </button>
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
             <div class="progress-text" id="progress-text-signatureForm"></div>
@@ -1917,6 +2077,31 @@
 
 
     // ///////
+    //  pdf title toggle
+
+
+    function toggleInfo(infoId) {
+    const infoDiv = document.getElementById(infoId);
+    if (infoDiv) {
+        infoDiv.classList.toggle('hidden');
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            if (!infoDiv.classList.contains('hidden')) {
+                infoDiv.classList.add('hidden');
+            }
+        }, 10000);
+    }
+}
+
+// Close info boxes when clicking elsewhere
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('button') && !event.target.closest('.fa-info-circle')) {
+        document.querySelectorAll('[id^="info"]').forEach(info => {
+            info.classList.add('hidden');
+        });
+    }
+});
 
 
   </script>

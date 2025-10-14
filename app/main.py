@@ -2195,6 +2195,11 @@ async def add_signature_endpoint(
 @app.post("/remove_background")
 async def remove_background_endpoint(file: UploadFile = File(...)):
     logger.info(f"Received remove background request for {file.filename}")
+    
+    MAX_FILE_SIZE_MB = 20  # Add this line
+    if file.size / (1024 * 1024) > MAX_FILE_SIZE_MB:
+        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE_MB}MB limit")
+
     try:
         if not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="Uploaded file must be an image")
