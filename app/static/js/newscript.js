@@ -245,11 +245,11 @@ function toggleDeleteInputs() {
     const deleteType = document.getElementById('deletePages-type');
     const specificInput = document.getElementById('specific-pages-input');
     const rangeInput = document.getElementById('range-pages-input');
-    
+
     // Always show specific input (now supports both), hide range input
     specificInput.classList.remove('hidden');
     rangeInput.classList.add('hidden');
-    
+
     // Update placeholder based on selection (optional)
     const inputField = document.getElementById('deletePages-specific');
     if (deleteType.value === 'specific') {
@@ -544,10 +544,10 @@ async function processTextBasedDeletion() {
 
         // Parse combined input (supports both specific pages and ranges)
         const parts = inputValue.split(',');
-        
+
         for (let part of parts) {
             part = part.trim();
-            
+
             if (part.includes('-')) {
                 // Handle range (e.g., "5-10")
                 const rangeMatch = part.match(/^(\d+)-(\d+)$/);
@@ -555,16 +555,16 @@ async function processTextBasedDeletion() {
                     alert(`Invalid range format: "${part}". Use format like 5-10`);
                     return;
                 }
-                
+
                 const start = parseInt(rangeMatch[1]);
                 const end = parseInt(rangeMatch[2]);
-                
+
                 // Validate range
                 if (start < 1 || end > totalPages || start > end) {
                     alert(`Invalid range ${start}-${end}. PDF has ${totalPages} pages.`);
                     return;
                 }
-                
+
                 // Add all pages in range
                 for (let i = start; i <= end; i++) {
                     pagesToDelete.push(i);
@@ -572,17 +572,17 @@ async function processTextBasedDeletion() {
             } else {
                 // Handle single page (e.g., "1", "3", "17")
                 const pageNum = parseInt(part);
-                
+
                 if (isNaN(pageNum) || pageNum < 1) {
                     alert(`Invalid page number: "${part}". Please enter valid numbers.`);
                     return;
                 }
-                
+
                 if (pageNum > totalPages) {
                     alert(`Page ${pageNum} exceeds total pages (${totalPages}).`);
                     return;
                 }
-                
+
                 pagesToDelete.push(pageNum);
             }
         }
@@ -1607,7 +1607,11 @@ async function convertPDFToPPTClientSide() {
         alert('Please select a PDF file.');
         return;
     }
-    if (file.size > 150 * 1024 * 1024) { alert("Use PDF less than 150 mb"); return; }
+    if (file.size > 150 * 1024 * 1024) {
+        alert("Use PDF less than 150 mb");
+        return;
+    }
+
     // Show progress
     progressDiv.style.display = 'block';
     progressText.textContent = 'Starting conversion...';
@@ -1624,18 +1628,23 @@ async function convertPDFToPPTClientSide() {
 
         const { PDFDocument } = PDFLib;
 
-        // Load PDF
+        // Load PDF and create a copy for PDF.js
         const pdfBytes = await file.arrayBuffer();
+
+        // Create a copy of the ArrayBuffer for PDF.js to prevent detachment issues
+        const pdfBytesCopy = pdfBytes.slice(0);
+
         const pdfDoc = await PDFDocument.load(pdfBytes);
         const numPages = pdfDoc.getPageCount();
 
         console.log(`Processing ${numPages} pages for PPT conversion...`);
-
         if (conversionType === 'image') {
-            // Image-based conversion (pages as images in PPT)
             progressText.textContent = 'Converting pages to images...';
 
             const pptx = new PptxGenJS();
+            pptx.layout = 'LAYOUT_WIDE';
+
+            const pdfjsDoc = await pdfjsLib.getDocument({ data: pdfBytesCopy }).promise;
 
             for (let i = 0; i < numPages; i++) {
                 const progress = Math.round((i / numPages) * 80);
@@ -1644,57 +1653,75 @@ async function convertPDFToPPTClientSide() {
                 const page = pdfDoc.getPage(i);
                 const { width, height } = page.getSize();
 
-                // Create canvas for rendering
+                // Adaptive scaling based on page size
+                const maxDimension = width > 2000 || height > 2000 ? 800 : 1200;
+                const scale = Math.min(maxDimension / Math.max(width, height), 2);
+
                 const canvas = document.createElement('canvas');
-                const scale = 2; // Higher resolution for better quality
-                canvas.width = width * scale;
-                canvas.height = height * scale;
+                canvas.width = Math.floor(width * scale);
+                canvas.height = Math.floor(height * scale);
 
                 const context = canvas.getContext('2d');
                 context.fillStyle = 'white';
                 context.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Render PDF page to canvas
-                const pdfjsPage = await pdfjsLib.getDocument({ data: pdfBytes }).promise.then(pdf => pdf.getPage(i + 1));
-                const viewport = pdfjsPage.getViewport({ scale });
+                const pdfjsPage = await pdfjsDoc.getPage(i + 1);
+                const viewport = pdfjsPage.getViewport({ scale: scale });
 
                 await pdfjsPage.render({
                     canvasContext: context,
                     viewport: viewport
                 }).promise;
 
-                // Convert canvas to image
-                const imageData = canvas.toDataURL('image/png', 0.8);
+                // Adaptive quality based on content
+                const hasComplexGraphics = canvas.width > 1000 || canvas.height > 1000;
+                const quality = hasComplexGraphics ? 0.7 : 0.8;
+                const format = hasComplexGraphics ? 'image/jpeg' : 'image/png';
 
-                // Add slide with image
+                const imageData = canvas.toDataURL(format, quality);
+
                 const slide = pptx.addSlide();
+
+                // Fit to slide with proper margins
+                const aspectRatio = width / height;
+                // const maxWidth = 9.5;
+                // const maxHeight = 6.5;
+                // const maxWidth = 9.8;  // Increased from 9.5
+                // const maxHeight = 7.0; // Increased from 6.5
+                const maxWidth = 9.9;  // Almost full width
+                const maxHeight = 7.4; // Almost full height
+
+                let imgWidth, imgHeight;
+                if (aspectRatio > maxWidth / maxHeight) {
+                    imgWidth = maxWidth;
+                    imgHeight = maxWidth / aspectRatio;
+                } else {
+                    imgHeight = maxHeight;
+                    imgWidth = maxHeight * aspectRatio;
+                }
+
+                const xOffset = (10 - imgWidth) / 2 + 1.4;
+                const yOffset = (7.5 - imgHeight) / 2;
+
                 slide.addImage({
                     data: imageData,
-                    x: 0.5,
-                    y: 0.5,
-                    w: 9,
-                    h: 6,
-                    sizing: { type: 'contain', w: 9, h: 6 }
+                    x: xOffset,
+                    y: yOffset,
+                    w: imgWidth,
+                    h: imgHeight,
+                    sizing: { type: 'contain' }
                 });
 
-                // Clean up
                 canvas.remove();
             }
 
             progressText.textContent = 'Generating PowerPoint file...';
+            await pptx.writeFile({
+                fileName: `converted_${file.name.replace('.pdf', '')}.pptx`
+            });
+        }
 
-            // Generate and download PPT
-            const pptBlob = await pptx.writeFile({ outputType: 'blob' });
-            const url = URL.createObjectURL(pptBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `converted_${file.name.replace('.pdf', '')}.pptx`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-        } else {
+        else {
             // Editable text conversion (basic implementation)
             throw new Error('Editable conversion requires server processing. Please use image-based conversion for client-side.');
         }
@@ -1703,7 +1730,6 @@ async function convertPDFToPPTClientSide() {
             <div class="text-green-600">
                 ✅ <strong>PDF to PowerPoint Conversion Successful!</strong><br>
                 📊 Converted ${numPages} pages to PowerPoint<br>
-               
             </div>
         `;
 
@@ -1713,7 +1739,7 @@ async function convertPDFToPPTClientSide() {
         resultDiv.innerHTML = `
             <div class="text-red-600">
                 ❌ Conversion failed: ${error.message}<br>
-                <small>Falling back to server processing...</small>
+                <small>Falling back to other processing...</small>
             </div>
         `;
 
@@ -1728,6 +1754,152 @@ async function convertPDFToPPTClientSide() {
         submitButton.innerHTML = '<i class="fas fa-file-powerpoint mr-2"></i> Convert to PowerPoint';
     }
 }
+
+// async function convertPDFToPPTClientSide() {
+//     console.log('Starting client-side PDF to PPT conversion...');
+
+//     const form = document.getElementById('pdfToPptForm');
+//     const fileInput = document.getElementById('pdfToPpt-file');
+//     const resultDiv = document.getElementById('result-pdfToPptForm');
+//     const progressDiv = document.getElementById('progress-pdfToPptForm');
+//     const progressText = document.getElementById('progress-text-pdfToPptForm');
+//     const submitButton = form.querySelector('button[type="button"]');
+//     const conversionType = form.querySelector('input[name="conversionType"]:checked').value;
+
+//     // Validation
+//     if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+//         alert('Please select a PDF file.');
+//         return;
+//     }
+
+//     const file = fileInput.files[0];
+
+//     // Validate file type
+//     if (file.type !== 'application/pdf') {
+//         alert('Please select a PDF file.');
+//         return;
+//     }
+//     if (file.size > 150 * 1024 * 1024) { alert("Use PDF less than 150 mb"); return; }
+//     // Show progress
+//     progressDiv.style.display = 'block';
+//     progressText.textContent = 'Starting conversion...';
+//     submitButton.disabled = true;
+//     submitButton.innerHTML = '<i class="fas fa-file-powerpoint mr-2"></i> Converting...';
+
+//     try {
+//         progressText.textContent = 'Loading PDF...';
+
+//         // Check if required libraries are available
+//         if (typeof PDFLib === 'undefined') {
+//             throw new Error('PDF library not loaded. Please refresh the page.');
+//         }
+
+//         const { PDFDocument } = PDFLib;
+
+//         // Load PDF
+//         const pdfBytes = await file.arrayBuffer();
+//         const pdfDoc = await PDFDocument.load(pdfBytes);
+//         const numPages = pdfDoc.getPageCount();
+
+//         console.log(`Processing ${numPages} pages for PPT conversion...`);
+
+//         if (conversionType === 'image') {
+//             // Image-based conversion (pages as images in PPT)
+//             progressText.textContent = 'Converting pages to images...';
+
+//             const pptx = new PptxGenJS();
+
+//             for (let i = 0; i < numPages; i++) {
+//                 const progress = Math.round((i / numPages) * 80);
+//                 progressText.textContent = `Processing page ${i + 1}/${numPages}... (${progress}%)`;
+
+//                 const page = pdfDoc.getPage(i);
+//                 const { width, height } = page.getSize();
+
+//                 // Create canvas for rendering
+//                 const canvas = document.createElement('canvas');
+//                 const scale = 2; // Higher resolution for better quality
+//                 canvas.width = width * scale;
+//                 canvas.height = height * scale;
+
+//                 const context = canvas.getContext('2d');
+//                 context.fillStyle = 'white';
+//                 context.fillRect(0, 0, canvas.width, canvas.height);
+
+//                 // Render PDF page to canvas
+//                 const pdfjsPage = await pdfjsLib.getDocument({ data: pdfBytes }).promise.then(pdf => pdf.getPage(i + 1));
+//                 const viewport = pdfjsPage.getViewport({ scale });
+
+//                 await pdfjsPage.render({
+//                     canvasContext: context,
+//                     viewport: viewport
+//                 }).promise;
+
+//                 // Convert canvas to image
+//                 const imageData = canvas.toDataURL('image/png', 0.8);
+
+//                 // Add slide with image
+//                 const slide = pptx.addSlide();
+//                 slide.addImage({
+//                     data: imageData,
+//                     x: 0.5,
+//                     y: 0.5,
+//                     w: 9,
+//                     h: 6,
+//                     sizing: { type: 'contain', w: 9, h: 6 }
+//                 });
+
+//                 // Clean up
+//                 canvas.remove();
+//             }
+
+//             progressText.textContent = 'Generating PowerPoint file...';
+
+//             // Generate and download PPT
+//             const pptBlob = await pptx.writeFile({ outputType: 'blob' });
+//             const url = URL.createObjectURL(pptBlob);
+//             const a = document.createElement('a');
+//             a.href = url;
+//             a.download = `converted_${file.name.replace('.pdf', '')}.pptx`;
+//             document.body.appendChild(a);
+//             a.click();
+//             document.body.removeChild(a);
+//             URL.revokeObjectURL(url);
+
+//         } else {
+//             // Editable text conversion (basic implementation)
+//             throw new Error('Editable conversion requires server processing. Please use image-based conversion for client-side.');
+//         }
+
+//         resultDiv.innerHTML = `
+//             <div class="text-green-600">
+//                 ✅ <strong>PDF to PowerPoint Conversion Successful!</strong><br>
+//                 📊 Converted ${numPages} pages to PowerPoint<br>
+
+//             </div>
+//         `;
+
+//     } catch (error) {
+//         console.error('PDF to PPT conversion failed:', error);
+
+//         resultDiv.innerHTML = `
+//             <div class="text-red-600">
+//                 ❌ Conversion failed: ${error.message}<br>
+//                 <small>Falling back to server processing...</small>
+//             </div>
+//         `;
+
+//         // Fallback to server processing
+//         setTimeout(() => {
+//             processPDF('convert_pdf_to_ppt', 'pdfToPptForm');
+//         }, 2000);
+
+//     } finally {
+//         progressDiv.style.display = 'none';
+//         submitButton.disabled = false;
+//         submitButton.innerHTML = '<i class="fas fa-file-powerpoint mr-2"></i> Convert to PowerPoint';
+//     }
+// }
 
 
 // IMAGE TO PDF
@@ -2682,7 +2854,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (methodSelect) {
         // methodSelect.value = 'text';
         methodSelect.addEventListener('change', toggleDeleteMethod);
-       
+
     }
     toggleDeleteMethod();
 

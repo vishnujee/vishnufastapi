@@ -1086,11 +1086,16 @@
 
     <!-- Convert PDF to PowerPoint -->
     <div id="pdfToPpt-section" class="tool-section" style="display: none;">
+      <h4 style="color: #05ee37; font-size: larger;">Note : PDFs Don’t Support Teams’ Presentation Mode.</h4> <br> <h4 style="color: #05ee37; font-size: larger;margin-top: -26px;">The reason you are here.</h4>
       <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+      
         <div class="flex items-center mb-4">
+          
           <div class="bg-blue-100 p-2 rounded-full mr-3">
+            
             <i class="fas fa-file-powerpoint text-orange-600 text-xl"></i>
           </div>
+       
           <h2 class="text-2xl font-semibold text-gray-800">Convert PDF to PowerPoint</h2>
         </div>
         <form id="pdfToPptForm" class="space-y-4">
@@ -1108,8 +1113,8 @@
           <div class="conversion-options">
             <div class="flex items-center space-x-4">
               <div class="flex items-center">
-                <input type="radio" id="imageBased" name="conversionType" value="image" checked class="mr-2">
-                <label for="imageBased" class="text-sm text-gray-700">Image-based</label>
+                <input type="radio" id="imageBased" name="conversionType" style="display: none;" value="image" checked class="mr-2">
+                <label for="imageBased" class="text-sm text-gray-700" style="display: none;">Image-based</label>
               </div>
               <div class="flex items-center" style="display: none;">
                 <input type="radio" id="editable" name="conversionType" value="editable" class="mr-2">
@@ -1410,17 +1415,19 @@
               <label for="pageNumbers-position" class="block text-sm font-medium text-gray-600 mb-1">Position</label>
               <select id="pageNumbers-position" name="position"
                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                <option value="top">Top</option>
+              
                 <option value="bottom">Bottom</option>
+                <option value="top">Top</option>
               </select>
             </div>
             <div>
               <label for="pageNumbers-alignment" class="block text-sm font-medium text-gray-600 mb-1">Alignment</label>
               <select id="pageNumbers-alignment" name="alignment"
                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                <option value="left">Left</option>
+                
                 <option value="center">Center</option>
                 <option value="right">Right</option>
+                <option value="left">Left</option>
               </select>
             </div>
             <div>
@@ -1509,7 +1516,7 @@
               <select id="signature-size" name="size"
                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                 <option value="xsmall">Extra Small</option>
-                <option value="small">Small</option>
+                <option value="small" selected>Small</option>
                 <option value="medium">Medium</option>
                 <option value="large">Large</option>
                 <option value="xlarge">Extra Large</option>
