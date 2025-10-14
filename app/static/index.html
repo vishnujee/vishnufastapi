@@ -119,6 +119,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="/static/css/styles.css" rel="stylesheet">
   <script src="/static/js/script.js" defer></script>
+  <script src="/static/js/deletepage.js" defer></script>
   <script src="/static/js/newscript.js" defer></script>
   <script src="/static/js/memscript.js"></script>
   <style>
@@ -963,7 +964,7 @@
             <div class="flex items-center">
               <label class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
                 <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File 
-                <input type="file" id="deletePages-file" name="file" accept=".pdf" required class="hidden" onchange="displayTotalPages('deletePages-file', 'deletePages-total')">
+                <input type="file" id="deletePages-file" name="file" accept=".pdf" required class="hidden" onchange="handleFileSelectForDeletePages()">
               </label>
               <span id="deletePages-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
             </div>
@@ -981,12 +982,15 @@
           
           <!-- Visual Method Interface -->
           <div id="visual-method-interface" class="hidden">
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg mb-0" style="padding-left: 10px;">
               <div class="flex items-center">
                 <i class="fas fa-mouse-pointer text-blue-500 mr-2"></i>
                 <span class="text-blue-800 font-medium">Visual Selection Method</span>
               </div>
-              <p class="text-blue-700 text-sm mt-1">Click on page previews to select pages for deletion. Selected pages will be highlighted in red.</p>
+              <p class="text-blue-700 text-sm mt-1">Click on Reload preview, if page preview not showing .</p>
+              <br>
+
+          
             </div>
             <!-- Preview container will be dynamically inserted here -->
             <div id="delete-pages-preview-container"></div>
@@ -1003,13 +1007,7 @@
             </div>
             
             <div class="space-y-4">
-              <!-- <div>
-                <label for="deletePages-type" class="block text-sm font-medium text-gray-600 mb-1">Delete Pages By</label>
-                <select id="deletePages-type" name="delete_type" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent" onchange="toggleDeleteInputs()">
-                  <option value="specific">Specific Pages</option>
-                  <option value="range">Page Range</option>
-                </select>
-              </div> -->
+     
 
               <div id="specific-pages-input">
                 <label for="deletePages-specific" class="block text-sm font-medium text-gray-600 mb-1">
@@ -1025,16 +1023,7 @@
                 <label for="deletePages-range" class="block text-sm font-medium text-gray-600 mb-1">Page Range (e.g., 10-23)</label>
                 <input type="text" id="deletePages-range" name="range" placeholder="Enter range (e.g., 10-23)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
               </div>
-              
-              <!-- <div id="specific-pages-input">
-                <label for="deletePages-specific" class="block text-sm font-medium text-gray-600 mb-1">Specific Pages (e.g., 1,12,32)</label>
-                <input type="text" id="deletePages-specific" name="pages" placeholder="Enter pages (e.g., 1,12,32)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
-              </div>
-              
-              <div id="range-pages-input" class="hidden">
-                <label for="deletePages-range" class="block text-sm font-medium text-gray-600 mb-1">Page Range (e.g., 10-23)</label>
-                <input type="text" id="deletePages-range" name="range" placeholder="Enter range (e.g., 10-23)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
-              </div> -->
+   
               
               <button type="button" onclick="processTextBasedDeletion()" class="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
                 <i class="fas fa-trash-alt mr-2"></i> Delete Pages (Text Method)
