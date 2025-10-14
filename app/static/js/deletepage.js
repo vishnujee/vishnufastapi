@@ -187,6 +187,10 @@ async function loadDeletePagePreviews(file) {
     const previewContainer = ensurePreviewContainerExists();
 
     // Clear existing content but keep the container
+    //  you can below button in below html
+//     <button type="button" onclick="deletePDFPagesClientSide()" class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">
+//     <i class="fas fa-sync-alt mr-2"></i>Reload Previews
+// </button>
     previewContainer.innerHTML = `
         <div class="mb-4">
             <h3 class="text-lg font-semibold text-gray-800 mb-3">Select Pages to Delete</h3>
@@ -198,9 +202,7 @@ async function loadDeletePagePreviews(file) {
                 <button type="button" id="deselect-all-pages" class="px-4 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors">
                     <i class="fas fa-times-circle mr-2"></i>Deselect All
                 </button>
-                <button type="button" onclick="deletePDFPagesClientSide()" class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">
-                    <i class="fas fa-sync-alt mr-2"></i>Reload Previews
-                </button>
+              
                 <button type="button" id="confirm-deletion" class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors ml-auto font-semibold">
                     <i class="fas fa-trash-alt mr-2"></i>Delete Selected Pages
                 </button>
@@ -643,10 +645,27 @@ async function processSelectedPagesDeletion(file) {
         `;
 
         // Clear preview container but don't remove it
+        // const previewContainer = document.getElementById('delete-pages-preview-container');
+        // if (previewContainer) {
+        //     previewContainer.innerHTML = '';
+        // }
+
         const previewContainer = document.getElementById('delete-pages-preview-container');
-        if (previewContainer) {
-            previewContainer.innerHTML = '';
-        }
+if (previewContainer) {
+    previewContainer.innerHTML = `
+        <div class="text-center py-8">
+            <div class="mb-4">
+                <i class="fas fa-check-circle text-green-500 text-4xl"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Pages Deleted Successfully!</h3>
+            <p class="text-gray-600 mb-4">If you want again Page preview , Click Reload Previews below.</p>
+            <button type="button" onclick="deletePDFPagesClientSide()" 
+                    class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">
+                <i class="fas fa-sync-alt mr-2"></i>Reload Previews
+            </button>
+        </div>
+    `;
+}
 
     } catch (error) {
         console.error('Page deletion failed:', error);
