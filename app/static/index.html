@@ -272,7 +272,7 @@
           <a href="https://filestoragep2p.azurewebsites.net/"
             class="nav-link text-xl text-gray-700 hover:text-green-600">P2P File Transfer</a>
 
-          <a href="#chat" class="nav-link text-xl text-gray-700 hover:text-green-600"
+          <a href="#chat" class="nav-link text-xl text-gray-700 hover:text-green-600" style="margin-top: 0px;"
             onclick="showTool('chat-section')">AI Chat</a>
           <div class="dropdown relative">
             <button class="nav-link text-xl text-gray-700 hover:text-green-600 flex items-center"> PDF Tools <i
@@ -316,9 +316,10 @@
           <a href="#" class="nav-link text-xl text-gray-700 hover:text-green-600"
             onclick="window.location.href='/static/videos.html'"> Videos </a>
         </div>
-        <button class="md:hidden text-gray-700" id="mobile-menu-button">
-          <i class="fas fa-bars text-xl"></i>
-        </button>
+      <!-- Larger version -->
+<button class="md:hidden text-gray-900 p-3" id="mobile-menu-button">
+  <i class="fas fa-bars text-3xl"></i>
+</button>
       </div>
       <!-- Mobile menu -->
       <div class="md:hidden hidden bg-white py-2 px-4" id="mobile-menu">
@@ -326,7 +327,7 @@
           class="nav-link text-xl text-gray-700 hover:text-green-600">Blogs</a>
         <br> <a href="https://filestoragep2p.azurewebsites.net/"
           class="nav-link text-xl text-gray-700 hover:text-green-600" style="line-height: 2.5rem;">P2P File Transfer</a>
-        <br><a href="#chat" class="block py-2 text-xl text-gray-700 hover:text-green-600"
+        <br><a href="#chat" class="block py-0 text-xl text-gray-700 hover:text-green-600" style="margin-bottom: 0px;"
           onclick="showTool('chat-section')">AI Chat</a>
         <div class="py-2">
           <button class="flex items-center text-lg justify-between w-full text-gray-700 hover:text-green-600"
@@ -1614,10 +1615,7 @@
       menuButton.querySelector('i').classList.toggle('fa-times');
     }
 
-    // function toggleMobileSubmenu() {
-    //   const mobileSubmenu = document.getElementById('mobile-submenu');
-    //   mobileSubmenu.classList.toggle('hidden');
-    // }
+ 
     function toggleMobileSubmenu() {
       const mobileSubmenu = document.getElementById('mobile-submenu');
       const mobileMenu = document.getElementById('mobile-menu');
@@ -1625,17 +1623,13 @@
       mobileSubmenu.classList.toggle('hidden');
 
       // If submenu is opened and main menu is visible, revert icon to hamburger
-      if (!mobileSubmenu.classList.contains('hidden') && !mobileMenu.classList.contains('hidden')) {
-        menuButton.querySelector('i').classList.remove('fa-times');
-        menuButton.querySelector('i').classList.add('fa-bars');
-      }
+      // if (!mobileSubmenu.classList.contains('hidden') && !mobileMenu.classList.contains('hidden')) {
+      //   menuButton.querySelector('i').classList.remove('fa-times');
+      //   menuButton.querySelector('i').classList.add('fa-bars');
+      // }
     }
     document.getElementById('mobile-menu-button').addEventListener('click', toggleMobileMenu);
-    // 
-    // function updatePageOrder(pages) {
-    //   const pageOrder = Array.from(pages).map(page => page.dataset.pageNum);
-    //   document.getElementById('reorder-page-order').value = pageOrder.join(',');
-    // }
+
     function updatePageOrder(pages) {
       const pageOrder = Array.from(pages).map(page => page.dataset.pageNum);
       document.getElementById('reorder-page-order').value = pageOrder.join(',');
