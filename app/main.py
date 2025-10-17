@@ -896,38 +896,38 @@ thread_pool = ThreadPoolExecutor(max_workers=4)
 
 # ====================== Startup Event ======================
 
-@app.on_event("startup")
-async def startup_event():
-    global retriever, llm
-    logger.info("🚀 Starting AI services initialization...")
+# @app.on_event("startup")
+# async def startup_event():
+#     global retriever, llm
+#     logger.info("🚀 Starting AI services initialization...")
     
-    try:
-        # Initialize only once at startup
-        index, embeddings = initialize_vectorstore()
-        retriever = PineconeRetriever(
-            index=index,
-            embeddings=embeddings,
-            search_type="similarity",
-            search_kwargs={
-                "k": 10,  # Increased for better coverage
-                "score_threshold": 0.3
-            }
-        )
-        llm = get_llm()
-        logger.info("✅ AI services initialized successfully")
-    except Exception as e:
-        logger.error(f"❌ Startup initialization failed: {e}", exc_info=True)
-        # Set fallback values
-        from langchain_core.retrievers import BaseRetriever
-        from langchain_core.documents import Document
+#     try:
+#         # Initialize only once at startup
+#         index, embeddings = initialize_vectorstore()
+#         retriever = PineconeRetriever(
+#             index=index,
+#             embeddings=embeddings,
+#             search_type="similarity",
+#             search_kwargs={
+#                 "k": 10,  # Increased for better coverage
+#                 "score_threshold": 0.3
+#             }
+#         )
+#         llm = get_llm()
+#         logger.info("✅ AI services initialized successfully")
+#     except Exception as e:
+#         logger.error(f"❌ Startup initialization failed: {e}", exc_info=True)
+#         # Set fallback values
+#         from langchain_core.retrievers import BaseRetriever
+#         from langchain_core.documents import Document
         
-        class FallbackRetriever(BaseRetriever):
-            def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
-                logger.warning("⚠️ Using fallback retriever")
-                return [Document(page_content="System initializing...", metadata={})]
+#         class FallbackRetriever(BaseRetriever):
+#             def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
+#                 logger.warning("⚠️ Using fallback retriever")
+#                 return [Document(page_content="System initializing...", metadata={})]
         
-        retriever = FallbackRetriever()
-        llm = get_llm()
+#         retriever = FallbackRetriever()
+#         llm = get_llm()
 
 
 

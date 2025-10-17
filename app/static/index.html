@@ -61,15 +61,7 @@
   <meta name="msapplication-TileColor" content="#4285f4">
   <meta name="msapplication-config" content="/browserconfig.xml">
 
-  <!--  script for real PDF encryption -->
-  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" defer></script>
-  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js" defer></script>
-  <script src="https://unpkg.com/downloadjs@1.4.7" defer></script>
+
 
   <!--  for chat -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
@@ -249,36 +241,36 @@
     }
 
     /* Minimal Toggle Switch  new implementation*/
-.toggle-container {
-  position: relative;
-  width: 44px;
-  height: 24px;
-  background-color: #d1d5db;
-  border-radius: 12px;
-  margin-right: 12px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
+    .toggle-container {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background-color: #d1d5db;
+      border-radius: 12px;
+      margin-right: 12px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
 
-.toggle-slider {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  background-color: white;
-  border-radius: 50%;
-  transition: transform 0.3s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
+    .toggle-slider {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background-color: white;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
 
-#mode-toggle:checked ~ .toggle-container {
-  background-color: #2563eb;
-}
+    #mode-toggle:checked~.toggle-container {
+      background-color: #2563eb;
+    }
 
-#mode-toggle:checked ~ .toggle-container .toggle-slider {
-  transform: translateX(20px);
-}
+    #mode-toggle:checked~.toggle-container .toggle-slider {
+      transform: translateX(20px);
+    }
   </style>
 </head>
 
@@ -847,7 +839,7 @@
           <!-- In your compress-section, change this line: -->
           <button type="button" onclick="compressPDFClientSide()"
             class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-            <i class="fas fa-compress-alt mr-2"></i> Compress PDF (Advanced)
+            <i class="fas fa-compress-alt mr-2"></i> Compress PDF
           </button>
           <button type="button" onclick="computeAllCompressionSizes()"
             class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
@@ -855,15 +847,20 @@
           <!-- <button onclick="cancelCompression()" class="bg-red-600 text-white px-4 py-2 rounded ml-2">
             <i class="fas fa-times mr-2"></i>Cancel Compression
           </button> -->
-          <div id="compression-results" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
-            <h3 class="text-lg font-medium text-gray-800 mb-2">Estimated Compression Sizes</h3>
-            <ul id="compression-sizes" class="text-sm text-gray-600 space-y-1"></ul>
-          </div>
           <div class="progress" id="progress-compressForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
             <div class="progress-text" id="progress-text-compressForm"></div>
           </div>
           <p id="result-compressForm" class="text-sm text-center"></p>
+          <div id="compression-results" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
+            <h3 class="text-lg font-medium text-gray-800 mb-2">Estimated Compression Sizes</h3>
+            <ul id="compression-sizes" class="text-sm text-gray-600 space-y-1"></ul>
+          </div>
+          <!-- <div class="progress" id="progress-compressForm">
+            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+            <div class="progress-text" id="progress-text-compressForm"></div>
+          </div>
+          <p id="result-compressForm" class="text-sm text-center"></p> -->
         </form>
       </div>
     </div>
@@ -1021,6 +1018,12 @@
             </select>
           </div>
 
+          <div class="progress" id="progress-deletePagesForm">
+            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+            <div class="progress-text" id="progress-text-deletePagesForm"></div>
+          </div>
+          <p id="result-deletePagesForm" class="text-sm text-center"></p>
+
           <!-- Visual Method Interface -->
           <div id="visual-method-interface" class="hidden">
             <!-- <div class="bg-blue-50 border border-blue-200 rounded-lg mb-0" style="padding-left: 10px;">
@@ -1076,11 +1079,11 @@
           </div>
 
           <!-- Common Progress and Result Areas -->
-          <div class="progress" id="progress-deletePagesForm">
+          <!-- <div class="progress" id="progress-deletePagesForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
             <div class="progress-text" id="progress-text-deletePagesForm"></div>
           </div>
-          <p id="result-deletePagesForm" class="text-sm text-center"></p>
+          <p id="result-deletePagesForm" class="text-sm text-center"></p> -->
         </form>
       </div>
     </div>
@@ -1428,6 +1431,13 @@
                 <span id="reorder-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
               </div>
             </div>
+            <!-- progress -->
+            <div class="progress" id="progress-reorderForm">
+              <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+              <div class="progress-text" id="progress-text-reorderForm"></div>
+            </div>
+            <p id="result-reorderForm" class="text-sm text-center"></p>
+            <!-- progress -->
             <div id="page-previews" class="hidden">
               <h3 class="text-lg font-medium text-gray-700 mb-2">Page Previews</h3>
               <div id="page-list"></div>
@@ -1438,11 +1448,11 @@
               class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
               <i class="fas fa-sort-numeric-up mr-2"></i> Reorder and Download
             </button>
-            <div class="progress" id="progress-reorderForm">
+            <!-- <div class="progress" id="progress-reorderForm">
               <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
               <div class="progress-text" id="progress-text-reorderForm"></div>
             </div>
-            <p id="result-reorderForm" class="text-sm text-center"></p>
+            <p id="result-reorderForm" class="text-sm text-center"></p> -->
           </form>
         </div>
       </div>
@@ -1556,6 +1566,10 @@
               <!-- <a href="#remove-background" >Remove Image Background for best result</a> -->
               <p>Remove Image Background for best result. Check in PDF Tools.</p>
 
+              <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+              <div class="progress-text" id="progress-text-signatureForm"></div>
+              <p id="result-signatureForm" class="text-sm text-center"></p>
+
             </div>
             <div id="signature-page-previews" class="hidden">
               <div class="flex items-center mb-2">
@@ -1606,10 +1620,10 @@
               class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
               <i class="fas fa-signature mr-2"></i> Add Signature
             </button>
-            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-            <div class="progress-text" id="progress-text-signatureForm"></div>
+            <!-- <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+            <div class="progress-text" id="progress-text-signatureForm"></div> -->
         </div>
-        <p id="result-signatureForm" class="text-sm text-center"></p>
+        <!-- <p id="result-signatureForm" class="text-sm text-center"></p> -->
         </form>
       </div>
     </div>
@@ -2161,6 +2175,29 @@
 
 
   </script>
+
+  <!--  script for real PDF encryption -->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" defer></script>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js" defer></script>
+  <script src="https://unpkg.com/downloadjs@1.4.7" defer></script> -->
+
+  <!-- local script -->
+  <script src="/static/js/pdflibra/pptxgen.bundle.js" defer></script>
+  <script src="/static/js/pdflibra/jspdf.umd.min.js" defer></script>
+  <script src="/static/js/pdflibra/jszip.min.js" defer></script>
+  <script src="/static/js/pdflibra/FileSaver.min.js" defer></script>
+  <script src="/static/js/pdflibra/pdf-lib.min.js" defer></script>
+  <script src="/static/js/pdflibra/pdf.min.js" defer></script>
+  <script src="/static/js/pdflibra/pdf.worker.min.js" defer></script>
+  <script src="/static/js/pdflibra/download.js" defer></script>
+
+
+
 </body>
 
 </html>
