@@ -73,6 +73,7 @@
 
 .nav-link {
     position: relative;
+    margin: 0 12px;
 }
 
 .nav-link::after {
@@ -621,7 +622,7 @@ input[type="range"]:focus {
 
 
 
-########## new css for chat mode
+
 
 
 /* Chat mode styles */
@@ -653,13 +654,4 @@ input[type="range"]:focus {
     cursor: not-allowed;
 }
 
-/* Toggle switch styling */
-.toggle-checkbox:checked {
-    right: 0;
-    border-color: #10b981;
-}
-
-.toggle-checkbox:checked + .toggle-label {
-    background-color: #10b981;
-}
 
