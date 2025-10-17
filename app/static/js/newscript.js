@@ -31,6 +31,12 @@ async function convertPDFToImagesClientSide() {
     submitButton.innerHTML = '<i class="fas fa-file-image mr-2"></i> Converting...';
 
     try {
+
+        // 🆕 LAZY LOADING: Load required libraries
+        const [pdfjs, jszip, fileSaver] = await pdfLibraryManager.loadLibraries([
+            'pdfjs', 'jszip', 'fileSaver'
+        ]);
+
         // Load PDF document
         const pdfBytes = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
@@ -119,6 +125,11 @@ async function convertPDFToImagesClientSide() {
 
 async function splitPDFClientSide() {
     console.log('Starting client-side PDF split...');
+
+    const [pdfLib, jszip, fileSaver] = await pdfLibraryManager.loadLibraries([
+        'pdfLib', 'jszip', 'fileSaver'
+    ]);
+    
 
     const form = document.getElementById('splitForm');
     const fileInput = document.getElementById('split-file');
@@ -218,6 +229,9 @@ async function splitPDFClientSide() {
 
 async function convertPDFToPPTClientSide() {
     console.log('Starting client-side PDF to PPT conversion...');
+    const [pdfjs, pptxgen, fileSaver] = await pdfLibraryManager.loadLibraries([
+        'pdfjs', 'pptxgen', 'fileSaver'
+    ]);
 
     const form = document.getElementById('pdfToPptForm');
     const fileInput = document.getElementById('pdfToPpt-file');
@@ -539,6 +553,10 @@ async function convertPDFToPPTClientSide() {
 
 async function convertImageToPDFClientSide() {
     console.log('Starting client-side Image to PDF conversion...');
+    const [jsPDF, fileSaver] = await pdfLibraryManager.loadLibraries([
+        'jsPDF', 'fileSaver'
+    ]);
+    
 
     const form = document.getElementById('imageToPdfForm');
     const fileInput = document.getElementById('imageToPdf-file');
@@ -818,6 +836,9 @@ function getPageDimensions(pageSize, orientation) {
 
 async function addPageNumbersClientSide() {
     console.log('Starting client-side page numbering...');
+    const [pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
+        'pdfLib', 'fileSaver'
+    ]);
 
     const form = document.getElementById('pageNumbersForm');
     const fileInput = document.getElementById('pageNumbers-file');
@@ -1274,6 +1295,9 @@ async function loadPagePreviewsClientSide(file, pageListElement) {
 // 🆕 FIXED: Enhanced reorder function with better validation
 async function reorderPDFPagesClientSide() {
     console.log('Starting client-side PDF page reordering...');
+    const [pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
+        'pdfLib', 'fileSaver'
+    ]);
 
     const form = document.getElementById('reorderForm');
     const fileInput = document.getElementById('reorder-file');

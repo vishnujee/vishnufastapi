@@ -42,9 +42,9 @@ async function compressPDFClientSide() {
         alert('Please select a PDF file.');
         return;
     }
-    if (file.size > 200 * 1024 * 1024) { 
-        alert("File too large than 200mb"); 
-        return; 
+    if (file.size > 200 * 1024 * 1024) {
+        alert("File too large than 200mb");
+        return;
     }
 
     // Show progress
@@ -54,6 +54,13 @@ async function compressPDFClientSide() {
     submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Compressing...';
 
     try {
+
+
+        // 🆕 LAZY LOADING: Load required libraries
+        const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
+            'pdfjs', 'pdfLib', 'fileSaver'
+        ]);
+
         // Get compression settings - UPDATED FOR ACCURACY
         const presetSelect = document.getElementById('compress-preset');
         const preset = presetSelect ? presetSelect.value : 'Medium';
@@ -261,19 +268,19 @@ async function estimateCompressedSize(file, dpi, quality) {
         // Calculate base size factors
         const baseOverhead = 5000; // PDF structure overhead in bytes
         const perPageOverhead = 2000; // Per page overhead
-        
+
         // DPI factor (higher DPI = larger files)
         const dpiFactor = Math.pow(dpi / 72, 1.5);
-        
+
         // Quality factor (non-linear relationship)
         const qualityFactor = Math.pow(quality, 0.7);
-        
+
         // Estimate based on original file characteristics
         const avgPageSize = file.size / numPages;
         const estimatedPerPageSize = avgPageSize * dpiFactor * qualityFactor * 0.3; // Empirical factor
-        
+
         const totalEstimatedSize = (baseOverhead + (estimatedPerPageSize * numPages)) / (1024 * 1024);
-        
+
         return Math.max(0.1, totalEstimatedSize).toFixed(2);
     } catch (error) {
         console.warn('Size estimation failed, using fallback:', error);
@@ -286,12 +293,12 @@ async function estimateCompressedSize(file, dpi, quality) {
 function calculateAccuracy(estimated, actual) {
     const est = parseFloat(estimated);
     const act = parseFloat(actual);
-    
+
     if (est === 0 || act === 0) return 0;
-    
+
     const error = Math.abs(est - act) / act;
     const accuracy = Math.max(0, (1 - error) * 100);
-    
+
     return Math.min(100, accuracy).toFixed(1);
 }
 
@@ -358,7 +365,7 @@ async function computeAllCompressionSizes() {
             { name: 'Low Compression', dpi: 95, quality: 0.95 },
             { name: 'New Compression', dpi: 100, quality: 0.85 }
         ];
-        
+
         // Add custom preset if Custom is selected
         if (currentPreset === 'Custom') {
             const customDpi = parseInt(document.getElementById('custom_dpi').value) || 120;
@@ -423,7 +430,7 @@ async function computeAllCompressionSizes() {
             try {
                 // First get estimated size
                 const estimatedSize = await estimateCompressedSize(file, preset.dpi, preset.quality);
-                
+
                 // Then get actual compressed size
                 const compressedBlob = await enhancedPDFCompression(
                     file,
@@ -451,7 +458,7 @@ async function computeAllCompressionSizes() {
                             </span>
                         </li>
                     `;
-                    
+
                     appendLog(`✓ ${preset.name}: Done`);
                 }
             } catch (error) {
@@ -538,7 +545,7 @@ function updateFileSize() {
         const file = fileInput.files[0];
         const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
         fileSizeDisplay.textContent = `Original File Size: ${sizeMB} MB`;
-        
+
         // Also show file characteristics for better prediction
         const fileInfo = document.getElementById('file-info');
         if (fileInfo) {
@@ -559,6 +566,9 @@ function updateFileSize() {
 
 async function processSignatureClientSide() {
     console.log('Starting client-side signature processing...');
+    const [pdfLib, pdfjs, fileSaver] = await pdfLibraryManager.loadLibraries([
+        'pdfLib', 'pdfjs', 'fileSaver'
+    ]);
 
     const form = document.getElementById('signatureForm');
     const pdfFileInput = document.getElementById('signature-pdf-file');
@@ -1036,6 +1046,11 @@ async function mergePDFsClientSide() {
     submitButton.innerHTML = '<i class="fas fa-object-group mr-2"></i> Merging...';
 
     try {
+
+        const [pdfLib, pdfjs, jszip, fileSaver] = await pdfLibraryManager.loadLibraries([
+            'pdfLib', 'pdfjs', 'jszip', 'fileSaver'
+        ]);
+
         progressText.textContent = 'Loading PDF files... (0%)';
 
         // 🆕 Use the orderedFiles instead of original files
@@ -2042,22 +2057,26 @@ async function sendChat() {
     }
 }
 
-
-
+// Enhanced tool selection with preloading
 function showTool(toolId) {
     localStorage.setItem('lastTool', toolId);
-    console.log("checking toolid ", toolId);
+    console.log("Showing tool:", toolId);
 
+    // Hide all sections
     document.querySelectorAll('.tool-section').forEach(section => {
         section.style.display = 'none';
     });
+    
+    // Show selected section
     const toolSection = document.getElementById(toolId);
     if (toolSection) {
         toolSection.style.display = 'block';
     }
-    // document.getElementById('chat-section').style.display = 'block';
 
-    // hide and show clear form
+    // 🆕 PRELOAD LIBRARIES for this tool
+    pdfLibraryManager.preloadForTool(toolId);
+
+    // Show/hide clear form button
     const clearBtn = document.getElementById('clear-all-btn-container');
     if (toolId === 'chat-section') {
         clearBtn.style.display = 'none';
@@ -2065,7 +2084,7 @@ function showTool(toolId) {
         clearBtn.style.display = 'block';
     }
 
-    // 
+    // Update navigation styling
     document.querySelectorAll('.nav-link, .dropdown-content a').forEach(link => {
         link.classList.remove('text-green-600');
         link.classList.add('text-blue-600');
@@ -2075,7 +2094,7 @@ function showTool(toolId) {
         event.currentTarget.classList.add('text-green-600');
     }
 
-    // Updated mobile dropdown handling
+    // Mobile menu handling
     const mobileMenu = document.querySelector('#mobile-menu');
     const mobileSubmenu = document.querySelector('#mobile-submenu');
     const menuButton = document.querySelector('#mobile-menu-button');
@@ -2090,6 +2109,67 @@ function showTool(toolId) {
         }
     }
 }
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Preload common libraries in background
+    pdfLibraryManager.loadLibrary('fileSaver').catch(console.warn);
+    pdfLibraryManager.loadLibrary('jszip').catch(console.warn);
+    
+    // Show last used tool or chat by default
+    const lastTool = localStorage.getItem('lastTool') || 'chat-section';
+    showTool(lastTool);
+    
+    console.log('PDF Library Manager initialized');
+    console.log('Library status:', pdfLibraryManager.getStatus());
+});
+
+// function showTool(toolId) {
+//     localStorage.setItem('lastTool', toolId);
+//     console.log("checking toolid ", toolId);
+
+//     document.querySelectorAll('.tool-section').forEach(section => {
+//         section.style.display = 'none';
+//     });
+//     const toolSection = document.getElementById(toolId);
+//     if (toolSection) {
+//         toolSection.style.display = 'block';
+//     }
+//     // document.getElementById('chat-section').style.display = 'block';
+
+//     // hide and show clear form
+//     const clearBtn = document.getElementById('clear-all-btn-container');
+//     if (toolId === 'chat-section') {
+//         clearBtn.style.display = 'none';
+//     } else {
+//         clearBtn.style.display = 'block';
+//     }
+
+//     // 
+//     document.querySelectorAll('.nav-link, .dropdown-content a').forEach(link => {
+//         link.classList.remove('text-green-600');
+//         link.classList.add('text-blue-600');
+//     });
+
+//     if (event && event.currentTarget) {
+//         event.currentTarget.classList.add('text-green-600');
+//     }
+
+//     // Updated mobile dropdown handling
+//     const mobileMenu = document.querySelector('#mobile-menu');
+//     const mobileSubmenu = document.querySelector('#mobile-submenu');
+//     const menuButton = document.querySelector('#mobile-menu-button');
+//     if (mobileMenu && window.innerWidth <= 768) {
+//         mobileMenu.classList.add('hidden');
+//         if (mobileSubmenu) {
+//             mobileSubmenu.classList.add('hidden');
+//         }
+//         if (menuButton) {
+//             menuButton.querySelector('i').classList.remove('fa-times');
+//             menuButton.querySelector('i').classList.add('fa-bars');
+//         }
+//     }
+// }
 
 async function processImage(endpoint, formId) {
     const form = document.getElementById(formId);

@@ -1257,8 +1257,8 @@
           <div class="form-group">
             <label for="description-position">Description Position<span class="required"></span></label>
             <select id="description-position" name="description_position" required>
-              <option value="top-center">Top Center</option>
-              <option value="bottom-center" selected>Bottom Center</option> <!-- Added selected -->
+              <option value="top-center" selected>Top Center</option>
+              <option value="bottom-center" >Bottom Center</option> <!-- Added selected -->
               <option value="top">Top</option>
               <option value="top-left">Top Left</option>
               <option value="top-right">Top Right</option>
@@ -2187,14 +2187,17 @@
   <script src="https://unpkg.com/downloadjs@1.4.7" defer></script> -->
 
   <!-- local script -->
-  <script src="/static/js/pdflibra/pptxgen.bundle.js" defer></script>
+  <!-- <script src="/static/js/pdflibra/pptxgen.bundle.js" defer></script>
   <script src="/static/js/pdflibra/jspdf.umd.min.js" defer></script>
   <script src="/static/js/pdflibra/jszip.min.js" defer></script>
   <script src="/static/js/pdflibra/FileSaver.min.js" defer></script>
   <script src="/static/js/pdflibra/pdf-lib.min.js" defer></script>
   <script src="/static/js/pdflibra/pdf.min.js" defer></script>
   <script src="/static/js/pdflibra/pdf.worker.min.js" defer></script>
-  <script src="/static/js/pdflibra/download.js" defer></script>
+  <script src="/static/js/pdflibra/download.js" defer></script> -->
+
+  <!-- lazyloading approach -->
+  <script src="/static/js/pdf-library-manager.js" defer></script>
 
 
 

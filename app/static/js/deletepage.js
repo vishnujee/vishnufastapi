@@ -108,6 +108,10 @@ if (typeof saveAs === 'undefined') {
 
 async function deletePDFPagesClientSide() {
     console.log('Starting client-side PDF page deletion...');
+    const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
+        'pdfjs', 'pdfLib', 'fileSaver'
+    ]);
+    
 
     const fileInput = document.getElementById('deletePages-file');
     const resultDiv = document.getElementById('result-deletePagesForm');
