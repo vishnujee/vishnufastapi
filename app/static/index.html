@@ -287,8 +287,8 @@
                 onclick="showTool('pdfToExcel-section')">PDF to Excel</a>
               <a href="#pdf-to-ppt" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('pdfToPpt-section')">PDF to PPT</a>
-              <a href="#image-to-pdf" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
-                onclick="showTool('imageToPdf-section')">Image to PDF</a>
+                <a href="#multiple-image-to-pdf" class="block px-4 py-1 text-gray-700 hover:bg-gray-100" 
+                onclick="showTool('multipleImageToPdf-section')">Images to PDF</a>
               <a href="#remove-password" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('removePassword-section')">Remove Password</a>
               <a href="#reorder" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
@@ -342,8 +342,8 @@
               onclick="showTool('pdfToExcel-section')">PDF to Excel</a>
             <a href="#pdf-to-ppt" class="block py-1 text-gray-700 hover:bg-gray-100"
               onclick="showTool('pdfToPpt-section')">PDF to PPT</a>
-            <a href="#image-to-pdf" class="block py-1 text-gray-700 hover:text-green-600"
-              onclick="showTool('imageToPdf-section')">Image to PDF</a>
+              <a href="#multiple-image-to-pdf" class="block py-1 text-gray-700 hover:bg-gray-100" 
+              onclick="showTool('multipleImageToPdf-section')">Images to PDF</a>
             <a href="#remove-password" class="block py-1 text-gray-700 hover:text-green-600"
               onclick="showTool('removePassword-section')">Remove Password</a>
             <a href="#reorder" class="block py-1 text-gray-700 hover:text-green-600"
@@ -1205,114 +1205,118 @@
       </div>
     </div>
     <!-- Image to PDF -->
-    <div id="imageToPdf-section" class="tool-section" style="display: none;">
-      <div class="bg-white p-6 rounded-xl shadow-md tool-card">
-        <div class="flex items-center mb-4">
-          <div class="bg-teal-100 p-2 rounded-full mr-3">
-            <i class="fas fa-image text-teal-600 text-xl"></i>
-          </div>
-          <h2 class="text-2xl font-semibold text-gray-800">
-            Image → PDF Magic <br>
-            <span class="whitespace-nowrap" style="font-size: medium;">Pixel-Perfect Conversion <span
-                class="ml-1">🔮✨🧙</span></span>
-          </h2>
-        </div>
-        <form id="imageToPdfForm" enctype="multipart/form-data" class="pdf-form">
-          <div class="form-group">
-            <label for="imageToPdf-file">Select Image (PNG/JPEG, max 50MB)<span class="required">*</span></label>
-            <input type="file" id="imageToPdf-file" name="file" accept="image/png,image/jpeg" required>
-            <span id="imageToPdf-file-name" class="file-name">No file selected</span>
-          </div>
-          <div class="form-group">
-            <label for="image-description">Description</label>
-            <textarea id="image-description" name="description" placeholder="Enter description (optional)"
-              rows="4"></textarea>
-          </div>
-          <div class="form-group">
-            <label for="description-position">Description Position<span class="required"></span></label>
-            <select id="description-position" name="description_position" required>
-              <option value="top-center" selected>Top Center</option>
-              <option value="bottom-center">Bottom Center</option> <!-- Added selected -->
-              <option value="top">Top</option>
-              <option value="top-left">Top Left</option>
-              <option value="top-right">Top Right</option>
-              <option value="bottom">Bottom</option>
-              <option value="bottom-left">Bottom Left</option>
-              <option value="bottom-right">Bottom Right</option>
-              <option value="custom">Custom</option>
-            </select>
-          </div>
-          <div id="custom-position-container" class="form-group hidden">
-            <div class="coordinate-group">
-              <label for="custom-x">X Coordinate<span class="required">*</span></label>
-              <input type="number" id="custom-x" name="custom_x" placeholder="e.g., 100.5" step="0.1" min="0"
-                aria-describedby="custom-x-error">
-              <span id="custom-x-error" class="error-message"></span>
-            </div>
-            <div class="coordinate-group">
-              <label for="custom-y">Y Coordinate<span class="required">*</span></label>
-              <input type="number" id="custom-y" name="custom_y" placeholder="e.g., 200.5" step="0.1" min="0"
-                aria-describedby="custom-y-error">
-              <span id="custom-y-error" class="error-message"></span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="description-font-size">Font Size (8-72)<span class="required"></span></label>
-            <input type="number" id="description-font-size" name="description_font_size" min="8" max="72" value="20"
-              required>
-          </div>
-          <!-- THIS FOR FON COLOR N STYLE -->
-          <div class="form-group">
-            <label for="font-color">Font Color<span class="required"></span></label>
-            <input type="color" id="font-color" name="font_color" value="#000000" required>
-          </div>
-
-          <div class="form-group">
-            <label for="font-family">Font Family<span class="required"></span></label>
-            <select id="font-family" name="font_family" required>
-              <option value="helvetica">Helvetica</option>
-              <option value="times">Times New Roman</option>
-              <option value="courier">Courier</option>
-              <option value="zapf">Zapf Dingbats</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="font-weight">Font Weight<span class="required"></span></label>
-            <select name="font_weight" required>
-              <option value="normal">Regular</option>
-              <option value="bold">Bold</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="page_size">Page Size<span class="required"></span></label>
-            <select name="page_size" id="page_size" required>
-              <option value="A4">A4</option>
-              <option value="Letter">Letter</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="orientation">Orientation<span class="required"></span></label>
-            <select name="orientation" id="orientation" required>
-              <option value="Portrait">Portrait</option>
-              <option value="Landscape">Landscape</option>
-            </select>
-          </div>
-          <div class="form-actions">
-            <button type="button" onclick="convertImageToPDFClientSide()" class="submit-button">Convert to PDF </button>
-            <!-- <button type="button" onclick="processPDF('convert_image_to_pdf', 'imageToPdfForm')"
-              class="submit-button">Convert to PDF</button> -->
-          </div>
-          <div id="progress-imageToPdfForm" class="progress-container hidden">
-            <progress value="0" max="100" aria-label="Conversion progress"></progress>
-            <span id="progress-text-imageToPdfForm" class="progress-text"></span>
-          </div>
-          <div id="result-imageToPdfForm" class="result-message" role="alert"></div>
-        </form>
+   <!-- Multiple Images to PDF -->
+<div id="multipleImageToPdf-section" class="tool-section" style="display: none;">
+  <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+    <div class="flex items-center mb-4">
+      <div class="bg-teal-100 p-2 rounded-full mr-3">
+        <i class="fas fa-images text-teal-600 text-xl"></i>
       </div>
+      <h2 class="text-2xl font-semibold text-gray-800">
+        Multiple Images → PDF <br>
+        <span class="whitespace-nowrap" style="font-size: medium;">Pixel Perfect Conversion 🔮✨🧙</span>
+      </h2>
     </div>
+    <form id="multipleImageToPdfForm" enctype="multipart/form-data" class="pdf-form">
+      <div class="form-group">
+        <label for="multipleImageToPdf-files">Select Images (PNG/JPEG, max 50MB each)<span class="required">*</span></label>
+        <input type="file" id="multipleImageToPdf-files" name="files" accept="image/png,image/jpeg" multiple required>
+        <span id="multipleImageToPdf-files-count" class="file-name">No files selected</span>
+      </div>
+      
+      <div id="image-previews" class="hidden">
+        <h3 class="text-lg font-medium text-gray-700 mb-2">Image Previews</h3>
+        <div id="image-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+      </div>
+      <input type="hidden" id="multipleImageToPdf-image-order" name="image_order">
+      
+      <div class="form-group">
+        <label for="multiple-image-description">Global Description</label>
+        <textarea id="multiple-image-description" name="description" placeholder="Enter description for all images (optional)" rows="3"></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="multiple-description-position">Description Position<span class="required"></span></label>
+        <select id="multiple-description-position" name="description_position" required>
+          <option value="bottom-center" selected>Bottom Center</option>
+          <option value="top-center">Top Center</option>
+          <option value="top">Top</option>
+          <option value="top-left">Top Left</option>
+          <option value="top-right">Top Right</option>
+          <option value="bottom">Bottom</option>
+          <option value="bottom-left">Bottom Left</option>
+          <option value="bottom-right">Bottom Right</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="multiple-description-font-size">Font Size (8-72)<span class="required"></span></label>
+        <input type="number" id="multiple-description-font-size" name="description_font_size" min="8" max="72" value="20" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="multiple-font-color">Font Color<span class="required"></span></label>
+        <input type="color" id="multiple-font-color" name="font_color" value="#000000" required>
+      </div>
 
+      <div class="form-group">
+        <label for="multiple-font-family">Font Family<span class="required"></span></label>
+        <select id="multiple-font-family" name="font_family" required>
+          <option value="helvetica">Helvetica</option>
+          <option value="times">Times New Roman</option>
+          <option value="courier">Courier</option>
+          <option value="zapf">Zapf Dingbats</option>
+        </select>
+      </div>
 
+      <div class="form-group">
+        <label for="multiple-font-weight">Font Weight<span class="required"></span></label>
+        <select id="multiple-font-weight" name="font_weight" required>
+          <option value="normal">Regular</option>
+          <option value="bold">Bold</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="multiple-page_size">Page Size<span class="required"></span></label>
+        <select name="page_size" id="multiple-page_size" required>
+          <option value="A4">A4</option>
+          <option value="Letter">Letter</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="multiple-orientation">Orientation<span class="required"></span></label>
+        <select name="orientation" id="multiple-orientation" required>
+          <option value="Portrait">Portrait</option>
+          <option value="Landscape">Landscape</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="image-per-page">Images per Page</label>
+        <select id="image-per-page" name="images_per_page">
+          <option value="1">One image per page</option>
+          <option value="2">Two images per page</option>
+          <option value="4">Four images per page</option>
+        </select>
+        <small class="text-gray-500">Choose how many images to place on each PDF page</small>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" onclick="convertMultipleImagesToPDFClientSide()" class="submit-button">
+          Multiple Images to PDF
+        </button>
+      </div>
+      
+      <div id="progress-multipleImageToPdfForm" class="progress-container hidden">
+        <progress value="0" max="100" aria-label="Conversion progress"></progress>
+        <span id="progress-text-multipleImageToPdfForm" class="progress-text"></span>
+      </div>
+      <div id="result-multipleImageToPdfForm" class="result-message" role="alert"></div>
+    </form>
+  </div>
+</div>
 
     <!-- <div id="imageToPdf-section" class="tool-section" style="display: none;">
           <div class="bg-white p-6 rounded-xl shadow-md tool-card">
@@ -1743,7 +1747,7 @@
     updateFileLabel('deletePages-file', 'deletePages-file-name');
     updateFileLabel('pdfToWord-file', 'pdfToWord-file-name');
     updateFileLabel('pdfToExcel-file', 'pdfToExcel-file-name');
-    updateFileLabel('imageToPdf-file', 'imageToPdf-file-name');
+    // updateFileLabel('imageToPdf-file', 'imageToPdf-file-name');
     updateFileLabel('removePassword-file', 'removePassword-file-name');
     updateFileLabel('reorder-file', 'reorder-file-name');
     updateFileLabel('pageNumbers-file', 'pageNumbers-file-name');
@@ -1753,6 +1757,7 @@
     updateFileLabel('pdfToPpt-file', 'pdfToPpt-file-name');
     updateFileLabel('removeBackground-file', 'removeBackground-file-name');
     updateFileLabel('compress-file', 'compress-file-name');
+    updateFileLabel('multipleImageToPdf-files', 'multipleImageToPdf-files-count');
     // Show chat section by default
     document.getElementById('chat-section').style.display = 'block';
     // Memory Monitoring Code
@@ -1774,6 +1779,7 @@
 
       console.log('Processing PDF file:', file.name, file.size, file.type);
       try {
+        const [pdfjs] = await pdfLibraryManager.loadLibraries(['pdfjs']);
         // Show progress
         progressDiv.style.display = 'block';
         progressText.textContent = 'Loading PDF... 0%';
@@ -2017,6 +2023,8 @@
       
       console.log('Processing PDF file:', file.name, file.size, file.type);
       try {
+
+        const [pdfjs] = await pdfLibraryManager.loadLibraries(['pdfjs']);
         // Show progress - ONLY THIS IS ADDED
         if (progressDiv && progressText) {
           progressDiv.style.display = 'block';
@@ -2039,9 +2047,7 @@
           progressText.textContent = 'Processing PDF structure... 25%';
         }
         
-        const pdf = await pdfjsLib.getDocument({
-          data: arrayBuffer
-        }).promise;
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
         console.log('PDF loaded, pages:', pdf.numPages);
         const numPages = pdf.numPages;
         if (numPages === 0) {

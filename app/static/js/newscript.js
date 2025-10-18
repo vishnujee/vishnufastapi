@@ -551,59 +551,62 @@ async function convertPDFToPPTClientSide() {
 
 // IMAGE TO PDF
 
-async function convertImageToPDFClientSide() {
-    console.log('Starting client-side Image to PDF conversion...');
-    const [jsPDF, fileSaver] = await pdfLibraryManager.loadLibraries([
-        'jsPDF', 'fileSaver'
-    ]);
-    
 
-    const form = document.getElementById('imageToPdfForm');
-    const fileInput = document.getElementById('imageToPdf-file');
-    const resultDiv = document.getElementById('result-imageToPdfForm');
-    const progressDiv = document.getElementById('progress-imageToPdfForm');
-    const progressText = document.getElementById('progress-text-imageToPdfForm');
+// CORRECTED: Multiple Images to PDF function
+async function convertMultipleImagesToPDFClientSide() {
+    console.log('Starting client-side Multiple Images to PDF conversion...');
+    
+    const fileInput = document.getElementById('multipleImageToPdf-files');
+    const resultDiv = document.getElementById('result-multipleImageToPdfForm');
+    const progressDiv = document.getElementById('progress-multipleImageToPdfForm');
+    const progressText = document.getElementById('progress-text-multipleImageToPdfForm');
+    const submitButton = document.querySelector('#multipleImageToPdfForm button[type="button"]');
 
     // Get form values
-    const description = document.getElementById('image-description')?.value || '';
-    const descriptionPosition = document.getElementById('description-position')?.value || 'bottom-center';
-    const fontSize = parseInt(document.getElementById('description-font-size')?.value) || 20;
-    const pageSize = document.getElementById('page_size')?.value || 'A4';
-    const orientation = document.getElementById('orientation')?.value || 'Portrait';
-    const fontColor = document.getElementById('font-color')?.value || '#000000';
-    const fontFamily = document.getElementById('font-family')?.value || 'helvetica';
-    const fontWeight = document.getElementById('font-weight')?.value || 'normal';
-    const customX = document.getElementById('custom-x')?.value;
-    const customY = document.getElementById('custom-y')?.value;
+    const description = document.getElementById('multiple-image-description')?.value || '';
+    const descriptionPosition = document.getElementById('multiple-description-position')?.value || 'bottom-center';
+    const fontSize = parseInt(document.getElementById('multiple-description-font-size')?.value) || 20;
+    const pageSize = document.getElementById('multiple-page_size')?.value || 'A4';
+    const orientation = document.getElementById('multiple-orientation')?.value || 'Portrait';
+    const fontColor = document.getElementById('multiple-font-color')?.value || '#000000';
+    const fontFamily = document.getElementById('multiple-font-family')?.value || 'helvetica';
+    const fontWeight = document.getElementById('multiple-font-weight')?.value || 'normal';
+    const imagesPerPage = parseInt(document.getElementById('image-per-page')?.value) || 1;
 
     // Validation
-    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
-        alert('Please select an image file.');
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        alert('Please select at least one image file.');
         return;
     }
 
-    const file = fileInput.files[0];
-
-    // Validate file type
+    const files = Array.from(fileInput.files);
+    
+    // Validate file types and sizes
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
-    if (!allowedTypes.includes(file.type)) {
-        alert('Please select a PNG or JPEG image file.');
-        return;
+    for (const file of files) {
+        if (!allowedTypes.includes(file.type)) {
+            alert(`Please select only PNG or JPEG image files. Invalid file: ${file.name}`);
+            return;
+        }
+        if (file.size > 50 * 1024 * 1024) {
+            alert(`File ${file.name} is too large. Maximum size is 50MB.`);
+            return;
+        }
     }
 
-    if (file.size > 150 * 1024 * 1024) { alert("Use PDF less than 150 mb"); return; }
     // Show progress
     progressDiv.style.display = 'block';
     progressText.textContent = 'Starting conversion...';
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-file-pdf mr-2"></i> Converting...';
+    }
 
     try {
-        progressText.textContent = 'Processing image...';
-
-        // Check if required libraries are available
-        if (typeof PDFLib === 'undefined') {
-            throw new Error('PDF library not loaded. Please refresh the page.');
-        }
-
+        progressText.textContent = 'Loading PDF library...';
+        
+        // Load PDF library
+        const [PDFLib] = await pdfLibraryManager.loadLibraries(['pdfLib']);
         const { PDFDocument, rgb } = PDFLib;
 
         // Create new PDF document
@@ -612,163 +615,179 @@ async function convertImageToPDFClientSide() {
         // Set page size
         const pageDimensions = getPageDimensions(pageSize, orientation);
 
-        // Add a page
-        const page = pdfDoc.addPage([pageDimensions.width, pageDimensions.height]);
-
-        // Load and embed image
-        // const imageBytes = await file.arrayBuffer();
-        // let image;
-
-        // if (file.type === 'image/png') {
-        //     image = await pdfDoc.embedPng(imageBytes);
-        // } else {
-        //     image = await pdfDoc.embedJpg(imageBytes);
-        // }
-
-        // FIX: Load image through canvas to fix orientation
-        const correctedBytes = await loadAndFixImageOrientation(file);
-        let image;
-
-        if (file.type === 'image/png') {
-            image = await pdfDoc.embedPng(correctedBytes);
-        } else {
-            image = await pdfDoc.embedJpg(correctedBytes);
-        }
-
-        // Add this helper function outside convertImageToPDFClientSide():
-        async function loadAndFixImageOrientation(file) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-
-                img.onload = function () {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-
-                    canvas.toBlob(function (blob) {
-                        blob.arrayBuffer().then(resolve);
-                    }, file.type);
-                };
-                img.src = URL.createObjectURL(file);
-            });
-        }
-
-        // Calculate image dimensions to fit page with margins
-        const margin = 50;
-        const maxWidth = pageDimensions.width - (2 * margin);
-        const maxHeight = pageDimensions.height - (2 * margin);
-
-        const imageDims = image.scaleToFit(maxWidth, maxHeight);
-        const x = margin + (maxWidth - imageDims.width) / 2;
-        const y = margin + (maxHeight - imageDims.height) / 2;
-
-        // Draw image
-        page.drawImage(image, {
-            x,
-            y,
-            width: imageDims.width,
-            height: imageDims.height,
-        });
-
-        // Add description if provided
-        if (description.trim()) {
-            progressText.textContent = 'Adding description...';
-
-            // Convert hex color to RGB
-            const hexToRgb = (hex) => {
-                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-                return result ? {
-                    r: parseInt(result[1], 16) / 255,
-                    g: parseInt(result[2], 16) / 255,
-                    b: parseInt(result[3], 16) / 255
-                } : { r: 0, g: 0, b: 0 };
+        // Convert hex color to RGB
+        const hexToRgb = (hex) => {
+            // Remove # if present
+            hex = hex.replace(/^#/, '');
+            
+            // Parse hex values
+            let r, g, b;
+            if (hex.length === 3) {
+                r = parseInt(hex[0] + hex[0], 16);
+                g = parseInt(hex[1] + hex[1], 16);
+                b = parseInt(hex[2] + hex[2], 16);
+            } else if (hex.length === 6) {
+                r = parseInt(hex.substring(0, 2), 16);
+                g = parseInt(hex.substring(2, 4), 16);
+                b = parseInt(hex.substring(4, 6), 16);
+            } else {
+                // Default to black if invalid
+                return { r: 0, g: 0, b: 0 };
+            }
+            
+            return {
+                r: r / 255,
+                g: g / 255,
+                b: b / 255
             };
+        };
 
-            const color = hexToRgb(fontColor);
+        const color = hexToRgb(fontColor);
 
-            // Get the appropriate font
-            let font;
-            switch (fontFamily) {
-                case 'times':
-                    font = pdfDoc.embedStandardFont('TimesRoman');
-                    break;
-                case 'courier':
-                    font = pdfDoc.embedStandardFont('Courier');
-                    break;
-                case 'zapf':
-                    font = pdfDoc.embedStandardFont('ZapfDingbats');
-                    break;
-                case 'helvetica':
-                default:
-                    font = fontWeight === 'bold' ? pdfDoc.embedStandardFont('Helvetica-Bold') : pdfDoc.embedStandardFont('Helvetica');
-                    break;
+        // Get the appropriate font
+        let font;
+        switch (fontFamily) {
+            case 'times':
+                font = pdfDoc.embedStandardFont(PDFLib.StandardFonts.TimesRoman);
+                break;
+            case 'courier':
+                font = pdfDoc.embedStandardFont(PDFLib.StandardFonts.Courier);
+                break;
+            case 'zapf':
+                font = pdfDoc.embedStandardFont(PDFLib.StandardFonts.ZapfDingbats);
+                break;
+            case 'helvetica':
+            default:
+                font = fontWeight === 'bold' 
+                    ? pdfDoc.embedStandardFont(PDFLib.StandardFonts.HelveticaBold)
+                    : pdfDoc.embedStandardFont(PDFLib.StandardFonts.Helvetica);
+                break;
+        }
+
+        let currentPage = null;
+        let imagesOnCurrentPage = 0;
+        const totalImages = files.length;
+
+        for (let i = 0; i < totalImages; i++) {
+            const file = files[i];
+            const progress = Math.round((i / totalImages) * 90);
+            progressText.textContent = `Processing image ${i + 1} of ${totalImages}... (${progress}%)`;
+            
+            // Create new page if needed
+            if (currentPage === null || imagesOnCurrentPage >= imagesPerPage) {
+                currentPage = pdfDoc.addPage([pageDimensions.width, pageDimensions.height]);
+                imagesOnCurrentPage = 0;
             }
 
-            // Calculate text width for proper positioning
-            const textWidth = font.widthOfTextAtSize(description, fontSize);
+            // Load image
+            let image;
+            try {
+                if (file.type === 'image/png') {
+                    image = await pdfDoc.embedPng(await file.arrayBuffer());
+                } else {
+                    image = await pdfDoc.embedJpg(await file.arrayBuffer());
+                }
+            } catch (imageError) {
+                console.error(`Error loading image ${file.name}:`, imageError);
+                progressText.textContent = `Skipping invalid image: ${file.name}`;
+                continue; // Skip to next image
+            }
 
-            // Calculate text position - FIXED LOGIC
-            let textX, textY;
-            const textMargin = 30;
+            // Calculate layout based on images per page
+            const imagesPerRow = imagesPerPage === 1 ? 1 : 2;
+            const rows = Math.ceil(imagesPerPage / imagesPerRow);
+            
+            const margin = 50;
+            const horizontalSpacing = 20;
+            const verticalSpacing = description ? 60 : 20;
+            
+            const availableWidth = pageDimensions.width - (2 * margin) - ((imagesPerRow - 1) * horizontalSpacing);
+            const availableHeight = pageDimensions.height - (2 * margin) - ((rows - 1) * verticalSpacing);
+            
+            const imageWidth = availableWidth / imagesPerRow;
+            const imageHeight = availableHeight / rows;
 
-            if (descriptionPosition === 'custom' && customX && customY) {
-                textX = parseFloat(customX);
-                textY = parseFloat(customY);
-            } else {
+            // Calculate position for current image
+            const rowIndex = Math.floor(imagesOnCurrentPage / imagesPerRow);
+            const colIndex = imagesOnCurrentPage % imagesPerRow;
+            
+            const x = margin + (colIndex * (imageWidth + horizontalSpacing));
+            const y = pageDimensions.height - margin - ((rowIndex + 1) * imageHeight) + (rowIndex * verticalSpacing);
+
+            // Scale image to fit the allocated space
+            const imageDims = image.scaleToFit(imageWidth, imageHeight);
+            const centeredX = x + (imageWidth - imageDims.width) / 2;
+            const centeredY = y + (imageHeight - imageDims.height) / 2;
+
+            // Draw image
+            currentPage.drawImage(image, {
+                x: centeredX,
+                y: centeredY,
+                width: imageDims.width,
+                height: imageDims.height,
+            });
+
+            // Add description if provided
+            if (description.trim()) {
+                const textWidth = font.widthOfTextAtSize(description, fontSize);
+                const textMargin = 10;
+                
+                let textX, textY;
+                
                 switch (descriptionPosition) {
                     case 'top':
-                        textX = pageDimensions.width / 2;
-                        textY = pageDimensions.height - textMargin;
+                        textX = x + (imageWidth - textWidth) / 2;
+                        textY = y + imageHeight - textMargin;
                         break;
                     case 'top-center':
-                        textX = (pageDimensions.width - textWidth) / 2;
-                        textY = pageDimensions.height - textMargin - fontSize; // Subtract font size
+                        textX = x + (imageWidth - textWidth) / 2;
+                        textY = y + imageHeight - textMargin - fontSize;
                         break;
                     case 'top-left':
-                        textX = textMargin;
-                        textY = pageDimensions.height - textMargin;
+                        textX = x + textMargin;
+                        textY = y + imageHeight - textMargin;
                         break;
                     case 'top-right':
-                        textX = pageDimensions.width - textWidth - textMargin;
-                        textY = pageDimensions.height - textMargin;
+                        textX = x + imageWidth - textWidth - textMargin;
+                        textY = y + imageHeight - textMargin;
                         break;
                     case 'bottom':
-                        textX = pageDimensions.width / 2;
-                        textY = textMargin;
+                        textX = x + (imageWidth - textWidth) / 2;
+                        textY = y + textMargin + fontSize;
                         break;
                     case 'bottom-center':
-                        textX = (pageDimensions.width - textWidth) / 2;
-                        textY = textMargin; // Keep at bottom margin
+                        textX = x + (imageWidth - textWidth) / 2;
+                        textY = y + textMargin;
                         break;
                     case 'bottom-left':
-                        textX = textMargin;
-                        textY = textMargin + fontSize;
+                        textX = x + textMargin;
+                        textY = y + textMargin + fontSize;
                         break;
                     case 'bottom-right':
-                        textX = pageDimensions.width - textWidth - textMargin;
-                        textY = textMargin + fontSize;
+                        textX = x + imageWidth - textWidth - textMargin;
+                        textY = y + textMargin + fontSize;
                         break;
                     default:
-                        textX = (pageDimensions.width - textWidth) / 2;
-                        textY = textMargin + fontSize;
+                        textX = x + (imageWidth - textWidth) / 2;
+                        textY = y + textMargin;
                         break;
                 }
+
+                // Ensure text stays within bounds
+                textX = Math.max(x + textMargin, Math.min(textX, x + imageWidth - textWidth - textMargin));
+                textY = Math.max(y + textMargin, Math.min(textY, y + imageHeight - textMargin));
+
+                currentPage.drawText(description, {
+                    x: textX,
+                    y: textY,
+                    size: fontSize,
+                    color: rgb(color.r, color.g, color.b),
+                    font: font,
+                    maxWidth: imageWidth - (2 * textMargin),
+                });
             }
 
-            console.log(`Text position: ${descriptionPosition}, X: ${textX}, Y: ${textY}, Width: ${textWidth}`);
-
-            // Draw description text with proper alignment
-            page.drawText(description, {
-                x: textX,
-                y: textY,
-                size: fontSize,
-                color: rgb(color.r, color.g, color.b),
-                font: font,
-                lineHeight: fontSize * 1.2,
-                maxWidth: pageDimensions.width - (2 * textMargin),
-            });
+            imagesOnCurrentPage++;
         }
 
         progressText.textContent = 'Generating PDF...';
@@ -781,7 +800,7 @@ async function convertImageToPDFClientSide() {
         const url = URL.createObjectURL(pdfBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `converted_${file.name.replace(/\.[^/.]+$/, "")}.pdf`;
+        a.download = `converted_images_${Date.now()}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -789,38 +808,36 @@ async function convertImageToPDFClientSide() {
 
         resultDiv.innerHTML = `
             <div class="text-green-600">
-                ✅ <strong>Image to PDF Conversion Successful!</strong><br>
-                🖼️ Converted "${file.name}" to PDF<br>
+                ✅ <strong>Images to PDF Conversion Successful!</strong><br>
+                🖼️ Converted ${files.length} images to PDF<br>
                 📍 Description Position: ${descriptionPosition}<br>
-              
+                📄 Images per Page: ${imagesPerPage}
             </div>
         `;
 
     } catch (error) {
-        console.error('Image to PDF conversion failed:', error);
-
+        console.error('Multiple Images to PDF conversion failed:', error);
         resultDiv.innerHTML = `
             <div class="text-red-600">
                 ❌ Conversion failed: ${error.message}<br>
-                <small>Falling back to server processing...</small>
+                <small>Please try again or use smaller images.</small>
             </div>
         `;
-
-        // Fallback to server processing
-        setTimeout(() => {
-            processPDF('convert_image_to_pdf', 'imageToPdfForm');
-        }, 2000);
-
     } finally {
         progressDiv.style.display = 'none';
         progressText.textContent = '';
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = 'Multiple Images to PDF';
+        }
     }
 }
 
+// CORRECTED: Page dimensions helper function
 function getPageDimensions(pageSize, orientation) {
     const sizes = {
-        'A4': { width: 595, height: 842 },
-        'Letter': { width: 612, height: 792 }
+        'A4': { width: 595.28, height: 841.89 }, // A4 in points (72 DPI)
+        'Letter': { width: 612, height: 792 }     // Letter in points
     };
 
     const size = sizes[pageSize] || sizes['A4'];
@@ -828,6 +845,167 @@ function getPageDimensions(pageSize, orientation) {
         ? { width: size.height, height: size.width }
         : size;
 }
+
+// CORRECTED: Image orientation function (simplified)
+function loadAndFixImageOrientation(file) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        img.onload = function () {
+            try {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                // Draw image without orientation fixes (basic version)
+                ctx.drawImage(img, 0, 0, img.width, img.height);
+                
+                // Convert to blob
+                canvas.toBlob(blob => {
+                    if (blob) {
+                        blob.arrayBuffer().then(resolve).catch(reject);
+                    } else {
+                        reject(new Error('Canvas to blob conversion failed'));
+                    }
+                }, file.type || 'image/jpeg', 0.9);
+            } catch (error) {
+                reject(error);
+            }
+        };
+
+        img.onerror = function () {
+            reject(new Error('Failed to load image'));
+        };
+
+        img.src = URL.createObjectURL(file);
+    });
+}
+
+// CORRECTED: Initialize image previews
+function initializeMultipleImagePreview() {
+    const fileInput = document.getElementById('multipleImageToPdf-files');
+    const filesCount = document.getElementById('multipleImageToPdf-files-count');
+    const imagePreviews = document.getElementById('image-previews');
+    const imageList = document.getElementById('image-list');
+    
+    if (!fileInput || !filesCount || !imagePreviews || !imageList) {
+        console.warn('Image preview elements not found');
+        return;
+    }
+    
+    fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        
+        if (files.length === 0) {
+            imagePreviews.classList.add('hidden');
+            filesCount.textContent = 'No files selected';
+            return;
+        }
+        
+        filesCount.textContent = `${files.length} file(s) selected`;
+        imageList.innerHTML = '';
+        imagePreviews.classList.remove('hidden');
+        
+        files.forEach((file, index) => {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                console.warn(`Skipping non-image file: ${file.name}`);
+                return;
+            }
+
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                const imageDiv = document.createElement('div');
+                imageDiv.className = 'image-preview border border-gray-200 rounded-lg p-3 bg-white';
+                imageDiv.dataset.fileIndex = index;
+                
+                imageDiv.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <img src="${e.target.result}" alt="${file.name}" 
+                             class="mb-2 max-h-32 max-w-full object-contain border border-gray-300 rounded">
+                        <div class="flex items-center justify-between w-full mt-2">
+                            <span class="text-gray-600 text-xs truncate flex-1 mr-2" 
+                                  title="${file.name}">${file.name}</span>
+                            <div class="flex space-x-1">
+                                <button type="button" class="move-up bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-arrow-up"></i>
+                                </button>
+                                <button type="button" class="move-down bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-arrow-down"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                imageList.appendChild(imageDiv);
+                
+                // Add event listeners for move buttons
+                const moveUp = imageDiv.querySelector('.move-up');
+                const moveDown = imageDiv.querySelector('.move-down');
+                
+                if (moveUp) {
+                    moveUp.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        const prev = imageDiv.previousElementSibling;
+                        if (prev) {
+                            imageList.insertBefore(imageDiv, prev);
+                            updateImageOrder();
+                        }
+                    });
+                }
+                
+                if (moveDown) {
+                    moveDown.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        const next = imageDiv.nextElementSibling;
+                        if (next) {
+                            imageList.insertBefore(next, imageDiv);
+                            updateImageOrder();
+                        }
+                    });
+                }
+            };
+            
+            reader.onerror = () => {
+                console.error(`Failed to read file: ${file.name}`);
+            };
+            
+            reader.readAsDataURL(file);
+        });
+        
+        updateImageOrder();
+    });
+}
+
+// CORRECTED: Update image order function
+function updateImageOrder() {
+    const imagePreviews = document.querySelectorAll('.image-preview');
+    const imageOrder = Array.from(imagePreviews).map(preview => preview.dataset.fileIndex);
+    const imageOrderInput = document.getElementById('multipleImageToPdf-image-order');
+    
+    if (imageOrderInput) {
+        imageOrderInput.value = imageOrder.join(',');
+        console.log("Updated image order:", imageOrderInput.value);
+    }
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeMultipleImagePreview();
+    
+    // Add file label update if function exists
+    if (typeof updateFileLabel === 'function') {
+        const fileInput = document.getElementById('multipleImageToPdf-files');
+        const fileCount = document.getElementById('multipleImageToPdf-files-count');
+        if (fileInput && fileCount) {
+            updateFileLabel('multipleImageToPdf-files', 'multipleImageToPdf-files-count');
+        }
+    }
+});
+
 
 
 

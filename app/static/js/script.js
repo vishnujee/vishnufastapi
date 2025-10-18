@@ -9,10 +9,14 @@ if (typeof marked !== 'undefined') {
 const BASE_URL = window.location.origin;
 let chatHistory = [];
 // Set PDF.js worker script
+// Set PDF.js worker script - UPDATED FIX
 if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdflibra/pdf.worker.min.js';
+} else {
+    // Fallback: Load PDF.js dynamically if not available
+    console.warn('pdfjsLib not found, loading dynamically...');
+    // This will be handled by pdfLibraryManager
 }
-
 
 // // compression
 
@@ -2069,7 +2073,7 @@ async function sendChat() {
 }
 
 // Enhanced tool selection with preloading
-function showTool(toolId,event = null) {
+function showTool(toolId, event = null) {
     localStorage.setItem('lastTool', toolId);
     console.log("Showing tool:", toolId);
 
@@ -2135,52 +2139,7 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log('Library status:', pdfLibraryManager.getStatus());
 });
 
-// function showTool(toolId) {
-//     localStorage.setItem('lastTool', toolId);
-//     console.log("checking toolid ", toolId);
-
-//     document.querySelectorAll('.tool-section').forEach(section => {
-//         section.style.display = 'none';
-//     });
-//     const toolSection = document.getElementById(toolId);
-//     if (toolSection) {
-//         toolSection.style.display = 'block';
-//     }
-//     // document.getElementById('chat-section').style.display = 'block';
-
-//     // hide and show clear form
-//     const clearBtn = document.getElementById('clear-all-btn-container');
-//     if (toolId === 'chat-section') {
-//         clearBtn.style.display = 'none';
-//     } else {
-//         clearBtn.style.display = 'block';
-//     }
-
-//     // 
-//     document.querySelectorAll('.nav-link, .dropdown-content a').forEach(link => {
-//         link.classList.remove('text-green-600');
-//         link.classList.add('text-blue-600');
-//     });
-
-//     if (event && event.currentTarget) {
-//         event.currentTarget.classList.add('text-green-600');
-//     }
-
-//     // Updated mobile dropdown handling
-//     const mobileMenu = document.querySelector('#mobile-menu');
-//     const mobileSubmenu = document.querySelector('#mobile-submenu');
-//     const menuButton = document.querySelector('#mobile-menu-button');
-//     if (mobileMenu && window.innerWidth <= 768) {
-//         mobileMenu.classList.add('hidden');
-//         if (mobileSubmenu) {
-//             mobileSubmenu.classList.add('hidden');
-//         }
-//         if (menuButton) {
-//             menuButton.querySelector('i').classList.remove('fa-times');
-//             menuButton.querySelector('i').classList.add('fa-bars');
-//         }
-//     }
-// }
+// 
 
 async function processImage(endpoint, formId) {
     const form = document.getElementById(formId);
@@ -2373,49 +2332,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Initialize image to PDF functionality
-    const imageToPdfForm = document.getElementById('imageToPdfForm');
-    if (imageToPdfForm) {
-        const imageToPdfFile = document.getElementById('imageToPdf-file');
-        const descriptionPosition = document.getElementById('description-position');
-        if (imageToPdfFile) {
-            imageToPdfFile.addEventListener('change', function () {
-                const fileName = this.files[0] ? this.files[0].name : 'No file selected';
-                const fileNameElement = document.getElementById('imageToPdf-file-name');
-                if (fileNameElement) {
-                    fileNameElement.textContent = fileName;
-                } else {
-                    console.warn('Element with ID "imageToPdf-file-name" not found');
-                }
-            });
-        } else {
-            console.warn('Element with ID "imageToPdf-file" not found');
-        }
 
-        if (descriptionPosition) {
-            descriptionPosition.addEventListener('change', function () {
-                const customContainer = document.getElementById('custom-position-container');
-                const customX = document.getElementById('custom-x');
-                const customY = document.getElementById('custom-y');
-                if (customContainer) {
-                    const isCustom = this.value === 'custom';
-                    customContainer.classList.toggle('hidden', !isCustom);
-                    if (!isCustom && customX && customY) {
-                        customX.value = '';
-                        customY.value = '';
-                    }
-                } else {
-                    console.warn('Element with ID "custom-position-container" not found');
-                }
-            });
-            // Trigger change event on load
-            descriptionPosition.dispatchEvent(new Event('change'));
-        } else {
-            console.warn('Element with ID "description-position" not found');
-        }
-    } else {
-        console.warn('Form with ID "imageToPdfForm" not found');
-    }
 });
 
 

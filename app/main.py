@@ -71,6 +71,37 @@ from app.pdf_operations import  (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 app = FastAPI()
+
+
+
+
+
+# Pre-compile patterns for better performance
+BLOCKED_PATTERNS = [
+    re.compile(r'wp-admin', re.IGNORECASE),
+    re.compile(r'wordpress', re.IGNORECASE),
+    re.compile(r'phpmyadmin', re.IGNORECASE),
+    re.compile(r'administrator', re.IGNORECASE),
+    re.compile(r'mysql', re.IGNORECASE),
+    re.compile(r'sql', re.IGNORECASE),
+]
+
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    path = request.url.path
+    
+    # Fast pattern matching
+    for pattern in BLOCKED_PATTERNS:
+        if pattern.search(path):
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Access forbidden"}
+            )
+    
+    return await call_next(request)
+
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
