@@ -13,9 +13,9 @@ class PDFLibraryManager {
         };
         
         // Set PDF.js worker path
-        if (typeof pdfjsLib !== 'undefined') {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdflibra/pdf.worker.min.js';
-        }
+        // if (typeof pdfjsLib !== 'undefined') {
+        //     pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdflibra/pdf.worker.min.js';
+        // }
     }
 
     // Load individual library

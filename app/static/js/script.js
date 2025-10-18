@@ -21,7 +21,7 @@ if (typeof pdfjsLib !== 'undefined') {
 async function compressPDFClientSide() {
     console.log('Starting optimized client-side compression...');
 
-  
+
 
     const form = document.getElementById('compressForm');
     const fileInput = form.querySelector('input[type="file"]');
@@ -310,7 +310,7 @@ function calculateAccuracy(estimated, actual) {
 // Enhanced computeAllCompressionSizes with accurate predictions
 async function computeAllCompressionSizes() {
     console.log('Computing all compression sizes with accurate predictions...');
-    
+
 
 
     const form = document.getElementById('compressForm');
@@ -2069,7 +2069,7 @@ async function sendChat() {
 }
 
 // Enhanced tool selection with preloading
-function showTool(toolId) {
+function showTool(toolId,event = null) {
     localStorage.setItem('lastTool', toolId);
     console.log("Showing tool:", toolId);
 
@@ -2077,7 +2077,7 @@ function showTool(toolId) {
     document.querySelectorAll('.tool-section').forEach(section => {
         section.style.display = 'none';
     });
-    
+
     // Show selected section
     const toolSection = document.getElementById(toolId);
     if (toolSection) {
@@ -2085,7 +2085,7 @@ function showTool(toolId) {
     }
 
     // 🆕 PRELOAD LIBRARIES for this tool
-    pdfLibraryManager.preloadForTool(toolId);
+    // pdfLibraryManager.preloadForTool(toolId);
 
     // Show/hide clear form button
     const clearBtn = document.getElementById('clear-all-btn-container');
@@ -2122,15 +2122,15 @@ function showTool(toolId) {
 }
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Preload common libraries in background
-    pdfLibraryManager.loadLibrary('fileSaver').catch(console.warn);
-    pdfLibraryManager.loadLibrary('jszip').catch(console.warn);
-    
+    // pdfLibraryManager.loadLibrary('fileSaver').catch(console.warn);
+    // pdfLibraryManager.loadLibrary('jszip').catch(console.warn);
+
     // Show last used tool or chat by default
     const lastTool = localStorage.getItem('lastTool') || 'chat-section';
     showTool(lastTool);
-    
+
     console.log('PDF Library Manager initialized');
     console.log('Library status:', pdfLibraryManager.getStatus());
 });
@@ -2458,7 +2458,3 @@ function clearAllForms() {
 
 
 }
-
-
-
-
