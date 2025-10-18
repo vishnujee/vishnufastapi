@@ -746,7 +746,7 @@
           </button>
           <div class="progress" id="progress-mergeForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-            <div class="progress-text" id="progress-text-mergeForm"></div>
+            <div class="progress-text" id="progress-text-mergeForm" style="font-size: 17px;font-weight: bolder;"></div>
           </div>
           <p id="result-mergeForm" class="text-sm text-center"></p>
         </form>
@@ -822,7 +822,7 @@
           </button> -->
           <div class="progress" id="progress-compressForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-            <div class="progress-text" id="progress-text-compressForm"></div>
+            <div class="progress-text" id="progress-text-compressForm" ></div>
           </div>
           <p id="result-compressForm" class="text-sm text-center"></p>
           <div id="compression-results" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
@@ -993,7 +993,7 @@
 
           <div class="progress" id="progress-deletePagesForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-            <div class="progress-text" id="progress-text-deletePagesForm"></div>
+            <div class="progress-text" id="progress-text-deletePagesForm" style="font-size: 17px;font-weight: bolder;"></div>
           </div>
           <p id="result-deletePagesForm" class="text-sm text-center"></p>
 
@@ -1311,7 +1311,7 @@
       
       <div id="progress-multipleImageToPdfForm" class="progress-container hidden">
         <progress value="0" max="100" aria-label="Conversion progress"></progress>
-        <span id="progress-text-multipleImageToPdfForm" class="progress-text"></span>
+        <span id="progress-text-multipleImageToPdfForm" class="progress-text" style="font-size: 17px;font-weight: bolder;"></span>
       </div>
       <div id="result-multipleImageToPdfForm" class="result-message" role="alert"></div>
     </form>
@@ -1412,7 +1412,7 @@
             <!-- progress -->
             <div class="progress" id="progress-reorderForm">
               <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-              <div class="progress-text" id="progress-text-reorderForm"></div>
+              <div class="progress-text" id="progress-text-reorderForm" style="font-size: 17px;font-weight: bolder;"></div>
             </div>
             <p id="result-reorderForm" class="text-sm text-center"></p>
             <!-- progress -->
@@ -1494,7 +1494,7 @@
               <i class="fas fa-list-ol mr-2"></i> Add Page Numbers </button> -->
             <div class="progress" id="progress-pageNumbersForm">
               <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-              <div class="progress-text" id="progress-text-pageNumbersForm"></div>
+              <div class="progress-text" id="progress-text-pageNumbersForm" style="font-size: 17px;font-weight: bolder;"></div>
             </div>
             <p id="result-pageNumbersForm" class="text-sm text-center"></p>
           </form>
@@ -1545,7 +1545,7 @@
               <p>Remove Image Background for best result. Check in PDF Tools.</p>
 
               <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-              <div class="progress-text" id="progress-text-signatureForm"></div>
+              <div class="progress-text" id="progress-text-signatureForm" style="font-size: 17px;font-weight: bolder;"></div>
               <p id="result-signatureForm" class="text-sm text-center"></p>
 
             </div>
@@ -1917,76 +1917,135 @@
 
 
 
+// ////////
 
+function removeFileFromMerge(fileElement) {
+    const fileList = document.getElementById('file-list');
+    const fileIndex = fileElement.dataset.fileIndex;
+    
+    // Remove the file element from DOM
+    fileElement.remove();
+    
+    // Update the file order
+    updateFileOrder(fileList.querySelectorAll('.file-item'));
+    
+    // Update the file input to reflect the removal
+    updateFileInputAfterRemoval(fileIndex);
+    
+    // Update UI state
+    const remainingFiles = fileList.querySelectorAll('.file-item');
+    if (remainingFiles.length === 0) {
+        document.getElementById('file-previews').classList.add('hidden');
+        document.getElementById('result-mergeForm').textContent = 'No files selected';
+        document.getElementById('result-mergeForm').classList.add('text-red-600');
+    }
+}
+
+function updateFileInputAfterRemoval(removedIndex) {
+    const fileInput = document.getElementById('merge-files');
+    const filesCount = document.getElementById('merge-files-count');
+    const dataTransfer = new DataTransfer();
+    
+    // Add all files except the removed one
+    for (let i = 0; i < fileInput.files.length; i++) {
+        if (i != removedIndex) {
+            dataTransfer.items.add(fileInput.files[i]);
+        }
+    }
+    
+    // Update file input
+    fileInput.files = dataTransfer.files;
+    
+    // Update file count display
+    if (dataTransfer.files.length > 1) {
+        filesCount.textContent = `${dataTransfer.files.length} files selected`;
+    } else if (dataTransfer.files.length === 1) {
+        filesCount.textContent = dataTransfer.files[0].name;
+    } else {
+        filesCount.textContent = 'No files selected';
+    }
+}
 
     document.getElementById('merge-files').addEventListener('change', async (e) => {
-      const files = e.target.files;
-      const resultDiv = document.getElementById('result-mergeForm');
-      const filePreviews = document.getElementById('file-previews');
-      const fileList = document.getElementById('file-list');
+    const files = e.target.files;
+    const resultDiv = document.getElementById('result-mergeForm');
+    const filePreviews = document.getElementById('file-previews');
+    const fileList = document.getElementById('file-list');
 
-      if (files.length < 2) {
+    if (files.length < 2) {
         filePreviews.classList.add('hidden');
         resultDiv.textContent = 'Please select at least 2 PDF files.';
         resultDiv.classList.add('text-red-600');
         return;
-      }
+    }
 
-      fileList.innerHTML = '';
-      const fileDivs = [];
+    fileList.innerHTML = '';
+    const fileDivs = [];
 
-      for (let i = 0; i < files.length; i++) {
+    for (let i = 0; i < files.length; i++) {
         const file = files[i];
         console.log('Processing file:', file.name, file.size, file.type);
 
         const fileDiv = document.createElement('div');
-        fileDiv.className = 'file-item flex justify-between items-center mb-2';
+        fileDiv.className = 'file-item flex justify-between items-center mb-2 p-3 bg-white border border-gray-200 rounded-lg';
         fileDiv.dataset.fileIndex = i;
 
         fileDiv.innerHTML = `
-      <span class="text-gray-600">${file.name}</span>
-      <div>
-        <button type="button" class="move-up bg-blue-600 text-white px-2 py-1 rounded mr-2">Up</button>
-        <button type="button" class="move-down bg-blue-600 text-white px-2 py-1 rounded">Down</button>
-      </div>
-    `;
+            <span class="text-gray-600 flex-1 truncate mr-3">${file.name}</span>
+            <div class="flex items-center space-x-2">
+                <button type="button" class="move-up bg-blue-600 text-white px-2 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-arrow-up"></i>
+                </button>
+                <button type="button" class="move-down bg-blue-600 text-white px-2 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-arrow-down"></i>
+                </button>
+                <button type="button" class="remove-file bg-red-600 text-white px-2 py-1 rounded text-sm hover:bg-red-700 transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
 
         fileList.appendChild(fileDiv);
         fileDivs.push(fileDiv);
 
-        // 🆕 FIX: Add event listeners with preventDefault
+        // Add event listeners
         fileDiv.querySelector('.move-up').addEventListener('click', (event) => {
-          event.preventDefault(); // Prevent form submission
-          event.stopPropagation(); // Stop event bubbling
-
-          const prev = fileDiv.previousSibling;
-          if (prev) {
-            fileList.insertBefore(fileDiv, prev);
-            updateFileOrder(Array.from(fileList.querySelectorAll('.file-item')));
-            console.log('Moved file up, new order:', document.getElementById('merge-file-order').value);
-          }
+            event.preventDefault();
+            event.stopPropagation();
+            const prev = fileDiv.previousSibling;
+            if (prev) {
+                fileList.insertBefore(fileDiv, prev);
+                updateFileOrder(Array.from(fileList.querySelectorAll('.file-item')));
+                console.log('Moved file up, new order:', document.getElementById('merge-file-order').value);
+            }
         });
 
         fileDiv.querySelector('.move-down').addEventListener('click', (event) => {
-          event.preventDefault(); // Prevent form submission
-          event.stopPropagation(); // Stop event bubbling
-
-          const next = fileDiv.nextSibling;
-          if (next) {
-            fileList.insertBefore(next, fileDiv);
-            updateFileOrder(Array.from(fileList.querySelectorAll('.file-item')));
-            console.log('Moved file down, new order:', document.getElementById('merge-file-order').value);
-          }
+            event.preventDefault();
+            event.stopPropagation();
+            const next = fileDiv.nextSibling;
+            if (next) {
+                fileList.insertBefore(next, fileDiv);
+                updateFileOrder(Array.from(fileList.querySelectorAll('.file-item')));
+                console.log('Moved file down, new order:', document.getElementById('merge-file-order').value);
+            }
         });
-      }
 
-      filePreviews.classList.remove('hidden');
-      updateFileOrder(fileDivs);
-      console.log('Initial file order set:', document.getElementById('merge-file-order').value);
-      resultDiv.textContent = `${files.length} files loaded. Reorder using arrows and click Merge PDFs.`;
-      resultDiv.classList.remove('text-red-600');
-      resultDiv.classList.add('text-green-600');
-    });
+        // Add remove file event listener
+        fileDiv.querySelector('.remove-file').addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            removeFileFromMerge(fileDiv);
+        });
+    }
+
+    filePreviews.classList.remove('hidden');
+    updateFileOrder(fileDivs);
+    console.log('Initial file order set:', document.getElementById('merge-file-order').value);
+    resultDiv.textContent = `${files.length} files loaded. Reorder using arrows or remove files using cross button.`;
+    resultDiv.classList.remove('text-red-600');
+    resultDiv.classList.add('text-green-600');
+});
 
 
 

@@ -313,6 +313,11 @@ function calculateAccuracy(estimated, actual) {
 
 // Enhanced computeAllCompressionSizes with accurate predictions
 async function computeAllCompressionSizes() {
+
+    const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
+        'pdfjs', 'pdfLib', 'fileSaver'
+    ]);
+
     console.log('Computing all compression sizes with accurate predictions...');
 
 
@@ -1000,6 +1005,7 @@ async function removeBackgroundClientSide(imageFile) {
 
 // 
 //////////////////////// merge pdf opertion client side
+// Update the mergePDFsClientSide function to handle the updated file order
 async function mergePDFsClientSide() {
     console.log('Starting client-side PDF merge...');
 
@@ -1008,7 +1014,6 @@ async function mergePDFsClientSide() {
     const resultDiv = document.getElementById('result-mergeForm');
     const progressDiv = document.getElementById('progress-mergeForm');
     const progressText = document.getElementById('progress-text-mergeForm');
-    // const submitButton = form.querySelector('button[type="button"]');
     const submitButton = document.getElementById('merge-submit-btn');
     const fileOrderInput = document.getElementById('merge-file-order');
 
@@ -1020,11 +1025,10 @@ async function mergePDFsClientSide() {
 
     const files = fileInput.files;
 
-    // 🆕 DEBUG: Log the file order input value
     console.log("File order input value:", fileOrderInput.value);
     console.log("Original files:", Array.from(files).map(f => f.name));
 
-    // 🆕 CRITICAL FIX: Get the ordered files based on user selection
+    // Get the ordered files based on user selection
     let orderedFiles = Array.from(files);
 
     if (fileOrderInput && fileOrderInput.value) {
@@ -1047,7 +1051,6 @@ async function mergePDFsClientSide() {
         }
     }
 
-
     const validation = validateFilesForClientMerge(files);
     if (!validation.valid) {
         alert(validation.message);
@@ -1061,14 +1064,13 @@ async function mergePDFsClientSide() {
     submitButton.innerHTML = '<i class="fas fa-object-group mr-2"></i> Merging...';
 
     try {
-
         const [pdfLib, pdfjs, jszip, fileSaver] = await pdfLibraryManager.loadLibraries([
             'pdfLib', 'pdfjs', 'jszip', 'fileSaver'
         ]);
 
         progressText.textContent = 'Loading PDF files... (0%)';
 
-        // 🆕 Use the orderedFiles instead of original files
+        // Use the orderedFiles
         const pdfDocs = [];
         for (let i = 0; i < orderedFiles.length; i++) {
             const progress = Math.round((i / orderedFiles.length) * 50);
@@ -1082,7 +1084,6 @@ async function mergePDFsClientSide() {
             pdfDocs.push(pdfDoc);
         }
 
-        // Rest of your existing merge code...
         progressText.textContent = 'Merging PDFs... (50%)';
 
         // Create new PDF document
@@ -1147,7 +1148,7 @@ async function mergePDFsClientSide() {
 
         // Fallback to server processing
         setTimeout(() => {
-            updateFileOrder(document.querySelectorAll('.file-preview'));
+            updateFileOrder(document.querySelectorAll('.file-item'));
             processPDF('merge_pdf', 'mergeForm');
         }, 2000);
 
@@ -1158,6 +1159,35 @@ async function mergePDFsClientSide() {
         submitButton.innerHTML = '<i class="fas fa-object-group mr-2"></i> Merge PDFs';
     }
 }
+
+// Add some CSS for better styling of the file items
+const additionalStyles = `
+    .file-item {
+        transition: all 0.3s ease;
+    }
+    
+    .file-item:hover {
+        background-color: #f9fafb;
+        border-color: #3b82f6;
+    }
+    
+    .remove-file {
+        min-width: 32px;
+    }
+    
+    .file-item span {
+        word-break: break-all;
+    }
+`;
+
+// Add the styles to the document
+if (!document.querySelector('#merge-file-styles')) {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'merge-file-styles';
+    styleEl.textContent = additionalStyles;
+    document.head.appendChild(styleEl);
+}
+
 
 function validateFilesForClientMerge(files) {
     const maxFiles = 100;
