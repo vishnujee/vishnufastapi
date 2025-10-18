@@ -998,14 +998,8 @@ async function removeBackgroundClientSide(imageFile) {
 
 
 
-
-
-
-
-
 // 
 //////////////////////// merge pdf opertion client side
-// Update the mergePDFsClientSide function to handle the updated file order
 async function mergePDFsClientSide() {
     console.log('Starting client-side PDF merge...');
 
@@ -1024,34 +1018,40 @@ async function mergePDFsClientSide() {
     }
 
     const files = fileInput.files;
+    console.log("Current files in input:", Array.from(files).map(f => f.name));
 
-    console.log("File order input value:", fileOrderInput.value);
-    console.log("Original files:", Array.from(files).map(f => f.name));
-
-    // Get the ordered files based on user selection
-    let orderedFiles = Array.from(files);
-
+    // Get the ordered files based on current UI order
+    let orderedFiles = [];
     if (fileOrderInput && fileOrderInput.value) {
         try {
             const order = fileOrderInput.value.split(',').map(i => parseInt(i.trim()));
             console.log("File order from UI:", order);
 
-            if (order.length === files.length) {
-                orderedFiles = order.map(index => {
+            // Map UI indices to actual files in the current file input
+            orderedFiles = order.map(index => {
+                if (index >= 0 && index < files.length) {
                     console.log(`Mapping index ${index} to file:`, files[index].name);
                     return files[index];
-                });
-                console.log("Final ordered files:", orderedFiles.map(f => f.name));
-            } else {
-                console.warn('File order length mismatch, using original order');
-                console.log('Order length:', order.length, 'Files length:', files.length);
+                }
+            }).filter(file => file !== undefined);
+
+            console.log("Final ordered files:", orderedFiles.map(f => f.name));
+            
+            // If order mapping failed, fall back to original order
+            if (orderedFiles.length !== files.length) {
+                console.warn('Order mapping incomplete, using original file order');
+                orderedFiles = Array.from(files);
             }
         } catch (e) {
             console.warn('Invalid file order, using original order:', e);
+            orderedFiles = Array.from(files);
         }
+    } else {
+        // No order specified, use original order
+        orderedFiles = Array.from(files);
     }
 
-    const validation = validateFilesForClientMerge(files);
+    const validation = validateFilesForClientMerge(orderedFiles);
     if (!validation.valid) {
         alert(validation.message);
         return;
@@ -1120,7 +1120,7 @@ async function mergePDFsClientSide() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        // Show success message
+        // Show success message WITHOUT clearing files
         let totalSize = 0;
         for (let file of orderedFiles) {
             totalSize += file.size;
@@ -1131,11 +1131,12 @@ async function mergePDFsClientSide() {
             <div class="text-green-600">
                 ✅ <strong>PDFs Merged Successfully!</strong><br>
                 📁 Merged ${orderedFiles.length} files in your specified order (${totalSizeMB.toFixed(2)}MB total)<br>
-                ⚡ <small>Files merged in the exact order you arranged</small>
+                ⚡ <small>Files are still available for subsequent merge operations</small><br>
+                🔄 <small>You can reorder files and merge again</small>
             </div>
         `;
 
-        console.log('Client-side merge completed with correct file order');
+        console.log('Client-side merge completed successfully. Files preserved for next operation.');
 
     } catch (error) {
         console.error('Client-side merge failed:', error);
@@ -1153,14 +1154,14 @@ async function mergePDFsClientSide() {
         }, 2000);
 
     } finally {
-        // Clean up
+        // Clean up progress but KEEP files
         progressDiv.style.display = 'none';
         submitButton.disabled = false;
         submitButton.innerHTML = '<i class="fas fa-object-group mr-2"></i> Merge PDFs';
     }
 }
 
-// Add some CSS for better styling of the file items
+//some CSS for better styling of the file items
 const additionalStyles = `
     .file-item {
         transition: all 0.3s ease;

@@ -85,7 +85,7 @@
   <!--  Local files -->
 
   <link href="/static/css/styles.css" rel="stylesheet">
-  <script src="/static/js/script.js"defer></script>
+  <script src="/static/js/script.js" defer></script>
   <script src="/static/js/deletepage.js" defer></script>
   <script src="/static/js/newscript.js" defer></script>
   <script src="/static/js/memscript.js" defer></script>
@@ -287,7 +287,7 @@
                 onclick="showTool('pdfToExcel-section')">PDF to Excel</a>
               <a href="#pdf-to-ppt" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('pdfToPpt-section')">PDF to PPT</a>
-                <a href="#multiple-image-to-pdf" class="block px-4 py-1 text-gray-700 hover:bg-gray-100" 
+              <a href="#multiple-image-to-pdf" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('multipleImageToPdf-section')">Images to PDF</a>
               <a href="#remove-password" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('removePassword-section')">Remove Password</a>
@@ -342,7 +342,7 @@
               onclick="showTool('pdfToExcel-section')">PDF to Excel</a>
             <a href="#pdf-to-ppt" class="block py-1 text-gray-700 hover:bg-gray-100"
               onclick="showTool('pdfToPpt-section')">PDF to PPT</a>
-              <a href="#multiple-image-to-pdf" class="block py-1 text-gray-700 hover:bg-gray-100" 
+            <a href="#multiple-image-to-pdf" class="block py-1 text-gray-700 hover:bg-gray-100"
               onclick="showTool('multipleImageToPdf-section')">Images to PDF</a>
             <a href="#remove-password" class="block py-1 text-gray-700 hover:text-green-600"
               onclick="showTool('removePassword-section')">Remove Password</a>
@@ -822,7 +822,7 @@
           </button> -->
           <div class="progress" id="progress-compressForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-            <div class="progress-text" id="progress-text-compressForm" ></div>
+            <div class="progress-text" id="progress-text-compressForm"></div>
           </div>
           <p id="result-compressForm" class="text-sm text-center"></p>
           <div id="compression-results" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
@@ -993,7 +993,8 @@
 
           <div class="progress" id="progress-deletePagesForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-            <div class="progress-text" id="progress-text-deletePagesForm" style="font-size: 17px;font-weight: bolder;"></div>
+            <div class="progress-text" id="progress-text-deletePagesForm" style="font-size: 17px;font-weight: bolder;">
+            </div>
           </div>
           <p id="result-deletePagesForm" class="text-sm text-center"></p>
 
@@ -1205,118 +1206,123 @@
       </div>
     </div>
     <!-- Image to PDF -->
-   <!-- Multiple Images to PDF -->
-<div id="multipleImageToPdf-section" class="tool-section" style="display: none;">
-  <div class="bg-white p-6 rounded-xl shadow-md tool-card">
-    <div class="flex items-center mb-4">
-      <div class="bg-teal-100 p-2 rounded-full mr-3">
-        <i class="fas fa-images text-teal-600 text-xl"></i>
+    <!-- Multiple Images to PDF -->
+    <div id="multipleImageToPdf-section" class="tool-section" style="display: none;">
+      <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+        <div class="flex items-center mb-4">
+          <div class="bg-teal-100 p-2 rounded-full mr-3">
+            <i class="fas fa-images text-teal-600 text-xl"></i>
+          </div>
+          <h2 class="text-2xl font-semibold text-gray-800">
+            Multiple Images → PDF <br>
+            <span class="whitespace-nowrap" style="font-size: medium;">Pixel Perfect Conversion 🔮✨🧙</span>
+          </h2>
+        </div>
+        <form id="multipleImageToPdfForm" enctype="multipart/form-data" class="pdf-form">
+          <div class="form-group">
+            <label for="multipleImageToPdf-files">Select Images (PNG/JPEG, max 50MB each)<span
+                class="required">*</span></label>
+            <input type="file" id="multipleImageToPdf-files" name="files" accept="image/png,image/jpeg" multiple
+              required>
+            <span id="multipleImageToPdf-files-count" class="file-name">No files selected</span>
+          </div>
+
+          <div id="image-previews" class="hidden">
+            <h3 class="text-lg font-medium text-gray-700 mb-2">Image Previews</h3>
+            <div id="image-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+          </div>
+          <input type="hidden" id="multipleImageToPdf-image-order" name="image_order">
+
+          <div class="form-group">
+            <label for="multiple-image-description">Global Description</label>
+            <textarea id="multiple-image-description" name="description"
+              placeholder="Enter description for all images (optional)" rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="multiple-description-position">Description Position<span class="required"></span></label>
+            <select id="multiple-description-position" name="description_position" required>
+              <option value="bottom-center" selected>Bottom Center</option>
+              <option value="top-center">Top Center</option>
+              <option value="top">Top</option>
+              <option value="top-left">Top Left</option>
+              <option value="top-right">Top Right</option>
+              <option value="bottom">Bottom</option>
+              <option value="bottom-left">Bottom Left</option>
+              <option value="bottom-right">Bottom Right</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="multiple-description-font-size">Font Size (8-72)<span class="required"></span></label>
+            <input type="number" id="multiple-description-font-size" name="description_font_size" min="8" max="72"
+              value="20" required>
+          </div>
+
+          <div class="form-group">
+            <label for="multiple-font-color">Font Color<span class="required"></span></label>
+            <input type="color" id="multiple-font-color" name="font_color" value="#000000" required>
+          </div>
+
+          <div class="form-group">
+            <label for="multiple-font-family">Font Family<span class="required"></span></label>
+            <select id="multiple-font-family" name="font_family" required>
+              <option value="helvetica">Helvetica</option>
+              <option value="times">Times New Roman</option>
+              <option value="courier">Courier</option>
+              <option value="zapf">Zapf Dingbats</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="multiple-font-weight">Font Weight<span class="required"></span></label>
+            <select id="multiple-font-weight" name="font_weight" required>
+              <option value="normal">Regular</option>
+              <option value="bold">Bold</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="multiple-page_size">Page Size<span class="required"></span></label>
+            <select name="page_size" id="multiple-page_size" required>
+              <option value="A4">A4</option>
+              <option value="Letter">Letter</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="multiple-orientation">Orientation<span class="required"></span></label>
+            <select name="orientation" id="multiple-orientation" required>
+              <option value="Portrait">Portrait</option>
+              <option value="Landscape">Landscape</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="image-per-page">Images per Page</label>
+            <select id="image-per-page" name="images_per_page">
+              <option value="1">One image per page</option>
+              <option value="2">Two images per page</option>
+              <option value="4">Four images per page</option>
+            </select>
+            <small class="text-gray-500">Choose how many images to place on each PDF page</small>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" onclick="convertMultipleImagesToPDFClientSide()" class="submit-button">
+              Multiple Images to PDF
+            </button>
+          </div>
+
+          <div id="progress-multipleImageToPdfForm" class="progress-container hidden">
+            <progress value="0" max="100" aria-label="Conversion progress"></progress>
+            <span id="progress-text-multipleImageToPdfForm" class="progress-text"
+              style="font-size: 17px;font-weight: bolder;"></span>
+          </div>
+          <div id="result-multipleImageToPdfForm" class="result-message" role="alert"></div>
+        </form>
       </div>
-      <h2 class="text-2xl font-semibold text-gray-800">
-        Multiple Images → PDF <br>
-        <span class="whitespace-nowrap" style="font-size: medium;">Pixel Perfect Conversion 🔮✨🧙</span>
-      </h2>
     </div>
-    <form id="multipleImageToPdfForm" enctype="multipart/form-data" class="pdf-form">
-      <div class="form-group">
-        <label for="multipleImageToPdf-files">Select Images (PNG/JPEG, max 50MB each)<span class="required">*</span></label>
-        <input type="file" id="multipleImageToPdf-files" name="files" accept="image/png,image/jpeg" multiple required>
-        <span id="multipleImageToPdf-files-count" class="file-name">No files selected</span>
-      </div>
-      
-      <div id="image-previews" class="hidden">
-        <h3 class="text-lg font-medium text-gray-700 mb-2">Image Previews</h3>
-        <div id="image-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
-      </div>
-      <input type="hidden" id="multipleImageToPdf-image-order" name="image_order">
-      
-      <div class="form-group">
-        <label for="multiple-image-description">Global Description</label>
-        <textarea id="multiple-image-description" name="description" placeholder="Enter description for all images (optional)" rows="3"></textarea>
-      </div>
-      
-      <div class="form-group">
-        <label for="multiple-description-position">Description Position<span class="required"></span></label>
-        <select id="multiple-description-position" name="description_position" required>
-          <option value="bottom-center" selected>Bottom Center</option>
-          <option value="top-center">Top Center</option>
-          <option value="top">Top</option>
-          <option value="top-left">Top Left</option>
-          <option value="top-right">Top Right</option>
-          <option value="bottom">Bottom</option>
-          <option value="bottom-left">Bottom Left</option>
-          <option value="bottom-right">Bottom Right</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="multiple-description-font-size">Font Size (8-72)<span class="required"></span></label>
-        <input type="number" id="multiple-description-font-size" name="description_font_size" min="8" max="72" value="20" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="multiple-font-color">Font Color<span class="required"></span></label>
-        <input type="color" id="multiple-font-color" name="font_color" value="#000000" required>
-      </div>
-
-      <div class="form-group">
-        <label for="multiple-font-family">Font Family<span class="required"></span></label>
-        <select id="multiple-font-family" name="font_family" required>
-          <option value="helvetica">Helvetica</option>
-          <option value="times">Times New Roman</option>
-          <option value="courier">Courier</option>
-          <option value="zapf">Zapf Dingbats</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="multiple-font-weight">Font Weight<span class="required"></span></label>
-        <select id="multiple-font-weight" name="font_weight" required>
-          <option value="normal">Regular</option>
-          <option value="bold">Bold</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="multiple-page_size">Page Size<span class="required"></span></label>
-        <select name="page_size" id="multiple-page_size" required>
-          <option value="A4">A4</option>
-          <option value="Letter">Letter</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="multiple-orientation">Orientation<span class="required"></span></label>
-        <select name="orientation" id="multiple-orientation" required>
-          <option value="Portrait">Portrait</option>
-          <option value="Landscape">Landscape</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="image-per-page">Images per Page</label>
-        <select id="image-per-page" name="images_per_page">
-          <option value="1">One image per page</option>
-          <option value="2">Two images per page</option>
-          <option value="4">Four images per page</option>
-        </select>
-        <small class="text-gray-500">Choose how many images to place on each PDF page</small>
-      </div>
-
-      <div class="form-actions">
-        <button type="button" onclick="convertMultipleImagesToPDFClientSide()" class="submit-button">
-          Multiple Images to PDF
-        </button>
-      </div>
-      
-      <div id="progress-multipleImageToPdfForm" class="progress-container hidden">
-        <progress value="0" max="100" aria-label="Conversion progress"></progress>
-        <span id="progress-text-multipleImageToPdfForm" class="progress-text" style="font-size: 17px;font-weight: bolder;"></span>
-      </div>
-      <div id="result-multipleImageToPdfForm" class="result-message" role="alert"></div>
-    </form>
-  </div>
-</div>
 
     <!-- <div id="imageToPdf-section" class="tool-section" style="display: none;">
           <div class="bg-white p-6 rounded-xl shadow-md tool-card">
@@ -1412,7 +1418,8 @@
             <!-- progress -->
             <div class="progress" id="progress-reorderForm">
               <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-              <div class="progress-text" id="progress-text-reorderForm" style="font-size: 17px;font-weight: bolder;"></div>
+              <div class="progress-text" id="progress-text-reorderForm" style="font-size: 17px;font-weight: bolder;">
+              </div>
             </div>
             <p id="result-reorderForm" class="text-sm text-center"></p>
             <!-- progress -->
@@ -1494,7 +1501,8 @@
               <i class="fas fa-list-ol mr-2"></i> Add Page Numbers </button> -->
             <div class="progress" id="progress-pageNumbersForm">
               <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-              <div class="progress-text" id="progress-text-pageNumbersForm" style="font-size: 17px;font-weight: bolder;"></div>
+              <div class="progress-text" id="progress-text-pageNumbersForm"
+                style="font-size: 17px;font-weight: bolder;"></div>
             </div>
             <p id="result-pageNumbersForm" class="text-sm text-center"></p>
           </form>
@@ -1545,7 +1553,8 @@
               <p>Remove Image Background for best result. Check in PDF Tools.</p>
 
               <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-              <div class="progress-text" id="progress-text-signatureForm" style="font-size: 17px;font-weight: bolder;"></div>
+              <div class="progress-text" id="progress-text-signatureForm" style="font-size: 17px;font-weight: bolder;">
+              </div>
               <p id="result-signatureForm" class="text-sm text-center"></p>
 
             </div>
@@ -1694,18 +1703,16 @@
     }
 
     function updateFileOrder(fileElements) {
-      const fileOrder = Array.from(fileElements).map(fileElement => {
+    const fileOrder = Array.from(fileElements).map(fileElement => {
         return fileElement.dataset.fileIndex;
-      });
+    });
 
-      const fileOrderInput = document.getElementById('merge-file-order');
-      if (fileOrderInput) {
+    const fileOrderInput = document.getElementById('merge-file-order');
+    if (fileOrderInput) {
         fileOrderInput.value = fileOrder.join(',');
         console.log("Updated file order:", fileOrderInput.value);
-        console.log("File elements count:", fileElements.length);
-        console.log("File order array:", fileOrder);
-      }
     }
+}
 
     function updateButtonStates(pages) {
       pages.forEach((page, index) => {
@@ -1917,86 +1924,129 @@
 
 
 
-// ////////
-
-function removeFileFromMerge(fileElement) {
+    // ////////
+    function removeFileFromMerge(fileElement) {
     const fileList = document.getElementById('file-list');
-    const fileIndex = fileElement.dataset.fileIndex;
-    
+    const fileInput = document.getElementById('merge-files');
+    const fileOrderInput = document.getElementById('merge-file-order');
+    const fileIndex = parseInt(fileElement.dataset.fileIndex);
+
+    console.log(`Removing file at index: ${fileIndex}`);
+
     // Remove the file element from DOM
     fileElement.remove();
-    
-    // Update the file order
-    updateFileOrder(fileList.querySelectorAll('.file-item'));
-    
+
     // Update the file input to reflect the removal
-    updateFileInputAfterRemoval(fileIndex);
-    
-    // Update UI state
+    const updatedFiles = updateFileInputAfterRemoval(fileIndex);
+
+    // Re-index all remaining file items to match the updated file input
     const remainingFiles = fileList.querySelectorAll('.file-item');
+    
+    // Create new indices starting from 0
+    remainingFiles.forEach((fileDiv, newIndex) => {
+        fileDiv.dataset.fileIndex = newIndex;
+    });
+
+    // Update the file order with new indices
+    const newOrder = Array.from(remainingFiles).map(fileDiv => fileDiv.dataset.fileIndex);
+    if (fileOrderInput) {
+        fileOrderInput.value = newOrder.join(',');
+        console.log("Updated file order after removal:", fileOrderInput.value);
+    }
+
+    // Update button states
+    updateButtonStates(remainingFiles);
+
+    // Update UI state
+    const resultDiv = document.getElementById('result-mergeForm');
     if (remainingFiles.length === 0) {
         document.getElementById('file-previews').classList.add('hidden');
-        document.getElementById('result-mergeForm').textContent = 'No files selected';
-        document.getElementById('result-mergeForm').classList.add('text-red-600');
+        if (resultDiv) {
+            resultDiv.textContent = 'No files selected';
+            resultDiv.classList.add('text-red-600');
+        }
+    } else if (remainingFiles.length < 2) {
+        if (resultDiv) {
+            resultDiv.textContent = 'Please select at least 2 PDF files.';
+            resultDiv.classList.add('text-red-600');
+        }
+    } else {
+        if (resultDiv) {
+            resultDiv.textContent = `${remainingFiles.length} files loaded. Reorder using arrows or remove files using cross button.`;
+            resultDiv.classList.remove('text-red-600');
+            resultDiv.classList.add('text-green-600');
+        }
     }
-}
 
+    return updatedFiles;
+}
 function updateFileInputAfterRemoval(removedIndex) {
     const fileInput = document.getElementById('merge-files');
     const filesCount = document.getElementById('merge-files-count');
     const dataTransfer = new DataTransfer();
-    
+
     // Add all files except the removed one
     for (let i = 0; i < fileInput.files.length; i++) {
-        if (i != removedIndex) {
+        if (i !== removedIndex) {
             dataTransfer.items.add(fileInput.files[i]);
         }
     }
-    
+
     // Update file input
     fileInput.files = dataTransfer.files;
-    
+
     // Update file count display
-    if (dataTransfer.files.length > 1) {
-        filesCount.textContent = `${dataTransfer.files.length} files selected`;
-    } else if (dataTransfer.files.length === 1) {
-        filesCount.textContent = dataTransfer.files[0].name;
-    } else {
-        filesCount.textContent = 'No files selected';
+    if (filesCount) {
+        if (dataTransfer.files.length > 1) {
+            filesCount.textContent = `${dataTransfer.files.length} files selected`;
+        } else if (dataTransfer.files.length === 1) {
+            filesCount.textContent = dataTransfer.files[0].name;
+        } else {
+            filesCount.textContent = 'No files selected';
+        }
     }
+
+    console.log(`File input updated. Removed index ${removedIndex}. Remaining files:`, 
+                Array.from(dataTransfer.files).map(f => f.name));
+
+    return dataTransfer.files;
 }
 
-    document.getElementById('merge-files').addEventListener('change', async (e) => {
-    const files = e.target.files;
-    const resultDiv = document.getElementById('result-mergeForm');
-    const filePreviews = document.getElementById('file-previews');
-    const fileList = document.getElementById('file-list');
 
-    if (files.length < 2) {
+    document.getElementById('merge-files').addEventListener('change', async (e) => {
+      const files = e.target.files;
+      const resultDiv = document.getElementById('result-mergeForm');
+      const filePreviews = document.getElementById('file-previews');
+      const fileList = document.getElementById('file-list');
+
+      // Clear any existing files first
+      fileList.innerHTML = '';
+
+      if (files.length < 2) {
         filePreviews.classList.add('hidden');
         resultDiv.textContent = 'Please select at least 2 PDF files.';
         resultDiv.classList.add('text-red-600');
         return;
-    }
+      }
 
-    fileList.innerHTML = '';
-    const fileDivs = [];
+      fileList.innerHTML = '';
+      const fileDivs = [];
 
-    for (let i = 0; i < files.length; i++) {
+      for (let i = 0; i < files.length; i++) {
         const file = files[i];
         console.log('Processing file:', file.name, file.size, file.type);
 
         const fileDiv = document.createElement('div');
         fileDiv.className = 'file-item flex justify-between items-center mb-2 p-3 bg-white border border-gray-200 rounded-lg';
-        fileDiv.dataset.fileIndex = i;
+        fileDiv.dataset.fileIndex = i; // Set initial index
 
         fileDiv.innerHTML = `
             <span class="text-gray-600 flex-1 truncate mr-3">${file.name}</span>
             <div class="flex items-center space-x-2">
-                <button type="button" class="move-up bg-blue-600 text-white px-2 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
+                <button type="button" class="move-up bg-blue-600 text-white px-2 py-1 rounded text-sm hover:bg-blue-700 transition-colors ${i === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${i === 0 ? 'disabled' : ''}>
                     <i class="fas fa-arrow-up"></i>
                 </button>
-                <button type="button" class="move-down bg-blue-600 text-white px-2 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
+                <button type="button" class="move-down bg-blue-600 text-white px-2 py-1 rounded text-sm hover:bg-blue-700 transition-colors ${i === files.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${i === files.length - 1 ? 'disabled' : ''}>
                     <i class="fas fa-arrow-down"></i>
                 </button>
                 <button type="button" class="remove-file bg-red-600 text-white px-2 py-1 rounded text-sm hover:bg-red-700 transition-colors">
@@ -2010,43 +2060,64 @@ function updateFileInputAfterRemoval(removedIndex) {
 
         // Add event listeners
         fileDiv.querySelector('.move-up').addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const prev = fileDiv.previousSibling;
-            if (prev) {
-                fileList.insertBefore(fileDiv, prev);
-                updateFileOrder(Array.from(fileList.querySelectorAll('.file-item')));
-                console.log('Moved file up, new order:', document.getElementById('merge-file-order').value);
-            }
+          event.preventDefault();
+          event.stopPropagation();
+          const prev = fileDiv.previousSibling;
+          if (prev) {
+            fileList.insertBefore(fileDiv, prev);
+            updateFileOrder(Array.from(fileList.querySelectorAll('.file-item')));
+            updateButtonStates(Array.from(fileList.querySelectorAll('.file-item')));
+            console.log('Moved file up, new order:', document.getElementById('merge-file-order').value);
+          }
         });
 
         fileDiv.querySelector('.move-down').addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const next = fileDiv.nextSibling;
-            if (next) {
-                fileList.insertBefore(next, fileDiv);
-                updateFileOrder(Array.from(fileList.querySelectorAll('.file-item')));
-                console.log('Moved file down, new order:', document.getElementById('merge-file-order').value);
-            }
+          event.preventDefault();
+          event.stopPropagation();
+          const next = fileDiv.nextSibling;
+          if (next) {
+            fileList.insertBefore(next, fileDiv);
+            updateFileOrder(Array.from(fileList.querySelectorAll('.file-item')));
+            updateButtonStates(Array.from(fileList.querySelectorAll('.file-item')));
+            console.log('Moved file down, new order:', document.getElementById('merge-file-order').value);
+          }
         });
 
         // Add remove file event listener
         fileDiv.querySelector('.remove-file').addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            removeFileFromMerge(fileDiv);
+          event.preventDefault();
+          event.stopPropagation();
+          removeFileFromMerge(fileDiv);
         });
-    }
+      }
 
-    filePreviews.classList.remove('hidden');
-    updateFileOrder(fileDivs);
-    console.log('Initial file order set:', document.getElementById('merge-file-order').value);
-    resultDiv.textContent = `${files.length} files loaded. Reorder using arrows or remove files using cross button.`;
-    resultDiv.classList.remove('text-red-600');
-    resultDiv.classList.add('text-green-600');
-});
-
+      filePreviews.classList.remove('hidden');
+      updateFileOrder(fileDivs);
+      updateButtonStates(fileDivs);
+      console.log('Initial file order set:', document.getElementById('merge-file-order').value);
+      resultDiv.textContent = `${files.length} files loaded. Reorder using arrows or remove files using cross button.`;
+      resultDiv.classList.remove('text-red-600');
+      resultDiv.classList.add('text-green-600');
+    });
+    function updateButtonStates(fileElements) {
+    const fileArray = Array.from(fileElements);
+    fileArray.forEach((fileElement, index) => {
+        const upButton = fileElement.querySelector('.move-up');
+        const downButton = fileElement.querySelector('.move-down');
+        
+        if (upButton) {
+            upButton.disabled = index === 0;
+            upButton.classList.toggle('opacity-50', index === 0);
+            upButton.classList.toggle('cursor-not-allowed', index === 0);
+        }
+        
+        if (downButton) {
+            downButton.disabled = index === fileArray.length - 1;
+            downButton.classList.toggle('opacity-50', index === fileArray.length - 1);
+            downButton.classList.toggle('cursor-not-allowed', index === fileArray.length - 1);
+        }
+    });
+}
 
 
     ///////
@@ -2071,7 +2142,7 @@ function updateFileInputAfterRemoval(removedIndex) {
       const removeBgCheckbox = document.getElementById('remove-bg');
       const progressDiv = document.getElementById('progress-signatureForm');
       const progressText = document.getElementById('progress-text-signatureForm');
-      
+
       console.log("Remove Background Checkbox is checked:", removeBgCheckbox);
       if (!file) {
         pagePreviews.classList.add('hidden');
@@ -2079,7 +2150,7 @@ function updateFileInputAfterRemoval(removedIndex) {
         resultDiv.classList.add('text-red-600');
         return;
       }
-      
+
       console.log('Processing PDF file:', file.name, file.size, file.type);
       try {
 
@@ -2100,12 +2171,12 @@ function updateFileInputAfterRemoval(removedIndex) {
         `;
         const arrayBuffer = await file.arrayBuffer();
         console.log('ArrayBuffer loaded, size:', arrayBuffer.byteLength);
-        
+
         // Update progress - ONLY THIS IS ADDED
         if (progressText) {
           progressText.textContent = 'Processing PDF structure... 25%';
         }
-        
+
         const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
         console.log('PDF loaded, pages:', pdf.numPages);
         const numPages = pdf.numPages;
@@ -2116,13 +2187,13 @@ function updateFileInputAfterRemoval(removedIndex) {
         const pages = [];
         for (let i = 1; i <= numPages; i++) {
           console.log('Rendering page:', i);
-          
+
           // Update progress percentage - ONLY THIS IS ADDED
           if (progressText) {
             const progress = Math.round((i / numPages) * 100);
             progressText.textContent = `Loading page ${i}/${numPages}... ${progress}%`;
           }
-          
+
           const page = await pdf.getPage(i);
           const viewport = page.getViewport({
             scale: 0.5
@@ -2176,12 +2247,12 @@ function updateFileInputAfterRemoval(removedIndex) {
           checkboxes.forEach(cb => cb.checked = e.target.checked);
           updateSelectedPages();
         });
-        
+
         // Hide progress when done - ONLY THIS IS ADDED
         if (progressDiv) {
           progressDiv.style.display = 'none';
         }
-        
+
         pagePreviews.classList.remove('hidden');
         updateSelectedPages();
         resultDiv.textContent = `${numPages} pages loaded. Select pages to sign and click Add Signature.`;
@@ -2206,7 +2277,7 @@ function updateFileInputAfterRemoval(removedIndex) {
     });
 
 
-    
+
     // document.getElementById('signature-pdf-file').addEventListener('change', async (e) => {
     //   const file = e.target.files[0];
     //   const resultDiv = document.getElementById('result-signatureForm');
