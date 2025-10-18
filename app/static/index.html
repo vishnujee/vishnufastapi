@@ -71,8 +71,8 @@
 
   <!-- Tailwind CSS CDN crtical css urgetly required-->
   <!-- <script src="https://cdn.tailwindcss.com"></script> -->
-  <link rel="stylesheet" href="/static/css/all-tailwind-classes-full-min.css">
-  <!-- <link rel="stylesheet" href="/static/css/all-tailwind-classes-full.css"> -->
+
+  <link rel="stylesheet" href="/static/css/tailwind.min.css">
 
 
 
@@ -241,38 +241,6 @@
         background-position: 200% 0;
       }
     }
-
-    /* Minimal Toggle Switch  new implementation*/
-    .toggle-container {
-      position: relative;
-      width: 44px;
-      height: 24px;
-      background-color: #d1d5db;
-      border-radius: 12px;
-      margin-right: 12px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-
-    .toggle-slider {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 20px;
-      height: 20px;
-      background-color: white;
-      border-radius: 50%;
-      transition: transform 0.3s ease;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    }
-
-    #mode-toggle:checked~.toggle-container {
-      background-color: #2563eb;
-    }
-
-    #mode-toggle:checked~.toggle-container .toggle-slider {
-      transform: translateX(20px);
-    }
   </style>
 </head>
 
@@ -282,7 +250,9 @@
     <div class="container mx-auto px-4">
       <div class="flex justify-between items-center py-4" style="padding-top: 5px; ">
         <div class="flex items-center space-x-4 py-0">
-          <a href="/" class="text-2xl font-bold text-blue-600 hover:text-green-600"> VishnuDesk </a>
+          <!-- <a href="/" class="text-2xl font-bold text-blue-600 hover:text-green-600"> VishnuDesk </a> -->
+          <a href="#chat" class="text-2xl font-bold text-blue-600 hover:text-green-600" style="margin-top: 0px;"
+            onclick="showTool('chat-section')">Homepage</a>
         </div>
         <div class="hidden md:flex items-center space-x-8">
 
@@ -659,13 +629,9 @@
         <div id="tone-selector-section" class="flex items-center mb-4">
           <label class="inline-flex items-center cursor-pointer mr-4">
             <input type="checkbox" id="mode-toggle" class="sr-only peer">
-            <!-- <div
+            <div
               class="relative w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full">
-            </div> -->
-            <div class="toggle-container" id="toggle-container">
-              <div class="toggle-slider"></div>
             </div>
-
             <span class="ms-3 text-sm font-medium text-gray-900">Tone Selector <br> <span
                 class="text-xs text-gray-500">(Vishnu mode)</span></span>
           </label>
@@ -727,6 +693,10 @@
         class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
         <i class="fas fa-broom mr-2"></i> Clear PDF Forms
       </button>
+      <p id="operation-msg" class="mt-2 text-sm text-gray-600 italic hidden">
+        ⚠️ While performing this operation, please keep this browser tab active.<br>
+        It’s a browser-side, high-efficiency process and will pause if you switch tabs.
+      </p>
     </div>
 
     <!-- Merge PDFs -->
@@ -1134,8 +1104,9 @@
 
     <!-- Convert PDF to PowerPoint -->
     <div id="pdfToPpt-section" class="tool-section" style="display: none;">
-      <h4 style="color: #05ee37; font-size: larger;">Note : PDFs Don’t Support Teams’ Presentation Mode.</h4> <br>
-      <h4 style="color: #05ee37; font-size: larger;margin-top: -26px;">The reason you are here.</h4>
+      <h4 style="color: #ab06f8; font-size: larger;"><strong>Note : PDF Doesn’t Support Teams’ Presentation
+          Mode.</strong></h4> <br>
+      <h4 style="color: #ab06f8; font-size: larger;margin-top: -26px;"><strong>The reason you are here.</strong></h4>
       <div class="bg-white p-6 rounded-xl shadow-md tool-card">
 
         <div class="flex items-center mb-4">
@@ -1260,7 +1231,7 @@
             <label for="description-position">Description Position<span class="required"></span></label>
             <select id="description-position" name="description_position" required>
               <option value="top-center" selected>Top Center</option>
-              <option value="bottom-center" >Bottom Center</option> <!-- Added selected -->
+              <option value="bottom-center">Bottom Center</option> <!-- Added selected -->
               <option value="top">Top</option>
               <option value="top-left">Top Left</option>
               <option value="top-right">Top Right</option>
@@ -1784,19 +1755,28 @@
     // Show chat section by default
     document.getElementById('chat-section').style.display = 'block';
     // Memory Monitoring Code
+    // 
     document.getElementById('reorder-file').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       const resultDiv = document.getElementById('result-reorderForm');
       const pagePreviews = document.getElementById('page-previews');
       const pageList = document.getElementById('page-list');
+      const progressDiv = document.getElementById('progress-reorderForm');
+      const progressText = document.getElementById('progress-text-reorderForm');
+
       if (!file) {
         pagePreviews.classList.add('hidden');
         resultDiv.textContent = 'No file selected.';
         resultDiv.classList.add('text-red-600');
         return;
       }
+
       console.log('Processing PDF file:', file.name, file.size, file.type);
       try {
+        // Show progress
+        progressDiv.style.display = 'block';
+        progressText.textContent = 'Loading PDF... 0%';
+
         // Show loading spinner
         pagePreviews.classList.remove('hidden');
         pageList.innerHTML = `
@@ -1805,21 +1785,33 @@
                 <span class="ml-3 text-gray-600">Loading pages...</span>
             </div>
         `;
+
         const arrayBuffer = await file.arrayBuffer();
         console.log('ArrayBuffer loaded, size:', arrayBuffer.byteLength);
+
+        progressText.textContent = 'Processing PDF structure... 25%';
+
         const pdf = await pdfjsLib.getDocument({
           data: arrayBuffer
         }).promise;
+
         console.log('PDF loaded, pages:', pdf.numPages);
         const numPages = pdf.numPages;
         if (numPages === 0) {
           throw new Error('PDF has no pages.');
         }
+
         // Clear loading spinner and render pages
         pageList.innerHTML = '';
         const pages = [];
+
         for (let i = 1; i <= numPages; i++) {
           console.log('Rendering page:', i);
+
+          // Update progress percentage
+          const progress = Math.round((i / numPages) * 100);
+          progressText.textContent = `Loading page ${i}/${numPages}... ${progress}%`;
+
           const page = await pdf.getPage(i);
           const viewport = page.getViewport({
             scale: 0.5
@@ -1865,7 +1857,6 @@
           pages.push(pageDiv);
 
           // Add event listeners for move buttons
-          // Add event listeners for move buttons
           pageDiv.querySelector('.move-up').addEventListener('click', (event) => {
             event.preventDefault(); // Prevent default behavior
             event.stopPropagation(); // Stop event bubbling
@@ -1891,14 +1882,20 @@
           // Clean up temporary canvas
           canvas.remove();
         }
+
+        // Hide progress when done
+        progressDiv.style.display = 'none';
         pagePreviews.classList.remove('hidden');
         updatePageOrder(pages);
         console.log('Initial page order set:', document.getElementById('reorder-page-order').value);
         resultDiv.textContent = `${numPages} pages loaded. Reorder using arrows and click Download.`;
         resultDiv.classList.remove('text-red-600');
         resultDiv.classList.add('text-green-600');
+
       } catch (err) {
         console.error('Error processing PDF:', err);
+        // Hide progress on error
+        progressDiv.style.display = 'none';
         pageList.innerHTML = `
             <div class="text-center py-4 text-red-600">
                 <i class="fas fa-exclamation-triangle mr-2"></i>
@@ -1910,6 +1907,11 @@
         document.getElementById('reorder-page-order').value = '';
       }
     });
+
+
+
+
+
     document.getElementById('merge-files').addEventListener('change', async (e) => {
       const files = e.target.files;
       const resultDiv = document.getElementById('result-mergeForm');
@@ -1993,6 +1995,7 @@
       console.log('Selected pages:', document.getElementById('signature-selected-pages').value);
     }
     // Handle PDF file selection for signature section
+
     document.getElementById('signature-pdf-file').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       const resultDiv = document.getElementById('result-signatureForm');
@@ -2000,6 +2003,9 @@
       const pageList = document.getElementById('signature-page-list');
       const selectAllCheckbox = document.getElementById('select-all-pages');
       const removeBgCheckbox = document.getElementById('remove-bg');
+      const progressDiv = document.getElementById('progress-signatureForm');
+      const progressText = document.getElementById('progress-text-signatureForm');
+      
       console.log("Remove Background Checkbox is checked:", removeBgCheckbox);
       if (!file) {
         pagePreviews.classList.add('hidden');
@@ -2007,8 +2013,14 @@
         resultDiv.classList.add('text-red-600');
         return;
       }
+      
       console.log('Processing PDF file:', file.name, file.size, file.type);
       try {
+        // Show progress - ONLY THIS IS ADDED
+        if (progressDiv && progressText) {
+          progressDiv.style.display = 'block';
+          progressText.textContent = 'Loading PDF... 0%';
+        }
 
         // Show loading spinner
         pagePreviews.classList.remove('hidden');
@@ -2020,6 +2032,12 @@
         `;
         const arrayBuffer = await file.arrayBuffer();
         console.log('ArrayBuffer loaded, size:', arrayBuffer.byteLength);
+        
+        // Update progress - ONLY THIS IS ADDED
+        if (progressText) {
+          progressText.textContent = 'Processing PDF structure... 25%';
+        }
+        
         const pdf = await pdfjsLib.getDocument({
           data: arrayBuffer
         }).promise;
@@ -2032,6 +2050,13 @@
         const pages = [];
         for (let i = 1; i <= numPages; i++) {
           console.log('Rendering page:', i);
+          
+          // Update progress percentage - ONLY THIS IS ADDED
+          if (progressText) {
+            const progress = Math.round((i / numPages) * 100);
+            progressText.textContent = `Loading page ${i}/${numPages}... ${progress}%`;
+          }
+          
           const page = await pdf.getPage(i);
           const viewport = page.getViewport({
             scale: 0.5
@@ -2085,6 +2110,12 @@
           checkboxes.forEach(cb => cb.checked = e.target.checked);
           updateSelectedPages();
         });
+        
+        // Hide progress when done - ONLY THIS IS ADDED
+        if (progressDiv) {
+          progressDiv.style.display = 'none';
+        }
+        
         pagePreviews.classList.remove('hidden');
         updateSelectedPages();
         resultDiv.textContent = `${numPages} pages loaded. Select pages to sign and click Add Signature.`;
@@ -2092,6 +2123,10 @@
         resultDiv.classList.add('text-green-600');
       } catch (err) {
         console.error('Error processing PDF:', err);
+        // Hide progress on error - ONLY THIS IS ADDED
+        if (progressDiv) {
+          progressDiv.style.display = 'none';
+        }
         pageList.innerHTML = `
             <div class="text-center py-4 text-red-600">
                 <i class="fas fa-exclamation-triangle mr-2"></i>
@@ -2102,13 +2137,126 @@
         resultDiv.classList.add('text-red-600');
         document.getElementById('signature-selected-pages').value = '';
       }
-
-
-      // 
-
-
-
     });
+
+
+    
+    // document.getElementById('signature-pdf-file').addEventListener('change', async (e) => {
+    //   const file = e.target.files[0];
+    //   const resultDiv = document.getElementById('result-signatureForm');
+    //   const pagePreviews = document.getElementById('signature-page-previews');
+    //   const pageList = document.getElementById('signature-page-list');
+    //   const selectAllCheckbox = document.getElementById('select-all-pages');
+    //   const removeBgCheckbox = document.getElementById('remove-bg');
+    //   console.log("Remove Background Checkbox is checked:", removeBgCheckbox);
+    //   if (!file) {
+    //     pagePreviews.classList.add('hidden');
+    //     resultDiv.textContent = 'No file selected.';
+    //     resultDiv.classList.add('text-red-600');
+    //     return;
+    //   }
+    //   console.log('Processing PDF file:', file.name, file.size, file.type);
+    //   try {
+
+    //     // Show loading spinner
+    //     pagePreviews.classList.remove('hidden');
+    //     pageList.innerHTML = `
+    //         <div class="flex justify-center items-center py-8">
+    //             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+    //             <span class="ml-3 text-gray-600">Loading pages...</span>
+    //         </div>
+    //     `;
+    //     const arrayBuffer = await file.arrayBuffer();
+    //     console.log('ArrayBuffer loaded, size:', arrayBuffer.byteLength);
+    //     const pdf = await pdfjsLib.getDocument({
+    //       data: arrayBuffer
+    //     }).promise;
+    //     console.log('PDF loaded, pages:', pdf.numPages);
+    //     const numPages = pdf.numPages;
+    //     if (numPages === 0) {
+    //       throw new Error('PDF has no pages.');
+    //     }
+    //     pageList.innerHTML = '';
+    //     const pages = [];
+    //     for (let i = 1; i <= numPages; i++) {
+    //       console.log('Rendering page:', i);
+    //       const page = await pdf.getPage(i);
+    //       const viewport = page.getViewport({
+    //         scale: 0.5
+    //       });
+
+    //       const canvas = document.createElement('canvas');
+    //       canvas.width = viewport.width;
+    //       canvas.height = viewport.height;
+    //       const context = canvas.getContext('2d');
+
+    //       await page.render({
+    //         canvasContext: context,
+    //         viewport
+    //       }).promise;
+
+    //       const pageDiv = document.createElement('div');
+    //       pageDiv.className = 'page-preview border border-gray-200 rounded-lg p-4 bg-white';
+    //       pageDiv.dataset.pageNum = i;
+    //       pageDiv.innerHTML = `
+    //             <div class="flex flex-col items-center">
+    //                 <canvas class="mb-2 border border-gray-300"></canvas>
+    //                 <div class="flex items-center mt-2">
+    //                     <input type="checkbox" class="page-checkbox mr-2" data-page-num="${i}">
+    //                     <span class="text-gray-600 text-sm">Page ${i}</span>
+    //                 </div>
+    //             </div>
+    //         `;
+
+    //       // Replace the canvas with the rendered one
+    //       const previewCanvas = pageDiv.querySelector('canvas');
+    //       previewCanvas.width = canvas.width;
+    //       previewCanvas.height = canvas.height;
+    //       previewCanvas.getContext('2d').drawImage(canvas, 0, 0);
+
+    //       pageList.appendChild(pageDiv);
+    //       pages.push(pageDiv);
+
+    //       // Add event listener for checkbox
+    //       pageDiv.querySelector('.page-checkbox').addEventListener('change', () => {
+    //         updateSelectedPages();
+    //         const allChecked = Array.from(document.querySelectorAll('.page-checkbox')).every(cb => cb.checked);
+    //         selectAllCheckbox.checked = allChecked;
+    //       });
+
+    //       // Clean up temporary canvas
+    //       canvas.remove();
+    //     }
+    //     // Handle select all checkbox
+    //     selectAllCheckbox.addEventListener('change', (e) => {
+    //       const checkboxes = document.querySelectorAll('.page-checkbox');
+    //       checkboxes.forEach(cb => cb.checked = e.target.checked);
+    //       updateSelectedPages();
+    //     });
+    //     pagePreviews.classList.remove('hidden');
+    //     updateSelectedPages();
+    //     resultDiv.textContent = `${numPages} pages loaded. Select pages to sign and click Add Signature.`;
+    //     resultDiv.classList.remove('text-red-600');
+    //     resultDiv.classList.add('text-green-600');
+    //   } catch (err) {
+    //     console.error('Error processing PDF:', err);
+    //     pageList.innerHTML = `
+    //         <div class="text-center py-4 text-red-600">
+    //             <i class="fas fa-exclamation-triangle mr-2"></i>
+    //             Error loading PDF: ${err.message}
+    //         </div>
+    //     `;
+    //     resultDiv.textContent = `Error loading PDF: ${err.message}. Please ensure the file is a valid PDF and try again.`;
+    //     resultDiv.classList.add('text-red-600');
+    //     document.getElementById('signature-selected-pages').value = '';
+    //   }
+
+
+    //   // 
+
+
+
+    // });
 
     // clear form
 

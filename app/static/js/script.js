@@ -21,6 +21,8 @@ if (typeof pdfjsLib !== 'undefined') {
 async function compressPDFClientSide() {
     console.log('Starting optimized client-side compression...');
 
+  
+
     const form = document.getElementById('compressForm');
     const fileInput = form.querySelector('input[type="file"]');
     const resultDiv = document.getElementById('result-compressForm');
@@ -28,6 +30,9 @@ async function compressPDFClientSide() {
     const progressText = document.getElementById('progress-text-compressForm');
     const submitButton = form.querySelector('button[type="button"]');
 
+    const msg = document.getElementById('operation-msg');
+    msg.classList.remove('hidden'); // show the message
+    setTimeout(() => msg.classList.add('hidden'), 30000);
     // Validation
     if (!fileInput || !fileInput.files || !fileInput.files.length) {
         alert('Please select a PDF file.');
@@ -305,6 +310,8 @@ function calculateAccuracy(estimated, actual) {
 // Enhanced computeAllCompressionSizes with accurate predictions
 async function computeAllCompressionSizes() {
     console.log('Computing all compression sizes with accurate predictions...');
+    
+
 
     const form = document.getElementById('compressForm');
     const fileInput = form.querySelector('input[type="file"]');
@@ -312,6 +319,10 @@ async function computeAllCompressionSizes() {
     const compressionResults = document.getElementById('compression-results');
     const compressionSizes = document.getElementById('compression-sizes');
     const computeButton = form.querySelector('button[onclick*="computeAllCompressionSizes"]');
+
+    const msg = document.getElementById('operation-msg');
+    msg.classList.remove('hidden'); // show the message
+    setTimeout(() => msg.classList.add('hidden'), 30000);
 
     if (!fileInput || !fileInput.files.length) {
         const errorMsg = 'Please select a PDF file first.';
@@ -509,7 +520,7 @@ async function computeAllCompressionSizes() {
                 messageHTML = `
                     <div class="text-green-600">
                         ✅ <strong>Accurate Compression Estimation Completed!</strong><br>
-                        <small>Check the table above for size reduction estimates with accuracy metrics.</small>
+                        <small>Check the table above for size reduction estimates.</small>
                     </div>
                 `;
             }
@@ -2431,6 +2442,19 @@ function clearAllForms() {
     document.querySelectorAll('[id^="result-"]').forEach(result => {
         result.textContent = '';
     });
+
+    const compressionResults = document.getElementById('compression-results');
+    if (compressionResults) {
+        const compressionSizes = document.getElementById('compression-sizes');
+        if (compressionSizes) compressionSizes.innerHTML = ''; // clear list items
+        compressionResults.classList.add('hidden'); // hide entire block
+    }
+
+
+    document.getElementById("progress-text-signatureForm").textContent = "";
+    document.getElementById("result-signatureForm").textContent = "";
+    document.querySelector("#signatureForm progress").value = 0;
+    document.querySelector("#signatureForm progress").style.display = "none";
 
 
 }

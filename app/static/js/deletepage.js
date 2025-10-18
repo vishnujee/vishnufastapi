@@ -265,7 +265,7 @@ async function loadDeletePagePreviews(file) {
                     </div>
                     <div class="flex items-center justify-between w-full mt-2">
                         <span class="text-gray-700 text-sm font-semibold">Page ${i}</span>
-                        <div class="selection-indicator w-5 h-5 border-2 border-gray-400 rounded-full flex items-center justify-center bg-white">
+                        <div class="selection-indicator w-5 h-5 border-2 border-gray-400 rounded-full flex items-center justify-center bg-white hidden">
                             <i class="fas fa-check text-white text-xs checkmark hidden"></i>
                         </div>
                     </div>
@@ -304,8 +304,22 @@ async function loadDeletePagePreviews(file) {
         progressText.textContent = 'Page previews loaded. Select pages to delete.';
 
         // Add event listeners for control buttons
-        document.getElementById('select-all-pages').addEventListener('click', selectAllPages);
-        document.getElementById('deselect-all-pages').addEventListener('click', deselectAllPages);
+        // document.getElementById('select-all-pages').addEventListener('click', selectAllPages);
+        // document.getElementById('deselect-all-pages').addEventListener('click', deselectAllPages);
+
+
+        document.getElementById('select-all-pages').addEventListener('click', function() {
+            selectAllPages();
+            this.style.backgroundColor = '#FF0000';
+            document.getElementById('deselect-all-pages').style.backgroundColor = '#6b7280';
+        });
+        
+        document.getElementById('deselect-all-pages').addEventListener('click', function() {
+            deselectAllPages();
+            this.style.backgroundColor = '#0000FF';
+            document.getElementById('select-all-pages').style.backgroundColor = '#2563eb';
+        });
+
         // document.getElementById('confirm-deletion').addEventListener('click', () =>
         //     processSelectedPagesDeletion(file)
         // );

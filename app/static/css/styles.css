@@ -73,7 +73,7 @@
 
 .nav-link {
     position: relative;
-    margin: 0 12px;
+    /* margin: 0 12px; */
 }
 
 .nav-link::after {
@@ -655,3 +655,14 @@ input[type="range"]:focus {
 }
 
 
+/* Toggle switch styling */
+.toggle-checkbox:checked {
+    right: 0;
+    border-color: #10b981;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+    background-color: #10b981;
+}
+
+/*  new*/
