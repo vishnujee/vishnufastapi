@@ -8,24 +8,12 @@ if (typeof marked !== 'undefined') {
 
 const BASE_URL = window.location.origin;
 let chatHistory = [];
-// Set PDF.js worker script
-// Set PDF.js worker script - UPDATED FIX
-if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdflibra/pdf.worker.min.js';
-} else {
-    // Fallback: Load PDF.js dynamically if not available
-    console.warn('pdfjsLib not found, loading dynamically...');
-    // This will be handled by pdfLibraryManager
-}
+
 
 // // compression
 
-
-// // Enhanced compression function with accurate size prediction
 async function compressPDFClientSide() {
     console.log('Starting optimized client-side compression...');
-
-
 
     const form = document.getElementById('compressForm');
     const fileInput = form.querySelector('input[type="file"]');
@@ -64,11 +52,10 @@ async function compressPDFClientSide() {
 
     try {
 
-
-        // 🆕 LAZY LOADING: Load required libraries
-        const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
-            'pdfjs', 'pdfLib', 'fileSaver'
-        ]);
+        // // 🆕 LAZY LOADING: Load required libraries
+        // const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
+        //     'pdfjs', 'pdfLib', 'fileSaver'
+        // ]);
 
         // Get compression settings - UPDATED FOR ACCURACY
         const presetSelect = document.getElementById('compress-preset');
@@ -141,7 +128,7 @@ async function compressPDFClientSide() {
 
         // Show results with accuracy information
         const savingsColor = savings >= 50 ? 'text-green-600' : savings >= 20 ? 'text-yellow-600' : 'text-red-600';
-        const accuracyColor = accuracy >= 90 ? 'text-green-600' : accuracy >= 80 ? 'text-yellow-600' : 'text-red-600';
+        // const accuracyColor = accuracy >= 90 ? 'text-green-600' : accuracy >= 80 ? 'text-yellow-600' : 'text-red-600';
 
         resultDiv.innerHTML = `
             <div class="text-green-600">
@@ -175,7 +162,18 @@ async function compressPDFClientSide() {
 async function enhancedPDFCompression(file, dpi = 120, quality = 0.65, progressCallback) {
     console.log('Starting enhanced PDF compression...');
 
-    const { PDFDocument } = PDFLib;
+    if (!pdfLibraryManager.libraries.pdfLib || !pdfLibraryManager.libraries.pdfLib.loaded) {
+        throw new Error('PDF library not loaded. Please ensure libraries are loaded first.');
+    }
+    if (!pdfLibraryManager.libraries.pdfjs || !pdfLibraryManager.libraries.pdfjs.loaded) {
+        throw new Error('PDF library not loaded. Please ensure libraries are loaded first.');
+    }
+    // Get the library instance
+    const pdfLib = pdfLibraryManager.libraries.pdfLib.lib;
+    const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
+
+
+    const { PDFDocument } = pdfLib;
 
     try {
         if (progressCallback) progressCallback(10);
@@ -184,7 +182,8 @@ async function enhancedPDFCompression(file, dpi = 120, quality = 0.65, progressC
         const arrayBuffer = await file.arrayBuffer();
         if (progressCallback) progressCallback(20);
 
-        const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        const pdfDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
         const numPages = pdfDoc.numPages;
 
         const newPdfDoc = await PDFDocument.create();
@@ -271,7 +270,20 @@ async function enhancedPDFCompression(file, dpi = 120, quality = 0.65, progressC
 async function estimateCompressedSize(file, dpi, quality) {
     try {
         const arrayBuffer = await file.arrayBuffer();
-        const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+
+        // const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
+        //     'pdfjs', 'pdfLib', 'fileSaver'
+        // ]);
+
+        if (!pdfLibraryManager.libraries.pdfjs || !pdfLibraryManager.libraries.pdfjs.loaded) {
+            throw new Error('PDF library not loaded. Please ensure libraries are loaded first.');
+        }
+        const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
+
+
+
+        const pdfDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
         const numPages = pdfDoc.numPages;
 
         // Calculate base size factors
@@ -314,9 +326,9 @@ function calculateAccuracy(estimated, actual) {
 // Enhanced computeAllCompressionSizes with accurate predictions
 async function computeAllCompressionSizes() {
 
-    const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
-        'pdfjs', 'pdfLib', 'fileSaver'
-    ]);
+    // const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
+    //     'pdfjs', 'pdfLib', 'fileSaver'
+    // ]);
 
     console.log('Computing all compression sizes with accurate predictions...');
 
@@ -558,7 +570,10 @@ async function computeAllCompressionSizes() {
 }
 
 // Update the file size display function
-function updateFileSize() {
+async function updateFileSize() {
+    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
+        'pdfjs', 'pdfLib'
+    ]);
     const fileInput = document.getElementById('compress-file');
     const fileSizeDisplay = document.getElementById('original-file-size');
     if (fileInput && fileInput.files.length > 0) {
@@ -578,17 +593,22 @@ function updateFileSize() {
 }
 
 
-
 // // /// //  // NEW ADD SIGNATURE FOR CLIENT SIDE
 
-// Client-side signature addition functions
+async function loadpdflibray() {
+    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
+        'pdfjs', 'pdfLib'
+    ]);
+    console.log("library loaded on file upload");
+
+}
 
 
 async function processSignatureClientSide() {
     console.log('Starting client-side signature processing...');
-    const [pdfLib, pdfjs, fileSaver] = await pdfLibraryManager.loadLibraries([
-        'pdfLib', 'pdfjs', 'fileSaver'
-    ]);
+    // const [pdfLib, pdfjs, fileSaver] = await pdfLibraryManager.loadLibraries([
+    //     'pdfLib', 'pdfjs', 'fileSaver'
+    // ]);
 
     const form = document.getElementById('signatureForm');
     const pdfFileInput = document.getElementById('signature-pdf-file');
@@ -799,11 +819,17 @@ async function fallbackToServerSideSignature(form) {
 
 async function addSignatureClientSide(pdfFile, signatureFile, pages, size, position, alignment, removeBg = false) {
     // Check if PDF-LIB is available
-    if (typeof PDFLib === 'undefined') {
+    if (!pdfLibraryManager.libraries.pdfLib.loaded) {
         throw new Error('PDF library not loaded. Please refresh the page.');
     }
 
-    const { PDFDocument } = PDFLib;
+    const pdfLib = pdfLibraryManager.libraries.pdfLib.lib;
+
+    if (!pdfLib) {
+        throw new Error('PDF library not loaded. Please ensure libraries are loaded first.');
+    }
+
+    const { PDFDocument } = pdfLib;
 
     try {
         console.log('Starting client-side signature addition...');
@@ -1021,7 +1047,7 @@ async function mergePDFsClientSide() {
 
     // ✅ SIMPLE FIX: Get files in EXACT DOM order
     const orderedFiles = getFilesInDOMOrder();
-    
+
     if (orderedFiles.length < 2) {
         alert('Please select at least 2 PDF files.');
         return;
@@ -1039,8 +1065,8 @@ async function mergePDFsClientSide() {
     submitButton.innerHTML = '<i class="fas fa-object-group mr-2"></i> Merging...';
 
     try {
-        const [pdfLib, pdfjs, jszip, fileSaver] = await pdfLibraryManager.loadLibraries([
-            'pdfLib', 'pdfjs', 'jszip', 'fileSaver'
+        const [pdfLib] = await pdfLibraryManager.loadLibraries([
+            'pdfLib'
         ]);
 
         // Process files in DOM order
@@ -1053,14 +1079,14 @@ async function mergePDFsClientSide() {
             console.log(`Loading PDF ${i + 1}/${orderedFiles.length}:`, file.name);
 
             const arrayBuffer = await file.arrayBuffer();
-            const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+            const pdfDoc = await pdfLib.PDFDocument.load(arrayBuffer);
             pdfDocs.push(pdfDoc);
         }
 
         progressText.textContent = 'Merging PDFs... (50%)';
 
         // Create new PDF document
-        const mergedPdf = await PDFLib.PDFDocument.create();
+        const mergedPdf = await pdfLib.PDFDocument.create();
 
         // Copy pages from all PDFs in DOM order
         for (let i = 0; i < pdfDocs.length; i++) {
@@ -1128,7 +1154,7 @@ async function mergePDFsClientSide() {
 function getFilesInDOMOrder() {
     const fileInput = document.getElementById('merge-files');
     const fileItems = document.querySelectorAll('#file-list .file-item');
-    
+
     if (!fileInput || !fileInput.files || fileItems.length === 0) {
         return [];
     }
@@ -1150,167 +1176,6 @@ function getFilesInDOMOrder() {
 
     return orderedFiles;
 }
-
-// async function mergePDFsClientSide() {
-//     console.log('Starting client-side PDF merge...');
-
-//     const form = document.getElementById('mergeForm');
-//     const fileInput = document.getElementById('merge-files');
-//     const resultDiv = document.getElementById('result-mergeForm');
-//     const progressDiv = document.getElementById('progress-mergeForm');
-//     const progressText = document.getElementById('progress-text-mergeForm');
-//     const submitButton = document.getElementById('merge-submit-btn');
-
-//     // ✅ Ensure universal order is up-to-date before merge
-//     updateUniversalFileOrder();
-
-//     // Validation
-//     if (!fileInput || !fileInput.files || fileInput.files.length < 2) {
-//         alert('Please select at least 2 PDF files.');
-//         return;
-//     }
-
-//     const files = fileInput.files;
-
-//     // ✅ Get files in EXACT DOM order using universal indexing
-//     // ✅ Build ordered files list based on real-time DOM order
-//     const fileItems = Array.from(document.querySelectorAll('#file-list .file-item'));
-//     const allFiles = Array.from(fileInput.files);
-
-//     const orderedFiles = fileItems.map((fileItem, index) => {
-//         let displayedName = fileItem.querySelector('span')?.textContent.trim() || fileItem.dataset.filename || '';
-
-//         // Normalize names for better matching
-//         const cleanDisplayName = displayedName.replace(/^\d+\.\s*/, '').toLowerCase().trim(); // removes prefixes like "3. "
-
-//         // Try to find the best matching file
-//         const matchedFile = allFiles.find(f => {
-//             const cleanFileName = f.name.toLowerCase().trim();
-//             return (
-//                 cleanFileName === cleanDisplayName ||
-//                 cleanFileName.endsWith(cleanDisplayName) || // partial match
-//                 cleanDisplayName.endsWith(cleanFileName)    // inverse partial
-//             );
-//         });
-
-//         console.log(`📄 ${index + 1}. Matched DOM file: ${displayedName} → ${matchedFile ? matchedFile.name : 'Not Found'}`);
-//         return matchedFile || null;
-//     }).filter(f => f !== null);
-
-
-//     console.log("🎯 Final ordered files for merge:");
-//     orderedFiles.forEach((file, index) => {
-//         console.log(`${index + 1}. ${file.name}`);
-//     });
-
-//     // Rest of your merge function remains the same...
-//     const validation = validateFilesForClientMerge(orderedFiles);
-//     if (!validation.valid) {
-//         alert(validation.message);
-//         return;
-//     }
-
-//     // Show progress
-//     progressDiv.style.display = 'block';
-//     progressText.textContent = 'Starting merge...';
-//     submitButton.disabled = true;
-//     submitButton.innerHTML = '<i class="fas fa-object-group mr-2"></i> Merging...';
-
-//     try {
-//         const [pdfLib, pdfjs, jszip, fileSaver] = await pdfLibraryManager.loadLibraries([
-//             'pdfLib', 'pdfjs', 'jszip', 'fileSaver'
-//         ]);
-
-//         // Use the orderedFiles for processing
-//         const pdfDocs = [];
-//         for (let i = 0; i < orderedFiles.length; i++) {
-//             const progress = Math.round((i / orderedFiles.length) * 50);
-//             progressText.textContent = `Loading PDF files... (${progress}%)`;
-
-//             const file = orderedFiles[i];
-//             console.log(`Loading PDF ${i + 1}/${orderedFiles.length}:`, file.name);
-
-//             const arrayBuffer = await file.arrayBuffer();
-//             const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-//             pdfDocs.push(pdfDoc);
-//         }
-
-//         progressText.textContent = 'Merging PDFs... (50%)';
-
-//         // Create new PDF document
-//         const mergedPdf = await PDFLib.PDFDocument.create();
-
-//         // Copy pages from all PDFs in the correct order
-//         for (let i = 0; i < pdfDocs.length; i++) {
-//             const progress = 50 + Math.round((i / pdfDocs.length) * 45);
-//             progressText.textContent = `Merging PDFs... (${progress}%)`;
-
-//             const pdfDoc = pdfDocs[i];
-//             const pages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
-//             pages.forEach(page => mergedPdf.addPage(page));
-
-//             console.log(`Added file: ${orderedFiles[i].name}`);
-//         }
-
-//         progressText.textContent = 'Finalizing merge... (95%)';
-
-//         // Save the merged PDF
-//         const mergedPdfBytes = await mergedPdf.save();
-//         const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
-
-//         progressText.textContent = 'Downloading... (100%)';
-
-//         // Download the merged PDF
-//         const filename = `merged_${Date.now()}.pdf`;
-//         const url = URL.createObjectURL(mergedBlob);
-//         const a = document.createElement('a');
-//         a.href = url;
-//         a.download = filename;
-//         document.body.appendChild(a);
-//         a.click();
-//         document.body.removeChild(a);
-//         URL.revokeObjectURL(url);
-
-//         // Show success message WITHOUT clearing files
-//         let totalSize = 0;
-//         for (let file of orderedFiles) {
-//             totalSize += file.size;
-//         }
-//         const totalSizeMB = totalSize / (1024 * 1024);
-
-//         resultDiv.innerHTML = `
-//             <div class="text-green-600">
-//                 ✅ <strong>PDFs Merged Successfully!</strong><br>
-//                 📁 Merged ${orderedFiles.length} files in your specified order (${totalSizeMB.toFixed(2)}MB total)<br>
-//                 ⚡ <small>Files are still available for subsequent merge operations</small><br>
-//                 🔄 <small>You can reorder files and merge again</small>
-//             </div>
-//         `;
-
-//         console.log('Client-side merge completed successfully. Files preserved for next operation.');
-
-//     } catch (error) {
-//         console.error('Client-side merge failed:', error);
-//         resultDiv.innerHTML = `
-//             <div class="text-red-600">
-//                 ❌ Merge failed: ${error.message}<br>
-//                 <small>Falling back to server processing...</small>
-//             </div>
-//         `;
-
-//         // Fallback to server processing
-//         setTimeout(() => {
-//             updateFileOrder(document.querySelectorAll('.file-item'));
-//             processPDF('merge_pdf', 'mergeForm');
-//         }, 2000);
-
-//     } finally {
-//         // Clean up progress but KEEP files
-//         progressDiv.style.display = 'none';
-//         submitButton.disabled = false;
-//         submitButton.innerHTML = '<i class="fas fa-object-group mr-2"></i> Merge PDFs';
-//     }
-// }
 
 //some CSS for better styling of the file items
 const additionalStyles = `

@@ -53,10 +53,18 @@ function toggleDeleteInputs() {
 }
 
 // Add this function - it's referenced in your HTML
-function displayTotalPages(fileInputId, totalPagesId) {
+async function displayTotalPages(fileInputId, totalPagesId) {
     const fileInput = document.getElementById(fileInputId);
     const totalPagesElement = document.getElementById(totalPagesId);
     const fileNameElement = document.getElementById(`${fileInputId}-name`);
+
+
+    if (!pdfLibraryManager.libraries.pdfjs || !pdfLibraryManager.libraries.pdfjs.loaded) {
+        throw new Error('PDF library not loaded. Please ensure libraries are loaded first.');
+    }
+    // Get the library instance
+
+    const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
 
     if (fileInput.files[0]) {
         const file = fileInput.files[0];
@@ -66,7 +74,7 @@ function displayTotalPages(fileInputId, totalPagesId) {
         const fileReader = new FileReader();
         fileReader.onload = function () {
             const arrayBuffer = this.result;
-            pdfjsLib.getDocument({ data: arrayBuffer }).promise.then(function (pdf) {
+            pdfjs.getDocument({ data: arrayBuffer }).promise.then(function (pdf) {
                 totalPagesElement.textContent = `Total Pages: ${pdf.numPages}`;
 
                 // Auto-load previews if visual method is selected AND file is valid
@@ -108,10 +116,10 @@ if (typeof saveAs === 'undefined') {
 
 async function deletePDFPagesClientSide() {
     console.log('Starting client-side PDF page deletion...');
-    const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
-        'pdfjs', 'pdfLib', 'fileSaver'
-    ]);
-    
+    // const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
+    //     'pdfjs', 'pdfLib', 'fileSaver'
+    // ]);
+    // const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
 
     const fileInput = document.getElementById('deletePages-file');
     const resultDiv = document.getElementById('result-deletePagesForm');
@@ -163,9 +171,16 @@ async function deletePDFPagesClientSide() {
     }
 }
 
-function handleFileSelectForDeletePages() {
+async function handleFileSelectForDeletePages() {
     const fileInputId = 'deletePages-file';
     const totalPagesId = 'deletePages-total';
+
+    console.log(" FILE UPLOAD TESTING");
+    const [pdfjs,  pdfLib] = await pdfLibraryManager.loadLibraries([
+        'pdfjs',  'pdfLib'
+    ]);
+
+    
 
     // First update the file name and total pages
     displayTotalPages(fileInputId, totalPagesId);
@@ -225,8 +240,9 @@ async function loadDeletePagePreviews(file) {
     const progressText = document.getElementById('progress-text-deletePagesForm');
 
     try {
+        const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
         const numPages = pdf.numPages;
 
         console.log(`Loading ${numPages} page previews for deletion selection...`);
@@ -378,9 +394,11 @@ async function processTextBasedDeletion() {
     submitButton.disabled = true;
 
     try {
+        const pdfLib = pdfLibraryManager.libraries.pdfLib.lib;
+
         // Load PDF document FIRST to get total pages
         const pdfBytes = await file.arrayBuffer();
-        const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
+        const pdfDoc = await pdfLib.PDFDocument.load(pdfBytes);
         const totalPages = pdfDoc.getPageCount();
 
         let pagesToDelete = [];
@@ -457,7 +475,7 @@ async function processTextBasedDeletion() {
         console.log(`Deleting pages: ${pagesToDelete.join(', ')}`);
 
         // Create new PDF without deleted pages
-        const newPdfDoc = await PDFLib.PDFDocument.create();
+        const newPdfDoc = await pdfLib.PDFDocument.create();
         const pageIndices = Array.from({ length: totalPages }, (_, i) => i)
             .filter(page => !pagesToDeleteZeroBased.includes(page));
 
@@ -574,6 +592,8 @@ async function processSelectedPagesDeletion(file) {
     const progressText = document.getElementById('progress-text-deletePagesForm');
     const resultDiv = document.getElementById('result-deletePagesForm');
     const submitButton = document.querySelector('#deletePagesForm button');
+    const pdfLib = pdfLibraryManager.libraries.pdfLib.lib;
+
 
     const pagesToDelete = getSelectedPages();
 
@@ -600,7 +620,7 @@ async function processSelectedPagesDeletion(file) {
         // Load PDF document
         progressText.textContent = 'Loading PDF...';
         const pdfBytes = await file.arrayBuffer();
-        const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
+        const pdfDoc = await pdfLib.PDFDocument.load(pdfBytes);
         const totalPages = pdfDoc.getPageCount();
 
         // Validate page numbers
@@ -612,7 +632,7 @@ async function processSelectedPagesDeletion(file) {
 
         // Create new PDF without deleted pages
         progressText.textContent = 'Creating new PDF...';
-        const newPdfDoc = await PDFLib.PDFDocument.create();
+        const newPdfDoc = await pdfLib.PDFDocument.create();
         const pageIndices = Array.from({ length: totalPages }, (_, i) => i + 1)
             .filter(page => !pagesToDelete.includes(page))
             .map(page => page - 1); // Convert to 0-based

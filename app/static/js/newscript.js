@@ -9,6 +9,7 @@ async function convertPDFToImagesClientSide() {
     const progressText = document.getElementById('progress-text-pdfToImagesForm');
     const submitButton = form.querySelector('button');
 
+    imagetopdf
     // Validation
     if (!fileInput || !fileInput.files[0]) {
         alert('Please select a PDF file.');
@@ -33,18 +34,18 @@ async function convertPDFToImagesClientSide() {
     try {
 
         // 🆕 LAZY LOADING: Load required libraries
-        const [pdfjs, jszip, fileSaver] = await pdfLibraryManager.loadLibraries([
-            'pdfjs', 'jszip', 'fileSaver'
+        const [pdfjs, jszip] = await pdfLibraryManager.loadLibraries([
+            'pdfjs', 'jszip'
         ]);
 
         // Load PDF document
         const pdfBytes = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+        const pdf = await pdfjs.getDocument({ data: pdfBytes }).promise;
         const numPages = pdf.numPages;
 
         console.log(`Processing ${numPages} pages...`);
 
-        const zip = new JSZip();
+        const zip = new jszip();
         let processedPages = 0;
 
         for (let pageNum = 1; pageNum <= numPages; pageNum++) {
@@ -125,11 +126,10 @@ async function convertPDFToImagesClientSide() {
 
 async function splitPDFClientSide() {
     console.log('Starting client-side PDF split...');
-
-    const [pdfLib, jszip, fileSaver] = await pdfLibraryManager.loadLibraries([
-        'pdfLib', 'jszip', 'fileSaver'
+    const [pdfLib, jszip] = await pdfLibraryManager.loadLibraries([
+        'pdfLib', 'jszip'
     ]);
-    
+
 
     const form = document.getElementById('splitForm');
     const fileInput = document.getElementById('split-file');
@@ -161,13 +161,13 @@ async function splitPDFClientSide() {
     try {
         // Load PDF document
         const pdfBytes = await file.arrayBuffer();
-        const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
+        const pdfDoc = await pdfLib.PDFDocument.load(pdfBytes);
         const pages = pdfDoc.getPages();
         const numPages = pages.length;
 
         console.log(`Splitting ${numPages} pages...`);
 
-        const zip = new JSZip();
+        const zip = new jszip();
         let processedPages = 0;
 
         for (let i = 0; i < numPages; i++) {
@@ -229,9 +229,10 @@ async function splitPDFClientSide() {
 
 async function convertPDFToPPTClientSide() {
     console.log('Starting client-side PDF to PPT conversion...');
-    const [pdfjs, pptxgen, fileSaver] = await pdfLibraryManager.loadLibraries([
-        'pdfjs', 'pptxgen', 'fileSaver'
+    const [pdfjs, pptxgen, pdfLib] = await pdfLibraryManager.loadLibraries([
+        'pdfjs', 'pptxgen', 'pdfLib'
     ]);
+
 
     const form = document.getElementById('pdfToPptForm');
     const fileInput = document.getElementById('pdfToPpt-file');
@@ -268,30 +269,21 @@ async function convertPDFToPPTClientSide() {
     try {
         progressText.textContent = 'Loading PDF...';
 
-        // Check if required libraries are available
-        if (typeof PDFLib === 'undefined') {
-            throw new Error('PDF library not loaded. Please refresh the page.');
-        }
-
-        const { PDFDocument } = PDFLib;
-
-        // Load PDF and create a copy for PDF.js
         const pdfBytes = await file.arrayBuffer();
+        const pdfDoc = await pdfLib.PDFDocument.load(pdfBytes);
 
-        // Create a copy of the ArrayBuffer for PDF.js to prevent detachment issues
-        const pdfBytesCopy = pdfBytes.slice(0);
 
-        const pdfDoc = await PDFDocument.load(pdfBytes);
+ 
         const numPages = pdfDoc.getPageCount();
 
         console.log(`Processing ${numPages} pages for PPT conversion...`);
         if (conversionType === 'image') {
             progressText.textContent = 'Converting pages to images...';
 
-            const pptx = new PptxGenJS();
+            const pptx = new pptxgen();
             pptx.layout = 'LAYOUT_WIDE';
 
-            const pdfjsDoc = await pdfjsLib.getDocument({ data: pdfBytesCopy }).promise;
+            const pdfjsDoc = await pdfjs.getDocument({ data: pdfBytes }).promise;
 
             for (let i = 0; i < numPages; i++) {
                 const progress = Math.round((i / numPages) * 80);
@@ -402,166 +394,20 @@ async function convertPDFToPPTClientSide() {
     }
 }
 
-// async function convertPDFToPPTClientSide() {
-//     console.log('Starting client-side PDF to PPT conversion...');
-
-//     const form = document.getElementById('pdfToPptForm');
-//     const fileInput = document.getElementById('pdfToPpt-file');
-//     const resultDiv = document.getElementById('result-pdfToPptForm');
-//     const progressDiv = document.getElementById('progress-pdfToPptForm');
-//     const progressText = document.getElementById('progress-text-pdfToPptForm');
-//     const submitButton = form.querySelector('button[type="button"]');
-//     const conversionType = form.querySelector('input[name="conversionType"]:checked').value;
-
-//     // Validation
-//     if (!fileInput || !fileInput.files || !fileInput.files[0]) {
-//         alert('Please select a PDF file.');
-//         return;
-//     }
-
-//     const file = fileInput.files[0];
-
-//     // Validate file type
-//     if (file.type !== 'application/pdf') {
-//         alert('Please select a PDF file.');
-//         return;
-//     }
-//     if (file.size > 150 * 1024 * 1024) { alert("Use PDF less than 150 mb"); return; }
-//     // Show progress
-//     progressDiv.style.display = 'block';
-//     progressText.textContent = 'Starting conversion...';
-//     submitButton.disabled = true;
-//     submitButton.innerHTML = '<i class="fas fa-file-powerpoint mr-2"></i> Converting...';
-
-//     try {
-//         progressText.textContent = 'Loading PDF...';
-
-//         // Check if required libraries are available
-//         if (typeof PDFLib === 'undefined') {
-//             throw new Error('PDF library not loaded. Please refresh the page.');
-//         }
-
-//         const { PDFDocument } = PDFLib;
-
-//         // Load PDF
-//         const pdfBytes = await file.arrayBuffer();
-//         const pdfDoc = await PDFDocument.load(pdfBytes);
-//         const numPages = pdfDoc.getPageCount();
-
-//         console.log(`Processing ${numPages} pages for PPT conversion...`);
-
-//         if (conversionType === 'image') {
-//             // Image-based conversion (pages as images in PPT)
-//             progressText.textContent = 'Converting pages to images...';
-
-//             const pptx = new PptxGenJS();
-
-//             for (let i = 0; i < numPages; i++) {
-//                 const progress = Math.round((i / numPages) * 80);
-//                 progressText.textContent = `Processing page ${i + 1}/${numPages}... (${progress}%)`;
-
-//                 const page = pdfDoc.getPage(i);
-//                 const { width, height } = page.getSize();
-
-//                 // Create canvas for rendering
-//                 const canvas = document.createElement('canvas');
-//                 const scale = 2; // Higher resolution for better quality
-//                 canvas.width = width * scale;
-//                 canvas.height = height * scale;
-
-//                 const context = canvas.getContext('2d');
-//                 context.fillStyle = 'white';
-//                 context.fillRect(0, 0, canvas.width, canvas.height);
-
-//                 // Render PDF page to canvas
-//                 const pdfjsPage = await pdfjsLib.getDocument({ data: pdfBytes }).promise.then(pdf => pdf.getPage(i + 1));
-//                 const viewport = pdfjsPage.getViewport({ scale });
-
-//                 await pdfjsPage.render({
-//                     canvasContext: context,
-//                     viewport: viewport
-//                 }).promise;
-
-//                 // Convert canvas to image
-//                 const imageData = canvas.toDataURL('image/png', 0.8);
-
-//                 // Add slide with image
-//                 const slide = pptx.addSlide();
-//                 slide.addImage({
-//                     data: imageData,
-//                     x: 0.5,
-//                     y: 0.5,
-//                     w: 9,
-//                     h: 6,
-//                     sizing: { type: 'contain', w: 9, h: 6 }
-//                 });
-
-//                 // Clean up
-//                 canvas.remove();
-//             }
-
-//             progressText.textContent = 'Generating PowerPoint file...';
-
-//             // Generate and download PPT
-//             const pptBlob = await pptx.writeFile({ outputType: 'blob' });
-//             const url = URL.createObjectURL(pptBlob);
-//             const a = document.createElement('a');
-//             a.href = url;
-//             a.download = `converted_${file.name.replace('.pdf', '')}.pptx`;
-//             document.body.appendChild(a);
-//             a.click();
-//             document.body.removeChild(a);
-//             URL.revokeObjectURL(url);
-
-//         } else {
-//             // Editable text conversion (basic implementation)
-//             throw new Error('Editable conversion requires server processing. Please use image-based conversion for client-side.');
-//         }
-
-//         resultDiv.innerHTML = `
-//             <div class="text-green-600">
-//                 ✅ <strong>PDF to PowerPoint Conversion Successful!</strong><br>
-//                 📊 Converted ${numPages} pages to PowerPoint<br>
-
-//             </div>
-//         `;
-
-//     } catch (error) {
-//         console.error('PDF to PPT conversion failed:', error);
-
-//         resultDiv.innerHTML = `
-//             <div class="text-red-600">
-//                 ❌ Conversion failed: ${error.message}<br>
-//                 <small>Falling back to server processing...</small>
-//             </div>
-//         `;
-
-//         // Fallback to server processing
-//         setTimeout(() => {
-//             processPDF('convert_pdf_to_ppt', 'pdfToPptForm');
-//         }, 2000);
-
-//     } finally {
-//         progressDiv.style.display = 'none';
-//         submitButton.disabled = false;
-//         submitButton.innerHTML = '<i class="fas fa-file-powerpoint mr-2"></i> Convert to PowerPoint';
-//     }
-// }
-
 
 // IMAGE TO PDF
 
 
-// CORRECTED: Multiple Images to PDF function
+// Multiple Images to PDF function
 async function convertMultipleImagesToPDFClientSide() {
     console.log('Starting client-side Multiple Images to PDF conversion...');
-    
+
     const fileInput = document.getElementById('multipleImageToPdf-files');
     const resultDiv = document.getElementById('result-multipleImageToPdfForm');
     const progressDiv = document.getElementById('progress-multipleImageToPdfForm');
     const progressText = document.getElementById('progress-text-multipleImageToPdfForm');
-    const submitButton = document.querySelector('#multipleImageToPdfForm button[type="button"]');
-
+    const submitButton = document.getElementById('imagetopdf');
+    
     // Get form values
     const description = document.getElementById('multiple-image-description')?.value || '';
     const descriptionPosition = document.getElementById('multiple-description-position')?.value || 'bottom-center';
@@ -580,7 +426,7 @@ async function convertMultipleImagesToPDFClientSide() {
     }
 
     const files = Array.from(fileInput.files);
-    
+
     // Validate file types and sizes
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
     for (const file of files) {
@@ -593,6 +439,19 @@ async function convertMultipleImagesToPDFClientSide() {
             return;
         }
     }
+    const imageOrderInput = document.getElementById('multipleImageToPdf-image-order');
+    let orderedFiles = files;
+
+    if (imageOrderInput && imageOrderInput.value) {
+        const order = imageOrderInput.value.split(',').map(Number);
+
+        // Create a new array with files in the correct order
+        orderedFiles = order.map(index => files[index]).filter(file => file !== undefined);
+
+        console.log('Original order:', files.map(f => f.name));
+        console.log('Reordered files:', orderedFiles.map(f => f.name));
+    }
+
 
     // Show progress
     progressDiv.style.display = 'block';
@@ -604,10 +463,14 @@ async function convertMultipleImagesToPDFClientSide() {
 
     try {
         progressText.textContent = 'Loading PDF library...';
-        
+
         // Load PDF library
-        const [PDFLib] = await pdfLibraryManager.loadLibraries(['pdfLib']);
-        const { PDFDocument, rgb } = PDFLib;
+        // const [PDFLib] = await pdfLibraryManager.loadLibraries(['pdfLib']);
+        const [pdfLib] = await pdfLibraryManager.loadLibraries([
+            'pdfLib'
+        ]);
+
+        const { PDFDocument, rgb } = pdfLib;
 
         // Create new PDF document
         const pdfDoc = await PDFDocument.create();
@@ -619,7 +482,7 @@ async function convertMultipleImagesToPDFClientSide() {
         const hexToRgb = (hex) => {
             // Remove # if present
             hex = hex.replace(/^#/, '');
-            
+
             // Parse hex values
             let r, g, b;
             if (hex.length === 3) {
@@ -634,7 +497,7 @@ async function convertMultipleImagesToPDFClientSide() {
                 // Default to black if invalid
                 return { r: 0, g: 0, b: 0 };
             }
-            
+
             return {
                 r: r / 255,
                 g: g / 255,
@@ -648,19 +511,19 @@ async function convertMultipleImagesToPDFClientSide() {
         let font;
         switch (fontFamily) {
             case 'times':
-                font = pdfDoc.embedStandardFont(PDFLib.StandardFonts.TimesRoman);
+                font = pdfDoc.embedStandardFont(pdfLib.StandardFonts.TimesRoman);
                 break;
             case 'courier':
-                font = pdfDoc.embedStandardFont(PDFLib.StandardFonts.Courier);
+                font = pdfDoc.embedStandardFont(pdfLib.StandardFonts.Courier);
                 break;
             case 'zapf':
-                font = pdfDoc.embedStandardFont(PDFLib.StandardFonts.ZapfDingbats);
+                font = pdfDoc.embedStandardFont(pdfLib.StandardFonts.ZapfDingbats);
                 break;
             case 'helvetica':
             default:
-                font = fontWeight === 'bold' 
-                    ? pdfDoc.embedStandardFont(PDFLib.StandardFonts.HelveticaBold)
-                    : pdfDoc.embedStandardFont(PDFLib.StandardFonts.Helvetica);
+                font = fontWeight === 'bold'
+                    ? pdfDoc.embedStandardFont(pdfLib.StandardFonts.HelveticaBold)
+                    : pdfDoc.embedStandardFont(pdfLib.StandardFonts.Helvetica);
                 break;
         }
 
@@ -669,10 +532,10 @@ async function convertMultipleImagesToPDFClientSide() {
         const totalImages = files.length;
 
         for (let i = 0; i < totalImages; i++) {
-            const file = files[i];
+            const file = orderedFiles[i];
             const progress = Math.round((i / totalImages) * 90);
             progressText.textContent = `Processing image ${i + 1} of ${totalImages}... (${progress}%)`;
-            
+
             // Create new page if needed
             if (currentPage === null || imagesOnCurrentPage >= imagesPerPage) {
                 currentPage = pdfDoc.addPage([pageDimensions.width, pageDimensions.height]);
@@ -696,21 +559,21 @@ async function convertMultipleImagesToPDFClientSide() {
             // Calculate layout based on images per page
             const imagesPerRow = imagesPerPage === 1 ? 1 : 2;
             const rows = Math.ceil(imagesPerPage / imagesPerRow);
-            
+
             const margin = 50;
             const horizontalSpacing = 20;
             const verticalSpacing = description ? 60 : 20;
-            
+
             const availableWidth = pageDimensions.width - (2 * margin) - ((imagesPerRow - 1) * horizontalSpacing);
             const availableHeight = pageDimensions.height - (2 * margin) - ((rows - 1) * verticalSpacing);
-            
+
             const imageWidth = availableWidth / imagesPerRow;
             const imageHeight = availableHeight / rows;
 
             // Calculate position for current image
             const rowIndex = Math.floor(imagesOnCurrentPage / imagesPerRow);
             const colIndex = imagesOnCurrentPage % imagesPerRow;
-            
+
             const x = margin + (colIndex * (imageWidth + horizontalSpacing));
             const y = pageDimensions.height - margin - ((rowIndex + 1) * imageHeight) + (rowIndex * verticalSpacing);
 
@@ -731,9 +594,9 @@ async function convertMultipleImagesToPDFClientSide() {
             if (description.trim()) {
                 const textWidth = font.widthOfTextAtSize(description, fontSize);
                 const textMargin = 10;
-                
+
                 let textX, textY;
-                
+
                 switch (descriptionPosition) {
                     case 'top':
                         textX = x + (imageWidth - textWidth) / 2;
@@ -809,7 +672,7 @@ async function convertMultipleImagesToPDFClientSide() {
         resultDiv.innerHTML = `
             <div class="text-green-600">
                 ✅ <strong>Images to PDF Conversion Successful!</strong><br>
-                🖼️ Converted ${files.length} images to PDF<br>
+                🖼️ Converted ${orderedFiles.length} images to PDF<br>
                 📍 Description Position: ${descriptionPosition}<br>
                 📄 Images per Page: ${imagesPerPage}
             </div>
@@ -833,7 +696,7 @@ async function convertMultipleImagesToPDFClientSide() {
     }
 }
 
-// CORRECTED: Page dimensions helper function
+// Page dimensions helper function
 function getPageDimensions(pageSize, orientation) {
     const sizes = {
         'A4': { width: 595.28, height: 841.89 }, // A4 in points (72 DPI)
@@ -857,10 +720,10 @@ function loadAndFixImageOrientation(file) {
             try {
                 canvas.width = img.width;
                 canvas.height = img.height;
-                
+
                 // Draw image without orientation fixes (basic version)
                 ctx.drawImage(img, 0, 0, img.width, img.height);
-                
+
                 // Convert to blob
                 canvas.toBlob(blob => {
                     if (blob) {
@@ -888,25 +751,25 @@ function initializeMultipleImagePreview() {
     const filesCount = document.getElementById('multipleImageToPdf-files-count');
     const imagePreviews = document.getElementById('image-previews');
     const imageList = document.getElementById('image-list');
-    
+
     if (!fileInput || !filesCount || !imagePreviews || !imageList) {
         console.warn('Image preview elements not found');
         return;
     }
-    
+
     fileInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
-        
+
         if (files.length === 0) {
             imagePreviews.classList.add('hidden');
             filesCount.textContent = 'No files selected';
             return;
         }
-        
+
         filesCount.textContent = `${files.length} file(s) selected`;
         imageList.innerHTML = '';
         imagePreviews.classList.remove('hidden');
-        
+
         files.forEach((file, index) => {
             // Validate file type
             if (!file.type.startsWith('image/')) {
@@ -915,12 +778,12 @@ function initializeMultipleImagePreview() {
             }
 
             const reader = new FileReader();
-            
+
             reader.onload = (e) => {
                 const imageDiv = document.createElement('div');
                 imageDiv.className = 'image-preview border border-gray-200 rounded-lg p-3 bg-white';
                 imageDiv.dataset.fileIndex = index;
-                
+
                 imageDiv.innerHTML = `
                     <div class="flex flex-col items-center">
                         <img src="${e.target.result}" alt="${file.name}" 
@@ -939,13 +802,13 @@ function initializeMultipleImagePreview() {
                         </div>
                     </div>
                 `;
-                
+
                 imageList.appendChild(imageDiv);
-                
+
                 // Add event listeners for move buttons
                 const moveUp = imageDiv.querySelector('.move-up');
                 const moveDown = imageDiv.querySelector('.move-down');
-                
+
                 if (moveUp) {
                     moveUp.addEventListener('click', (event) => {
                         event.preventDefault();
@@ -956,7 +819,7 @@ function initializeMultipleImagePreview() {
                         }
                     });
                 }
-                
+
                 if (moveDown) {
                     moveDown.addEventListener('click', (event) => {
                         event.preventDefault();
@@ -968,14 +831,14 @@ function initializeMultipleImagePreview() {
                     });
                 }
             };
-            
+
             reader.onerror = () => {
                 console.error(`Failed to read file: ${file.name}`);
             };
-            
+
             reader.readAsDataURL(file);
         });
-        
+
         updateImageOrder();
     });
 }
@@ -985,7 +848,7 @@ function updateImageOrder() {
     const imagePreviews = document.querySelectorAll('.image-preview');
     const imageOrder = Array.from(imagePreviews).map(preview => preview.dataset.fileIndex);
     const imageOrderInput = document.getElementById('multipleImageToPdf-image-order');
-    
+
     if (imageOrderInput) {
         imageOrderInput.value = imageOrder.join(',');
         console.log("Updated image order:", imageOrderInput.value);
@@ -993,9 +856,9 @@ function updateImageOrder() {
 }
 
 // Initialize when page loads
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     initializeMultipleImagePreview();
-    
+
     // Add file label update if function exists
     if (typeof updateFileLabel === 'function') {
         const fileInput = document.getElementById('multipleImageToPdf-files');
@@ -1014,8 +877,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function addPageNumbersClientSide() {
     console.log('Starting client-side page numbering...');
-    const [pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
-        'pdfLib', 'fileSaver'
+    // const [pdfLib] = await pdfLibraryManager.loadLibraries([
+    //     'pdfLib'
+    // ]);
+    const [pdfLib] = await pdfLibraryManager.loadLibraries([
+        'pdfLib'
     ]);
 
     const form = document.getElementById('pageNumbersForm');
@@ -1057,12 +923,13 @@ async function addPageNumbersClientSide() {
     try {
         progressText.textContent = 'Loading PDF...';
 
-        // Check if required libraries are available
-        if (typeof PDFLib === 'undefined') {
-            throw new Error('PDF library not loaded. Please refresh the page.');
+
+        if (!pdfLibraryManager.libraries.pdfLib || !pdfLibraryManager.libraries.pdfLib.loaded) {
+            throw new Error('PDF library not loaded. Please ensure libraries are loaded first.');
         }
 
-        const { PDFDocument, rgb, StandardFonts } = PDFLib;
+
+        const { PDFDocument, rgb, StandardFonts } = pdfLib;
 
         // Load PDF
         const pdfBytes = await file.arrayBuffer();
@@ -1178,303 +1045,15 @@ async function addPageNumbersClientSide() {
     }
 }
 
-// Enhanced version with more customization options
-async function addPageNumbersAdvancedClientSide() {
-    console.log('Starting advanced client-side page numbering...');
-
-    const form = document.getElementById('pageNumbersForm');
-    const fileInput = document.getElementById('pageNumbers-file');
-    const positionSelect = document.getElementById('pageNumbers-position');
-    const alignmentSelect = document.getElementById('pageNumbers-alignment');
-    const formatSelect = document.getElementById('pageNumbers-format');
-    const resultDiv = document.getElementById('result-pageNumbersForm');
-    const progressDiv = document.getElementById('progress-pageNumbersForm');
-    const progressText = document.getElementById('progress-text-pageNumbersForm');
-    const submitButton = form.querySelector('button[type="button"]');
-
-    // Validation
-    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
-        alert('Please select a PDF file.');
-        return;
-    }
-
-    const file = fileInput.files[0];
-
-    if (file.type !== 'application/pdf') {
-        alert('Please select a PDF file.');
-        return;
-    }
-
-    // Get form values
-    const position = positionSelect ? positionSelect.value : 'bottom';
-    const alignment = alignmentSelect ? alignmentSelect.value : 'center';
-    const format = formatSelect ? formatSelect.value : 'page_x';
-
-    // Advanced options (you can add these to your HTML form later)
-    const fontSize = 12;
-    const fontColor = '#000000'; // Black
-    const startFrom = 1; // Starting page number
-    const excludeFirstPage = false; // Option to exclude cover page
-
-    // Show progress
-    progressDiv.style.display = 'block';
-    progressText.textContent = 'Starting advanced page numbering...';
-    submitButton.disabled = true;
-    submitButton.innerHTML = '<i class="fas fa-list-ol mr-2"></i> Adding Page Numbers...';
-
-    try {
-        progressText.textContent = 'Loading PDF...';
-
-        if (typeof PDFLib === 'undefined') {
-            throw new Error('PDF library not loaded. Please refresh the page.');
-        }
-
-        const { PDFDocument, rgb, StandardFonts } = PDFLib;
-
-        // Load PDF
-        const pdfBytes = await file.arrayBuffer();
-        const pdfDoc = await PDFDocument.load(pdfBytes);
-        const numPages = pdfDoc.getPageCount();
-
-        console.log(`Adding advanced page numbers to ${numPages} pages...`);
-
-        // Embed fonts
-        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-        const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-        // Convert hex color to RGB
-        const hexToRgb = (hex) => {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? {
-                r: parseInt(result[1], 16) / 255,
-                g: parseInt(result[2], 16) / 255,
-                b: parseInt(result[3], 16) / 255
-            } : { r: 0, g: 0, b: 0 };
-        };
-
-        const color = hexToRgb(fontColor);
-
-        // Process each page
-        for (let i = 0; i < numPages; i++) {
-            const progress = Math.round((i / numPages) * 90);
-            progressText.textContent = `Processing page ${i + 1}/${numPages}... (${progress}%)`;
-
-            // Skip first page if excludeFirstPage is true
-            if (excludeFirstPage && i === 0) {
-                continue;
-            }
-
-            const page = pdfDoc.getPage(i);
-            const { width, height } = page.getSize();
-
-            // Calculate page number (adjust for startFrom and exclusions)
-            const pageNumber = startFrom + (excludeFirstPage ? i - 1 : i);
-
-            // Generate page number text based on format
-            let pageText;
-            switch (format) {
-                case 'x':
-                    pageText = `${pageNumber}`;
-                    break;
-                case 'page_x_of_y':
-                    pageText = `Page ${pageNumber} of ${numPages - (excludeFirstPage ? 1 : 0)}`;
-                    break;
-                case 'page_x':
-                default:
-                    pageText = `Page ${pageNumber}`;
-                    break;
-            }
-
-            // Calculate position with margins
-            const margin = 40;
-            const textWidth = font.widthOfTextAtSize(pageText, fontSize);
-
-            let x, y;
-
-            // Vertical position with offset
-            switch (position) {
-                case 'top':
-                    y = height - margin;
-                    break;
-                case 'bottom':
-                default:
-                    y = margin;
-                    break;
-            }
-
-            // Horizontal alignment
-            switch (alignment) {
-                case 'left':
-                    x = margin;
-                    break;
-                case 'right':
-                    x = width - margin - textWidth;
-                    break;
-                case 'center':
-                default:
-                    x = (width - textWidth) / 2;
-                    break;
-            }
-
-            // Add background rectangle for better visibility (optional)
-            const bgPadding = 2;
-            page.drawRectangle({
-                x: x - bgPadding,
-                y: y - bgPadding,
-                width: textWidth + (2 * bgPadding),
-                height: fontSize + (2 * bgPadding),
-                color: rgb(1, 1, 1), // White background
-                opacity: 0.8, // Semi-transparent
-            });
-
-            // Add page number text
-            page.drawText(pageText, {
-                x,
-                y,
-                size: fontSize,
-                font: font,
-                color: rgb(color.r, color.g, color.b),
-            });
-
-            console.log(`Added page number "${pageText}" to page ${i + 1}`);
-        }
-
-        progressText.textContent = 'Finalizing PDF...';
-
-        // Save the modified PDF
-        const pdfWithNumbers = await pdfDoc.save();
-        const pdfBlob = new Blob([pdfWithNumbers], { type: 'application/pdf' });
-
-        // Download
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `numbered_${file.name}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        const pagesProcessed = excludeFirstPage ? numPages - 1 : numPages;
-
-        resultDiv.innerHTML = `
-            <div class="text-green-600">
-                ✅ <strong>Advanced Page Numbers Added Successfully!</strong><br>
-                📄 Processed ${pagesProcessed} pages<br>
-                📍 Position: ${position}, Alignment: ${alignment}, Format: ${format}<br>
-                🎨 Font Size: ${fontSize}pt, Starting from: ${startFrom}<br>
-                
-            </div>
-        `;
-
-        console.log(`Successfully added advanced page numbers to ${pagesProcessed} pages`);
-
-    } catch (error) {
-        console.error('Advanced page numbering failed:', error);
-
-        resultDiv.innerHTML = `
-            <div class="text-red-600">
-                ❌ Failed to add page numbers: ${error.message}<br>
-                <small>Falling back to server processing...</small>
-            </div>
-        `;
-
-        // Fallback to server processing
-        setTimeout(() => {
-            processPDF('add_page_numbers', 'pageNumbersForm');
-        }, 2000);
-
-    } finally {
-        progressDiv.style.display = 'none';
-        submitButton.disabled = false;
-        submitButton.innerHTML = '<i class="fas fa-list-ol mr-2"></i> Add Page Numbers';
-    }
-}
 
 
 
-//  reorder page
+//  reorder function with validation
 
-// 🆕 FIXED: Page preview loading without duplicates
-async function loadPagePreviewsClientSide(file, pageListElement) {
-    if (!file || typeof pdfjsLib === 'undefined') {
-        throw new Error('PDF library not available');
-    }
-
-    try {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        const numPages = pdf.numPages;
-
-        pageListElement.innerHTML = '';
-
-        console.log(`Loading ${numPages} page previews...`);
-
-        for (let i = 1; i <= numPages; i++) {
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 0.3 });
-
-            // Create only one canvas - the one that will be in the DOM
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const context = canvas.getContext('2d');
-
-            // White background
-            context.fillStyle = 'white';
-            context.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Render PDF page directly to the canvas
-            await page.render({
-                canvasContext: context,
-                viewport: viewport
-            }).promise;
-
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'page-preview border border-gray-200 rounded-lg p-4 bg-white mb-4 cursor-move';
-            pageDiv.dataset.pageNum = i;
-            pageDiv.draggable = true;
-
-            pageDiv.innerHTML = `
-                <div class="flex flex-col items-center">
-                    <div class="canvas-container mb-2 border border-gray-300 bg-white overflow-hidden rounded">
-                        <!-- Canvas will be appended here -->
-                    </div>
-                    <div class="flex items-center justify-between w-full mt-2">
-                        <span class="text-gray-600 text-sm font-medium">Page ${i}</span>
-                        <div class="flex space-x-1">
-                            <button type="button" class="move-up bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition-colors">
-                                <i class="fas fa-arrow-up"></i>
-                            </button>
-                            <button type="button" class="move-down bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition-colors">
-                                <i class="fas fa-arrow-down"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            // Append the actual canvas to the container
-            const canvasContainer = pageDiv.querySelector('.canvas-container');
-            canvasContainer.appendChild(canvas);
-
-            pageListElement.appendChild(pageDiv);
-        }
-
-        console.log(`Successfully loaded ${numPages} page previews`);
-        return numPages;
-
-    } catch (error) {
-        console.error('Error loading page previews:', error);
-        throw error;
-    }
-}
-
-// 🆕 FIXED: Enhanced reorder function with better validation
 async function reorderPDFPagesClientSide() {
     console.log('Starting client-side PDF page reordering...');
-    const [pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
-        'pdfLib', 'fileSaver'
+    const [pdfLib,] = await pdfLibraryManager.loadLibraries([
+        'pdfLib'
     ]);
 
     const form = document.getElementById('reorderForm');
@@ -1523,7 +1102,7 @@ async function reorderPDFPagesClientSide() {
         progressText.textContent = 'Loading PDF document...';
 
         // Load PDF to get actual page count
-        const { PDFDocument } = PDFLib;
+        const { PDFDocument } = pdfLib;
         const pdfBytes = await file.arrayBuffer();
         const pdfDoc = await PDFDocument.load(pdfBytes);
 
@@ -1617,77 +1196,3 @@ async function reorderPDFPagesClientSide() {
     }
 }
 
-// 🆕 FIXED: Update page order function
-function updatePageOrder(pageElements) {
-    const pageOrder = [];
-
-    pageElements.forEach(pageElement => {
-        const pageNum = parseInt(pageElement.dataset.pageNum);
-        pageOrder.push(pageNum);
-    });
-
-    const pageOrderInput = document.getElementById('reorder-page-order');
-    if (pageOrderInput) {
-        pageOrderInput.value = pageOrder.join(',');
-        console.log("Updated page order:", pageOrderInput.value);
-    }
-}
-
-// 🆕 FIXED: Initialize drag and drop functionality
-function initializeDragAndDrop() {
-    const pageList = document.getElementById('page-list');
-
-    pageList.addEventListener('dragstart', (e) => {
-        if (e.target.classList.contains('page-preview')) {
-            e.dataTransfer.setData('text/plain', e.target.dataset.pageNum);
-            e.target.classList.add('opacity-50');
-        }
-    });
-
-    pageList.addEventListener('dragend', (e) => {
-        if (e.target.classList.contains('page-preview')) {
-            e.target.classList.remove('opacity-50');
-        }
-    });
-
-    pageList.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        const draggable = document.querySelector('.page-preview.dragging');
-        if (!draggable) return;
-
-        const afterElement = getDragAfterElement(pageList, e.clientY);
-        const currentElement = e.target.closest('.page-preview');
-
-        if (afterElement == null) {
-            pageList.appendChild(draggable);
-        } else {
-            pageList.insertBefore(draggable, afterElement);
-        }
-    });
-
-    function getDragAfterElement(container, y) {
-        const draggableElements = [...container.querySelectorAll('.page-preview:not(.dragging)')];
-
-        return draggableElements.reduce((closest, child) => {
-            const box = child.getBoundingClientRect();
-            const offset = y - box.top - box.height / 2;
-
-            if (offset < 0 && offset > closest.offset) {
-                return { offset: offset, element: child };
-            } else {
-                return closest;
-            }
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
-    }
-}
-
-
-
-
-document.addEventListener('DOMContentLoaded', function () {
-
-    // Initialize drag and drop for reordering
-    initializeDragAndDrop();
-    console.log('PDF tools initialized');
-
-});
