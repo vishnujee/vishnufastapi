@@ -175,7 +175,7 @@ async function splitPDFClientSide() {
             progressText.textContent = `Splitting page ${i + 1}/${numPages}... (${progress}%)`;
 
             // Create new PDF with single page
-            const singlePagePdf = await PDFLib.PDFDocument.create();
+            const singlePagePdf = await pdfLib.PDFDocument.create();
             const [copiedPage] = await singlePagePdf.copyPages(pdfDoc, [i]);
             singlePagePdf.addPage(copiedPage);
 
@@ -1097,6 +1097,7 @@ async function reorderPDFPagesClientSide() {
     try {
         // Parse and validate page order
         const pageOrder = pageOrderInput.value.split(',').map(p => parseInt(p.trim()));
+       
         console.log('Requested page order:', pageOrder);
 
         progressText.textContent = 'Loading PDF document...';
@@ -1133,13 +1134,16 @@ async function reorderPDFPagesClientSide() {
 
         // Copy pages in the specified order
         for (let i = 0; i < pageOrder.length; i++) {
-            const progress = Math.round((i / pageOrder.length) * 90);
-            progressText.textContent = `Reordering pages... (${progress}%)`;
-
-            const originalPageIndex = pageOrder[i] - 1; // Convert to 0-based index
-
-            // Copy the page
-            const [copiedPage] = await newPdfDoc.copyPages(pdfDoc, [originalPageIndex]);
+            const pageNum = pageOrder[i];
+            const pageIndex = pageNum - 1;
+            
+            // Final bounds check (should never fail if validation passed)
+            if (pageIndex < 0 || pageIndex >= totalPages) {
+                throw new Error(`Internal error: Cannot access page ${pageNum}`);
+            }
+            
+            // Safe copy
+            const [copiedPage] = await newPdfDoc.copyPages(pdfDoc, [pageIndex]);
             newPdfDoc.addPage(copiedPage);
         }
 
@@ -1193,6 +1197,21 @@ async function reorderPDFPagesClientSide() {
         progressDiv.style.display = 'none';
         submitButton.disabled = false;
         submitButton.innerHTML = '<i class="fas fa-sort-numeric-up mr-2"></i> Reorder and Download ';
+    }
+}
+
+
+// saves this function called in pdf image and split pdf
+if (typeof saveAs === 'undefined') {
+    function saveAs(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 }
 

@@ -100,19 +100,7 @@ async function displayTotalPages(fileInputId, totalPagesId) {
     }
 }
 
-// need to Add FileSaver.js functionality if not available- need to checkkkkk
-// if (typeof saveAs === 'undefined') {
-//     function saveAs(blob, filename) {
-//         const url = URL.createObjectURL(blob);
-//         const a = document.createElement('a');
-//         a.href = url;
-//         a.download = filename;
-//         document.body.appendChild(a);
-//         a.click();
-//         document.body.removeChild(a);
-//         URL.revokeObjectURL(url);
-//     }
-// }
+
 
 async function deletePDFPagesClientSide() {
     console.log('Starting client-side PDF page deletion...');
