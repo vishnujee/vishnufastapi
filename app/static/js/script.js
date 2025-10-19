@@ -591,13 +591,13 @@ async function updateFileSize() {
 
 // // /// //  // NEW ADD SIGNATURE FOR CLIENT SIDE
 
-async function loadpdflibray() {
-    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
-        'pdfjs', 'pdfLib'
-    ]);
-    console.log("library loaded on file upload");
+// async function loadpdflibray() {
+//     const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
+//         'pdfjs', 'pdfLib'
+//     ]);
+//     console.log("library loaded on file upload");
 
-}
+// }
 
 
 async function processSignatureClientSide() {
@@ -605,6 +605,9 @@ async function processSignatureClientSide() {
     // const [pdfLib, pdfjs, fileSaver] = await pdfLibraryManager.loadLibraries([
     //     'pdfLib', 'pdfjs', 'fileSaver'
     // ]);
+    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
+        'pdfjs', 'pdfLib'
+    ]);
 
     const form = document.getElementById('signatureForm');
     const pdfFileInput = document.getElementById('signature-pdf-file');
