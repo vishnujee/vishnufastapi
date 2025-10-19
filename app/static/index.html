@@ -1703,16 +1703,16 @@
     }
 
     function updateFileOrder(fileElements) {
-    const fileOrder = Array.from(fileElements).map(fileElement => {
+      const fileOrder = Array.from(fileElements).map(fileElement => {
         return fileElement.dataset.fileIndex;
-    });
+      });
 
-    const fileOrderInput = document.getElementById('merge-file-order');
-    if (fileOrderInput) {
+      const fileOrderInput = document.getElementById('merge-file-order');
+      if (fileOrderInput) {
         fileOrderInput.value = fileOrder.join(',');
         console.log("Updated file order:", fileOrderInput.value);
+      }
     }
-}
 
     function updateButtonStates(pages) {
       pages.forEach((page, index) => {
@@ -1926,91 +1926,66 @@
 
     // ////////
     function removeFileFromMerge(fileElement) {
-    const fileList = document.getElementById('file-list');
-    const fileInput = document.getElementById('merge-files');
-    const fileOrderInput = document.getElementById('merge-file-order');
-    const fileIndex = parseInt(fileElement.dataset.fileIndex);
+      const fileList = document.getElementById('file-list');
+      const fileInput = document.getElementById('merge-files');
 
-    console.log(`Removing file at index: ${fileIndex}`);
+      const fileName = fileElement.querySelector('span').textContent.trim();
+      console.log(`Removing file: ${fileName}`);
 
-    // Remove the file element from DOM
-    fileElement.remove();
+      // Remove the file element from DOM
+      fileElement.remove();
 
-    // Update the file input to reflect the removal
-    const updatedFiles = updateFileInputAfterRemoval(fileIndex);
+      // Get current files
+      const currentFiles = Array.from(fileInput.files);
 
-    // Re-index all remaining file items to match the updated file input
-    const remainingFiles = fileList.querySelectorAll('.file-item');
-    
-    // Create new indices starting from 0
-    remainingFiles.forEach((fileDiv, newIndex) => {
-        fileDiv.dataset.fileIndex = newIndex;
-    });
+      // Remove the file by filename
+      const updatedFiles = currentFiles.filter(file => file.name !== fileName);
 
-    // Update the file order with new indices
-    const newOrder = Array.from(remainingFiles).map(fileDiv => fileDiv.dataset.fileIndex);
-    if (fileOrderInput) {
-        fileOrderInput.value = newOrder.join(',');
-        console.log("Updated file order after removal:", fileOrderInput.value);
-    }
+      // Update file input using DataTransfer
+      const dataTransfer = new DataTransfer();
+      updatedFiles.forEach(file => dataTransfer.items.add(file));
+      fileInput.files = dataTransfer.files;
+      updateButtonStates(fileList.querySelectorAll('.file-item'));
 
-    // Update button states
-    updateButtonStates(remainingFiles);
+      // Update UI state
+      const remainingFiles = fileList.querySelectorAll('.file-item');
+      const resultDiv = document.getElementById('result-mergeForm');
 
-    // Update UI state
-    const resultDiv = document.getElementById('result-mergeForm');
-    if (remainingFiles.length === 0) {
+      if (remainingFiles.length === 0) {
         document.getElementById('file-previews').classList.add('hidden');
         if (resultDiv) {
-            resultDiv.textContent = 'No files selected';
-            resultDiv.classList.add('text-red-600');
+          resultDiv.textContent = 'No files selected';
+          resultDiv.classList.add('text-red-600');
         }
-    } else if (remainingFiles.length < 2) {
+      } else if (remainingFiles.length < 2) {
         if (resultDiv) {
-            resultDiv.textContent = 'Please select at least 2 PDF files.';
-            resultDiv.classList.add('text-red-600');
+          resultDiv.textContent = 'Please select at least 2 PDF files.';
+          resultDiv.classList.add('text-red-600');
         }
-    } else {
+      } else {
         if (resultDiv) {
-            resultDiv.textContent = `${remainingFiles.length} files loaded. Reorder using arrows or remove files using cross button.`;
-            resultDiv.classList.remove('text-red-600');
-            resultDiv.classList.add('text-green-600');
+          resultDiv.textContent = `${remainingFiles.length} files loaded. Reorder using arrows or remove files using cross button.`;
+          resultDiv.classList.remove('text-red-600');
+          resultDiv.classList.add('text-green-600');
         }
+      }
+
+      console.log(`File removal complete. Remaining files:`, Array.from(fileInput.files).map(f => f.name));
     }
 
-    return updatedFiles;
-}
-function updateFileInputAfterRemoval(removedIndex) {
-    const fileInput = document.getElementById('merge-files');
-    const filesCount = document.getElementById('merge-files-count');
-    const dataTransfer = new DataTransfer();
 
-    // Add all files except the removed one
-    for (let i = 0; i < fileInput.files.length; i++) {
-        if (i !== removedIndex) {
-            dataTransfer.items.add(fileInput.files[i]);
-        }
+
+    function showCurrentFileOrder() {
+      const fileList = document.getElementById('file-list');
+      const fileItems = Array.from(fileList.querySelectorAll('.file-item'));
+
+      console.log("📂 Current file order:");
+      fileItems.forEach((fileItem, index) => {
+        const fileName = fileItem.querySelector('span').textContent.trim();
+        const dataIndex = fileItem.dataset.fileIndex;
+        console.log(`${index + 1}. ${fileName} [data-index: ${dataIndex}]`);
+      });
     }
-
-    // Update file input
-    fileInput.files = dataTransfer.files;
-
-    // Update file count display
-    if (filesCount) {
-        if (dataTransfer.files.length > 1) {
-            filesCount.textContent = `${dataTransfer.files.length} files selected`;
-        } else if (dataTransfer.files.length === 1) {
-            filesCount.textContent = dataTransfer.files[0].name;
-        } else {
-            filesCount.textContent = 'No files selected';
-        }
-    }
-
-    console.log(`File input updated. Removed index ${removedIndex}. Remaining files:`, 
-                Array.from(dataTransfer.files).map(f => f.name));
-
-    return dataTransfer.files;
-}
 
 
     document.getElementById('merge-files').addEventListener('change', async (e) => {
@@ -2058,16 +2033,14 @@ function updateFileInputAfterRemoval(removedIndex) {
         fileList.appendChild(fileDiv);
         fileDivs.push(fileDiv);
 
-        // Add event listeners
+        // In your existing move-up event listener:
         fileDiv.querySelector('.move-up').addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
           const prev = fileDiv.previousSibling;
           if (prev) {
             fileList.insertBefore(fileDiv, prev);
-            updateFileOrder(Array.from(fileList.querySelectorAll('.file-item')));
-            updateButtonStates(Array.from(fileList.querySelectorAll('.file-item')));
-            console.log('Moved file up, new order:', document.getElementById('merge-file-order').value);
+            updateButtonStates(fileList.querySelectorAll('.file-item')); // ✅ ADD THIS LINE
           }
         });
 
@@ -2077,13 +2050,34 @@ function updateFileInputAfterRemoval(removedIndex) {
           const next = fileDiv.nextSibling;
           if (next) {
             fileList.insertBefore(next, fileDiv);
-            updateFileOrder(Array.from(fileList.querySelectorAll('.file-item')));
-            updateButtonStates(Array.from(fileList.querySelectorAll('.file-item')));
-            console.log('Moved file down, new order:', document.getElementById('merge-file-order').value);
+            updateButtonStates(fileList.querySelectorAll('.file-item')); // ✅ ADD THIS LINE
           }
         });
 
-        // Add remove file event listener
+
+        // fileDiv.querySelector('.move-up').addEventListener('click', (event) => {
+        //   event.preventDefault();
+        //   event.stopPropagation();
+        //   const prev = fileDiv.previousSibling;
+        //   if (prev) {
+        //     fileList.insertBefore(fileDiv, prev);
+        //     // updateUniversalFileOrder(); // ✅ Use universal function
+        //   }
+        // });
+
+        // fileDiv.querySelector('.move-down').addEventListener('click', (event) => {
+        //   event.preventDefault();
+        //   event.stopPropagation();
+        //   const next = fileDiv.nextSibling;
+        //   if (next) {
+        //     fileList.insertBefore(next, fileDiv);
+        //     // updateUniversalFileOrder(); // ✅ Use universal function
+        //   }
+        // });
+
+
+
+        // emove file event listener
         fileDiv.querySelector('.remove-file').addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -2100,24 +2094,24 @@ function updateFileInputAfterRemoval(removedIndex) {
       resultDiv.classList.add('text-green-600');
     });
     function updateButtonStates(fileElements) {
-    const fileArray = Array.from(fileElements);
-    fileArray.forEach((fileElement, index) => {
+      const fileArray = Array.from(fileElements);
+      fileArray.forEach((fileElement, index) => {
         const upButton = fileElement.querySelector('.move-up');
         const downButton = fileElement.querySelector('.move-down');
-        
+
         if (upButton) {
-            upButton.disabled = index === 0;
-            upButton.classList.toggle('opacity-50', index === 0);
-            upButton.classList.toggle('cursor-not-allowed', index === 0);
+          upButton.disabled = index === 0;
+          upButton.classList.toggle('opacity-50', index === 0);
+          upButton.classList.toggle('cursor-not-allowed', index === 0);
         }
-        
+
         if (downButton) {
-            downButton.disabled = index === fileArray.length - 1;
-            downButton.classList.toggle('opacity-50', index === fileArray.length - 1);
-            downButton.classList.toggle('cursor-not-allowed', index === fileArray.length - 1);
+          downButton.disabled = index === fileArray.length - 1;
+          downButton.classList.toggle('opacity-50', index === fileArray.length - 1);
+          downButton.classList.toggle('cursor-not-allowed', index === fileArray.length - 1);
         }
-    });
-}
+      });
+    }
 
 
     ///////

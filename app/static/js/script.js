@@ -1000,6 +1000,9 @@ async function removeBackgroundClientSide(imageFile) {
 
 // 
 //////////////////////// merge pdf opertion client side
+
+
+
 async function mergePDFsClientSide() {
     console.log('Starting client-side PDF merge...');
 
@@ -1009,7 +1012,6 @@ async function mergePDFsClientSide() {
     const progressDiv = document.getElementById('progress-mergeForm');
     const progressText = document.getElementById('progress-text-mergeForm');
     const submitButton = document.getElementById('merge-submit-btn');
-    const fileOrderInput = document.getElementById('merge-file-order');
 
     // Validation
     if (!fileInput || !fileInput.files || fileInput.files.length < 2) {
@@ -1017,45 +1019,18 @@ async function mergePDFsClientSide() {
         return;
     }
 
-    const files = fileInput.files;
-    console.log("Current files in input:", Array.from(files).map(f => f.name));
-
-    // Get the ordered files based on current UI order
-    let orderedFiles = [];
-    if (fileOrderInput && fileOrderInput.value) {
-        try {
-            const order = fileOrderInput.value.split(',').map(i => parseInt(i.trim()));
-            console.log("File order from UI:", order);
-
-            // Map UI indices to actual files in the current file input
-            orderedFiles = order.map(index => {
-                if (index >= 0 && index < files.length) {
-                    console.log(`Mapping index ${index} to file:`, files[index].name);
-                    return files[index];
-                }
-            }).filter(file => file !== undefined);
-
-            console.log("Final ordered files:", orderedFiles.map(f => f.name));
-            
-            // If order mapping failed, fall back to original order
-            if (orderedFiles.length !== files.length) {
-                console.warn('Order mapping incomplete, using original file order');
-                orderedFiles = Array.from(files);
-            }
-        } catch (e) {
-            console.warn('Invalid file order, using original order:', e);
-            orderedFiles = Array.from(files);
-        }
-    } else {
-        // No order specified, use original order
-        orderedFiles = Array.from(files);
-    }
-
-    const validation = validateFilesForClientMerge(orderedFiles);
-    if (!validation.valid) {
-        alert(validation.message);
+    // ✅ SIMPLE FIX: Get files in EXACT DOM order
+    const orderedFiles = getFilesInDOMOrder();
+    
+    if (orderedFiles.length < 2) {
+        alert('Please select at least 2 PDF files.');
         return;
     }
+
+    console.log("🎯 Files to merge in order:");
+    orderedFiles.forEach((file, index) => {
+        console.log(`${index + 1}. ${file.name}`);
+    });
 
     // Show progress
     progressDiv.style.display = 'block';
@@ -1068,9 +1043,7 @@ async function mergePDFsClientSide() {
             'pdfLib', 'pdfjs', 'jszip', 'fileSaver'
         ]);
 
-        progressText.textContent = 'Loading PDF files... (0%)';
-
-        // Use the orderedFiles
+        // Process files in DOM order
         const pdfDocs = [];
         for (let i = 0; i < orderedFiles.length; i++) {
             const progress = Math.round((i / orderedFiles.length) * 50);
@@ -1089,7 +1062,7 @@ async function mergePDFsClientSide() {
         // Create new PDF document
         const mergedPdf = await PDFLib.PDFDocument.create();
 
-        // Copy pages from all PDFs in the correct order
+        // Copy pages from all PDFs in DOM order
         for (let i = 0; i < pdfDocs.length; i++) {
             const progress = 50 + Math.round((i / pdfDocs.length) * 45);
             progressText.textContent = `Merging PDFs... (${progress}%)`;
@@ -1120,7 +1093,7 @@ async function mergePDFsClientSide() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        // Show success message WITHOUT clearing files
+        // Show success message
         let totalSize = 0;
         for (let file of orderedFiles) {
             totalSize += file.size;
@@ -1131,35 +1104,213 @@ async function mergePDFsClientSide() {
             <div class="text-green-600">
                 ✅ <strong>PDFs Merged Successfully!</strong><br>
                 📁 Merged ${orderedFiles.length} files in your specified order (${totalSizeMB.toFixed(2)}MB total)<br>
-                ⚡ <small>Files are still available for subsequent merge operations</small><br>
-                🔄 <small>You can reorder files and merge again</small>
+                📋 Order maintained: ${orderedFiles.map(f => f.name).join(' → ')}
             </div>
         `;
 
-        console.log('Client-side merge completed successfully. Files preserved for next operation.');
+        console.log('Client-side merge completed successfully.');
 
     } catch (error) {
         console.error('Client-side merge failed:', error);
         resultDiv.innerHTML = `
             <div class="text-red-600">
-                ❌ Merge failed: ${error.message}<br>
-                <small>Falling back to server processing...</small>
+                ❌ Merge failed: ${error.message}
             </div>
         `;
-
-        // Fallback to server processing
-        setTimeout(() => {
-            updateFileOrder(document.querySelectorAll('.file-item'));
-            processPDF('merge_pdf', 'mergeForm');
-        }, 2000);
-
     } finally {
-        // Clean up progress but KEEP files
         progressDiv.style.display = 'none';
         submitButton.disabled = false;
         submitButton.innerHTML = '<i class="fas fa-object-group mr-2"></i> Merge PDFs';
     }
 }
+
+// ✅ NEW SIMPLE FUNCTION: Get files in exact DOM order
+function getFilesInDOMOrder() {
+    const fileInput = document.getElementById('merge-files');
+    const fileItems = document.querySelectorAll('#file-list .file-item');
+    
+    if (!fileInput || !fileInput.files || fileItems.length === 0) {
+        return [];
+    }
+
+    // Create a map of filename to file object for quick lookup
+    const filesMap = {};
+    Array.from(fileInput.files).forEach(file => {
+        filesMap[file.name] = file;
+    });
+
+    // Get files in exact DOM order by matching filenames
+    const orderedFiles = Array.from(fileItems).map(fileItem => {
+        const fileName = fileItem.querySelector('span').textContent.trim();
+        return filesMap[fileName];
+    }).filter(file => file !== undefined);
+
+    console.log("📁 DOM Order:", Array.from(fileItems).map(item => item.querySelector('span').textContent.trim()));
+    console.log("📄 Final ordered files:", orderedFiles.map(f => f.name));
+
+    return orderedFiles;
+}
+
+// async function mergePDFsClientSide() {
+//     console.log('Starting client-side PDF merge...');
+
+//     const form = document.getElementById('mergeForm');
+//     const fileInput = document.getElementById('merge-files');
+//     const resultDiv = document.getElementById('result-mergeForm');
+//     const progressDiv = document.getElementById('progress-mergeForm');
+//     const progressText = document.getElementById('progress-text-mergeForm');
+//     const submitButton = document.getElementById('merge-submit-btn');
+
+//     // ✅ Ensure universal order is up-to-date before merge
+//     updateUniversalFileOrder();
+
+//     // Validation
+//     if (!fileInput || !fileInput.files || fileInput.files.length < 2) {
+//         alert('Please select at least 2 PDF files.');
+//         return;
+//     }
+
+//     const files = fileInput.files;
+
+//     // ✅ Get files in EXACT DOM order using universal indexing
+//     // ✅ Build ordered files list based on real-time DOM order
+//     const fileItems = Array.from(document.querySelectorAll('#file-list .file-item'));
+//     const allFiles = Array.from(fileInput.files);
+
+//     const orderedFiles = fileItems.map((fileItem, index) => {
+//         let displayedName = fileItem.querySelector('span')?.textContent.trim() || fileItem.dataset.filename || '';
+
+//         // Normalize names for better matching
+//         const cleanDisplayName = displayedName.replace(/^\d+\.\s*/, '').toLowerCase().trim(); // removes prefixes like "3. "
+
+//         // Try to find the best matching file
+//         const matchedFile = allFiles.find(f => {
+//             const cleanFileName = f.name.toLowerCase().trim();
+//             return (
+//                 cleanFileName === cleanDisplayName ||
+//                 cleanFileName.endsWith(cleanDisplayName) || // partial match
+//                 cleanDisplayName.endsWith(cleanFileName)    // inverse partial
+//             );
+//         });
+
+//         console.log(`📄 ${index + 1}. Matched DOM file: ${displayedName} → ${matchedFile ? matchedFile.name : 'Not Found'}`);
+//         return matchedFile || null;
+//     }).filter(f => f !== null);
+
+
+//     console.log("🎯 Final ordered files for merge:");
+//     orderedFiles.forEach((file, index) => {
+//         console.log(`${index + 1}. ${file.name}`);
+//     });
+
+//     // Rest of your merge function remains the same...
+//     const validation = validateFilesForClientMerge(orderedFiles);
+//     if (!validation.valid) {
+//         alert(validation.message);
+//         return;
+//     }
+
+//     // Show progress
+//     progressDiv.style.display = 'block';
+//     progressText.textContent = 'Starting merge...';
+//     submitButton.disabled = true;
+//     submitButton.innerHTML = '<i class="fas fa-object-group mr-2"></i> Merging...';
+
+//     try {
+//         const [pdfLib, pdfjs, jszip, fileSaver] = await pdfLibraryManager.loadLibraries([
+//             'pdfLib', 'pdfjs', 'jszip', 'fileSaver'
+//         ]);
+
+//         // Use the orderedFiles for processing
+//         const pdfDocs = [];
+//         for (let i = 0; i < orderedFiles.length; i++) {
+//             const progress = Math.round((i / orderedFiles.length) * 50);
+//             progressText.textContent = `Loading PDF files... (${progress}%)`;
+
+//             const file = orderedFiles[i];
+//             console.log(`Loading PDF ${i + 1}/${orderedFiles.length}:`, file.name);
+
+//             const arrayBuffer = await file.arrayBuffer();
+//             const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+//             pdfDocs.push(pdfDoc);
+//         }
+
+//         progressText.textContent = 'Merging PDFs... (50%)';
+
+//         // Create new PDF document
+//         const mergedPdf = await PDFLib.PDFDocument.create();
+
+//         // Copy pages from all PDFs in the correct order
+//         for (let i = 0; i < pdfDocs.length; i++) {
+//             const progress = 50 + Math.round((i / pdfDocs.length) * 45);
+//             progressText.textContent = `Merging PDFs... (${progress}%)`;
+
+//             const pdfDoc = pdfDocs[i];
+//             const pages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
+//             pages.forEach(page => mergedPdf.addPage(page));
+
+//             console.log(`Added file: ${orderedFiles[i].name}`);
+//         }
+
+//         progressText.textContent = 'Finalizing merge... (95%)';
+
+//         // Save the merged PDF
+//         const mergedPdfBytes = await mergedPdf.save();
+//         const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+
+//         progressText.textContent = 'Downloading... (100%)';
+
+//         // Download the merged PDF
+//         const filename = `merged_${Date.now()}.pdf`;
+//         const url = URL.createObjectURL(mergedBlob);
+//         const a = document.createElement('a');
+//         a.href = url;
+//         a.download = filename;
+//         document.body.appendChild(a);
+//         a.click();
+//         document.body.removeChild(a);
+//         URL.revokeObjectURL(url);
+
+//         // Show success message WITHOUT clearing files
+//         let totalSize = 0;
+//         for (let file of orderedFiles) {
+//             totalSize += file.size;
+//         }
+//         const totalSizeMB = totalSize / (1024 * 1024);
+
+//         resultDiv.innerHTML = `
+//             <div class="text-green-600">
+//                 ✅ <strong>PDFs Merged Successfully!</strong><br>
+//                 📁 Merged ${orderedFiles.length} files in your specified order (${totalSizeMB.toFixed(2)}MB total)<br>
+//                 ⚡ <small>Files are still available for subsequent merge operations</small><br>
+//                 🔄 <small>You can reorder files and merge again</small>
+//             </div>
+//         `;
+
+//         console.log('Client-side merge completed successfully. Files preserved for next operation.');
+
+//     } catch (error) {
+//         console.error('Client-side merge failed:', error);
+//         resultDiv.innerHTML = `
+//             <div class="text-red-600">
+//                 ❌ Merge failed: ${error.message}<br>
+//                 <small>Falling back to server processing...</small>
+//             </div>
+//         `;
+
+//         // Fallback to server processing
+//         setTimeout(() => {
+//             updateFileOrder(document.querySelectorAll('.file-item'));
+//             processPDF('merge_pdf', 'mergeForm');
+//         }, 2000);
+
+//     } finally {
+//         // Clean up progress but KEEP files
+//         progressDiv.style.display = 'none';
+//         submitButton.disabled = false;
+//         submitButton.innerHTML = '<i class="fas fa-object-group mr-2"></i> Merge PDFs';
+//     }
+// }
 
 //some CSS for better styling of the file items
 const additionalStyles = `
