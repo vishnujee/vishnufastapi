@@ -52,12 +52,8 @@ async function compressPDFClientSide() {
 
     try {
 
-        // // 🆕 LAZY LOADING: Load required libraries
-        // const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
-        //     'pdfjs', 'pdfLib', 'fileSaver'
-        // ]);
 
-        // Get compression settings - UPDATED FOR ACCURACY
+        // compression settings - UPDATED FOR ACCURACY
         const presetSelect = document.getElementById('compress-preset');
         const preset = presetSelect ? presetSelect.value : 'Medium';
 
@@ -91,7 +87,7 @@ async function compressPDFClientSide() {
         const estimatedSize = await estimateCompressedSize(file, dpi, quality);
         progressText.textContent = ` (Processing...)`;
 
-        // Use the enhanced compression function
+       
         let compressedBlob = await enhancedPDFCompression(file, dpi, quality, (progress) => {
             progressText.textContent = `Processing pages... (${progress}%) `;
         });
@@ -584,7 +580,7 @@ async function updateFileSize() {
         // Also show file characteristics for better prediction
         const fileInfo = document.getElementById('file-info');
         if (fileInfo) {
-            // This would need to be populated after analyzing the PDF
+            // // This would need to be populated after analyzing the PDF
             fileInfo.innerHTML = `<small class="text-gray-500">File loaded: ${file.name}</small>`;
         }
     } else {
@@ -758,7 +754,7 @@ async function fallbackToServerSideSignature(form) {
     const alignmentSelect = document.getElementById('signature-alignment');
     const removeBgCheckbox = document.getElementById('remove-bg');
 
-    // Add files to form data
+    // files to form data
     if (pdfFileInput && pdfFileInput.files[0]) {
         formData.append('pdf_file', pdfFileInput.files[0]);
     }
@@ -766,7 +762,7 @@ async function fallbackToServerSideSignature(form) {
         formData.append('signature_file', signatureFileInput.files[0]);
     }
 
-    // Add other form data
+    // other form data
     if (selectedPagesInput && selectedPagesInput.value) {
         formData.append('specific_pages', selectedPagesInput.value);
     }
@@ -991,9 +987,9 @@ async function removeBackgroundClientSide(imageFile) {
                     const g = data[i + 1];
                     const b = data[i + 2];
 
-                    // Remove white/light background (adjust threshold as needed)
+                    // Remove white/light background 
                     if (r > 200 && g > 200 && b > 200) {
-                        data[i + 3] = 0; // Set alpha to transparent
+                        data[i + 3] = 0; // 
                     }
                 }
 
@@ -1045,7 +1041,7 @@ async function mergePDFsClientSide() {
         return;
     }
 
-    // ✅ SIMPLE FIX: Get files in EXACT DOM order
+   
     const orderedFiles = getFilesInDOMOrder();
 
     if (orderedFiles.length < 2) {
@@ -1150,7 +1146,7 @@ async function mergePDFsClientSide() {
     }
 }
 
-// ✅ NEW SIMPLE FUNCTION: Get files in exact DOM order
+// // Get files in exact DOM order
 function getFilesInDOMOrder() {
     const fileInput = document.getElementById('merge-files');
     const fileItems = document.querySelectorAll('#file-list .file-item');
@@ -1483,18 +1479,7 @@ async function processPDF(endpoint, formId) {
     }
 }
 
-// function updateFileOrder(files) {
-//     const fileOrder = Array.from(files).map((file, index) => {
-//         if (!file.dataset.fileIndex) {
-//             file.dataset.fileIndex = index;
-//         }
-//         return file.dataset.fileIndex;
-//     });
-//     const fileOrderInput = document.getElementById('merge-file-order');
-//     if (fileOrderInput) {
-//         fileOrderInput.value = fileOrder.join(',');
-//     }
-// }
+
 
 function updateFileOrder(fileElements) {
     const fileOrder = Array.from(fileElements).map(fileElement => {
@@ -1919,7 +1904,7 @@ function formatResponse(text) {
     // UPDATED LINK FORMATTING WITH UNDERLINES
     text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline underline-offset-2 decoration-1" target="_blank" rel="noopener noreferrer">$1</a>');
 
-    // Also handle raw URLs that might not be in markdown format
+    // handle raw URLs that might not be in markdown format
     text = text.replace(/(https?:\/\/[^\s]+|www\.[^\s]+)/g, '<a href="$1" class="text-blue-600 hover:underline underline-offset-2 decoration-1" target="_blank" rel="noopener noreferrer">$1</a>');
 
     return text;
@@ -1941,7 +1926,7 @@ const linkStyles = `
     }
 `;
 
-// Add styles to document
+// styles to document
 if (!document.querySelector('#chat-link-styles')) {
     const styleEl = document.createElement('style');
     styleEl.id = 'chat-link-styles';
@@ -2039,7 +2024,7 @@ async function sendChat() {
             selectedMode = modeSelect.value;
         }
 
-        // ✅ FIX: Send only LAST 4 conversations (8 messages) to LLM
+        // Send only LAST 4 conversations (8 messages) to LLM
         const recentHistory = chatHistory.slice(-8); // Last 4 conversations (4 user + 4 assistant)
 
         const body = new URLSearchParams({
@@ -2065,7 +2050,7 @@ async function sendChat() {
 
         const data = await response.json();
 
-        // ✅ Add BOTH user message and AI response to FULL history (for UI)
+        // Add BOTH user message and AI response to FULL history (for UI)
         chatHistory.push({ role: 'user', content: userMessage });
         chatHistory.push({ role: 'assistant', content: data.answer });
 
@@ -2093,19 +2078,19 @@ async function sendChat() {
             aiResponse.textContent = data.answer;
         }
 
-        // Keep full history for UI (optional: limit to prevent memory issues)
+        // Keep full history for UI
         if (chatHistory.length > 100) { // Keep reasonable limit for browser memory
             chatHistory = chatHistory.slice(-100);
             console.log("🗂️ Trimmed full history to 100 messages for UI");
         }
 
-        // DEBUG: Log after updating history
+      
         console.log("📝 Updated FULL chatHistory (UI):", chatHistory.length, "messages");
         console.log("📝 Next LLM will receive:", Math.min(chatHistory.length, 8), "messages");
 
     } catch (error) {
         console.error("Chat error:", error);
-        // Don't add failed message to history
+
         const errorDiv = document.createElement('div');
         errorDiv.className = 'text-red-600 mb-4';
         errorDiv.innerHTML = `
@@ -2119,7 +2104,7 @@ async function sendChat() {
     }
 }
 
-// Enhanced tool selection with preloading
+
 function showTool(toolId, event = null) {
     localStorage.setItem('lastTool', toolId);
     console.log("Showing tool:", toolId);
@@ -2135,8 +2120,6 @@ function showTool(toolId, event = null) {
         toolSection.style.display = 'block';
     }
 
-    // 🆕 PRELOAD LIBRARIES for this tool
-    // pdfLibraryManager.preloadForTool(toolId);
 
     // Show/hide clear form button
     const clearBtn = document.getElementById('clear-all-btn-container');
@@ -2286,11 +2269,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-
-
-
-
-    // Initialize merge_pdf file reordering
     const mergeFileInput = document.getElementById('mergePdf-file');
     const fileList = document.querySelector('.file-list');
     if (mergeFileInput && fileList) {

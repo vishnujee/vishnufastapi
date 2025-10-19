@@ -1319,34 +1319,7 @@
       </div>
     </div>
 
-    <!-- <div id="imageToPdf-section" class="tool-section" style="display: none;">
-          <div class="bg-white p-6 rounded-xl shadow-md tool-card">
-            <div class="flex items-center mb-4">
-              <div class="bg-teal-100 p-2 rounded-full mr-3">
-                <i class="fas fa-image text-teal-600 text-xl"></i>
-              </div>
-              <h2 class="text-2xl font-semibold text-gray-800">Convert Image to PDF</h2>
-            </div>
-            <form id="imageToPdfForm" class="space-y-4">
-              <div>
-                <label for="imageToPdf-file" class="block text-sm font-medium text-gray-600 mb-1">Select Image File</label>
-                <div class="flex items-center">
-                  <label class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
-                    <i class="fas fa-image mr-2 text-teal-500"></i> Choose File <input type="file" id="imageToPdf-file" name="file" accept="image/png,image/jpeg" required class="hidden">
-                  </label>
-                  <span id="imageToPdf-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
-                </div>
-              </div>
-              <button type="button" onclick="processPDF('convert_image_to_pdf', 'imageToPdfForm')" class="w-full bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-                <i class="fas fa-image mr-2"></i> Convert to PDF </button>
-              <div class="progress" id="progress-imageToPdfForm">
-                <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-                <div class="progress-text" id="progress-text-imageToPdfForm"></div>
-              </div>
-              <p id="result-imageToPdfForm" class="text-sm text-center"></p>
-            </form>
-          </div>
-        </div> -->
+  
     <!-- Remove Password -->
     <div id="removePassword-section" class="tool-section" style="display: none;">
       <div class="bg-white p-6 rounded-xl shadow-md tool-card">
@@ -2050,26 +2023,6 @@
         });
 
 
-        // fileDiv.querySelector('.move-up').addEventListener('click', (event) => {
-        //   event.preventDefault();
-        //   event.stopPropagation();
-        //   const prev = fileDiv.previousSibling;
-        //   if (prev) {
-        //     fileList.insertBefore(fileDiv, prev);
-        //     // updateUniversalFileOrder(); // ✅ Use universal function
-        //   }
-        // });
-
-        // fileDiv.querySelector('.move-down').addEventListener('click', (event) => {
-        //   event.preventDefault();
-        //   event.stopPropagation();
-        //   const next = fileDiv.nextSibling;
-        //   if (next) {
-        //     fileList.insertBefore(next, fileDiv);
-        //     // updateUniversalFileOrder(); // ✅ Use universal function
-        //   }
-        // });
-
 
 
         // emove file event listener
@@ -2211,7 +2164,7 @@
                 </div>
             `;
 
-          // Replace the canvas with the rendered one
+          
           const previewCanvas = pageDiv.querySelector('canvas');
           previewCanvas.width = canvas.width;
           previewCanvas.height = canvas.height;
@@ -2220,7 +2173,7 @@
           pageList.appendChild(pageDiv);
           pages.push(pageDiv);
 
-          // Add event listener for checkbox
+          // event listener for checkbox
           pageDiv.querySelector('.page-checkbox').addEventListener('change', () => {
             updateSelectedPages();
             const allChecked = Array.from(document.querySelectorAll('.page-checkbox')).every(cb => cb.checked);
@@ -2237,7 +2190,7 @@
           updateSelectedPages();
         });
 
-        // Hide progress when done - ONLY THIS IS ADDED
+        // Hide progress when done -
         if (progressDiv) {
           progressDiv.style.display = 'none';
         }
@@ -2266,125 +2219,6 @@
     });
 
 
-
-    // document.getElementById('signature-pdf-file').addEventListener('change', async (e) => {
-    //   const file = e.target.files[0];
-    //   const resultDiv = document.getElementById('result-signatureForm');
-    //   const pagePreviews = document.getElementById('signature-page-previews');
-    //   const pageList = document.getElementById('signature-page-list');
-    //   const selectAllCheckbox = document.getElementById('select-all-pages');
-    //   const removeBgCheckbox = document.getElementById('remove-bg');
-    //   console.log("Remove Background Checkbox is checked:", removeBgCheckbox);
-    //   if (!file) {
-    //     pagePreviews.classList.add('hidden');
-    //     resultDiv.textContent = 'No file selected.';
-    //     resultDiv.classList.add('text-red-600');
-    //     return;
-    //   }
-    //   console.log('Processing PDF file:', file.name, file.size, file.type);
-    //   try {
-
-    //     // Show loading spinner
-    //     pagePreviews.classList.remove('hidden');
-    //     pageList.innerHTML = `
-    //         <div class="flex justify-center items-center py-8">
-    //             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-    //             <span class="ml-3 text-gray-600">Loading pages...</span>
-    //         </div>
-    //     `;
-    //     const arrayBuffer = await file.arrayBuffer();
-    //     console.log('ArrayBuffer loaded, size:', arrayBuffer.byteLength);
-    //     const pdf = await pdfjsLib.getDocument({
-    //       data: arrayBuffer
-    //     }).promise;
-    //     console.log('PDF loaded, pages:', pdf.numPages);
-    //     const numPages = pdf.numPages;
-    //     if (numPages === 0) {
-    //       throw new Error('PDF has no pages.');
-    //     }
-    //     pageList.innerHTML = '';
-    //     const pages = [];
-    //     for (let i = 1; i <= numPages; i++) {
-    //       console.log('Rendering page:', i);
-    //       const page = await pdf.getPage(i);
-    //       const viewport = page.getViewport({
-    //         scale: 0.5
-    //       });
-
-    //       const canvas = document.createElement('canvas');
-    //       canvas.width = viewport.width;
-    //       canvas.height = viewport.height;
-    //       const context = canvas.getContext('2d');
-
-    //       await page.render({
-    //         canvasContext: context,
-    //         viewport
-    //       }).promise;
-
-    //       const pageDiv = document.createElement('div');
-    //       pageDiv.className = 'page-preview border border-gray-200 rounded-lg p-4 bg-white';
-    //       pageDiv.dataset.pageNum = i;
-    //       pageDiv.innerHTML = `
-    //             <div class="flex flex-col items-center">
-    //                 <canvas class="mb-2 border border-gray-300"></canvas>
-    //                 <div class="flex items-center mt-2">
-    //                     <input type="checkbox" class="page-checkbox mr-2" data-page-num="${i}">
-    //                     <span class="text-gray-600 text-sm">Page ${i}</span>
-    //                 </div>
-    //             </div>
-    //         `;
-
-    //       // Replace the canvas with the rendered one
-    //       const previewCanvas = pageDiv.querySelector('canvas');
-    //       previewCanvas.width = canvas.width;
-    //       previewCanvas.height = canvas.height;
-    //       previewCanvas.getContext('2d').drawImage(canvas, 0, 0);
-
-    //       pageList.appendChild(pageDiv);
-    //       pages.push(pageDiv);
-
-    //       // Add event listener for checkbox
-    //       pageDiv.querySelector('.page-checkbox').addEventListener('change', () => {
-    //         updateSelectedPages();
-    //         const allChecked = Array.from(document.querySelectorAll('.page-checkbox')).every(cb => cb.checked);
-    //         selectAllCheckbox.checked = allChecked;
-    //       });
-
-    //       // Clean up temporary canvas
-    //       canvas.remove();
-    //     }
-    //     // Handle select all checkbox
-    //     selectAllCheckbox.addEventListener('change', (e) => {
-    //       const checkboxes = document.querySelectorAll('.page-checkbox');
-    //       checkboxes.forEach(cb => cb.checked = e.target.checked);
-    //       updateSelectedPages();
-    //     });
-    //     pagePreviews.classList.remove('hidden');
-    //     updateSelectedPages();
-    //     resultDiv.textContent = `${numPages} pages loaded. Select pages to sign and click Add Signature.`;
-    //     resultDiv.classList.remove('text-red-600');
-    //     resultDiv.classList.add('text-green-600');
-    //   } catch (err) {
-    //     console.error('Error processing PDF:', err);
-    //     pageList.innerHTML = `
-    //         <div class="text-center py-4 text-red-600">
-    //             <i class="fas fa-exclamation-triangle mr-2"></i>
-    //             Error loading PDF: ${err.message}
-    //         </div>
-    //     `;
-    //     resultDiv.textContent = `Error loading PDF: ${err.message}. Please ensure the file is a valid PDF and try again.`;
-    //     resultDiv.classList.add('text-red-600');
-    //     document.getElementById('signature-selected-pages').value = '';
-    //   }
-
-
-    //   // 
-
-
-
-    // });
-
-    // clear form
 
     function initializeChatModes() {
       const modeToggle = document.getElementById('mode-toggle');

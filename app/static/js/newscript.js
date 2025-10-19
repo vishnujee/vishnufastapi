@@ -33,7 +33,7 @@ async function convertPDFToImagesClientSide() {
 
     try {
 
-        // 🆕 LAZY LOADING: Load required libraries
+        // // LAZY LOADING: Load required libraries. lib required w=nly when needed.
         const [pdfjs, jszip] = await pdfLibraryManager.loadLibraries([
             'pdfjs', 'jszip'
         ]);
@@ -709,7 +709,7 @@ function getPageDimensions(pageSize, orientation) {
         : size;
 }
 
-// CORRECTED: Image orientation function (simplified)
+// Image orientation function (simplified)
 function loadAndFixImageOrientation(file) {
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -745,7 +745,7 @@ function loadAndFixImageOrientation(file) {
     });
 }
 
-// CORRECTED: Initialize image previews
+// // Initialize image previews
 function initializeMultipleImagePreview() {
     const fileInput = document.getElementById('multipleImageToPdf-files');
     const filesCount = document.getElementById('multipleImageToPdf-files-count');
@@ -843,7 +843,7 @@ function initializeMultipleImagePreview() {
     });
 }
 
-// CORRECTED: Update image order function
+// // Update image order function
 function updateImageOrder() {
     const imagePreviews = document.querySelectorAll('.image-preview');
     const imageOrder = Array.from(imagePreviews).map(preview => preview.dataset.fileIndex);

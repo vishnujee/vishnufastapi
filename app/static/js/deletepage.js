@@ -8,7 +8,7 @@ function toggleDeleteMethod() {
         visualInterface.classList.remove('hidden');
         textInterface.classList.add('hidden');
 
-        // Auto-load previews if file is already selected
+        // Autoload previews if file is already selected
         if (fileInput.files[0]) {
             console.log('Auto-loading previews for visual method...');
             // Ensure preview container exists
@@ -52,7 +52,7 @@ function toggleDeleteInputs() {
     }
 }
 
-// Add this function - it's referenced in your HTML
+
 async function displayTotalPages(fileInputId, totalPagesId) {
     const fileInput = document.getElementById(fileInputId);
     const totalPagesElement = document.getElementById(totalPagesId);
@@ -62,7 +62,7 @@ async function displayTotalPages(fileInputId, totalPagesId) {
     if (!pdfLibraryManager.libraries.pdfjs || !pdfLibraryManager.libraries.pdfjs.loaded) {
         throw new Error('PDF library not loaded. Please ensure libraries are loaded first.');
     }
-    // Get the library instance
+ 
 
     const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
 
@@ -100,19 +100,19 @@ async function displayTotalPages(fileInputId, totalPagesId) {
     }
 }
 
-// Add FileSaver.js functionality if not available
-if (typeof saveAs === 'undefined') {
-    function saveAs(blob, filename) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-}
+// need to Add FileSaver.js functionality if not available- need to checkkkkk
+// if (typeof saveAs === 'undefined') {
+//     function saveAs(blob, filename) {
+//         const url = URL.createObjectURL(blob);
+//         const a = document.createElement('a');
+//         a.href = url;
+//         a.download = filename;
+//         document.body.appendChild(a);
+//         a.click();
+//         document.body.removeChild(a);
+//         URL.revokeObjectURL(url);
+//     }
+// }
 
 async function deletePDFPagesClientSide() {
     console.log('Starting client-side PDF page deletion...');
@@ -292,7 +292,7 @@ async function loadDeletePagePreviews(file) {
             const canvasContainer = pageElement.querySelector('.canvas-container');
             canvasContainer.appendChild(canvas);
 
-            // Add click handler
+            // click handler
             pageElement.addEventListener('click', function () {
                 const isSelected = this.classList.contains('border-red-500');
 
@@ -689,21 +689,21 @@ async function processSelectedPagesDeletion(file) {
         // }
 
         const previewContainer = document.getElementById('delete-pages-preview-container');
-if (previewContainer) {
-    previewContainer.innerHTML = `
-        <div class="text-center py-8">
-            <div class="mb-4">
-                <i class="fas fa-check-circle text-green-500 text-4xl"></i>
-            </div>
-            <h3 class="text-lg font-semibold text-gray-800 mb-2">Pages Deleted Successfully!</h3>
-            <p class="text-gray-600 mb-4">If you want again Page preview , Click Reload Previews below.</p>
-            <button type="button" onclick="deletePDFPagesClientSide()" 
-                    class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">
-                <i class="fas fa-sync-alt mr-2"></i>Reload Previews
-            </button>
-        </div>
-    `;
-}
+        if (previewContainer) {
+            previewContainer.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="mb-4">
+                        <i class="fas fa-check-circle text-green-500 text-4xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Pages Deleted Successfully!</h3>
+                    <p class="text-gray-600 mb-4">If you want again Page preview , Click Reload Previews below.</p>
+                    <button type="button" onclick="deletePDFPagesClientSide()" 
+                            class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Reload Previews
+                    </button>
+                </div>
+            `;
+        }
 
     } catch (error) {
         console.error('Page deletion failed:', error);
