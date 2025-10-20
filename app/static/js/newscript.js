@@ -1241,25 +1241,23 @@ let selectedPagesForRotation = new Set();
 let pageRotations = new Map(); // Store current rotation for each page
 
 
-
-
 // Handle file selection
 async function handleFileSelectForRotatePages() {
     console.log("1. Function called");
     const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
         'pdfjs', 'pdfLib', 'fileSaver'
     ]);
-    
+
     const fileInput = document.getElementById('rotatePages-file');
     const container = document.getElementById('rotate-pages-container');
-    
 
-    
-    if (!fileInput.files[0]) {
-        console.log("No file selected");
-        alert(`⚠️ select pdf file`);
-        return;
-    }
+
+
+    // if (!fileInput.files[0]) {
+    //     console.log("No file selected");
+    //     // alert(`⚠️ select pdf file`);
+    //     return;
+    // }
 
     // 200 MB size validation
     const maxSizeMB = 200;
@@ -1271,83 +1269,106 @@ async function handleFileSelectForRotatePages() {
         return;
     }
 
-
-
-
-
-    
     try {
-   
-        
+
         const arrayBuffer = await fileInput.files[0].arrayBuffer();
         currentPDFDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-        
-        console.log("8. PDF loaded, pages:", currentPDFDoc.numPages);
-        console.log("9. Container should be visible now");
-        
+
         await loadPagePreviewsForRotation();
-        
+
     } catch (error) {
         console.log("10. ERROR:", error);
     }
 }
+
 // Load page previews
 async function loadPagePreviewsForRotation() {
-    console.log("10. Loading page previews...");
+    // console.log("10. Loading page previews...");
     const container = document.getElementById('rotate-pages-preview-container');
-    console.log("11. Preview container:", container);
     const numPages = currentPDFDoc.numPages;
-    console.log("12. Number of pages:", numPages);
     document.getElementById('vishnuji').style.display = 'flex';
+    document.getElementById('infomessage').style.display = 'none';
+
     
+
     // Show loading
-    container.innerHTML = '<div class="col-span-3 text-center py-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto"></div><p class="text-gray-600 mt-2">Loading pages...</p></div>';
-    
+    container.innerHTML = '<div class="col-span-3 text-center py-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto flex justify-center"></div><p class="text-gray-600 mt-2">Loading pages...</p></div>';
+
     let html = '';
-    
+
     for (let i = 1; i <= numPages; i++) {
         const page = await currentPDFDoc.getPage(i);
         const viewport = page.getViewport({ scale: 0.4 });
-        
+
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const context = canvas.getContext('2d');
-        
+
         // White background
         context.fillStyle = 'white';
         context.fillRect(0, 0, canvas.width, canvas.height);
-        
+
         await page.render({ canvasContext: context, viewport }).promise;
-        
+
         const canvasDataUrl = canvas.toDataURL();
         const currentRotation = pageRotations.get(i) || 0;
-        
+
         html += `
-            <div class="page-rotate-item border-2 ${selectedPagesForRotation.has(i) ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-lg p-3 bg-white cursor-pointer transition-all" 
-                 onclick="togglePageSelection(${i})" data-page="${i}">
-                <div class="flex flex-col items-center">
+        <div class="page-rotate-item border-2 border-gray-200 rounded-lg p-3 bg-white cursor-pointer mb-4" 
+             data-page="${i}" 
+             onclick="togglePageSelection(${i})">
+            <div class="flex flex-col items-center">
+                <!-- Page Preview Image -->
+                <div class=" mt-3">
                     <img src="${canvasDataUrl}" alt="Page ${i}" 
-                         class="mb-2 border border-gray-300 rounded max-w-full h-auto"
+                         class="border border-gray-300 rounded max-w-full h-auto"
                          style="transform: rotate(${currentRotation}deg); transition: transform 0.3s ease;">
-                    <div class="flex items-center justify-between w-full">
-                        <span class="text-gray-700 font-medium">Page ${i}</span>
-                        <div class="text-xs ${currentRotation !== 0 ? 'text-amber-600 font-bold' : 'text-gray-500'}">
-                            ${currentRotation !== 0 ? `${currentRotation}°` : 'Original'}
-                        </div>
+                </div>
+                
+                <!-- Rotation buttons for this page - SAME COLORS AS EXISTING BUTTONS -->
+                <div class="rotation-buttons flex gap-2 mb-3 w-full justify-center" style="display: flex !important; visibility: visible !important;">
+                    <button type="button" onclick="event.stopPropagation(); rotateSinglePage(${i}, 90)" 
+                            class="bg-blue-100 border-2 border-blue-300 rounded-lg p-2 hover:bg-blue-200 transition-colors text-blue-700 font-medium" 
+                            style="display: inline-block !important; visibility: visible !important;">
+                        <i class="fas fa-redo text-blue-600 text-sm mb-1"></i>
+                        <div class="text-xs">90° Right</div>
+                    </button>
+                    <button type="button" onclick="event.stopPropagation(); rotateSinglePage(${i}, -90)" 
+                            class="bg-green-100 border-2 border-green-300 rounded-lg p-2 hover:bg-green-200 transition-colors text-green-700 font-medium"
+                            style="display: inline-block !important; visibility: visible !important;">
+                        <i class="fas fa-undo text-green-600 text-sm mb-1"></i>
+                        <div class="text-xs">90° Left</div>
+                    </button>
+                    <button type="button" onclick="event.stopPropagation(); rotateSinglePage(${i}, 180)" 
+                            class="bg-purple-100 border-2 border-purple-300 rounded-lg p-2 hover:bg-purple-200 transition-colors text-purple-700 font-medium"
+                            style="display: inline-block !important; visibility: visible !important;">
+                        <i class="fas fa-sync-alt text-purple-600 text-sm mb-1"></i>
+                        <div class="text-xs">180°</div>
+                    </button>
+                </div>
+                
+                <!-- Page info -->
+                <div class="flex items-center justify-between w-full">
+                    <span class="text-gray-700 font-medium">Page ${i}</span>
+                    <div class="text-xs ${currentRotation !== 0 ? 'text-amber-600 font-bold' : 'text-gray-500'}">
+                        ${currentRotation !== 0 ? `${currentRotation}°` : 'Original'}
                     </div>
-                    ${selectedPagesForRotation.has(i) ? '<div class="text-xs text-red-600 font-medium mt-1">SELECTED</div>' : ''}
+                </div>
+                
+                <!-- Selection indicator -->
+                <div class="selection-indicator text-xs mt-2 ${selectedPagesForRotation.has(i) ? 'text-red-600 font-bold' : 'hidden'}">
+                    ${selectedPagesForRotation.has(i) ? 'SELECTED' : ''}
                 </div>
             </div>
+        </div>
         `;
-        
         canvas.remove();
     }
-    
-    container.innerHTML = html;
-        console.log("13. Page previews should be visible now");
-}
 
+    container.innerHTML = html;
+    console.log("13. Page previews loaded with rotation buttons");
+}
 // Toggle page selection
 function togglePageSelection(pageNum) {
     if (selectedPagesForRotation.has(pageNum)) {
@@ -1355,7 +1376,7 @@ function togglePageSelection(pageNum) {
     } else {
         selectedPagesForRotation.add(pageNum);
     }
-    
+
     // Update UI
     const pageElement = document.querySelector(`[data-page="${pageNum}"]`);
     if (pageElement) {
@@ -1366,31 +1387,30 @@ function togglePageSelection(pageNum) {
             pageElement.classList.remove('border-red-500', 'bg-red-50');
             pageElement.classList.add('border-gray-200');
         }
-        
+
         // Update selection indicator
         const selectionIndicator = pageElement.querySelector('.text-xs:last-child');
         if (selectionIndicator) {
             if (selectedPagesForRotation.has(pageNum)) {
                 selectionIndicator.textContent = 'SELECTED';
-                selectionIndicator.className = 'text-xs text-red-600 font-medium mt-1';
+                selectionIndicator.classList.remove('hidden');
+                selectionIndicator.classList.add('text-red-600', 'font-medium');
             } else {
-                selectionIndicator.textContent = '';
-                selectionIndicator.className = 'hidden';
+                selectionIndicator.classList.add('hidden');
             }
         }
     }
 }
-
 // Set rotation angle with red background
 function setRotationAngle(angle) {
     currentRotationAngle = angle;
-    
+
     // Remove red background from all buttons
     document.querySelectorAll('.rotate-angle-btn').forEach(btn => {
         btn.classList.remove('bg-red-300', 'border-red-500');
         btn.classList.add('bg-blue-100', 'border-blue-300', 'bg-green-100', 'border-green-300', 'bg-purple-100', 'border-purple-300');
     });
-    
+
     // Add red background to selected button
     const selectedBtn = event.currentTarget;
     selectedBtn.classList.remove('bg-blue-100', 'border-blue-300', 'bg-green-100', 'border-green-300', 'bg-purple-100', 'border-purple-300');
@@ -1403,21 +1423,21 @@ function rotateSelectedPages() {
         alert('Please select pages to rotate by clicking on them.');
         return;
     }
-    
+
     const resultDiv = document.getElementById('result-rotatePagesForm');
-    
+
     // Apply rotation to selected pages
     for (const pageNum of selectedPagesForRotation) {
         const currentRotation = pageRotations.get(pageNum) || 0;
         const newRotation = (currentRotation + currentRotationAngle) % 360;
         pageRotations.set(pageNum, newRotation);
-        
+
         // Immediate visual update
         const pageElement = document.querySelector(`[data-page="${pageNum}"]`);
         if (pageElement) {
             const img = pageElement.querySelector('img');
             img.style.transform = `rotate(${newRotation}deg)`;
-            
+
             // Update rotation text
             const rotationText = pageElement.querySelector('.text-xs:nth-child(2)');
             if (rotationText) {
@@ -1426,33 +1446,41 @@ function rotateSelectedPages() {
             }
         }
     }
-    
+
     // Show success message
     resultDiv.innerHTML = `
         <div class="text-green-600 text-center">
             ✅ Rotated ${selectedPagesForRotation.size} page(s) by ${currentRotationAngle}°
         </div>
     `;
-    
+
     // Clear selection after rotation
-    selectedPagesForRotation.clear();
-    
+    // selectedPagesForRotation.clear();
+
     // Update all page borders to remove selection
-    document.querySelectorAll('.page-rotate-item').forEach(item => {
-        item.classList.remove('border-red-500', 'bg-red-50');
-        item.classList.add('border-gray-200');
-        
-        // Hide selection indicator
-        const selectionIndicator = item.querySelector('.text-xs:last-child');
-        if (selectionIndicator) {
-            selectionIndicator.classList.add('hidden');
-        }
-    });
-    
+    // document.querySelectorAll('.page-rotate-item').forEach(item => {
+    //     item.classList.remove('border-red-500', 'bg-red-50');
+    //     item.classList.add('border-gray-200');
+
+    //     // Hide selection indicator
+    //     const selectionIndicator = item.querySelector('.text-xs:last-child');
+    //     if (selectionIndicator) {
+    //         selectionIndicator.classList.add('hidden');
+    //     }
+    // });
+
     // Auto-hide message
     setTimeout(() => {
         resultDiv.innerHTML = '';
     }, 3000);
+    // selectedPagesForRotation.clear();
+    // toggleSelectAllPages()
+    // const button = document.getElementById('myid');
+    // button.classList.remove('bg-green-600', 'hover:bg-green-700');
+    // button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+    // button.innerHTML = '<i class="fas fa-check-square mr-2"></i> Select All';
+
+    // button.style.backgroundColor = '#4B5563';
 }
 
 // Download final rotated PDF
@@ -1461,24 +1489,24 @@ async function downloadRotatedPDF() {
         alert('Please upload a PDF file first.');
         return;
     }
-    
+
     const progressDiv = document.getElementById('progress-rotatePagesForm');
     const progressText = document.getElementById('progress-text-rotatePagesForm');
     const resultDiv = document.getElementById('result-rotatePagesForm');
-    
+
     progressDiv.style.display = 'block';
     progressText.textContent = 'Creating rotated PDF...';
-    
+
     try {
         const [pdfLib] = await pdfLibraryManager.loadLibraries(['pdfLib']);
         const { PDFDocument, degrees } = pdfLib;
-        
+
         // Get original PDF bytes
         const originalArrayBuffer = await currentPDFDoc.getData();
         const pdfDoc = await PDFDocument.load(originalArrayBuffer);
-        
+
         progressText.textContent = 'Applying rotations...';
-        
+
         // Apply all rotations
         let rotatedCount = 0;
         for (const [pageNum, rotation] of pageRotations) {
@@ -1489,17 +1517,17 @@ async function downloadRotatedPDF() {
                 rotatedCount++;
             }
         }
-        
+
         progressText.textContent = 'Saving PDF...';
-        
+
         // Save and download
         const rotatedPdfBytes = await pdfDoc.save();
         const rotatedBlob = new Blob([rotatedPdfBytes], { type: 'application/pdf' });
-        
+
         const fileInput = document.getElementById('rotatePages-file');
         const originalName = fileInput.files[0].name.replace('.pdf', '');
         const filename = `rotated_${originalName}.pdf`;
-        
+
         const url = URL.createObjectURL(rotatedBlob);
         const a = document.createElement('a');
         a.href = url;
@@ -1508,14 +1536,14 @@ async function downloadRotatedPDF() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         resultDiv.innerHTML = `
             <div class="text-green-600 text-center">
                 ✅ PDF Downloaded Successfully!<br>
                 <small>${rotatedCount} pages rotated</small>
             </div>
         `;
-        
+
     } catch (error) {
         console.error('Download failed:', error);
         resultDiv.innerHTML = `
@@ -1525,7 +1553,7 @@ async function downloadRotatedPDF() {
         `;
     } finally {
         progressDiv.style.display = 'none';
-        selectedPagesForRotation.clear();
+        // selectedPagesForRotation.clear();
     }
 }
 
@@ -1534,13 +1562,13 @@ function toggleSelectAllPages() {
     const button = document.getElementById('myid');
     const allPages = document.querySelectorAll('.page-rotate-item');
     const allSelected = allPages.length > 0 && selectedPagesForRotation.size === allPages.length;
-    
+
     if (allSelected) {
         // Deselect all - change to gray
         button.classList.remove('bg-green-600', 'hover:bg-green-700');
         button.classList.add('bg-gray-600', 'hover:bg-gray-700');
         button.innerHTML = '<i class="fas fa-check-square mr-2"></i> Select All';
-        
+
         selectedPagesForRotation.clear();
         allPages.forEach(page => {
             page.classList.remove('border-red-500', 'bg-red-50');
@@ -1551,7 +1579,7 @@ function toggleSelectAllPages() {
         button.classList.remove('bg-gray-600', 'hover:bg-gray-700');
         button.classList.add('bg-green-600', 'hover:bg-green-700');
         button.innerHTML = '<i class="fas fa-times-circle mr-2"></i> Deselect All';
-        
+
         allPages.forEach(page => {
             const pageNum = parseInt(page.dataset.page);
             selectedPagesForRotation.add(pageNum);
@@ -1559,8 +1587,27 @@ function toggleSelectAllPages() {
             page.classList.add('border-red-500', 'bg-red-50');
         });
     }
-    
-    updateSelectedPagesDisplay();
+
+    // updateSelectedPagesDisplay();
+
+}
+function rotateSinglePage(pageNum, angle) {
+    const currentRotation = pageRotations.get(pageNum) || 0;
+    const newRotation = (currentRotation + angle) % 360;
+    pageRotations.set(pageNum, newRotation);
+
+    // Immediate visual update
+    const pageElement = document.querySelector(`[data-page="${pageNum}"]`);
+    if (pageElement) {
+        const img = pageElement.querySelector('img');
+        img.style.transform = `rotate(${newRotation}deg)`;
+
+        const rotationText = pageElement.querySelector('.text-xs');
+        if (rotationText) {
+            rotationText.textContent = `${newRotation}°`;
+            rotationText.className = 'text-xs text-amber-600 font-bold';
+        }
+    }
 }
 // Initialize file label
 updateFileLabel('rotatePages-file', 'rotatePages-file-name');

@@ -2412,5 +2412,15 @@ function clearAllForms() {
     document.querySelector("#signatureForm progress").value = 0;
     document.querySelector("#signatureForm progress").style.display = "none";
 
-
+    // **Clear page previews of rotate page**
+    const rotatePreviewContainer = document.getElementById('rotate-pages-preview-container');
+    if (rotatePreviewContainer) {
+      rotatePreviewContainer.innerHTML = '';
+    }
+    
+    // Also reset rotation-related global variables
+    currentPDFDoc = null;
+    selectedPagesForRotation.clear();
+    pageRotations.clear();
+    
 }
