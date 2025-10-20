@@ -70,6 +70,30 @@ async function displayTotalPages(fileInputId, totalPagesId) {
         const file = fileInput.files[0];
         fileNameElement.textContent = file.name;
 
+
+        // FILE SIZE VALIDATION - Add here!
+        if (file.size > 150 * 1024 * 1024) {
+            fileNameElement.textContent = 'File too large (max 150MB)';
+            totalPagesElement.textContent = 'Total Pages: File too large';
+            alert('File size exceeds 150MB limit. Please use a smaller PDF file.');
+            fileInput.value = ''; // Clear the file input
+            return;
+        }
+
+        //  FILE TYPE VALIDATION
+        if (file.type !== 'application/pdf') {
+            fileNameElement.textContent = 'Invalid file type';
+            totalPagesElement.textContent = 'Total Pages: Invalid file';
+            alert('Please select a PDF file.');
+            fileInput.value = ''; // Clear the file input
+            return;
+        }
+
+
+
+
+
+
         // Load PDF to get total pages
         const fileReader = new FileReader();
         fileReader.onload = function () {
@@ -712,9 +736,9 @@ async function processSelectedPagesDeletion(file) {
         `;
 
         // Fallback to server processing
-        setTimeout(() => {
-            processPDF('delete_pdf_pages', 'deletePagesForm');
-        }, 2000);
+        // setTimeout(() => {
+        //     processPDF('delete_pdf_pages', 'deletePagesForm');
+        // }, 2000);
 
     } finally {
         progressDiv.style.display = 'none';

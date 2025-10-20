@@ -24,7 +24,7 @@ async function convertPDFToImagesClientSide() {
         return;
     }
 
-    if (file.size > 150 * 1024 * 1024) { alert("Use PDF less than 150 mb"); return; }
+    if (file.size > 200 * 1024 * 1024) { alert("Use PDF less than 200 mb"); return; }
     // Show progress
     progressDiv.style.display = 'block';
     progressText.textContent = 'Loading PDF...';
@@ -114,9 +114,9 @@ async function convertPDFToImagesClientSide() {
         `;
 
         // Fallback to server processing
-        setTimeout(() => {
-            processPDF('convert_pdf_to_images', 'pdfToImagesForm');
-        }, 2000);
+        // setTimeout(() => {
+        //     processPDF('convert_pdf_to_images', 'pdfToImagesForm');
+        // }, 2000);
 
     } finally {
         progressDiv.style.display = 'none';
@@ -152,7 +152,7 @@ async function splitPDFClientSide() {
         alert('Please select a PDF file.');
         return;
     }
-    if (file.size > 150 * 1024 * 1024) { alert("Use PDF less than 150 mb"); return; }
+    if (file.size > 200 * 1024 * 1024) { alert("Use PDF less than 200 mb"); return; }
     // Show progress
     progressDiv.style.display = 'block';
     progressText.textContent = 'Loading PDF...';
@@ -214,9 +214,9 @@ async function splitPDFClientSide() {
         `;
 
         // Fallback to server processing
-        setTimeout(() => {
-            processPDF('split_pdf', 'splitForm');
-        }, 2000);
+        // setTimeout(() => {
+        //     processPDF('split_pdf', 'splitForm');
+        // }, 2000);
 
     } finally {
         progressDiv.style.display = 'none';
@@ -256,8 +256,8 @@ async function convertPDFToPPTClientSide() {
         alert('Please select a PDF file.');
         return;
     }
-    if (file.size > 150 * 1024 * 1024) {
-        alert("Use PDF less than 150 mb");
+    if (file.size > 200 * 1024 * 1024) {
+        alert("Use PDF less than 200 mb");
         return;
     }
 
@@ -385,9 +385,9 @@ async function convertPDFToPPTClientSide() {
         `;
 
         // Fallback to server processing
-        setTimeout(() => {
-            processPDF('convert_pdf_to_ppt', 'pdfToPptForm');
-        }, 2000);
+        // setTimeout(() => {
+        //     processPDF('convert_pdf_to_ppt', 'pdfToPptForm');
+        // }, 2000);
 
     } finally {
         progressDiv.style.display = 'none';
@@ -428,6 +428,7 @@ async function convertMultipleImagesToPDFClientSide() {
     }
 
     const files = Array.from(fileInput.files);
+    if (files.length > 50) { alert("Too many images.Use less than 50"); return; }
 
     // Validate file types and sizes
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
@@ -436,11 +437,22 @@ async function convertMultipleImagesToPDFClientSide() {
             alert(`Please select only PNG or JPEG image files. Invalid file: ${file.name}`);
             return;
         }
-        if (file.size > 50 * 1024 * 1024) {
-            alert(`File ${file.name} is too large. Maximum size is 50MB.`);
+        if (file.size > 20 * 1024 * 1024) {
+            alert(`File ${file.name} is too large. Maximum size is 20MB.`);
             return;
         }
     }
+
+        // Total size validation
+        let totalSize = 0;
+        for (const file of files) {
+            totalSize += file.size;
+        }
+        const totalSizeMB = totalSize / (1024 * 1024);
+        if (totalSizeMB > 200) { // 500MB total limit
+            alert(`Total file size (${totalSizeMB.toFixed(2)}MB) exceeds 200MB limit. Please select smaller files or fewer images.`);
+            return;
+        }
     const imageOrderInput = document.getElementById('multipleImageToPdf-image-order');
     let orderedFiles = files;
 
@@ -909,7 +921,7 @@ async function addPageNumbersClientSide() {
         alert('Please select a PDF file.');
         return;
     }
-    if (file.size > 150 * 1024 * 1024) { alert("Use PDF less than 150 mb"); return; }
+    if (file.size > 200 * 1024 * 1024) { alert("Use PDF less than 200 mb"); return; }
 
     // Get form values
     const position = positionSelect ? positionSelect.value : 'bottom';
@@ -1036,9 +1048,9 @@ async function addPageNumbersClientSide() {
         `;
 
         // Fallback to server processing
-        setTimeout(() => {
-            processPDF('add_page_numbers', 'pageNumbersForm');
-        }, 2000);
+        // setTimeout(() => {
+        //     processPDF('add_page_numbers', 'pageNumbersForm');
+        // }, 2000);
 
     } finally {
         progressDiv.style.display = 'none';
@@ -1080,8 +1092,8 @@ async function reorderPDFPagesClientSide() {
         return;
     }
 
-    if (file.size > 50 * 1024 * 1024) {
-        alert('File size exceeds 50MB limit for client-side processing.');
+    if (file.size > 200 * 1024 * 1024) {
+        alert('File size exceeds 200MB limit for client-side processing.');
         return;
     }
 
@@ -1190,9 +1202,9 @@ async function reorderPDFPagesClientSide() {
         `;
 
         // Fallback to server processing
-        setTimeout(() => {
-            processPDF('reorder_pages', 'reorderForm');
-        }, 2000);
+        // setTimeout(() => {
+        //     processPDF('reorder_pages', 'reorderForm');
+        // }, 2000);
 
     } finally {
         // Clean up

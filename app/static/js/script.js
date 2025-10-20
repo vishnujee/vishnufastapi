@@ -39,7 +39,7 @@ async function compressPDFClientSide() {
         alert('Please select a PDF file.');
         return;
     }
-    if (file.size > 200 * 1024 * 1024) {
+    if (file.size > 250 * 1024 * 1024) {
         alert("File too large than 200mb");
         return;
     }
@@ -329,7 +329,6 @@ async function computeAllCompressionSizes() {
     console.log('Computing all compression sizes with accurate predictions...');
 
 
-
     const form = document.getElementById('compressForm');
     const fileInput = form.querySelector('input[type="file"]');
     const resultDiv = document.getElementById('result-compressForm');
@@ -365,7 +364,7 @@ async function computeAllCompressionSizes() {
         return;
     }
 
-    const MAX_FILE_SIZE_MB = 160;
+    const MAX_FILE_SIZE_MB = 250;
     if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
         const errorMsg = `File size exceeds ${MAX_FILE_SIZE_MB}MB limit. Please choose a smaller file.`;
         if (resultDiv) {
@@ -567,9 +566,9 @@ async function computeAllCompressionSizes() {
 
 // Update the file size display function
 async function updateFileSize() {
-    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
-        'pdfjs', 'pdfLib'
-    ]);
+    // const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
+    //     'pdfjs', 'pdfLib'
+    // ]);
     const fileInput = document.getElementById('compress-file');
     const fileSizeDisplay = document.getElementById('original-file-size');
     if (fileInput && fileInput.files.length > 0) {
@@ -672,18 +671,18 @@ async function processSignatureClientSide() {
 
     // Validate file sizes
     const pdfSizeMB = pdfFile.size / (1024 * 1024);
-    if (pdfSizeMB > 150) {
+    if (pdfSizeMB > 200) {
         if (resultDiv) {
-            resultDiv.textContent = 'PDF file exceeds 150MB limit.';
+            resultDiv.textContent = 'PDF file exceeds 200MB limit.';
             resultDiv.classList.add('text-red-600');
         }
         return;
     }
 
     const sigSizeMB = signatureFile.size / (1024 * 1024);
-    if (sigSizeMB > 10) {
+    if (sigSizeMB > 20) {
         if (resultDiv) {
-            resultDiv.textContent = 'Signature image exceeds 10MB limit.';
+            resultDiv.textContent = 'Signature image exceeds 20MB limit.';
             resultDiv.classList.add('text-red-600');
         }
         return;
@@ -730,8 +729,8 @@ async function processSignatureClientSide() {
             resultDiv.classList.add('text-red-600');
         }
 
-        // Fallback to server-side processing WITHOUT circular call
-        await fallbackToServerSideSignature(form);
+        // Fallback to server-side processing 
+        // await fallbackToServerSideSignature(form);
 
     } finally {
         // Clean up safely
@@ -1026,6 +1025,40 @@ async function removeBackgroundClientSide(imageFile) {
 // 
 //////////////////////// merge pdf opertion client side
 
+function validateFilesForClientMerge(files) {
+    const maxFiles = 200;
+    const maxTotalSizeMB = 500;
+    const maxFileSizeMB = 200;
+
+    if (files.length > maxFiles) {
+        return {
+            valid: false,
+            message: `Too many files. Client-side merge supports maximum ${maxFiles} files.`
+        };
+    }
+
+    let totalSize = 0;
+    for (let file of files) {
+        const fileSizeMB = file.size / (1024 * 1024);
+        if (fileSizeMB > maxFileSizeMB) {
+            return {
+                valid: false,
+                message: `File "${file.name}" is too large (${fileSizeMB.toFixed(2)}MB). Maximum file size is ${maxFileSizeMB}MB.`
+            };
+        }
+        totalSize += file.size;
+    }
+
+    const totalSizeMB = totalSize / (1024 * 1024);
+    if (totalSizeMB > maxTotalSizeMB) {
+        return {
+            valid: false,
+            message: `Total file size (${totalSizeMB.toFixed(2)}MB) exceeds maximum ${maxTotalSizeMB}MB limit.`
+        };
+    }
+
+    return { valid: true, totalSizeMB: totalSizeMB };
+}
 
 
 async function mergePDFsClientSide() {
@@ -1049,6 +1082,12 @@ async function mergePDFsClientSide() {
 
     if (orderedFiles.length < 2) {
         alert('Please select at least 2 PDF files.');
+        return;
+    }
+
+    const validation = validateFilesForClientMerge(orderedFiles);
+    if (!validation.valid) {
+        alert(validation.message);
         return;
     }
 
@@ -1205,40 +1244,6 @@ if (!document.querySelector('#merge-file-styles')) {
 }
 
 
-function validateFilesForClientMerge(files) {
-    const maxFiles = 100;
-    const maxTotalSizeMB = 350;
-    const maxFileSizeMB = 50;
-
-    if (files.length > maxFiles) {
-        return {
-            valid: false,
-            message: `Too many files. Client-side merge supports maximum ${maxFiles} files.`
-        };
-    }
-
-    let totalSize = 0;
-    for (let file of files) {
-        const fileSizeMB = file.size / (1024 * 1024);
-        if (fileSizeMB > maxFileSizeMB) {
-            return {
-                valid: false,
-                message: `File "${file.name}" is too large (${fileSizeMB.toFixed(2)}MB). Maximum file size is ${maxFileSizeMB}MB.`
-            };
-        }
-        totalSize += file.size;
-    }
-
-    const totalSizeMB = totalSize / (1024 * 1024);
-    if (totalSizeMB > maxTotalSizeMB) {
-        return {
-            valid: false,
-            message: `Total file size (${totalSizeMB.toFixed(2)}MB) exceeds maximum ${maxTotalSizeMB}MB limit.`
-        };
-    }
-
-    return { valid: true, totalSizeMB: totalSizeMB };
-}
 
 
 // ////////////////////
