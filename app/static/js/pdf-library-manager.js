@@ -96,7 +96,8 @@ class PDFLibraryManager {
             'pdfToExcel-section': ['pdfjs', 'fileSaver'],
             'pdfToPpt-section': ['pdfjs', 'pptxgen', 'fileSaver'],
             'imageToPdf-section': ['jsPDF', 'pdfLib', 'fileSaver'],
-            'removeBackground-section': [] // Image processing, no PDF libs
+            'removeBackground-section': [], // Image processing, no PDF libs
+            'rotatePages-section': ['pdfjs', 'pdfLib', 'fileSaver']
         };
 
         const libs = toolDependencies[toolName] || [];

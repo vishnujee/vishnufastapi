@@ -665,4 +665,30 @@ input[type="range"]:focus {
     background-color: #10b981;
 }
 
-/*  new*/
+/*  new  roate page*/
+.page-rotate-item {
+    transition: all 0.3s ease;
+}
+
+.page-rotate-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.rotate-angle-btn {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.rotate-angle-btn:hover {
+    transform: scale(1.05);
+}
+#rotate-pages-container {
+ 
+    min-height: 200px !important;
+  }
+  
+  #rotate-pages-preview-container {
+
+    min-height: 100px !important;
+  }

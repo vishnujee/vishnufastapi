@@ -274,7 +274,7 @@ async function convertPDFToPPTClientSide() {
         const pdfDoc = await pdfLib.PDFDocument.load(pdfBytes);
 
 
- 
+
         const numPages = pdfDoc.getPageCount();
 
         console.log(`Processing ${numPages} pages for PPT conversion...`);
@@ -409,7 +409,7 @@ async function convertMultipleImagesToPDFClientSide() {
     const progressDiv = document.getElementById('progress-multipleImageToPdfForm');
     const progressText = document.getElementById('progress-text-multipleImageToPdfForm');
     const submitButton = document.getElementById('imagetopdf');
-    
+
     // Get form values
     const description = document.getElementById('multiple-image-description')?.value || '';
     const descriptionPosition = document.getElementById('multiple-description-position')?.value || 'bottom-center';
@@ -443,16 +443,16 @@ async function convertMultipleImagesToPDFClientSide() {
         }
     }
 
-        // Total size validation
-        let totalSize = 0;
-        for (const file of files) {
-            totalSize += file.size;
-        }
-        const totalSizeMB = totalSize / (1024 * 1024);
-        if (totalSizeMB > 200) { // 500MB total limit
-            alert(`Total file size (${totalSizeMB.toFixed(2)}MB) exceeds 200MB limit. Please select smaller files or fewer images.`);
-            return;
-        }
+    // Total size validation
+    let totalSize = 0;
+    for (const file of files) {
+        totalSize += file.size;
+    }
+    const totalSizeMB = totalSize / (1024 * 1024);
+    if (totalSizeMB > 200) { // 500MB total limit
+        alert(`Total file size (${totalSizeMB.toFixed(2)}MB) exceeds 200MB limit. Please select smaller files or fewer images.`);
+        return;
+    }
     const imageOrderInput = document.getElementById('multipleImageToPdf-image-order');
     let orderedFiles = files;
 
@@ -1111,7 +1111,7 @@ async function reorderPDFPagesClientSide() {
     try {
         // Parse and validate page order
         const pageOrder = pageOrderInput.value.split(',').map(p => parseInt(p.trim()));
-       
+
         console.log('Requested page order:', pageOrder);
 
         progressText.textContent = 'Loading PDF document...';
@@ -1150,12 +1150,12 @@ async function reorderPDFPagesClientSide() {
         for (let i = 0; i < pageOrder.length; i++) {
             const pageNum = pageOrder[i];
             const pageIndex = pageNum - 1;
-            
+
             // Final bounds check (should never fail if validation passed)
             if (pageIndex < 0 || pageIndex >= totalPages) {
                 throw new Error(`Internal error: Cannot access page ${pageNum}`);
             }
-            
+
             // Safe copy
             const [copiedPage] = await newPdfDoc.copyPages(pdfDoc, [pageIndex]);
             newPdfDoc.addPage(copiedPage);
@@ -1229,3 +1229,338 @@ if (typeof saveAs === 'undefined') {
     }
 }
 
+
+
+//   rotate page
+
+
+// Global variables for rotation
+let currentPDFDoc = null;
+let currentRotationAngle = 90;
+let selectedPagesForRotation = new Set();
+let pageRotations = new Map(); // Store current rotation for each page
+
+
+
+
+// Handle file selection
+async function handleFileSelectForRotatePages() {
+    console.log("1. Function called");
+    const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
+        'pdfjs', 'pdfLib', 'fileSaver'
+    ]);
+    
+    const fileInput = document.getElementById('rotatePages-file');
+    const container = document.getElementById('rotate-pages-container');
+    
+
+    
+    if (!fileInput.files[0]) {
+        console.log("No file selected");
+        alert(`⚠️ select pdf file`);
+        return;
+    }
+
+    // 200 MB size validation
+    const maxSizeMB = 200;
+    const fileSizeMB = fileInput.files[0].size / (1024 * 1024); // bytes → MB
+    if (fileSizeMB > maxSizeMB) {
+        alert(`⚠️ File too large! Please upload a PDF smaller than ${maxSizeMB} MB.`);
+        console.warn(`File rejected: ${fileSizeMB.toFixed(2)} MB exceeds ${maxSizeMB} MB limit.`);
+        fileInput.value = ""; // Clear input so user can select again
+        return;
+    }
+
+
+
+
+
+    
+    try {
+   
+        
+        const arrayBuffer = await fileInput.files[0].arrayBuffer();
+        currentPDFDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+        
+        console.log("8. PDF loaded, pages:", currentPDFDoc.numPages);
+        console.log("9. Container should be visible now");
+        
+        await loadPagePreviewsForRotation();
+        
+    } catch (error) {
+        console.log("10. ERROR:", error);
+    }
+}
+// Load page previews
+async function loadPagePreviewsForRotation() {
+    console.log("10. Loading page previews...");
+    const container = document.getElementById('rotate-pages-preview-container');
+    console.log("11. Preview container:", container);
+    const numPages = currentPDFDoc.numPages;
+    console.log("12. Number of pages:", numPages);
+    document.getElementById('vishnuji').style.display = 'flex';
+    
+    // Show loading
+    container.innerHTML = '<div class="col-span-3 text-center py-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto"></div><p class="text-gray-600 mt-2">Loading pages...</p></div>';
+    
+    let html = '';
+    
+    for (let i = 1; i <= numPages; i++) {
+        const page = await currentPDFDoc.getPage(i);
+        const viewport = page.getViewport({ scale: 0.4 });
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext('2d');
+        
+        // White background
+        context.fillStyle = 'white';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        
+        await page.render({ canvasContext: context, viewport }).promise;
+        
+        const canvasDataUrl = canvas.toDataURL();
+        const currentRotation = pageRotations.get(i) || 0;
+        
+        html += `
+            <div class="page-rotate-item border-2 ${selectedPagesForRotation.has(i) ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-lg p-3 bg-white cursor-pointer transition-all" 
+                 onclick="togglePageSelection(${i})" data-page="${i}">
+                <div class="flex flex-col items-center">
+                    <img src="${canvasDataUrl}" alt="Page ${i}" 
+                         class="mb-2 border border-gray-300 rounded max-w-full h-auto"
+                         style="transform: rotate(${currentRotation}deg); transition: transform 0.3s ease;">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-gray-700 font-medium">Page ${i}</span>
+                        <div class="text-xs ${currentRotation !== 0 ? 'text-amber-600 font-bold' : 'text-gray-500'}">
+                            ${currentRotation !== 0 ? `${currentRotation}°` : 'Original'}
+                        </div>
+                    </div>
+                    ${selectedPagesForRotation.has(i) ? '<div class="text-xs text-red-600 font-medium mt-1">SELECTED</div>' : ''}
+                </div>
+            </div>
+        `;
+        
+        canvas.remove();
+    }
+    
+    container.innerHTML = html;
+        console.log("13. Page previews should be visible now");
+}
+
+// Toggle page selection
+function togglePageSelection(pageNum) {
+    if (selectedPagesForRotation.has(pageNum)) {
+        selectedPagesForRotation.delete(pageNum);
+    } else {
+        selectedPagesForRotation.add(pageNum);
+    }
+    
+    // Update UI
+    const pageElement = document.querySelector(`[data-page="${pageNum}"]`);
+    if (pageElement) {
+        if (selectedPagesForRotation.has(pageNum)) {
+            pageElement.classList.remove('border-gray-200');
+            pageElement.classList.add('border-red-500', 'bg-red-50');
+        } else {
+            pageElement.classList.remove('border-red-500', 'bg-red-50');
+            pageElement.classList.add('border-gray-200');
+        }
+        
+        // Update selection indicator
+        const selectionIndicator = pageElement.querySelector('.text-xs:last-child');
+        if (selectionIndicator) {
+            if (selectedPagesForRotation.has(pageNum)) {
+                selectionIndicator.textContent = 'SELECTED';
+                selectionIndicator.className = 'text-xs text-red-600 font-medium mt-1';
+            } else {
+                selectionIndicator.textContent = '';
+                selectionIndicator.className = 'hidden';
+            }
+        }
+    }
+}
+
+// Set rotation angle with red background
+function setRotationAngle(angle) {
+    currentRotationAngle = angle;
+    
+    // Remove red background from all buttons
+    document.querySelectorAll('.rotate-angle-btn').forEach(btn => {
+        btn.classList.remove('bg-red-300', 'border-red-500');
+        btn.classList.add('bg-blue-100', 'border-blue-300', 'bg-green-100', 'border-green-300', 'bg-purple-100', 'border-purple-300');
+    });
+    
+    // Add red background to selected button
+    const selectedBtn = event.currentTarget;
+    selectedBtn.classList.remove('bg-blue-100', 'border-blue-300', 'bg-green-100', 'border-green-300', 'bg-purple-100', 'border-purple-300');
+    selectedBtn.classList.add('bg-red-300', 'border-red-500');
+}
+
+// Rotate selected pages with immediate visual feedback
+function rotateSelectedPages() {
+    if (selectedPagesForRotation.size === 0) {
+        alert('Please select pages to rotate by clicking on them.');
+        return;
+    }
+    
+    const resultDiv = document.getElementById('result-rotatePagesForm');
+    
+    // Apply rotation to selected pages
+    for (const pageNum of selectedPagesForRotation) {
+        const currentRotation = pageRotations.get(pageNum) || 0;
+        const newRotation = (currentRotation + currentRotationAngle) % 360;
+        pageRotations.set(pageNum, newRotation);
+        
+        // Immediate visual update
+        const pageElement = document.querySelector(`[data-page="${pageNum}"]`);
+        if (pageElement) {
+            const img = pageElement.querySelector('img');
+            img.style.transform = `rotate(${newRotation}deg)`;
+            
+            // Update rotation text
+            const rotationText = pageElement.querySelector('.text-xs:nth-child(2)');
+            if (rotationText) {
+                rotationText.textContent = `${newRotation}°`;
+                rotationText.className = 'text-xs text-amber-600 font-bold';
+            }
+        }
+    }
+    
+    // Show success message
+    resultDiv.innerHTML = `
+        <div class="text-green-600 text-center">
+            ✅ Rotated ${selectedPagesForRotation.size} page(s) by ${currentRotationAngle}°
+        </div>
+    `;
+    
+    // Clear selection after rotation
+    selectedPagesForRotation.clear();
+    
+    // Update all page borders to remove selection
+    document.querySelectorAll('.page-rotate-item').forEach(item => {
+        item.classList.remove('border-red-500', 'bg-red-50');
+        item.classList.add('border-gray-200');
+        
+        // Hide selection indicator
+        const selectionIndicator = item.querySelector('.text-xs:last-child');
+        if (selectionIndicator) {
+            selectionIndicator.classList.add('hidden');
+        }
+    });
+    
+    // Auto-hide message
+    setTimeout(() => {
+        resultDiv.innerHTML = '';
+    }, 3000);
+}
+
+// Download final rotated PDF
+async function downloadRotatedPDF() {
+    if (!currentPDFDoc) {
+        alert('Please upload a PDF file first.');
+        return;
+    }
+    
+    const progressDiv = document.getElementById('progress-rotatePagesForm');
+    const progressText = document.getElementById('progress-text-rotatePagesForm');
+    const resultDiv = document.getElementById('result-rotatePagesForm');
+    
+    progressDiv.style.display = 'block';
+    progressText.textContent = 'Creating rotated PDF...';
+    
+    try {
+        const [pdfLib] = await pdfLibraryManager.loadLibraries(['pdfLib']);
+        const { PDFDocument, degrees } = pdfLib;
+        
+        // Get original PDF bytes
+        const originalArrayBuffer = await currentPDFDoc.getData();
+        const pdfDoc = await PDFDocument.load(originalArrayBuffer);
+        
+        progressText.textContent = 'Applying rotations...';
+        
+        // Apply all rotations
+        let rotatedCount = 0;
+        for (const [pageNum, rotation] of pageRotations) {
+            if (rotation !== 0) {
+                const pageIndex = pageNum - 1;
+                const page = pdfDoc.getPage(pageIndex);
+                page.setRotation(degrees(rotation));
+                rotatedCount++;
+            }
+        }
+        
+        progressText.textContent = 'Saving PDF...';
+        
+        // Save and download
+        const rotatedPdfBytes = await pdfDoc.save();
+        const rotatedBlob = new Blob([rotatedPdfBytes], { type: 'application/pdf' });
+        
+        const fileInput = document.getElementById('rotatePages-file');
+        const originalName = fileInput.files[0].name.replace('.pdf', '');
+        const filename = `rotated_${originalName}.pdf`;
+        
+        const url = URL.createObjectURL(rotatedBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        resultDiv.innerHTML = `
+            <div class="text-green-600 text-center">
+                ✅ PDF Downloaded Successfully!<br>
+                <small>${rotatedCount} pages rotated</small>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Download failed:', error);
+        resultDiv.innerHTML = `
+            <div class="text-red-600 text-center">
+                ❌ Download failed: ${error.message}
+            </div>
+        `;
+    } finally {
+        progressDiv.style.display = 'none';
+        selectedPagesForRotation.clear();
+    }
+}
+
+
+function toggleSelectAllPages() {
+    const button = document.getElementById('myid');
+    const allPages = document.querySelectorAll('.page-rotate-item');
+    const allSelected = allPages.length > 0 && selectedPagesForRotation.size === allPages.length;
+    
+    if (allSelected) {
+        // Deselect all - change to gray
+        button.classList.remove('bg-green-600', 'hover:bg-green-700');
+        button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+        button.innerHTML = '<i class="fas fa-check-square mr-2"></i> Select All';
+        
+        selectedPagesForRotation.clear();
+        allPages.forEach(page => {
+            page.classList.remove('border-red-500', 'bg-red-50');
+            page.classList.add('border-gray-200');
+        });
+    } else {
+        // Select all - change to green
+        button.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+        button.classList.add('bg-green-600', 'hover:bg-green-700');
+        button.innerHTML = '<i class="fas fa-times-circle mr-2"></i> Deselect All';
+        
+        allPages.forEach(page => {
+            const pageNum = parseInt(page.dataset.page);
+            selectedPagesForRotation.add(pageNum);
+            page.classList.remove('border-gray-200');
+            page.classList.add('border-red-500', 'bg-red-50');
+        });
+    }
+    
+    updateSelectedPagesDisplay();
+}
+// Initialize file label
+updateFileLabel('rotatePages-file', 'rotatePages-file-name');
