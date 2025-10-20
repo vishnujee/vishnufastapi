@@ -1773,7 +1773,7 @@
 
         progressText.textContent = 'Processing PDF structure... 25%';
 
-        const pdf = await pdfjsLib.getDocument({
+        const pdf = await pdfjs.getDocument({
           data: arrayBuffer
         }).promise;
 
@@ -1802,7 +1802,8 @@
           const canvas = document.createElement('canvas');
           canvas.width = viewport.width;
           canvas.height = viewport.height;
-          const context = canvas.getContext('2d');
+          // const context = canvas.getContext('2d');
+          const context = canvas.getContext('2d', { willReadFrequently: true });
 
           await page.render({
             canvasContext: context,
@@ -2144,7 +2145,8 @@
           const canvas = document.createElement('canvas');
           canvas.width = viewport.width;
           canvas.height = viewport.height;
-          const context = canvas.getContext('2d');
+          // const context = canvas.getContext('2d');
+          const context = canvas.getContext('2d', { willReadFrequently: true });
 
           await page.render({
             canvasContext: context,

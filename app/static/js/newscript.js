@@ -59,7 +59,8 @@ async function convertPDFToImagesClientSide() {
             canvas.width = viewport.width;
             canvas.height = viewport.height;
 
-            const context = canvas.getContext('2d');
+            // const context = canvas.getContext('2d');
+            const context = canvas.getContext('2d', { willReadFrequently: true });
 
             // White background
             context.fillStyle = 'white';
@@ -300,7 +301,8 @@ async function convertPDFToPPTClientSide() {
                 canvas.width = Math.floor(width * scale);
                 canvas.height = Math.floor(height * scale);
 
-                const context = canvas.getContext('2d');
+                // const context = canvas.getContext('2d');
+                const context = canvas.getContext('2d', { willReadFrequently: true });
                 context.fillStyle = 'white';
                 context.fillRect(0, 0, canvas.width, canvas.height);
 

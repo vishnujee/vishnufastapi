@@ -3,7 +3,7 @@ class PDFLibraryManager {
     constructor() {
         this.libraries = {
             pdfjs: { loaded: false, loading: false, lib: null },
-            pdfjsWorker: { loaded: false, loading: false },
+            // pdfjsWorker: { loaded: false, loading: false },
             pdfLib: { loaded: false, loading: false, lib: null },
             pptxgen: { loaded: false, loading: false, lib: null },
             jsPDF: { loaded: false, loading: false, lib: null },
@@ -13,9 +13,11 @@ class PDFLibraryManager {
         };
         
         // Set PDF.js worker path
-        // if (typeof pdfjsLib !== 'undefined') {
-        //     pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdflibra/pdf.worker.min.js';
-        // }
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdflibra/pdf.worker.min.js';
+            console.log("pdf worker loaded for pdfjs globally");
+            
+        }
     }
 
     // Load individual library
@@ -33,9 +35,9 @@ class PDFLibraryManager {
                 case 'pdfjs':
                     await this.loadPDFJS();
                     break;
-                case 'pdfjsWorker':
-                    await this.loadPDFJSWorker();
-                    break;
+                // case 'pdfjsWorker':
+                //     await this.loadPDFJSWorker();
+                //     break;
                 case 'pdfLib':
                     await this.loadPDFLib();
                     break;
@@ -108,15 +110,19 @@ class PDFLibraryManager {
     async loadPDFJS() {
         return new Promise((resolve, reject) => {
             if (typeof pdfjsLib !== 'undefined') {
+                // Set worker path for PDF.js
+                pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdflibra/pdf.worker.min.js';
                 this.libraries.pdfjs.loaded = true;
                 this.libraries.pdfjs.lib = pdfjsLib;
                 resolve(pdfjsLib);
                 return;
             }
-
+    
             const script = document.createElement('script');
             script.src = '/static/js/pdflibra/pdf.min.js';
             script.onload = () => {
+                // Set worker path AFTER PDF.js loads
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdflibra/pdf.worker.min.js';
                 this.libraries.pdfjs.loaded = true;
                 this.libraries.pdfjs.lib = window.pdfjsLib;
                 resolve(window.pdfjsLib);
@@ -126,18 +132,18 @@ class PDFLibraryManager {
         });
     }
 
-    async loadPDFJSWorker() {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = '/static/js/pdflibra/pdf.worker.min.js';
-            script.onload = () => {
-                this.libraries.pdfjsWorker.loaded = true;
-                resolve();
-            };
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
-    }
+    // async loadPDFJSWorker() {
+    //     return new Promise((resolve, reject) => {
+    //         const script = document.createElement('script');
+    //         script.src = '/static/js/pdflibra/pdf.worker.min.js';
+    //         script.onload = () => {
+    //             this.libraries.pdfjsWorker.loaded = true;
+    //             resolve();
+    //         };
+    //         script.onerror = reject;
+    //         document.head.appendChild(script);
+    //     });
+    // }
 
     async loadPDFLib() {
         return new Promise((resolve, reject) => {
