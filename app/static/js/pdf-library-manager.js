@@ -13,11 +13,11 @@ class PDFLibraryManager {
         };
         
         // Set PDF.js worker path
-        if (typeof pdfjsLib !== 'undefined') {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdflibra/pdf.worker.min.js';
-            console.log("pdf worker loaded for pdfjs globally");
+        // if (typeof pdfjsLib !== 'undefined') {
+        //     pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdflibra/pdf.worker.min.js';
+        //     console.log("pdf worker loaded for pdfjs globally");
             
-        }
+        // }
     }
 
     // Load individual library
