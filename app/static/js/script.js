@@ -14,6 +14,9 @@ let chatHistory = [];
 
 async function compressPDFClientSide() {
     console.log('Starting optimized client-side compression...');
+    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
+        'pdfjs', 'pdfLib'
+    ]);
 
     const form = document.getElementById('compressForm');
     const fileInput = form.querySelector('input[type="file"]');
@@ -87,7 +90,7 @@ async function compressPDFClientSide() {
         const estimatedSize = await estimateCompressedSize(file, dpi, quality);
         progressText.textContent = ` (Processing...)`;
 
-       
+
         let compressedBlob = await enhancedPDFCompression(file, dpi, quality, (progress) => {
             progressText.textContent = `Processing pages... (${progress}%) `;
         });
@@ -325,6 +328,9 @@ async function computeAllCompressionSizes() {
     // const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
     //     'pdfjs', 'pdfLib', 'fileSaver'
     // ]);
+    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
+        'pdfjs', 'pdfLib'
+    ]);
 
     console.log('Computing all compression sizes with accurate predictions...');
 
@@ -1077,7 +1083,7 @@ async function mergePDFsClientSide() {
         return;
     }
 
-   
+
     const orderedFiles = getFilesInDOMOrder();
 
     if (orderedFiles.length < 2) {
@@ -2092,7 +2098,7 @@ async function sendChat() {
             console.log("🗂️ Trimmed full history to 100 messages for UI");
         }
 
-      
+
         console.log("📝 Updated FULL chatHistory (UI):", chatHistory.length, "messages");
         console.log("📝 Next LLM will receive:", Math.min(chatHistory.length, 8), "messages");
 
