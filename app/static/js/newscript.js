@@ -9,7 +9,7 @@ async function convertPDFToImagesClientSide() {
     const progressText = document.getElementById('progress-text-pdfToImagesForm');
     const submitButton = form.querySelector('button');
 
-    imagetopdf
+    // imagetopdf
     // Validation
     if (!fileInput || !fileInput.files[0]) {
         alert('Please select a PDF file.');
@@ -1611,3 +1611,737 @@ function rotateSinglePage(pageNum, angle) {
 }
 // Initialize file label
 updateFileLabel('rotatePages-file', 'rotatePages-file-name');
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// Global variables
+let mainPDFDoc = null;
+let insertPDFDoc = null;
+let mainPageOrder = []; // Track current page order
+let selectedMainPages = new Set(); // Track selected pages for deletion
+let isDragging = false;
+let dragSrcEl = null;
+
+
+
+//  helper fn
+// Update DOM indices and button states without reloading
+function updatePageIndicesAndButtons() {
+    const pageItems = document.querySelectorAll('.page-insert-item');
+    
+    pageItems.forEach((item, index) => {
+        // Update the data index
+        item.dataset.currentIndex = index;
+        
+        // Get the buttons
+        const upButton = item.querySelector('button[onclick*="movePageUp"]');
+        const downButton = item.querySelector('button[onclick*="movePageDown"]');
+        
+        // Update button onclick handlers with new indices
+        if (upButton) {
+            upButton.onclick = (e) => {
+                e.stopPropagation();
+                movePageUp(index);
+            };
+            upButton.disabled = index === 0;
+            upButton.classList.toggle('opacity-50', index === 0);
+            upButton.classList.toggle('cursor-not-allowed', index === 0);
+        }
+        
+        if (downButton) {
+            downButton.onclick = (e) => {
+                e.stopPropagation();
+                movePageDown(index);
+            };
+            downButton.disabled = index === pageItems.length - 1;
+            downButton.classList.toggle('opacity-50', index === pageItems.length - 1);
+            downButton.classList.toggle('cursor-not-allowed', index === pageItems.length - 1);
+        }
+        
+        // Update the page number display if needed
+        const pageNumberSpan = item.querySelector('span.text-gray-700');
+        if (pageNumberSpan) {
+            const originalPageNum = mainPageOrder[index];
+            pageNumberSpan.textContent = `Page ${originalPageNum}`;
+        }
+    });
+}
+
+
+// Update position dropdown based on current page order
+function updatePositionDropdown() {
+    const positionSelect = document.getElementById('insertPdf-position');
+    positionSelect.innerHTML = '<option value="-1">No Insertion (Only Reorder/Delete)</option><option value="0">At the Beginning</option>';
+    
+    mainPageOrder.forEach((pageNum, index) => {
+        const option = document.createElement('option');
+        option.value = index + 1; // Position after this page
+        option.textContent = `After Page ${pageNum}`;
+        if (index === mainPageOrder.length - 1) {
+            option.textContent += ' (At the End)';
+        }
+        positionSelect.appendChild(option);
+    });
+}
+
+
+// Handle main PDF selection
+async function handleMainPdfSelect() {
+    const fileInput = document.getElementById('insertPdf-main-file');
+    const fileNameSpan = document.getElementById('insertPdf-main-file-name');
+    const pagesSpan = document.getElementById('insertPdf-main-pages');
+    const previewsDiv = document.getElementById('insertPdf-previews');
+    const pageList = document.getElementById('insertPdf-page-list');
+    const positionSelect = document.getElementById('insertPdf-position');
+    const progressDiv = document.getElementById('progress-insertPdfForm');
+    const progressText = document.getElementById('progress-text-insertPdfForm');
+
+    if (!fileInput.files[0]) return;
+
+    // File size validation
+    const maxSizeMB = 200;
+    const fileSizeMB = fileInput.files[0].size / (1024 * 1024);
+    if (fileSizeMB > maxSizeMB) {
+        alert(`⚠️ File too large! Please upload a PDF smaller than ${maxSizeMB} MB.`);
+        fileInput.value = "";
+        return;
+    }
+
+    try {
+        // const [pdfjs] = await pdfLibraryManager.loadLibraries(['pdfjs']);
+        const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
+            'pdfjs', 'pdfLib'
+        ]);
+
+        
+        // Show progress
+        progressDiv.style.display = 'block';
+        progressText.textContent = 'Loading main PDF...';
+
+        const arrayBuffer = await fileInput.files[0].arrayBuffer();
+        mainPDFDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+        
+        const numPages = mainPDFDoc.numPages;
+        pagesSpan.textContent = `Total Pages: ${numPages}`;
+        fileNameSpan.textContent = fileInput.files[0].name;
+
+        // Initialize page order
+        mainPageOrder = Array.from({length: numPages}, (_, i) => i + 1);
+        selectedMainPages.clear();
+
+        // Update position dropdown
+        updatePositionDropdown();
+
+        // Load page previews
+        await loadMainPdfPreviews();
+
+        previewsDiv.classList.remove('hidden');
+        progressDiv.style.display = 'none';
+
+    } catch (error) {
+        console.error('Error loading main PDF:', error);
+        progressDiv.style.display = 'none';
+        alert('Error loading PDF: ' + error.message);
+    }
+}
+
+
+
+
+async function loadMainPdfPreviews() {
+    const pageList = document.getElementById('insertPdf-page-list');
+    const positionSelect = document.getElementById('insertPdf-position');
+    const selectedPosition = parseInt(positionSelect.value);
+
+    // Show loading
+    pageList.innerHTML = '<div class="col-span-3 text-center py-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div><p class="text-gray-600 mt-2">Loading pages...</p></div>';
+
+    let html = '';
+
+    for (let i = 0; i < mainPageOrder.length; i++) {
+        const originalPageNum = mainPageOrder[i];
+        const page = await mainPDFDoc.getPage(originalPageNum);
+        const viewport = page.getViewport({ scale: 0.3 });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+
+        // White background
+        context.fillStyle = 'white';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        await page.render({ canvasContext: context, viewport }).promise;
+        const canvasDataUrl = canvas.toDataURL();
+
+        const showInsertionLine = selectedPosition === 0 ? i === 0 : i === selectedPosition - 1;
+        const isSelected = selectedMainPages.has(originalPageNum);
+        
+        html += `
+        <div class="page-insert-item border-2 ${isSelected ? 'border-red-500 bg-red-50' : showInsertionLine ? 'border-green-500 bg-green-50' : 'border-gray-200'} 
+                    rounded-lg p-3 bg-white cursor-grab draggable-page" 
+            data-original-page="${originalPageNum}" 
+            data-current-index="${i}"
+            draggable="true"
+            onclick="togglePageSelection(${originalPageNum}, event)">
+            <div class="flex flex-col items-center">
+                <!-- Page Preview -->
+                <div class="mb-2 relative">
+                    <img src="${canvasDataUrl}" alt="Page ${originalPageNum}" 
+                        class="border border-gray-300 rounded max-w-full h-auto">
+                    <!-- ALWAYS show delete cross icon -->
+                    <div class="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs cursor-pointer hover:bg-red-600" 
+                         onclick="event.stopPropagation(); removeSinglePage(${originalPageNum})">
+                        <i class="fas fa-times"></i>
+                    </div>
+                </div>
+                
+                <!-- Page info and controls -->
+                <div class="flex items-center justify-between w-full">
+                    <span class="text-gray-700 font-medium">Page ${originalPageNum}</span>
+                    <div class="flex space-x-1">
+                 
+                 
+                    <!-- Move Up Button -->
+<button type="button" onclick="event.stopPropagation(); movePageUp(${i})" 
+        class="text-white rounded text-s ${i === 0 ? 'opacity-50 cursor-not-allowed' : ''}" 
+        style="background-color: #3b82f6; border: none; margin-right: 14px; padding: 6px 10px;"
+        ${i === 0 ? 'disabled' : ''}>
+    <i class="fas fa-arrow-up"></i>
+</button>
+
+<!-- Move Down Button -->
+<button type="button" onclick="event.stopPropagation(); movePageDown(${i})" 
+        class="text-white rounded text-s ${i === mainPageOrder.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}" 
+        style="background-color: #3b82f6; border: none; padding: 6px 10px;"
+        ${i === mainPageOrder.length - 1 ? 'disabled' : ''}>
+    <i class="fas fa-arrow-down"></i>
+</button>
+                    </div>
+                </div>
+                
+                <!-- Insertion line for visual indication -->
+                ${showInsertionLine ? `
+                    <div class="w-full mt-2 py-1 ${selectedPosition === 0 ? 'bg-blue-100 border-blue-300' : 'bg-green-100 border-green-300'} rounded text-center">
+                        <span class="${selectedPosition === 0 ? 'text-blue-700' : 'text-green-700'} text-xs font-bold">
+                            ${selectedPosition === 0 ? '▼ PDF will be inserted before this page ▼' : '▼ PDF will be inserted after this page ▼'}
+                        </span>
+                    </div>
+                    ` : ''}
+                
+                <!-- Selection indicator -->
+                ${isSelected ? `
+                <div class="w-full mt-1 py-1 bg-red-100 border border-red-300 rounded text-center">
+                    <span class="text-red-700 text-xs font-bold">SELECTED FOR DELETION</span>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+        `;
+        canvas.remove();
+    }
+
+    pageList.innerHTML = html;
+    
+    // Initialize drag and drop
+    initializeDragAndDrop();
+}
+// Initialize drag and drop functionality
+function initializeDragAndDrop() {
+    const draggables = document.querySelectorAll('.draggable-page');
+    
+    draggables.forEach(draggable => {
+        draggable.addEventListener('dragstart', handleDragStart);
+        draggable.addEventListener('dragover', handleDragOver);
+        draggable.addEventListener('dragenter', handleDragEnter);
+        draggable.addEventListener('dragleave', handleDragLeave);
+        draggable.addEventListener('drop', handleDrop);
+        draggable.addEventListener('dragend', handleDragEnd);
+    });
+}
+
+// Drag and drop event handlers
+function handleDragStart(e) {
+    dragSrcEl = this;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.innerHTML);
+    this.classList.add('opacity-50', 'cursor-grabbing');
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragEnter(e) {
+    this.classList.add('bg-blue-100', 'border-blue-400');
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('bg-blue-100', 'border-blue-400');
+}
+
+function handleDrop(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (dragSrcEl !== this) {
+        const dragIndex = parseInt(dragSrcEl.dataset.currentIndex);
+        const dropIndex = parseInt(this.dataset.currentIndex);
+        
+        // Reorder the pages array
+        const [movedPage] = mainPageOrder.splice(dragIndex, 1);
+        mainPageOrder.splice(dropIndex, 0, movedPage);
+        
+        // Use DOM manipulation instead of reloading previews
+        const pageItems = document.querySelectorAll('.page-insert-item');
+        const movedElement = pageItems[dragIndex];
+        
+        if (dropIndex > dragIndex) {
+            this.parentNode.insertBefore(movedElement, pageItems[dropIndex].nextSibling);
+        } else {
+            this.parentNode.insertBefore(movedElement, pageItems[dropIndex]);
+        }
+        
+        // Update indices and buttons
+        updatePageIndicesAndButtons();
+        updatePositionDropdown();
+    }
+    
+    return false;
+}
+function handleDragEnd(e) {
+    document.querySelectorAll('.draggable-page').forEach(el => {
+        el.classList.remove('opacity-50', 'cursor-grabbing', 'bg-blue-100', 'border-blue-400');
+    });
+}
+
+// Page movement functions
+// Page movement functions with DOM manipulation
+function movePageUp(index) {
+    if (index > 0) {
+        // Update the data array
+        [mainPageOrder[index], mainPageOrder[index - 1]] = [mainPageOrder[index - 1], mainPageOrder[index]];
+        
+        // DOM manipulation - swap elements
+        const pageItems = document.querySelectorAll('.page-insert-item');
+        const currentItem = pageItems[index];
+        const previousItem = pageItems[index - 1];
+        
+        // Swap the elements in DOM
+        previousItem.parentNode.insertBefore(currentItem, previousItem);
+        
+        // Update indices and buttons
+        updatePageIndicesAndButtons();
+        updatePositionDropdown();
+    }
+}
+
+function movePageDown(index) {
+    if (index < mainPageOrder.length - 1) {
+        // Update the data array
+        [mainPageOrder[index], mainPageOrder[index + 1]] = [mainPageOrder[index + 1], mainPageOrder[index]];
+        
+        // DOM manipulation - move element down
+        const pageItems = document.querySelectorAll('.page-insert-item');
+        const currentItem = pageItems[index];
+        const nextItem = pageItems[index + 1];
+        
+        // Move current item after next item
+        if (nextItem.nextSibling) {
+            nextItem.parentNode.insertBefore(currentItem, nextItem.nextSibling);
+        } else {
+            nextItem.parentNode.appendChild(currentItem);
+        }
+        
+        // Update indices and buttons
+        updatePageIndicesAndButtons();
+        updatePositionDropdown();
+    }
+}
+// function movePageUp(index) {
+//     if (index > 0) {
+//         [mainPageOrder[index], mainPageOrder[index - 1]] = [mainPageOrder[index - 1], mainPageOrder[index]];
+//         loadMainPdfPreviews();
+//         updatePositionDropdown();
+//     }
+// }
+
+// function movePageDown(index) {
+//     if (index < mainPageOrder.length - 1) {
+//         [mainPageOrder[index], mainPageOrder[index + 1]] = [mainPageOrder[index + 1], mainPageOrder[index]];
+//         loadMainPdfPreviews();
+//         updatePositionDropdown();
+//     }
+// }
+
+// Toggle page selection for deletion
+
+
+// Toggle page selection for deletion - without reloading
+function togglePageSelection(pageNum, event) {
+    if (selectedMainPages.has(pageNum)) {
+        selectedMainPages.delete(pageNum);
+    } else {
+        selectedMainPages.add(pageNum);
+    }
+    
+    // Update UI without reloading previews
+    const pageItems = document.querySelectorAll('.page-insert-item');
+    pageItems.forEach(item => {
+        const itemPageNum = parseInt(item.dataset.originalPage);
+        if (selectedMainPages.has(itemPageNum)) {
+            item.classList.add('border-red-500', 'bg-red-50');
+            item.classList.remove('border-gray-200');
+        } else {
+            item.classList.remove('border-red-500', 'bg-red-50');
+            item.classList.add('border-gray-200');
+        }
+    });
+}
+
+// Select/Deselect all pages - without reloading
+function toggleSelectAllMainPages() {
+    const button = document.getElementById('select-all-main-pages-btn');
+    const allSelected = selectedMainPages.size === mainPageOrder.length;
+    
+    if (allSelected) {
+        // Deselect all
+        selectedMainPages.clear();
+        button.innerHTML = '<i class="fas fa-check-square mr-2"></i> Select All';
+        button.classList.remove('bg-green-600', 'hover:bg-green-700');
+        button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+    } else {
+        // Select all
+        mainPageOrder.forEach(pageNum => selectedMainPages.add(pageNum));
+        button.innerHTML = '<i class="fas fa-times-circle mr-2"></i> Deselect All';
+        button.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+        button.classList.add('bg-green-600', 'hover:bg-green-700');
+    }
+    
+    // Update UI without reloading previews
+    const pageItems = document.querySelectorAll('.page-insert-item');
+    pageItems.forEach(item => {
+        const itemPageNum = parseInt(item.dataset.originalPage);
+        if (selectedMainPages.has(itemPageNum)) {
+            item.classList.add('border-red-500', 'bg-red-50');
+            item.classList.remove('border-gray-200');
+        } else {
+            item.classList.remove('border-red-500', 'bg-red-50');
+            item.classList.add('border-gray-200');
+        }
+    });
+}
+
+
+
+// Delete selected pages
+function deleteSelectedMainPages() {
+    if (selectedMainPages.size === 0) {
+        alert('Please select pages to delete by clicking on them.');
+        return;
+    }
+    
+    const deleteCount = selectedMainPages.size; // Store the count BEFORE clearing
+    
+    if (confirm(`Are you sure you want to delete ${deleteCount} page(s)?`)) {
+        // Remove selected pages from the order array
+        mainPageOrder = mainPageOrder.filter(pageNum => !selectedMainPages.has(pageNum));
+        
+        // Update UI
+        loadMainPdfPreviews();
+        updatePositionDropdown();
+        
+        const resultDiv = document.getElementById('result-insertPdfForm');
+        resultDiv.innerHTML = `<div class="text-green-600">✅ Deleted ${deleteCount} page(s). Reordered pages preserved.</div>`;
+        
+        // Clear selection AFTER we've used the count
+        selectedMainPages.clear();
+        
+        // Reset select all button
+        const button = document.getElementById('select-all-main-pages-btn');
+        button.innerHTML = '<i class="fas fa-check-square mr-2"></i> Select All';
+        button.classList.remove('bg-green-600', 'hover:bg-green-700');
+        button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+    }
+}
+// Reset to original order
+function resetMainPagesOrder() {
+    if (mainPDFDoc) {
+        mainPageOrder = Array.from({length: mainPDFDoc.numPages}, (_, i) => i + 1);
+        selectedMainPages.clear();
+        loadMainPdfPreviews();
+        updatePositionDropdown();
+        
+        const resultDiv = document.getElementById('result-insertPdfForm');
+        resultDiv.innerHTML = `<div class="text-blue-600">✅ Page order reset to original.</div>`;
+        
+        // Reset select all button
+        const button = document.getElementById('select-all-main-pages-btn');
+        button.innerHTML = '<i class="fas fa-check-square mr-2"></i> Select All';
+        button.classList.remove('bg-green-600', 'hover:bg-green-700');
+        button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+    }
+}
+
+// Remove single page when cross icon is clicked
+function removeSinglePage(pageNum) {
+    if (confirm(`Are you sure you want to delete Page ${pageNum}?`)) {
+        // Remove the page from the order array
+        mainPageOrder = mainPageOrder.filter(p => p !== pageNum);
+        
+        // Remove from selection if it was selected
+        selectedMainPages.delete(pageNum);
+        
+        // Update UI
+        loadMainPdfPreviews();
+        updatePositionDropdown();
+        
+        const resultDiv = document.getElementById('result-insertPdfForm');
+        resultDiv.innerHTML = `<div class="text-green-600">✅ Deleted Page ${pageNum}. Reordered pages preserved.</div>`;
+        
+        // Update select all button state
+        updateSelectAllButtonState();
+    }
+}
+
+// Helper function to update select all button state
+function updateSelectAllButtonState() {
+    const button = document.getElementById('select-all-main-pages-btn');
+    const allSelected = selectedMainPages.size === mainPageOrder.length;
+    
+    if (allSelected && mainPageOrder.length > 0) {
+        button.innerHTML = '<i class="fas fa-times-circle mr-2"></i> Deselect All';
+        button.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+        button.classList.add('bg-green-600', 'hover:bg-green-700');
+    } else {
+        button.innerHTML = '<i class="fas fa-check-square mr-2"></i> Select All';
+        button.classList.remove('bg-green-600', 'hover:bg-green-700');
+        button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+    }
+}
+// Enhanced main insertion function with reordering and deletion
+async function insertPDFClientSide() {
+    const mainFileInput = document.getElementById('insertPdf-main-file');
+    const insertFileInput = document.getElementById('insertPdf-insert-file');
+    const positionSelect = document.getElementById('insertPdf-position');
+    const resultDiv = document.getElementById('result-insertPdfForm');
+    const progressDiv = document.getElementById('progress-insertPdfForm');
+    const progressText = document.getElementById('progress-text-insertPdfForm');
+
+    // Validation
+    if (!mainFileInput.files[0]) {
+        alert('Please select main PDF file.');
+        return;
+    }
+
+    if (!mainPDFDoc) {
+        alert('Please wait for main PDF to load completely.');
+        return;
+    }
+
+    const insertPosition = parseInt(positionSelect.value);
+    const wantsInsertion = insertPosition !== -1 && insertFileInput.files[0];
+
+    // Validate insert PDF only if insertion is requested
+    if (wantsInsertion && !insertPDFDoc) {
+        alert('Please wait for PDF to insert to load completely.');
+        return;
+    }
+
+    const insertPages = wantsInsertion ? insertPDFDoc.numPages : 0;
+
+    // Show progress
+    progressDiv.style.display = 'block';
+    progressText.textContent = 'Starting PDF processing...';
+
+    try {
+        const { PDFDocument } = pdfLibraryManager.libraries.pdfLib.lib;
+
+        progressText.textContent = 'Loading main PDF...';
+
+        // Get original bytes for main PDF
+        const mainArrayBuffer = await mainPDFDoc.getData();
+        const mainPdfDoc = await PDFDocument.load(mainArrayBuffer);
+
+        // Load insert PDF only if insertion is requested
+        let insertPdfDoc = null;
+        if (wantsInsertion) {
+            progressText.textContent = 'Loading insert PDF...';
+            const insertArrayBuffer = await insertPDFDoc.getData();
+            insertPdfDoc = await PDFDocument.load(insertArrayBuffer);
+        }
+
+        progressText.textContent = 'Creating new PDF with reordering and insertion...';
+
+        // Create new PDF document
+        const newPdfDoc = await PDFDocument.create();
+
+        // Copy pages from main PDF according to current order and deletion
+        const finalMainPages = mainPageOrder;
+
+        console.log('Processing:', {
+            wantsInsertion,
+            insertPosition,
+            finalMainPages,
+            mainPages: mainPdfDoc.getPageCount()
+        });
+
+        // FIX: When no insertion, copy ALL pages in the reordered sequence
+        if (!wantsInsertion) {
+            // Just copy all reordered pages (no insertion)
+            for (let i = 0; i < finalMainPages.length; i++) {
+                progressText.textContent = `Copying pages... (${i + 1}/${finalMainPages.length})`;
+                const originalPageIndex = finalMainPages[i] - 1;
+                
+                if (originalPageIndex >= 0 && originalPageIndex < mainPdfDoc.getPageCount()) {
+                    const [copiedPage] = await newPdfDoc.copyPages(mainPdfDoc, [originalPageIndex]);
+                    newPdfDoc.addPage(copiedPage);
+                }
+            }
+        } else {
+            // Original logic with insertion
+            // Copy pages before insertion point
+            for (let i = 0; i < insertPosition; i++) {
+                progressText.textContent = `Copying main PDF pages... (${i + 1}/${finalMainPages.length})`;
+                const originalPageIndex = finalMainPages[i] - 1;
+                
+                if (originalPageIndex >= 0 && originalPageIndex < mainPdfDoc.getPageCount()) {
+                    const [copiedPage] = await newPdfDoc.copyPages(mainPdfDoc, [originalPageIndex]);
+                    newPdfDoc.addPage(copiedPage);
+                }
+            }
+
+            // Copy pages from insert PDF
+            if (insertPdfDoc) {
+                for (let i = 0; i < insertPages; i++) {
+                    progressText.textContent = `Copying inserted PDF pages... (${i + 1}/${insertPages})`;
+                    const [copiedPage] = await newPdfDoc.copyPages(insertPdfDoc, [i]);
+                    newPdfDoc.addPage(copiedPage);
+                }
+            }
+
+            // Copy remaining pages from main PDF after insertion point
+            for (let i = insertPosition; i < finalMainPages.length; i++) {
+                progressText.textContent = `Copying remaining main PDF pages... (${i + 1}/${finalMainPages.length})`;
+                const originalPageIndex = finalMainPages[i] - 1;
+                
+                if (originalPageIndex >= 0 && originalPageIndex < mainPdfDoc.getPageCount()) {
+                    const [copiedPage] = await newPdfDoc.copyPages(mainPdfDoc, [originalPageIndex]);
+                    newPdfDoc.addPage(copiedPage);
+                }
+            }
+        }
+
+        progressText.textContent = 'Saving final PDF...';
+
+        // Save the new PDF
+        const newPdfBytes = await newPdfDoc.save();
+        const newPdfBlob = new Blob([newPdfBytes], { type: 'application/pdf' });
+
+        // Generate filename
+        const mainFileName = mainFileInput.files[0].name.replace('.pdf', '');
+        let filename;
+        if (wantsInsertion) {
+            const insertFileName = insertFileInput.files[0].name.replace('.pdf', '');
+            filename = `final_${mainFileName}_with_${insertFileName}.pdf`;
+        } else {
+            filename = `reordered_${mainFileName}.pdf`;
+        }
+
+        // Download
+        const url = URL.createObjectURL(newPdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Update result message
+        resultDiv.innerHTML = `
+            <div class="text-green-600">
+                ✅ <strong>Final PDF Generated Successfully!</strong><br>
+                📁 File: ${filename}<br>
+                📄 Original Main PDF: ${mainPDFDoc.numPages} pages<br>
+                📄 Final Main Pages: ${finalMainPages.length} pages (after reordering/deletion)<br>
+                ${wantsInsertion ? `📄 Inserted PDF: ${insertPages} pages<br>` : ''}
+                ${wantsInsertion ? `📍 Inserted after position: ${insertPosition}<br>` : ''}
+                📊 Total pages in result: ${finalMainPages.length + (wantsInsertion ? insertPages : 0)}<br>
+                🔄 Pages reordered: ${mainPDFDoc.numPages !== finalMainPages.length ? 'Yes' : 'No'}<br>
+                🗑️ Pages deleted: ${mainPDFDoc.numPages - finalMainPages.length}
+            </div>
+        `;
+
+        progressDiv.style.display = 'none';
+
+    } catch (error) {
+        console.error('PDF processing failed:', error);
+        progressDiv.style.display = 'none';
+        resultDiv.innerHTML = `
+            <div class="text-red-600">
+                ❌ Processing failed: ${error.message}<br>
+                <small>Please try with a different PDF file.</small>
+            </div>
+        `;
+    }
+}
+document.getElementById('insertPdf-insert-file').addEventListener('change', async function(e) {
+    const fileInput = e.target;
+    const fileNameSpan = document.getElementById('insertPdf-insert-file-name');
+    const pagesSpan = document.getElementById('insertPdf-insert-pages');
+
+    if (!fileInput.files[0]) {
+        // Clear the insert PDF doc if no file selected
+        insertPDFDoc = null;
+        pagesSpan.textContent = 'Total Pages: Not loaded';
+        fileNameSpan.textContent = 'No file selected';
+        return;
+    }
+
+    // File size validation
+    const maxSizeMB = 100;
+    const fileSizeMB = fileInput.files[0].size / (1024 * 1024);
+    if (fileSizeMB > maxSizeMB) {
+        alert(`⚠️ File too large! Please upload a PDF smaller than ${maxSizeMB} MB.`);
+        fileInput.value = "";
+        insertPDFDoc = null;
+        pagesSpan.textContent = 'Total Pages: Not loaded';
+        fileNameSpan.textContent = 'No file selected';
+        return;
+    }
+
+    try {
+        const [pdfjs] = await pdfLibraryManager.loadLibraries(['pdfjs']);
+        const arrayBuffer = await fileInput.files[0].arrayBuffer();
+        insertPDFDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+        
+        const numPages = insertPDFDoc.numPages;
+        pagesSpan.textContent = `Total Pages: ${numPages}`;
+        fileNameSpan.textContent = fileInput.files[0].name;
+
+    } catch (error) {
+        console.error('Error loading insert PDF:', error);
+        alert('Error loading PDF to insert: ' + error.message);
+        insertPDFDoc = null;
+        pagesSpan.textContent = 'Total Pages: Not loaded';
+    }
+});
+
+// Update insertion point when position changes
+document.getElementById('insertPdf-position').addEventListener('change', function() {
+    if (mainPDFDoc) {
+        loadMainPdfPreviews();
+    }
+});
+
+// Update file label function
+updateFileLabel('insertPdf-main-file', 'insertPdf-main-file-name');
+updateFileLabel('insertPdf-insert-file', 'insertPdf-insert-file-name');
+
+
+

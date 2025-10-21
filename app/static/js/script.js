@@ -2422,5 +2422,28 @@ function clearAllForms() {
     currentPDFDoc = null;
     selectedPagesForRotation.clear();
     pageRotations.clear();
+
+    //  clear form insert page in pdf
+    document.getElementById('insertPdf-main-file').value = '';
+    document.getElementById('insertPdf-insert-file').value = '';
+    document.getElementById('insertPdf-main-file-name').textContent = 'No file selected';
+    document.getElementById('insertPdf-insert-file-name').textContent = 'No file selected';
+    document.getElementById('insertPdf-main-pages').textContent = 'Total Pages: Not loaded';
+    document.getElementById('insertPdf-insert-pages').textContent = 'Total Pages: Not loaded';
+    document.getElementById('insertPdf-previews').classList.add('hidden');
+    document.getElementById('result-insertPdfForm').innerHTML = '';
+    
+    mainPDFDoc = null;
+    insertPDFDoc = null;
+    mainPageOrder = [];
+    selectedMainPages.clear();
+    
+    // Reset select all button
+    const button = document.getElementById('select-all-main-pages-btn');
+    if (button) {
+        button.innerHTML = '<i class="fas fa-check-square mr-2"></i> Select All';
+        button.classList.remove('bg-green-600', 'hover:bg-green-700');
+        button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+    }
     
 }

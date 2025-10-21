@@ -91,11 +91,11 @@
     width: 100%;
 }
 
-.dropdown {
+/* .dropdown {
     position: relative;
-}
+} */
 
-.dropdown-content {
+/* .dropdown-content {
     position: absolute;
     top: 100%;
     left: 0;
@@ -108,7 +108,39 @@
     visibility: hidden;
     transform: translateY(10px);
     transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+} */
+
+.dropdown-content {
+    position: absolute;
+    top: 100%;
+    left: -100px;
+    min-width: 400px;
+    max-width: 550px;
+    z-index: 10;
+    background-color: white;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border-radius: 0.375rem;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
 }
+
+.dropdown-content a {
+    white-space: normal; /* Allow wrapping */
+    overflow: visible; /* Show all content */
+    text-overflow: unset; /* Remove ellipsis */
+    display: block;
+    word-wrap: break-word; /* Break long words if needed */
+}
+
+
+.dropdown-content a[onclick*="insertPdf-section"] {
+    line-height: 1.4;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
 
 .dropdown:hover>.dropdown-content,
 .dropdown-content:hover {
@@ -118,11 +150,22 @@
 }
 
 @media (max-width: 768px) {
+    /* .dropdown-content {
+        position: static;
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+    } */
     .dropdown-content {
         position: static;
         opacity: 1;
         visibility: visible;
         transform: none;
+        min-width: 200px; /* Make it full width */
+        max-width: 300px; /* Make it full width */
+        margin-left: -10px; /* Slight left expansion */
+        margin-right: -10px; /* Slight right expansion */
+        padding-left: -10px;
     }
 }
 
@@ -732,3 +775,19 @@ input[type="range"]:focus {
 .page-rotate-item img {
     z-index: 1;
   }
+
+
+
+  /*  for insert page for mobiel  */
+  .page-insert-item button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-insert-item button:hover:not(:disabled) {
+    transform: scale(1.1);
+    transition: transform 0.2s;
+}
+
+
+
