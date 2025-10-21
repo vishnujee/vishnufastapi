@@ -2131,6 +2131,7 @@ async function insertPDFClientSide() {
     const resultDiv = document.getElementById('result-insertPdfForm');
     const progressDiv = document.getElementById('progress-insertPdfForm');
     const progressText = document.getElementById('progress-text-insertPdfForm');
+    const genpdfbutton= document.getElementById('genpdf');
 
     // Validation
     if (!mainFileInput.files[0]) {
@@ -2158,10 +2159,14 @@ async function insertPDFClientSide() {
     progressDiv.style.display = 'block';
     progressText.textContent = 'Starting PDF processing...';
 
+
     try {
         const { PDFDocument } = pdfLibraryManager.libraries.pdfLib.lib;
 
         progressText.textContent = 'Loading main PDF...';
+        genpdfbutton.disabled = true;
+        genpdfbutton.textContent = 'Processing...';
+       
 
         // Get original bytes for main PDF
         const mainArrayBuffer = await mainPDFDoc.getData();
@@ -2278,6 +2283,9 @@ async function insertPDFClientSide() {
         `;
 
         progressDiv.style.display = 'none';
+        genpdfbutton.disabled = false;
+        // genpdfbutton.textContent = 'Generate PDF';
+        genpdfbutton.innerHTML = `<i class="fas fa-file-import mr-2"></i> Generate PDF`;
 
     } catch (error) {
         console.error('PDF processing failed:', error);

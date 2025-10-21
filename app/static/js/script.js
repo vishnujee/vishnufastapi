@@ -610,9 +610,7 @@ async function processSignatureClientSide() {
     // const [pdfLib, pdfjs, fileSaver] = await pdfLibraryManager.loadLibraries([
     //     'pdfLib', 'pdfjs', 'fileSaver'
     // ]);
-    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
-        'pdfjs', 'pdfLib'
-    ]);
+
 
     const form = document.getElementById('signatureForm');
     const pdfFileInput = document.getElementById('signature-pdf-file');
@@ -622,12 +620,24 @@ async function processSignatureClientSide() {
     const positionSelect = document.getElementById('signature-position');
     const alignmentSelect = document.getElementById('signature-alignment');
     const removeBgCheckbox = document.getElementById('remove-bg');
+    const addsignbutton = document.getElementById('addsign');
 
     // Safely get progress elements with null checks
     const progressDiv = document.getElementById('progress-signatureForm');
     const progressText = document.getElementById('progress-text-signatureForm');
     const resultDiv = document.getElementById('result-signatureForm');
     const submitButton = form ? form.querySelector('button') : null;
+
+    // if (submitButton) submitButton.disabled = true;
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Processing...'; // for <button>
+        // submitButton.value = 'Processing...'; // use this if it's an <input type="submit">
+    }
+
+    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
+        'pdfjs', 'pdfLib'
+    ]);
 
     // Validation with better error handling
     if (!pdfFileInput || !pdfFileInput.files[0]) {
@@ -695,8 +705,11 @@ async function processSignatureClientSide() {
     }
 
     try {
+
+        // addsignbutton.disabled = true;
+        // addsignbutton.textContent = 'Processing...';
         // Show progress safely
-        if (submitButton) submitButton.disabled = true;
+     
         if (progressDiv) progressDiv.style.display = 'block';
         if (progressText) progressText.textContent = 'Processing signature client-side...';
 
@@ -740,9 +753,15 @@ async function processSignatureClientSide() {
 
     } finally {
         // Clean up safely
-        if (submitButton) submitButton.disabled = false;
+        // if (submitButton) submitButton.disabled = false;
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = `<i class="fas fa-signature mr-2"></i> Add Signature`;
+        }
         if (progressDiv) progressDiv.style.display = 'none';
         if (progressText) progressText.textContent = '';
+        // addsignbutton.disabled = false;
+        // addsignbutton.textContent = 'Add Signature';
     }
 }
 
