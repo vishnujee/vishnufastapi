@@ -1470,9 +1470,9 @@ function rotateSelectedPages() {
     // });
 
     // Auto-hide message
-    setTimeout(() => {
-        resultDiv.innerHTML = '';
-    }, 3000);
+    // setTimeout(() => {
+    //     resultDiv.innerHTML = '';
+    // }, 3000);
     // selectedPagesForRotation.clear();
     // toggleSelectAllPages()
     // const button = document.getElementById('myid');
@@ -1995,7 +1995,7 @@ function togglePageSelection(pageNum, event) {
             // selectionIndicator.innerHTML = '<span class="text-red-700 text-xs font-bold">SELECTED FOR DELETION</span>';
             selectionIndicator.innerHTML = `
                 <span class="text-red-700 text-xs font-bold">SELECTED FOR DELETION</span>
-                <span class="text-green-700 text-xs block mt-1">CLICK AGAIN TO DE SELECT</span>
+                <span class="text-green-700 text-xs block mt-1">CLICK AGAIN TO DESELECT</span>
             `;
                         // Insert before the insertion line or at the end
             const insertionLine = item.querySelector('.insertion-line');
@@ -2034,6 +2034,8 @@ function togglePageSelection(pageNum, event) {
 // }
 
 // Select/Deselect all pages - without reloading
+
+// Select/Deselect all pages - without reloading
 function toggleSelectAllMainPages() {
     const button = document.getElementById('select-all-main-pages-btn');
     const allSelected = selectedMainPages.size === mainPageOrder.length;
@@ -2044,27 +2046,87 @@ function toggleSelectAllMainPages() {
         button.innerHTML = '<i class="fas fa-check-square mr-2"></i> Select All';
         button.classList.remove('bg-green-600', 'hover:bg-green-700');
         button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+        
+        // Remove selection indicators from all pages
+        const pageItems = document.querySelectorAll('.page-insert-item');
+        pageItems.forEach(item => {
+            item.classList.remove('border-red-500', 'bg-red-50');
+            item.classList.add('border-gray-200');
+            
+            const selectionIndicator = item.querySelector('.selection-indicator');
+            if (selectionIndicator) {
+                selectionIndicator.remove();
+            }
+        });
     } else {
         // Select all
         mainPageOrder.forEach(pageNum => selectedMainPages.add(pageNum));
         button.innerHTML = '<i class="fas fa-times-circle mr-2"></i> Deselect All';
         button.classList.remove('bg-gray-600', 'hover:bg-gray-700');
         button.classList.add('bg-green-600', 'hover:bg-green-700');
+        
+        // Add selection indicators to all pages
+        const pageItems = document.querySelectorAll('.page-insert-item');
+        pageItems.forEach(item => {
+            const itemPageNum = parseInt(item.dataset.originalPage);
+            if (selectedMainPages.has(itemPageNum)) {
+                item.classList.add('border-red-500', 'bg-red-50');
+                item.classList.remove('border-gray-200');
+                
+                // Add selection indicator if it doesn't exist
+                let selectionIndicator = item.querySelector('.selection-indicator');
+                if (!selectionIndicator) {
+                    selectionIndicator = document.createElement('div');
+                    selectionIndicator.className = 'w-full mt-1 py-1 bg-red-100 border border-red-300 rounded text-center selection-indicator';
+                    selectionIndicator.innerHTML = `
+                        <span class="text-red-700 text-xs font-bold">SELECTED FOR DELETION</span>
+                        <span class="text-green-700 text-xs block mt-1">CLICK AGAIN TO DESELECT</span>
+                    `;
+                    
+                    // Insert before the insertion line or at the end
+                    const insertionLine = item.querySelector('.insertion-line');
+                    if (insertionLine) {
+                        insertionLine.parentNode.insertBefore(selectionIndicator, insertionLine);
+                    } else {
+                        item.querySelector('.flex.flex-col.items-center').appendChild(selectionIndicator);
+                    }
+                }
+            }
+        });
     }
-    
-    // Update UI without reloading previews
-    const pageItems = document.querySelectorAll('.page-insert-item');
-    pageItems.forEach(item => {
-        const itemPageNum = parseInt(item.dataset.originalPage);
-        if (selectedMainPages.has(itemPageNum)) {
-            item.classList.add('border-red-500', 'bg-red-50');
-            item.classList.remove('border-gray-200');
-        } else {
-            item.classList.remove('border-red-500', 'bg-red-50');
-            item.classList.add('border-gray-200');
-        }
-    });
 }
+
+// function toggleSelectAllMainPages() {
+//     const button = document.getElementById('select-all-main-pages-btn');
+//     const allSelected = selectedMainPages.size === mainPageOrder.length;
+    
+//     if (allSelected) {
+//         // Deselect all
+//         selectedMainPages.clear();
+//         button.innerHTML = '<i class="fas fa-check-square mr-2"></i> Select All';
+//         button.classList.remove('bg-green-600', 'hover:bg-green-700');
+//         button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+//     } else {
+//         // Select all
+//         mainPageOrder.forEach(pageNum => selectedMainPages.add(pageNum));
+//         button.innerHTML = '<i class="fas fa-times-circle mr-2"></i> Deselect All';
+//         button.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+//         button.classList.add('bg-green-600', 'hover:bg-green-700');
+//     }
+    
+//     // Update UI without reloading previews
+//     const pageItems = document.querySelectorAll('.page-insert-item');
+//     pageItems.forEach(item => {
+//         const itemPageNum = parseInt(item.dataset.originalPage);
+//         if (selectedMainPages.has(itemPageNum)) {
+//             item.classList.add('border-red-500', 'bg-red-50');
+//             item.classList.remove('border-gray-200');
+//         } else {
+//             item.classList.remove('border-red-500', 'bg-red-50');
+//             item.classList.add('border-gray-200');
+//         }
+//     });
+// }
 
 
 

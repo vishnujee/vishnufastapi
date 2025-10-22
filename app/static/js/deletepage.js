@@ -595,7 +595,25 @@ function selectAllPages() {
         element.classList.add('border-red-500', 'bg-red-50', 'shadow-lg');
         element.querySelector('.checkmark').classList.remove('hidden');
         element.querySelector('.selection-indicator').classList.add('bg-red-500', 'border-red-500');
+        
+        // Add selection text if it doesn't exist
+        if (!element.querySelector('.selection-text')) {
+            const selectionText = document.createElement('div');
+            selectionText.className = 'selection-text w-full mt-1 py-1 bg-red-100 border border-red-300 rounded text-center';
+            selectionText.innerHTML = `
+                <span class="text-red-700 text-xs font-bold block">SELECTED FOR DELETION</span>
+                <span class="text-green-600 text-xs block mt-1">CLICK AGAIN TO DESELECT</span>
+            `;
+            
+            const pageContent = element.querySelector('.flex.flex-col.items-center');
+            pageContent.appendChild(selectionText);
+        }
     });
+    
+    // Update button colors
+    document.getElementById('select-all-pages').style.backgroundColor = '#FF0000';
+    document.getElementById('deselect-all-pages').style.backgroundColor = '#6b7280';
+    
     updateSelectedPagesCount();
 }
 
@@ -606,9 +624,41 @@ function deselectAllPages() {
         element.classList.add('border-gray-300');
         element.querySelector('.checkmark').classList.add('hidden');
         element.querySelector('.selection-indicator').classList.remove('bg-red-500', 'border-red-500');
+        
+        // Remove selection text if it exists
+        const selectionText = element.querySelector('.selection-text');
+        if (selectionText) {
+            selectionText.remove();
+        }
     });
+    
+    // Update button colors
+    document.getElementById('deselect-all-pages').style.backgroundColor = '#0000FF';
+    document.getElementById('select-all-pages').style.backgroundColor = '#2563eb';
+    
     updateSelectedPagesCount();
 }
+// function selectAllPages() {
+//     const pageElements = document.querySelectorAll('.page-preview-item');
+//     pageElements.forEach(element => {
+//         element.classList.remove('border-gray-300');
+//         element.classList.add('border-red-500', 'bg-red-50', 'shadow-lg');
+//         element.querySelector('.checkmark').classList.remove('hidden');
+//         element.querySelector('.selection-indicator').classList.add('bg-red-500', 'border-red-500');
+//     });
+//     updateSelectedPagesCount();
+// }
+
+// function deselectAllPages() {
+//     const pageElements = document.querySelectorAll('.page-preview-item');
+//     pageElements.forEach(element => {
+//         element.classList.remove('border-red-500', 'bg-red-50', 'shadow-lg');
+//         element.classList.add('border-gray-300');
+//         element.querySelector('.checkmark').classList.add('hidden');
+//         element.querySelector('.selection-indicator').classList.remove('bg-red-500', 'border-red-500');
+//     });
+//     updateSelectedPagesCount();
+// }
 
 function updateSelectedPagesCount() {
     const confirmButton = document.getElementById('confirm-deletion');
