@@ -281,7 +281,7 @@
 
               <!-- <a href="#insert-pdf" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('insertPdf-section')">Organise PDF- Add, Delete & Reorder Pages</a> -->
-              <a href="#insert-pdf" class="block py-0 text-gray-700 hover:bg-gray-100"
+              <a href="#insert-pdf" class="block px-4 py-0 text-gray-700 hover:bg-gray-100"
                 style="text-decoration: underline; text-decoration-color: rgb(70, 233, 6); text-decoration-thickness: 3px;"
                 onclick="showTool('insertPdf-section')">
                 Organise PDF- Add, Delete & Reorder Pages
@@ -2091,7 +2091,7 @@
         const arrayBuffer = await file.arrayBuffer();
         console.log('ArrayBuffer loaded, size:', arrayBuffer.byteLength);
 
-        progressText.textContent = 'Processing PDF structure... 25%';
+        progressText.textContent = 'Processing PDF structure..';
 
         const pdf = await pdfjs.getDocument({
           data: arrayBuffer
@@ -2437,7 +2437,7 @@
 
         // Update progress - ONLY THIS IS ADDED
         if (progressText) {
-          progressText.textContent = 'Processing PDF structure... 25%';
+          progressText.textContent = 'Processing PDF structure...';
         }
 
         const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;

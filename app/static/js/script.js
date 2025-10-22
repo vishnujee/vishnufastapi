@@ -705,33 +705,19 @@ async function processSignatureClientSide() {
 
 
 
-
-
     // if (submitButton) submitButton.disabled = true;
     if (submitButton) {
         submitButton.disabled = true;
         submitButton.textContent = 'Processing...'; // for <button>
         // submitButton.value = 'Processing...'; // use this if it's an <input type="submit">
     }
-
+    
+    resultDiv.textContent =""
     const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
         'pdfjs', 'pdfLib'
     ]);
 
-
-
-    if (!signatureFileInput || !signatureFileInput.files[0]) {
-        if (resultDiv) {
-            resultDiv.textContent = 'Please select a signature image.';
-            resultDiv.classList.add('text-red-600');
-        }
-        return;
-    }
-
-
-
-
-
+    
 
 
     try {
@@ -741,7 +727,8 @@ async function processSignatureClientSide() {
         // Show progress safely
 
         if (progressDiv) progressDiv.style.display = 'block';
-        if (progressText) progressText.textContent = 'Processing signature client-side...';
+        if (progressText) progressText.textContent = 'Processing signature...';
+        
 
         console.log('Calling addSignatureClientSide...');
 
