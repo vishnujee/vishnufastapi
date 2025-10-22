@@ -279,15 +279,14 @@
               <a href="#compress" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('compress-section')">Compress PDF</a>
 
-                <!-- <a href="#insert-pdf" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
+              <!-- <a href="#insert-pdf" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('insertPdf-section')">Organise PDF- Add, Delete & Reorder Pages</a> -->
-                <a href="#insert-pdf"
-                class="block py-0 text-gray-700 hover:bg-gray-100"
+              <a href="#insert-pdf" class="block py-0 text-gray-700 hover:bg-gray-100"
                 style="text-decoration: underline; text-decoration-color: rgb(70, 233, 6); text-decoration-thickness: 3px;"
                 onclick="showTool('insertPdf-section')">
                 Organise PDF- Add, Delete & Reorder Pages
-             </a>
-             
+              </a>
+
 
 
               <a href="#pdf-to-images" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
@@ -318,7 +317,7 @@
               <a href="#remove-password" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('removePassword-section')">Remove Password</a>
 
-          
+
               <a href="#remove-background" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('removeBackground-section')">Remove Image Background</a>
             </div>
@@ -350,15 +349,14 @@
               onclick="showTool('merge-section')">Merge PDFs</a>
             <a href="#compress" class="block py-1 text-gray-700 hover:text-green-600"
               onclick="showTool('compress-section')">Compress PDF</a>
-              <!-- <a href="#insert-pdf" class="block  py-1 text-gray-700 hover:bg-gray-100"
+            <!-- <a href="#insert-pdf" class="block  py-1 text-gray-700 hover:bg-gray-100"
               onclick="showTool('insertPdf-section')">Organise PDF- Add, Delete & Reorder Pages</a> -->
 
-              <a href="#insert-pdf"
-              class="block py-0 text-gray-700 hover:bg-gray-100"
+            <a href="#insert-pdf" class="block py-0 text-gray-700 hover:bg-gray-100"
               style="text-decoration: underline; text-decoration-color: rgb(70, 233, 6); text-decoration-thickness: 3px;"
               onclick="showTool('insertPdf-section')">
               Organise PDF- Add, Delete & Reorder Pages
-           </a>
+            </a>
 
 
             <a href="#pdf-to-images" class="block py-1 text-gray-700 hover:text-green-600"
@@ -387,7 +385,7 @@
               onclick="showTool('encrypt-section')">Add Password to PDF</a>
             <a href="#remove-password" class="block py-1 text-gray-700 hover:text-green-600"
               onclick="showTool('removePassword-section')">Remove Password</a>
-           
+
             <a href="#remove-background" class="block py-1 text-gray-700 hover:text-green-600"
               onclick="showTool('removeBackground-section')">Remove Image Background</a>
           </div>
@@ -1546,35 +1544,55 @@
                 </label>
                 <span id="signature-image-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
               </div>
-              <!-- <div class="flex items-center mt-4">
-                <input type="hidden" name="remove_bg" value="false">
-                <input type="checkbox" id="remove-bg" name="remove_bg" value="true" class="mr-2">
-                <label for="remove-bg" class="text-sm font-medium text-gray-600">Remove Image Background</label>
-              </div> -->
-              <!-- <label for="remove-bg" class="text-sm font-medium text-gray-600">Remove Image Background</label> -->
-              <!-- <a href="#remove-background" >Remove Image Background for best result</a> -->
-              <p>Remove Image Background for best result. Check in PDF Tools.</p>
 
-              <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+              <p style="font-size: 12px; padding-left: -10px;margin-left: -18px;">Remove Image Background for best result.Check in PDF Tools.</p>
+
+              <!-- <progress value="0" max="100" class="w-full h-2 rounded-full"></progress> -->
               <div class="progress-text" id="progress-text-signatureForm" style="font-size: 17px;font-weight: bolder;">
               </div>
-              <p id="result-signatureForm" class="text-sm text-center"></p>
+              <p id="result-signatureForm" class="text-sm text-center" style="margin-left: -14px;"></p>
 
             </div>
-            <div id="signature-page-previews" class="hidden">
-              <div class="flex items-center mb-2">
-                <input type="checkbox" id="select-all-pages" class="mr-3 w-6 h-6" style="margin-left: 0px;">
-                <label for="select-all-pages" class="text-lg font-medium text-gray-700"
-                  style="margin-right: -20px;margin-left: 0px;">
-                  Select All Pages <span style="font-size: 15px;">(After 100% loading)</span>
-                </label>
+            <div class="flex gap-4" style="margin-left: -13px;">
+              <div class="flex-1">
+                <label for="signature-size" class="block text-sm font-medium text-gray-600 mb-1">Size</label>
+                <select id="signature-size" name="size"
+                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                  <option value="xsmall">Extra Small</option>
+                  <option value="small" selected>Small</option>
+                  <option value="medium">Medium</option>
+                  <option value="large">Large</option>
+                  <option value="xlarge">Extra Large</option>
+                </select>
+              </div>
+              <div class="flex-1">
+                <label for="signature-position" class="block text-sm font-medium text-gray-600 mb-1">Position</label>
+                <select id="signature-position" name="position"
+                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                  <option value="bottom">Bottom</option>
+                  <option value="top">Top</option>
+                  <option value="center">Center</option>
+                </select>
+              </div>
+              <div class="flex-1">
+                <label for="signature-alignment" class="block text-sm font-medium text-gray-600 mb-1">Alignment</label>
+                <select id="signature-alignment" name="alignment"
+                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                  <option value="center">Center</option>
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
               </div>
 
-              <h3 class="text-lg font-medium text-gray-700 mb-2">Page Previews</h3>
-              <div id="signature-page-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+              <!-- <div class="flex-1" style="margin-left: 30px; margin-top: 25px;">
+                <button type="button" onclick="processSignatureClientSide()" id="addsign"
+                class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                <i class="fas fa-signature mr-2"></i> Add Signature
+              </button>
+           
+              </div> -->
             </div>
-            <input type="hidden" id="signature-selected-pages" name="specific_pages">
-            <div>
+            <!-- <div>
               <label for="signature-size" class="block text-sm font-medium text-gray-600 mb-1">Size</label>
               <select id="signature-size" name="size"
                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
@@ -1603,147 +1621,161 @@
                 <option value="left">Left</option>
                 <option value="right">Right</option>
               </select>
-            </div>
-            <!-- <button type="button" onclick="processPDF('add_signature', 'signatureForm')"
-              class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-              <i class="fas fa-signature mr-2"></i> Add Signature </button>
-            <div class="progress" id="progress-signatureForm"> -->
+            </div> -->
 
-            <button type="button" onclick="processSignatureClientSide()" id="addsign"
+            <div id="signature-page-previews" class="hidden">
+              <div class="flex items-center mb-6">
+                <input type="checkbox" id="select-all-pages" class="mr-3 w-6 h-6" style="margin-left: 0px;">
+                <label for="select-all-pages" class="text-lg font-medium text-gray-700"
+                  style="margin-right: -20px;margin-left: 0px;">
+                  Select All Pages <span style="font-size: 15px;">(After 100% loading)</span>
+                </label>
+              </div>
+
+              <button type="button" onclick="processSignatureClientSide()" id="addsign"
+                class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                <i class="fas fa-signature mr-2"></i> Add Signature
+              </button>
+
+
+              <h3 class="text-lg font-medium text-gray-700 mb-2">Page Previews</h3>
+              <div id="signature-page-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+            </div>
+            <input type="hidden" id="signature-selected-pages" name="specific_pages">
+
+            <!-- <button type="button" onclick="processSignatureClientSide()" id="addsign"
               class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
               <i class="fas fa-signature mr-2"></i> Add Signature
-            </button>
-            <!-- <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-            <div class="progress-text" id="progress-text-signatureForm"></div> -->
+            </button> -->
+
+          </form>
         </div>
-        <!-- <p id="result-signatureForm" class="text-sm text-center"></p> -->
-        </form>
       </div>
-    </div>
 
-    <!-- Rotate PDF Pages -->
-    <div id="rotatePages-section" class="tool-section" style="display: none;">
-      <div class="bg-white p-6 rounded-xl shadow-md tool-card">
-        <div class="flex items-center mb-4">
-          <div class="bg-amber-100 p-2 rounded-full mr-3">
-            <i class="fas fa-redo-alt text-amber-600 text-xl"></i>
+      <!-- Rotate PDF Pages -->
+      <div id="rotatePages-section" class="tool-section" style="display: none;">
+        <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+          <div class="flex items-center mb-4">
+            <div class="bg-amber-100 p-2 rounded-full mr-3">
+              <i class="fas fa-redo-alt text-amber-600 text-xl"></i>
+            </div>
+            <h2 class="text-2xl font-semibold text-gray-800">Rotate PDF Pages</h2>
           </div>
-          <h2 class="text-2xl font-semibold text-gray-800">Rotate PDF Pages</h2>
-        </div>
-        <form id="rotatePagesForm" class="space-y-4">
-          <div>
-            <label for="rotatePages-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF File</label>
-            <div class="flex items-center">
-              <label
-                class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
-                <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
-                <input type="file" id="rotatePages-file" name="file" accept=".pdf" required class="hidden"
-                  onchange="handleFileSelectForRotatePages()">
-              </label>
-              <span id="rotatePages-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
-            </div>
-          </div>
-
-          <!-- Rotation Options -->
-          <button type="button" onclick="toggleSelectAllPages()" id="myid"
-            class="mb-4 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center">
-            <i class="fas fa-check-square mr-2"></i> Select All / Deselect All
-          </button>
-
-          <div>
-            <label class="block text-xl font-medium text-gray-700 mb-2" style="text-align: center;">Select
-              Rotation</label>
-            <div class="flex justify-center gap-4 flex-wrap mt-2">
-              <button type="button" onclick="setRotationAngle(90)"
-                class="rotate-angle-btn bg-blue-100 border-2 border-blue-300 rounded-lg p-3 hover:bg-blue-200 transition-colors flex flex-col items-center w-28">
-                <i class="fas fa-redo text-blue-600 text-lg mb-1"></i>
-                <div>90° Right</div>
-              </button>
-
-              <button type="button" onclick="setRotationAngle(-90)"
-                class="rotate-angle-btn bg-green-100 border-2 border-green-300 rounded-lg p-3 hover:bg-green-200 transition-colors flex flex-col items-center w-28">
-                <i class="fas fa-undo text-green-600 text-lg mb-1"></i>
-                <div>90° Left</div>
-              </button>
-
-              <button type="button" onclick="setRotationAngle(180)"
-                class="rotate-angle-btn bg-purple-100 border-2 border-purple-300 rounded-lg p-3 hover:bg-purple-200 transition-colors flex flex-col items-center w-28">
-                <i class="fas fa-sync-alt text-purple-600 text-lg mb-1"></i>
-                <div>180°</div>
-              </button>
-
-
-            </div>
-            <div class="flex gap-2 mt-4" id="vishnuji" style="display: none;">
-              <button id="rotateselpage" type="button" onclick="rotateSelectedPages()"
-                class="vishnu flex-1 bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center">
-                <i class="fas fa-redo-alt mr-2"></i> Rotate Selected Pages
-              </button>
-              <button type="button" onclick="downloadRotatedPDF()"
-                class="flex-1 bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center">
-                <i class="fas fa-download mr-2"></i> Download PDF
-              </button>
-            </div>
-
-          </div>
-
-          <!-- Page Previews -->
-          <div id="rotate-pages-container">
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4" id="infomessage">
-              <p class="text-blue-700 text-sm">Upload a PDF to see pages and rotate them.</p>
-
-            </div>
-            <div class="progress" id="progress-rotatePagesForm">
-              <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-              <div class="progress-text" id="progress-text-rotatePagesForm"
-                style="font-size: 17px;font-weight: bolder;">
+          <form id="rotatePagesForm" class="space-y-4">
+            <div>
+              <label for="rotatePages-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF File</label>
+              <div class="flex items-center">
+                <label
+                  class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                  <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                  <input type="file" id="rotatePages-file" name="file" accept=".pdf" required class="hidden"
+                    onchange="handleFileSelectForRotatePages()">
+                </label>
+                <span id="rotatePages-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
               </div>
             </div>
-            <p id="result-rotatePagesForm" class="text-m text-center"></p>
-            <div id="rotate-pages-preview-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
 
-            <div class="flex gap-2 mt-4" id="vishnuji" style="display: none;">
-              <button type="button" onclick="rotateSelectedPages()"
-                class="vishnu flex-1 bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center">
-                <i class="fas fa-redo-alt mr-2"></i> Rotate Selected Pages
-              </button>
-              <button type="button" onclick="downloadRotatedPDF()"
-                class="flex-1 bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center">
-                <i class="fas fa-download mr-2"></i> Download PDF
-              </button>
+            <!-- Rotation Options -->
+            <button type="button" onclick="toggleSelectAllPages()" id="myid"
+              class="mb-4 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center">
+              <i class="fas fa-check-square mr-2"></i> Select All / Deselect All
+            </button>
+
+            <div>
+              <label class="block text-xl font-medium text-gray-700 mb-2" style="text-align: center;">Select
+                Rotation</label>
+              <div class="flex justify-center gap-4 flex-wrap mt-2">
+                <button type="button" onclick="setRotationAngle(90)"
+                  class="rotate-angle-btn bg-blue-100 border-2 border-blue-300 rounded-lg p-3 hover:bg-blue-200 transition-colors flex flex-col items-center w-28">
+                  <i class="fas fa-redo text-blue-600 text-lg mb-1"></i>
+                  <div>90° Right</div>
+                </button>
+
+                <button type="button" onclick="setRotationAngle(-90)"
+                  class="rotate-angle-btn bg-green-100 border-2 border-green-300 rounded-lg p-3 hover:bg-green-200 transition-colors flex flex-col items-center w-28">
+                  <i class="fas fa-undo text-green-600 text-lg mb-1"></i>
+                  <div>90° Left</div>
+                </button>
+
+                <button type="button" onclick="setRotationAngle(180)"
+                  class="rotate-angle-btn bg-purple-100 border-2 border-purple-300 rounded-lg p-3 hover:bg-purple-200 transition-colors flex flex-col items-center w-28">
+                  <i class="fas fa-sync-alt text-purple-600 text-lg mb-1"></i>
+                  <div>180°</div>
+                </button>
+
+
+              </div>
+              <div class="flex gap-2 mt-4" id="vishnuji" style="display: none;">
+                <button id="rotateselpage" type="button" onclick="rotateSelectedPages()"
+                  class="vishnu flex-1 bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center">
+                  <i class="fas fa-redo-alt mr-2"></i> Rotate Selected Pages
+                </button>
+                <button type="button" onclick="downloadRotatedPDF()"
+                  class="flex-1 bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center">
+                  <i class="fas fa-download mr-2"></i> Download PDF
+                </button>
+              </div>
+
             </div>
-          </div>
 
-          <!-- <div class="progress" id="progress-rotatePagesForm">
+            <!-- Page Previews -->
+            <div id="rotate-pages-container">
+              <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4" id="infomessage">
+                <p class="text-blue-700 text-sm">Upload a PDF to see pages and rotate them.</p>
+
+              </div>
+              <div class="progress" id="progress-rotatePagesForm">
+                <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+                <div class="progress-text" id="progress-text-rotatePagesForm"
+                  style="font-size: 17px;font-weight: bolder;">
+                </div>
+              </div>
+              <p id="result-rotatePagesForm" class="text-m text-center"></p>
+              <div id="rotate-pages-preview-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              </div>
+
+              <div class="flex gap-2 mt-4" id="vishnuji" style="display: none;">
+                <button type="button" onclick="rotateSelectedPages()"
+                  class="vishnu flex-1 bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center">
+                  <i class="fas fa-redo-alt mr-2"></i> Rotate Selected Pages
+                </button>
+                <button type="button" onclick="downloadRotatedPDF()"
+                  class="flex-1 bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center">
+                  <i class="fas fa-download mr-2"></i> Download PDF
+                </button>
+              </div>
+            </div>
+
+            <!-- <div class="progress" id="progress-rotatePagesForm">
             <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
             <div class="progress-text" id="progress-text-rotatePagesForm" style="font-size: 17px;font-weight: bolder;">
             </div>
           </div>
           <p id="result-rotatePagesForm" class="text-sm text-center"></p> -->
-        </form>
-      </div>
-    </div>
-
-
-
-    <!-- Rotate PDF Pages -->
-
-
-
-    <!--  insert page in pdf  -->
-
-    <!-- Insert PDF Section -->
-    <div id="insertPdf-section" class="tool-section" style="display: none;">
-      <div class="bg-white p-6 rounded-xl shadow-md tool-card">
-        <div class="flex items-center mb-4">
-          <div class="bg-indigo-100 p-2 rounded-full mr-3">
-            <i class="fas fa-file-import text-indigo-600 text-xl"></i>
-          </div>
-          <h2 class="text-2xl font-semibold text-gray-800">Organise Your PDF. </h2> 
-          
+          </form>
         </div>
-<div style="text-align: center; margin-top: -10px; margin-bottom: 20px;">
-  <p style="display: inline-block; 
+      </div>
+
+
+
+      <!-- Rotate PDF Pages -->
+
+
+
+      <!--  insert page in pdf  -->
+
+      <!-- Insert PDF Section -->
+      <div id="insertPdf-section" class="tool-section" style="display: none;">
+        <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+          <div class="flex items-center mb-4">
+            <div class="bg-indigo-100 p-2 rounded-full mr-3">
+              <i class="fas fa-file-import text-indigo-600 text-xl"></i>
+            </div>
+            <h2 class="text-2xl font-semibold text-gray-800">Organise Your PDF. </h2>
+
+          </div>
+          <div style="text-align: center; margin-top: -10px; margin-bottom: 20px;">
+            <p style="display: inline-block; 
      font-size: 1.1rem; 
      font-weight: 600; 
      color: #374151; 
@@ -1751,171 +1783,173 @@
      padding: 0 12px;
      margin-top: 5px;
      ">
-     
-    Insert, Delete & Reorder PDFs
-    <span style="position: absolute; bottom: -6px; left: 0; right: 0; height: 3px; background-color: #6366F1; border-radius: 2px;"></span>
-  </p>
-  <!-- progress for pdf loading -->
-           <!-- Progress -->
-           <div class="progress" id="progress-insertPdfForm">
-            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-            <div class="progress-text" id="progress-text-insertPdfForm" style="font-size: 17px; font-weight: bolder;">
+
+              Insert, Delete & Reorder PDFs
+              <span
+                style="position: absolute; bottom: -6px; left: 0; right: 0; height: 3px; background-color: #6366F1; border-radius: 2px;"></span>
+            </p>
+            <!-- progress for pdf loading -->
+            <!-- Progress -->
+            <div class="progress" id="progress-insertPdfForm">
+              <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+              <div class="progress-text" id="progress-text-insertPdfForm" style="font-size: 17px; font-weight: bolder;">
+              </div>
             </div>
+
+
           </div>
 
 
-</div>
 
-
-
-        <form id="insertPdfForm" class="space-y-4">
-          <!-- Main PDF File -->
-          <div>
-            <label for="insertPdf-main-file" class="block text-sm font-medium text-gray-600 mb-1">
-              Select Main PDF File
-            </label>
-            <div class="flex items-center">
-              <label
-                class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
-                <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose Main PDF
-                <input type="file" id="insertPdf-main-file" name="main_file" accept=".pdf" required class="hidden"
-                  onchange="handleMainPdfSelect()">
+          <form id="insertPdfForm" class="space-y-4">
+            <!-- Main PDF File -->
+            <div>
+              <label for="insertPdf-main-file" class="block text-sm font-medium text-gray-600 mb-1">
+                Select Main PDF File
               </label>
-              <span id="insertPdf-main-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+              <div class="flex items-center">
+                <label
+                  class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                  <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose Main PDF
+                  <input type="file" id="insertPdf-main-file" name="main_file" accept=".pdf" required class="hidden"
+                    onchange="handleMainPdfSelect()">
+                </label>
+                <span id="insertPdf-main-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+              </div>
+              <p id="insertPdf-main-pages" class="text-sm text-gray-600 mt-2">Total Pages: Not loaded</p>
             </div>
-            <p id="insertPdf-main-pages" class="text-sm text-gray-600 mt-2">Total Pages: Not loaded</p>
-          </div>
 
-          <!-- PDF to Insert -->
-          <div>
-            <label for="insertPdf-insert-file" class="block text-sm font-medium text-gray-600 mb-1">
-              Select PDF to Insert (Optional)
-            </label>
-            <div class="flex items-center">
-              <label
-                class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
-                <i class="fas fa-file-pdf mr-2 text-blue-500"></i> Choose PDF to Insert
-                <input type="file" id="insertPdf-insert-file" name="insert_file" accept=".pdf" class="hidden">
+            <!-- PDF to Insert -->
+            <div>
+              <label for="insertPdf-insert-file" class="block text-sm font-medium text-gray-600 mb-1">
+                Select PDF to Insert (Optional)
               </label>
-              <span id="insertPdf-insert-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+              <div class="flex items-center">
+                <label
+                  class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                  <i class="fas fa-file-pdf mr-2 text-blue-500"></i> Choose PDF to Insert
+                  <input type="file" id="insertPdf-insert-file" name="insert_file" accept=".pdf" class="hidden">
+                </label>
+                <span id="insertPdf-insert-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+              </div>
+              <p id="insertPdf-insert-pages" class="text-sm text-gray-600 mt-2">Total Pages: Not loaded</p>
             </div>
-            <p id="insertPdf-insert-pages" class="text-sm text-gray-600 mt-2">Total Pages: Not loaded</p>
-          </div>
 
-          <!-- Control Buttons -->
-          <div class="flex space-x-2 mb-4">
-            <button type="button" onclick="toggleSelectAllMainPages()" id="select-all-main-pages-btn"
-              class="flex-1 bg-gray-600 text-white p-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center text-sm">
-              <i class="fas fa-check-square mr-2"></i> Select All
-            </button>
+            <!-- Control Buttons -->
+            <div class="flex space-x-2 mb-4">
+              <button type="button" onclick="toggleSelectAllMainPages()" id="select-all-main-pages-btn"
+                class="flex-1 bg-gray-600 text-white p-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center text-sm">
+                <i class="fas fa-check-square mr-2"></i> Select All
+              </button>
 
-            <button type="button" onclick="deleteSelectedMainPages()"
-              class="flex-1 bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center text-sm">
-              <i class="fas fa-trash-alt mr-2"></i> Delete Selected
-            </button>
+              <button type="button" onclick="deleteSelectedMainPages()"
+                class="flex-1 bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center text-sm">
+                <i class="fas fa-trash-alt mr-2"></i> Delete Selected
+              </button>
 
-            <button type="button" onclick="resetMainPagesOrder()"
-              class="flex-1 bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center text-sm">
-              <i class="fas fa-undo mr-2"></i> Reset Order
-            </button>
-          </div>
-
-          <!-- Insertion Position -->
-          <div>
-            <label for="insertPdf-position" class="block text-l font-medium text-gray-600 mb-1">
-              Select Insertion location
-            </label>
-            <select id="insertPdf-position" name="position"
-              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-              <option value="-1" selected>No Insertion (Only Reorder/Delete)</option>
-              <option value="0">At the Beginning</option>
-              <!-- Dynamic options will be added here -->
-            </select>
-            <p class="text-sm text-gray-500 mt-1">Select after which page to insert the PDF</p>
-          </div>
-
-          <!-- Page Previews -->
-          <div id="insertPdf-previews" class="hidden">
-            <h3 class="text-lg font-medium text-gray-700 mb-2">Main PDF Pages (Drag to reorder, click to select)</h3>
-            <div class="bg-blue-50 border border-blue-200 rounded-lg mt-0" style="padding-top: 1px;padding-bottom: 5px;">
-              <p class="text-blue-700 text-m">
-                <i class="mr-1 text-pink-500 text-2xl">🧠</i>
-
-                ✅ Drag & Drop to reorder / or ⬆️ ⬇️ ✅ Click page to select for deletion ✅ Insert page (Optional)
-                
-              </p>
+              <button type="button" onclick="resetMainPagesOrder()"
+                class="flex-1 bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center text-sm">
+                <i class="fas fa-undo mr-2"></i> Reset Order
+              </button>
             </div>
-            <div id="insertPdf-page-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
-          </div>
 
-          <!-- Action Buttons -->
-          <div class="flex space-x-4">
-            <button type="button" onclick="insertPDFClientSide()" id="genpdf"
-              class="flex-1 bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-              <i class="fas fa-file-import mr-2"></i> Generate Final PDF
-            </button>
-          </div>
+            <!-- Insertion Position -->
+            <div>
+              <label for="insertPdf-position" class="block text-l font-medium text-gray-600 mb-1">
+                Select Insertion location
+              </label>
+              <select id="insertPdf-position" name="position"
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                <option value="-1" selected>No Insertion (Only Reorder/Delete)</option>
+                <option value="0">At the Beginning</option>
+                <!-- Dynamic options will be added here -->
+              </select>
+              <p class="text-sm text-gray-500 mt-1">Select after which page to insert the PDF</p>
+            </div>
 
-  
-          <!-- Results -->
-          <p id="result-insertPdfForm" class="text-sm text-center"></p>
-        </form>
-      </div>
-    </div>
+            <!-- Page Previews -->
+            <div id="insertPdf-previews" class="hidden">
+              <h3 class="text-lg font-medium text-gray-700 mb-2">Main PDF Pages (Drag to reorder, click to select)</h3>
+              <div class="bg-blue-50 border border-blue-200 rounded-lg mt-0"
+                style="padding-top: 1px;padding-bottom: 5px;">
+                <p class="text-blue-700 text-m">
+                  <i class="mr-1 text-pink-500 text-2xl">🧠</i>
+
+                  ✅ Drag & Drop to reorder / or ⬆️ ⬇️ ✅ Click page to select for deletion ✅ Insert page (Optional)
+
+                </p>
+              </div>
+              <div id="insertPdf-page-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex space-x-4">
+              <button type="button" onclick="insertPDFClientSide()" id="genpdf"
+                class="flex-1 bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                <i class="fas fa-file-import mr-2"></i> Generate Final PDF
+              </button>
+            </div>
 
 
-    <!--  insert page in pdf  -->
-
-
-
-    <!-- Remove Background -->
-    <div id="removeBackground-section" class="tool-section" style="display: none;">
-      <div class="bg-white p-6 rounded-xl shadow-md tool-card">
-        <div class="flex items-center mb-4">
-          <div class="bg-cyan-100 p-2 rounded-full mr-3">
-            <i class="fas fa-eraser text-cyan-600 text-xl"></i>
-          </div>
-          <h2 class="text-2xl font-semibold text-gray-800">Remove Image Background</h2>
+            <!-- Results -->
+            <p id="result-insertPdfForm" class="text-sm text-center"></p>
+          </form>
         </div>
-        <form id="removeBackgroundForm" class="space-y-4">
-          <div>
-            <label for="removeBackground-file" class="block text-sm font-medium text-gray-600 mb-1">Select Image
-              File</label>
-            <div class="flex items-center">
-              <label
-                class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
-                <i class="fas fa-image mr-2 text-cyan-500"></i> Choose Image <input type="file"
-                  id="removeBackground-file" name="file" accept="image/png,image/jpeg" required class="hidden">
-              </label>
-              <span id="removeBackground-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+      </div>
+
+
+      <!--  insert page in pdf  -->
+
+
+
+      <!-- Remove Background -->
+      <div id="removeBackground-section" class="tool-section" style="display: none;">
+        <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+          <div class="flex items-center mb-4">
+            <div class="bg-cyan-100 p-2 rounded-full mr-3">
+              <i class="fas fa-eraser text-cyan-600 text-xl"></i>
             </div>
+            <h2 class="text-2xl font-semibold text-gray-800">Remove Image Background</h2>
           </div>
-          <button type="button" onclick="processImage('remove_background', 'removeBackgroundForm')"
-            class="w-full bg-cyan-600 text-white p-3 rounded-lg hover:bg-cyan-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-            <i class="fas fa-eraser mr-2"></i> Remove Background </button>
-          <div class="progress" id="progress-removeBackgroundForm">
-            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-            <div class="progress-text" id="progress-text-removeBackgroundForm"></div>
-          </div>
-          <p id="result-removeBackgroundForm" class="text-sm text-center"></p>
-        </form>
-      </div>
-    </div>
-    <!-- Amazing Fact Videos -->
-    <div id="videos-section" class="tool-section" style="display: none;">
-      <div class="bg-white p-6 rounded-xl shadow-md tool-card">
-        <div class="flex items-center mb-4">
-          <div class="bg-teal-100 p-2 rounded-full mr-3">
-            <i class="fas fa-video text-teal-600 text-xl"></i>
-          </div>
-          <h2 class="text-2xl font-semibold text-gray-800">Amazing Fact Videos</h2>
+          <form id="removeBackgroundForm" class="space-y-4">
+            <div>
+              <label for="removeBackground-file" class="block text-sm font-medium text-gray-600 mb-1">Select Image
+                File</label>
+              <div class="flex items-center">
+                <label
+                  class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
+                  <i class="fas fa-image mr-2 text-cyan-500"></i> Choose Image <input type="file"
+                    id="removeBackground-file" name="file" accept="image/png,image/jpeg" required class="hidden">
+                </label>
+                <span id="removeBackground-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
+              </div>
+            </div>
+            <button type="button" onclick="processImage('remove_background', 'removeBackgroundForm')"
+              class="w-full bg-cyan-600 text-white p-3 rounded-lg hover:bg-cyan-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+              <i class="fas fa-eraser mr-2"></i> Remove Background </button>
+            <div class="progress" id="progress-removeBackgroundForm">
+              <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
+              <div class="progress-text" id="progress-text-removeBackgroundForm"></div>
+            </div>
+            <p id="result-removeBackgroundForm" class="text-sm text-center"></p>
+          </form>
         </div>
-        <button onclick="window.location.href='/static/videos.html'"
-          class="w-full bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center">
-          <i class="fas fa-video mr-2"></i> Click to See Amazing Fact Videos </button>
+      </div>
+      <!-- Amazing Fact Videos -->
+      <div id="videos-section" class="tool-section" style="display: none;">
+        <div class="bg-white p-6 rounded-xl shadow-md tool-card">
+          <div class="flex items-center mb-4">
+            <div class="bg-teal-100 p-2 rounded-full mr-3">
+              <i class="fas fa-video text-teal-600 text-xl"></i>
+            </div>
+            <h2 class="text-2xl font-semibold text-gray-800">Amazing Fact Videos</h2>
+          </div>
+          <button onclick="window.location.href='/static/videos.html'"
+            class="w-full bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center">
+            <i class="fas fa-video mr-2"></i> Click to See Amazing Fact Videos </button>
+        </div>
       </div>
     </div>
-  </div>
   </div>
   <!-- Footer -->
   <footer class="bg-gray-800 text-white py-6">
@@ -2485,7 +2519,7 @@
 
         pagePreviews.classList.remove('hidden');
         updateSelectedPages();
-        resultDiv.textContent = `${numPages} pages loaded. Select pages to sign and click Add Signature.`;
+        resultDiv.textContent = `${numPages} pages loaded.See below preview to select pages`;
         resultDiv.classList.remove('text-red-600');
         resultDiv.classList.add('text-green-600');
       } catch (err) {

@@ -1962,23 +1962,7 @@ function movePageDown(index) {
         updatePositionDropdown();
     }
 }
-// function movePageUp(index) {
-//     if (index > 0) {
-//         [mainPageOrder[index], mainPageOrder[index - 1]] = [mainPageOrder[index - 1], mainPageOrder[index]];
-//         loadMainPdfPreviews();
-//         updatePositionDropdown();
-//     }
-// }
 
-// function movePageDown(index) {
-//     if (index < mainPageOrder.length - 1) {
-//         [mainPageOrder[index], mainPageOrder[index + 1]] = [mainPageOrder[index + 1], mainPageOrder[index]];
-//         loadMainPdfPreviews();
-//         updatePositionDropdown();
-//     }
-// }
-
-// Toggle page selection for deletion
 
 
 // Toggle page selection for deletion - without reloading

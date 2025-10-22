@@ -628,19 +628,26 @@ async function processSignatureClientSide() {
     const resultDiv = document.getElementById('result-signatureForm');
     const submitButton = form ? form.querySelector('button') : null;
 
-    // if (submitButton) submitButton.disabled = true;
-    if (submitButton) {
-        submitButton.disabled = true;
-        submitButton.textContent = 'Processing...'; // for <button>
-        // submitButton.value = 'Processing...'; // use this if it's an <input type="submit">
-    }
 
-    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
-        'pdfjs', 'pdfLib'
-    ]);
+    const pdfFile = pdfFileInput.files[0];
+    const selectedPages = selectedPagesInput.value.split(',').map(p => parseInt(p.trim()));
+    const size = sizeSelect ? sizeSelect.value : 'medium';
+    const position = positionSelect ? positionSelect.value : 'bottom';
+    const alignment = alignmentSelect ? alignmentSelect.value : 'center';
+    const removeBg = removeBgCheckbox ? removeBgCheckbox.checked : false;
 
     // Validation with better error handling
-    if (!pdfFileInput || !pdfFileInput.files[0]) {
+    // Check if all required elements exist first
+    if (!pdfFileInput || !signatureFileInput || !selectedPagesInput || !sizeSelect || !positionSelect || !alignmentSelect) {
+        if (resultDiv) {
+            resultDiv.textContent = 'Form elements not loaded properly. Please refresh the page.';
+            resultDiv.classList.add('text-red-600');
+        }
+        return;
+    }
+
+    // Then check if files are selected
+    if (!pdfFileInput.files[0]) {
         if (resultDiv) {
             resultDiv.textContent = 'Please select a PDF file.';
             resultDiv.classList.add('text-red-600');
@@ -648,9 +655,17 @@ async function processSignatureClientSide() {
         return;
     }
 
-    if (!signatureFileInput || !signatureFileInput.files[0]) {
+    if (!signatureFileInput.files[0]) {
         if (resultDiv) {
             resultDiv.textContent = 'Please select a signature image.';
+            resultDiv.classList.add('text-red-600');
+        }
+        return;
+    }
+
+    if (!selectedPagesInput.value) {
+        if (resultDiv) {
+            resultDiv.textContent = 'Please select at least one page.';
             resultDiv.classList.add('text-red-600');
         }
         return;
@@ -670,24 +685,8 @@ async function processSignatureClientSide() {
         return;
     }
 
-    if (!selectedPagesInput || !selectedPagesInput.value) {
-        if (resultDiv) {
-            resultDiv.textContent = 'Please select at least one page.';
-            resultDiv.classList.add('text-red-600');
-        }
-        return;
-    }
-
-    const pdfFile = pdfFileInput.files[0];
-    const selectedPages = selectedPagesInput.value.split(',').map(p => parseInt(p.trim()));
-    const size = sizeSelect ? sizeSelect.value : 'medium';
-    const position = positionSelect ? positionSelect.value : 'bottom';
-    const alignment = alignmentSelect ? alignmentSelect.value : 'center';
-    const removeBg = removeBgCheckbox ? removeBgCheckbox.checked : false;
-
-    // Validate file sizes
     const pdfSizeMB = pdfFile.size / (1024 * 1024);
-    if (pdfSizeMB > 200) {
+    if (pdfSizeMB > 200) { // Fixed: 200MB limit
         if (resultDiv) {
             resultDiv.textContent = 'PDF file exceeds 200MB limit.';
             resultDiv.classList.add('text-red-600');
@@ -704,12 +703,43 @@ async function processSignatureClientSide() {
         return;
     }
 
+
+
+
+
+    // if (submitButton) submitButton.disabled = true;
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Processing...'; // for <button>
+        // submitButton.value = 'Processing...'; // use this if it's an <input type="submit">
+    }
+
+    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
+        'pdfjs', 'pdfLib'
+    ]);
+
+
+
+    if (!signatureFileInput || !signatureFileInput.files[0]) {
+        if (resultDiv) {
+            resultDiv.textContent = 'Please select a signature image.';
+            resultDiv.classList.add('text-red-600');
+        }
+        return;
+    }
+
+
+
+
+
+
+
     try {
 
         // addsignbutton.disabled = true;
         // addsignbutton.textContent = 'Processing...';
         // Show progress safely
-     
+
         if (progressDiv) progressDiv.style.display = 'block';
         if (progressText) progressText.textContent = 'Processing signature client-side...';
 
@@ -765,79 +795,6 @@ async function processSignatureClientSide() {
     }
 }
 
-// Separate fallback function to avoid circular dependency
-async function fallbackToServerSideSignature(form) {
-    console.log('Falling back to server-side processing...');
-
-    // Create a new form data object
-    const formData = new FormData();
-
-    // Get all form elements safely
-    const pdfFileInput = document.getElementById('signature-pdf-file');
-    const signatureFileInput = document.getElementById('signature-image-file');
-    const selectedPagesInput = document.getElementById('signature-selected-pages');
-    const sizeSelect = document.getElementById('signature-size');
-    const positionSelect = document.getElementById('signature-position');
-    const alignmentSelect = document.getElementById('signature-alignment');
-    const removeBgCheckbox = document.getElementById('remove-bg');
-
-    // files to form data
-    if (pdfFileInput && pdfFileInput.files[0]) {
-        formData.append('pdf_file', pdfFileInput.files[0]);
-    }
-    if (signatureFileInput && signatureFileInput.files[0]) {
-        formData.append('signature_file', signatureFileInput.files[0]);
-    }
-
-    // other form data
-    if (selectedPagesInput && selectedPagesInput.value) {
-        formData.append('specific_pages', selectedPagesInput.value);
-    }
-    if (sizeSelect) {
-        formData.append('size', sizeSelect.value);
-    }
-    if (positionSelect) {
-        formData.append('position', positionSelect.value);
-    }
-    if (alignmentSelect) {
-        formData.append('alignment', alignmentSelect.value);
-    }
-    if (removeBgCheckbox) {
-        formData.append('remove_bg', removeBgCheckbox.checked.toString());
-    }
-
-    try {
-        const response = await fetch('/add_signature', {
-            method: 'POST',
-            body: formData
-        });
-
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `signed_${pdfFileInput.files[0].name}`;
-            a.click();
-            window.URL.revokeObjectURL(url);
-
-            const resultDiv = document.getElementById('result-signatureForm');
-            if (resultDiv) {
-                resultDiv.textContent = 'Signature added successfully (server-side fallback)!';
-                resultDiv.classList.add('text-green-600');
-            }
-        } else {
-            throw new Error('Server-side processing failed');
-        }
-    } catch (serverError) {
-        console.error('Server-side fallback failed:', serverError);
-        const resultDiv = document.getElementById('result-signatureForm');
-        if (resultDiv) {
-            resultDiv.textContent = `Both client-side and server-side processing failed: ${serverError.message}`;
-            resultDiv.classList.add('text-red-600');
-        }
-    }
-}
 
 
 async function addSignatureClientSide(pdfFile, signatureFile, pages, size, position, alignment, removeBg = false) {
@@ -2434,9 +2391,9 @@ function clearAllForms() {
     // **Clear page previews of rotate page**
     const rotatePreviewContainer = document.getElementById('rotate-pages-preview-container');
     if (rotatePreviewContainer) {
-      rotatePreviewContainer.innerHTML = '';
+        rotatePreviewContainer.innerHTML = '';
     }
-    
+
     // Also reset rotation-related global variables
     currentPDFDoc = null;
     selectedPagesForRotation.clear();
@@ -2451,12 +2408,12 @@ function clearAllForms() {
     document.getElementById('insertPdf-insert-pages').textContent = 'Total Pages: Not loaded';
     document.getElementById('insertPdf-previews').classList.add('hidden');
     document.getElementById('result-insertPdfForm').innerHTML = '';
-    
+
     mainPDFDoc = null;
     insertPDFDoc = null;
     mainPageOrder = [];
     selectedMainPages.clear();
-    
+
     // Reset select all button
     const button = document.getElementById('select-all-main-pages-btn');
     if (button) {
@@ -2464,5 +2421,5 @@ function clearAllForms() {
         button.classList.remove('bg-green-600', 'hover:bg-green-700');
         button.classList.add('bg-gray-600', 'hover:bg-gray-700');
     }
-    
+
 }
