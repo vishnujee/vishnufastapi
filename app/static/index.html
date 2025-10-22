@@ -1776,13 +1776,13 @@
           </div>
           <div style="text-align: center; margin-top: -10px; margin-bottom: 20px;">
             <p style="display: inline-block; 
-     font-size: 1.1rem; 
-     font-weight: 600; 
-     color: #374151; 
-     position: relative;
-     padding: 0 12px;
-     margin-top: 5px;
-     ">
+                font-size: 1.1rem; 
+                font-weight: 600; 
+                color: #374151; 
+                position: relative;
+                padding: 0 12px;
+                margin-top: 5px;
+                ">
 
               Insert, Delete & Reorder PDFs
               <span
@@ -1856,7 +1856,7 @@
             <!-- Insertion Position -->
             <div>
               <label for="insertPdf-position" class="block text-l font-medium text-gray-600 mb-1">
-                Select Insertion location
+                Select Insertion location- <span style="font-size: 12px;">New PDF to be added.</span>
               </label>
               <select id="insertPdf-position" name="position"
                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
@@ -1864,18 +1864,22 @@
                 <option value="0">At the Beginning</option>
                 <!-- Dynamic options will be added here -->
               </select>
-              <p class="text-sm text-gray-500 mt-1">Select after which page to insert the PDF</p>
+              <!-- <p class="text-sm text-gray-500 mt-1">Select after which page to insert the PDF</p> -->
             </div>
 
             <!-- Page Previews -->
             <div id="insertPdf-previews" class="hidden">
-              <h3 class="text-lg font-medium text-gray-700 mb-2">Main PDF Pages (Drag to reorder, click to select)</h3>
+              <button type="button" onclick="insertPDFClientSide()" id="genpdf"
+              class="flex-1 bg-indigo-600 text-white p-3 mb-3 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+              <i class="fas fa-file-import mr-2"></i> Generate Final PDF
+            </button>
+              <!-- <h3 class="text-lg font-medium text-gray-700 mb-2">Main PDF Pages (Drag to reorder, click to select)</h3> -->
               <div class="bg-blue-50 border border-blue-200 rounded-lg mt-0"
                 style="padding-top: 1px;padding-bottom: 5px;">
                 <p class="text-blue-700 text-m">
                   <i class="mr-1 text-pink-500 text-2xl">🧠</i>
 
-                  ✅ Drag & Drop to reorder / or ⬆️ ⬇️ ✅ Click page to select for deletion ✅ Insert page (Optional)
+                   Drag & Drop or ⬆️ ⬇️ to reorder Pages. 🎯 Click page to select for deletion ✅ Insert page (Optional)
 
                 </p>
               </div>
@@ -1883,12 +1887,12 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="flex space-x-4">
+            <!-- <div class="flex space-x-4">
               <button type="button" onclick="insertPDFClientSide()" id="genpdf"
                 class="flex-1 bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
                 <i class="fas fa-file-import mr-2"></i> Generate Final PDF
               </button>
-            </div>
+            </div> -->
 
 
             <!-- Results -->
