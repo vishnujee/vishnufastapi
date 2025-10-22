@@ -765,13 +765,13 @@ async function processSignatureClientSide() {
         URL.revokeObjectURL(url);
 
         if (resultDiv) {
-            resultDiv.textContent = 'Signature added successfully using client-side processing!';
+            resultDiv.textContent = 'Signature added successfully!';
             resultDiv.classList.remove('text-red-600');
             resultDiv.classList.add('text-green-600');
         }
 
     } catch (error) {
-        console.error('Client-side signature error:', error);
+        console.error('signature error:', error);
 
         if (resultDiv) {
             resultDiv.textContent = `Error: ${error.message}. Trying server-side fallback...`;
@@ -925,7 +925,7 @@ function calculateSignaturePosition(pageWidth, pageHeight, sigWidth, sigHeight, 
             break;
         case 'bottom':
         default:
-            y = margin;
+            y = 25;
             break;
     }
 
@@ -1015,7 +1015,7 @@ function validateFilesForClientMerge(files) {
     if (files.length > maxFiles) {
         return {
             valid: false,
-            message: `Too many files. Client-side merge supports maximum ${maxFiles} files.`
+            message: `Too many files. Merge supports maximum ${maxFiles} files.`
         };
     }
 
@@ -1154,10 +1154,10 @@ async function mergePDFsClientSide() {
             </div>
         `;
 
-        console.log('Client-side merge completed successfully.');
+        console.log(' merge completed successfully.');
 
     } catch (error) {
-        console.error('Client-side merge failed:', error);
+        console.error(' merge failed:', error);
         resultDiv.innerHTML = `
             <div class="text-red-600">
                 ❌ Merge failed: ${error.message}

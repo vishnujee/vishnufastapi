@@ -364,7 +364,7 @@ async function convertPDFToPPTClientSide() {
 
         else {
             // Editable text conversion (basic implementation)
-            throw new Error('Editable conversion requires server processing. Please use image-based conversion for client-side.');
+            throw new Error('Editable conversion requires other processing..');
         }
 
         resultDiv.innerHTML = `
@@ -1093,7 +1093,7 @@ async function reorderPDFPagesClientSide() {
     }
 
     if (file.size > 200 * 1024 * 1024) {
-        alert('File size exceeds 200MB limit for client-side processing.');
+        alert('File size exceeds 200MB limit for processing.');
         return;
     }
 
@@ -1189,10 +1189,10 @@ async function reorderPDFPagesClientSide() {
             </div>
         `;
 
-        console.log('Client-side page reordering completed successfully');
+        console.log('page reordering completed successfully');
 
     } catch (error) {
-        console.error('Client-side page reordering failed:', error);
+        console.error('page reordering failed:', error);
 
         resultDiv.innerHTML = `
             <div class="text-red-600">
