@@ -307,23 +307,60 @@ async function loadDeletePagePreviews(file) {
             // click handler
             pageElement.addEventListener('click', function () {
                 const isSelected = this.classList.contains('border-red-500');
-
+            
                 if (isSelected) {
-                    // Deselect
+                    // Deselect - remove selection text
                     this.classList.remove('border-red-500', 'bg-red-50', 'shadow-lg');
                     this.classList.add('border-gray-300');
                     this.querySelector('.checkmark').classList.add('hidden');
                     this.querySelector('.selection-indicator').classList.remove('bg-red-500', 'border-red-500');
+                    
+                    // Remove selection text if it exists
+                    const selectionText = this.querySelector('.selection-text');
+                    if (selectionText) {
+                        selectionText.remove();
+                    }
                 } else {
-                    // Select
+                    // Select - add selection text
                     this.classList.remove('border-gray-300');
                     this.classList.add('border-red-500', 'bg-red-50', 'shadow-lg');
                     this.querySelector('.checkmark').classList.remove('hidden');
                     this.querySelector('.selection-indicator').classList.add('bg-red-500', 'border-red-500');
+                    
+                    // Add selection text
+                    const selectionText = document.createElement('div');
+                    selectionText.className = 'selection-text w-full mt-1 py-1 bg-red-100 border border-red-300 rounded text-center';
+                    selectionText.innerHTML = `
+                        <span class="text-red-700 text-xs font-bold block">SELECTED FOR DELETION</span>
+                        <span class="text-green-600 text-xs block mt-1">CLICK AGAIN TO DESELECT</span>
+                    `;
+                    
+                    // Insert after the page content
+                    const pageContent = this.querySelector('.flex.flex-col.items-center');
+                    pageContent.appendChild(selectionText);
                 }
-
+            
                 updateSelectedPagesCount();
             });
+            // pageElement.addEventListener('click', function () {
+            //     const isSelected = this.classList.contains('border-red-500');
+
+            //     if (isSelected) {
+            //         // Deselect
+            //         this.classList.remove('border-red-500', 'bg-red-50', 'shadow-lg');
+            //         this.classList.add('border-gray-300');
+            //         this.querySelector('.checkmark').classList.add('hidden');
+            //         this.querySelector('.selection-indicator').classList.remove('bg-red-500', 'border-red-500');
+            //     } else {
+            //         // Select
+            //         this.classList.remove('border-gray-300');
+            //         this.classList.add('border-red-500', 'bg-red-50', 'shadow-lg');
+            //         this.querySelector('.checkmark').classList.remove('hidden');
+            //         this.querySelector('.selection-indicator').classList.add('bg-red-500', 'border-red-500');
+            //     }
+
+            //     updateSelectedPagesCount();
+            // });
 
             grid.appendChild(pageElement);
         }
@@ -727,10 +764,7 @@ async function processSelectedPagesDeletion(file) {
                 </div>
                 <div class="text-red-700 text-sm">
                     ${error.message}<br>
-                    <span class="text-red-600">
-                        <i class="fas fa-sync-alt mr-1"></i>
-                        Falling back to server processing...
-                    </span>
+                
                 </div>
             </div>
         `;

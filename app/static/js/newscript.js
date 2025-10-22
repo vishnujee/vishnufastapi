@@ -1966,6 +1966,7 @@ function movePageDown(index) {
 
 
 // Toggle page selection for deletion - without reloading
+
 function togglePageSelection(pageNum, event) {
     if (selectedMainPages.has(pageNum)) {
         selectedMainPages.delete(pageNum);
@@ -1977,15 +1978,60 @@ function togglePageSelection(pageNum, event) {
     const pageItems = document.querySelectorAll('.page-insert-item');
     pageItems.forEach(item => {
         const itemPageNum = parseInt(item.dataset.originalPage);
-        if (selectedMainPages.has(itemPageNum)) {
-            item.classList.add('border-red-500', 'bg-red-50');
-            item.classList.remove('border-gray-200');
-        } else {
-            item.classList.remove('border-red-500', 'bg-red-50');
-            item.classList.add('border-gray-200');
+        const isSelected = selectedMainPages.has(itemPageNum);
+        
+        // Update border and background
+        item.classList.toggle('border-red-500', isSelected);
+        item.classList.toggle('bg-red-50', isSelected);
+        item.classList.toggle('border-gray-200', !isSelected);
+        
+        // Find or create selection indicator
+        let selectionIndicator = item.querySelector('.selection-indicator');
+        
+        if (isSelected && !selectionIndicator) {
+            // Add selection indicator
+            selectionIndicator = document.createElement('div');
+            selectionIndicator.className = 'w-full mt-1 py-1 bg-red-100 border border-red-300 rounded text-center selection-indicator';
+            // selectionIndicator.innerHTML = '<span class="text-red-700 text-xs font-bold">SELECTED FOR DELETION</span>';
+            selectionIndicator.innerHTML = `
+                <span class="text-red-700 text-xs font-bold">SELECTED FOR DELETION</span>
+                <span class="text-green-700 text-xs block mt-1">CLICK AGAIN TO DE SELECT</span>
+            `;
+                        // Insert before the insertion line or at the end
+            const insertionLine = item.querySelector('.insertion-line');
+            if (insertionLine) {
+                insertionLine.parentNode.insertBefore(selectionIndicator, insertionLine);
+            } else {
+                item.querySelector('.flex.flex-col.items-center').appendChild(selectionIndicator);
+            }
+        } else if (!isSelected && selectionIndicator) {
+            // Remove selection indicator
+            selectionIndicator.remove();
         }
     });
 }
+
+
+// function togglePageSelection(pageNum, event) {
+//     if (selectedMainPages.has(pageNum)) {
+//         selectedMainPages.delete(pageNum);
+//     } else {
+//         selectedMainPages.add(pageNum);
+//     }
+    
+//     // Update UI without reloading previews
+//     const pageItems = document.querySelectorAll('.page-insert-item');
+//     pageItems.forEach(item => {
+//         const itemPageNum = parseInt(item.dataset.originalPage);
+//         if (selectedMainPages.has(itemPageNum)) {
+//             item.classList.add('border-red-500', 'bg-red-50');
+//             item.classList.remove('border-gray-200');
+//         } else {
+//             item.classList.remove('border-red-500', 'bg-red-50');
+//             item.classList.add('border-gray-200');
+//         }
+//     });
+// }
 
 // Select/Deselect all pages - without reloading
 function toggleSelectAllMainPages() {
