@@ -320,6 +320,7 @@
 
               <a href="#remove-background" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('removeBackground-section')">Remove Image Background</a>
+               
             </div>
           </div>
           <!-- <a href="#videos" class="nav-link text-xl text-gray-700 hover:text-green-600"
@@ -388,6 +389,7 @@
 
             <a href="#remove-background" class="block py-1 text-gray-700 hover:text-green-600"
               onclick="showTool('removeBackground-section')">Remove Image Background</a>
+              
           </div>
         </div>
         <!-- <a href="#videos" class="block py-2 text-gray-700 hover:text-green-600"
@@ -787,6 +789,7 @@
       </div>
     </div>
     <!--  compress_pdf section  -->
+    <!-- compress_pdf section -->
     <div id="compress-section" class="tool-section" style="display: none;">
       <div class="bg-white p-6 rounded-xl shadow-md tool-card">
         <div class="flex items-center mb-4">
@@ -795,79 +798,159 @@
           </div>
           <h2 class="text-2xl font-semibold text-gray-800">Compress PDF</h2>
         </div>
+
+        <!-- Compression Type Selection - Compact Version -->
+        <div class="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm">
+          <label class="block text-sm font-semibold text-gray-800 mb-2">Compression Method</label>
+          <div class="flex gap-2">
+            <div class="compression-option flex-1" id="servermethod">
+              <input type="radio" id="server-compression" name="compression_type" value="server" 
+                class="hidden peer">
+              <label for="server-compression" class="flex items-center p-3 border-2 border-gray-300 rounded-lg cursor-pointer transition-all duration-200
+                peer-checked:border-blue-500 peer-checked:bg-white peer-checked:shadow-md hover:bg-white">
+                <i class="fas fa-server text-blue-500 text-sm mr-2"></i>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-gray-800 text-sm truncate">First Method</div>
+                  <div class="text-xs text-gray-500 truncate">May be slow. <br>Optimised. <br>Limit -100Mb</div>
+                </div>
+              </label>
+            </div>
+            <div class="compression-option flex-1" id="browser">
+              <input type="radio" id="client-compression" name="compression_type" value="client" checked class="hidden peer">
+              <label for="client-compression" class="flex items-center p-3 border-2 border-gray-300 rounded-lg cursor-pointer transition-all duration-200
+                peer-checked:border-purple-500 peer-checked:bg-white peer-checked:shadow-md hover:bg-white">
+                <i class="fas fa-desktop text-purple-500 text-sm mr-2"></i>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-gray-800 text-sm truncate">Second Method</div>
+                  <div class="text-xs text-gray-500 truncate">Fast Speed <br> Limit-250mb <br> Try Both</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
         <form id="compressForm" class="space-y-4">
           <div>
-            <label for="compress-file" class="block text-sm font-medium text-gray-600 mb-1">Select PDF File (Max
-              160MB)</label>
+            <label for="compress-file" class="block text-sm font-medium text-gray-600 mb-1">
+              Select PDF File (Max 250MB)
+            </label>
             <div class="flex items-center">
               <label
                 class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 transition-colors">
-                <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File <input type="file" id="compress-file"
-                  name="file" accept=".pdf" required class="hidden" onchange="updateFileSize()">
+                <i class="fas fa-file-pdf mr-2 text-red-500"></i> Choose File
+                <input type="file" id="compress-file" name="file" accept=".pdf" required class="hidden"
+                  onchange="updateFileSize()">
               </label>
               <span id="compress-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
             </div>
             <p id="original-file-size" class="text-sm text-gray-600 mt-2">Original File Size: Not selected</p>
+            <p id="file-info" class="text-xs text-gray-500 mt-1"></p>
           </div>
-          <div>
-            <label for="compress-preset" class="block text-sm font-medium text-gray-600 mb-1">Compression Level</label>
-            <select id="compress-preset" name="preset"
-              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              onchange="toggleCustomInputs()">
-              <option value="High">High Compression (72 DPI, 60% Quality)</option>
-              <option value="Medium">Medium Compression (85 DPI, 70% Quality)</option>
-              <option value="Low">Low Compression (95 DPI, 80% Quality)</option>
-              <option value="ULTRA Low">New Compression (110 DPI, 90% Quality)</option>
-              <option value="Custom">Custom</option>
-            </select>
-          </div>
-          <div id="custom-compress-options" class="hidden space-y-4">
+
+          <!-- Server Compression Options -->
+          <div id="server-options">
             <div>
-              <label for="custom_dpi" class="block text-sm font-medium text-gray-600 mb-1">DPI (50-250)</label>
-              <input type="range" id="custom_dpi" name="custom_dpi" min="50" max="200" value="100"
-                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-              <span id="dpi-value" class="text-sm text-gray-600">100</span>
-            </div>
-            <div>
-              <label for="custom_quality" class="block text-sm font-medium text-gray-600 mb-1">Quality (10-100)</label>
-              <input type="range" id="custom_quality" name="custom_quality" min="10" max="100" value="50"
-                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-              <span id="quality-value" class="text-sm text-gray-600">50</span>
+              <label for="server-preset" class="block text-sm font-medium text-gray-600 mb-1" id="serverlabel">
+                Ghostscript Compression Level
+              </label>
+              <select id="server-preset" name="server_preset"
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <option value="prepress">High Quality (Prepress - Minimal Compression)</option>
+                <option value="printer" selected>Printer Quality (Best Balance)</option>
+                <option value="ebook">Ebook Quality (Good Compression)</option>
+                <option value="screen">Screen Quality (Maximum Compression)</option>
+              </select>
+              <p class="text-xs text-gray-500 mt-1" id="server-preset-desc">
+                Best balance of quality and file size
+              </p>
             </div>
           </div>
-          <!-- <div class="flex space-x-4">
+
+          <!-- Client Compression Options -->
+          <div id="client-options" class="hidden">
+            <div>
+              <label for="client-preset" class="block text-sm font-medium text-gray-600 mb-1" id="clientlabel">
+                Browser Compression Level
+              </label>
+              <select id="client-preset" name="client_preset"
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                <option value="High Quality">High Quality (Best quality, minimal compression)</option>
+                <option value="Balanced" selected>Balanced (Good balance of quality and size)</option>
+                <option value="Size Optimized">Size Optimized (Better compression, good quality)</option>
+                <option value="Smart Compression">Smart Compression (Intelligent content-based)</option>
+              </select>
+            </div>
+
+            <div id="custom-compress-options" class="hidden space-y-4 bg-gray-50 p-4 rounded-lg">
+
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button type="button" onclick="processPDF('compress_pdf', 'compressForm')"
-              class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-              <i class="fas fa-compress-alt mr-2"></i> Compress PDF </button>
+              class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center"
+              id="compress-submit-btn">
+              <i class="fas fa-compress-alt mr-2"></i> Compress PDF
+            </button>
             <button type="button" onclick="computeAllCompressionSizes()"
-              class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-              <i class="fas fa-calculator mr-2"></i> Compute All Compression </button>
-          </div> -->
-          <!-- In your compress-section, change this line: -->
-          <button type="button" onclick="compressPDFClientSide()"
-            class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-            <i class="fas fa-compress-alt mr-2"></i> Compress PDF
-          </button>
-          <button type="button" onclick="computeAllCompressionSizes()"
-            class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
-            <i class="fas fa-calculator mr-2"></i> Compute All Compression </button>
-          <!-- <button onclick="cancelCompression()" class="bg-red-600 text-white px-4 py-2 rounded ml-2">
-            <i class="fas fa-times mr-2"></i>Cancel Compression
-          </button> -->
-          <div class="progress" id="progress-compressForm">
-            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-            <div class="progress-text" id="progress-text-compressForm"></div>
+              class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center"
+              id="estimate-sizes-btn">
+              <i class="fas fa-calculator mr-2"></i> Estimate Sizes
+            </button>
           </div>
-          <p id="result-compressForm" class="text-sm text-center"></p>
-          <div id="compression-results" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
-            <h3 class="text-lg font-medium text-gray-800 mb-2">Estimated Compression Sizes</h3>
-            <ul id="compression-sizes" class="text-sm text-gray-600 space-y-1"></ul>
+
+          <!-- Enhanced Progress Bar -->
+          <!-- Enhanced Progress Bar -->
+          <div id="progress-compressForm" class="hidden mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center">
+                <!-- <i class="fas fa-sync-alt fa-spin text-blue-500 mr-2"></i> -->
+                <span class="text-sm font-medium text-gray-800" id="progress-status-compressForm">Processing...</span>
+              </div>
+              <span class="text-sm font-semibold text-blue-600" id="progress-percent-compressForm">0%</span>
+            </div>
+
+            <!-- Main Progress Bar -->
+            <div class="relative">
+              <progress id="compressProgress" value="0" max="100"
+                class="w-full h-3 rounded-full progress-bar bg-gray-200"></progress>
+              <!-- Progress steps indicator -->
+              <div class="flex justify-between text-xs text-gray-500 mt-2 px-1">
+                <!-- <span class="progress-step" data-step="0">Upload</span> -->
+                <!-- <span class="progress-step" data-step="25">Process</span> -->
+                <!-- <span class="progress-step" data-step="50">Compress</span> -->
+                <!-- <span class="progress-step" data-step="75">Finalize</span> -->
+                <!-- <span class="progress-step" data-step="100">Complete</span> -->
+              </div>
+            </div>
+
+            <!-- Detailed Progress Text -->
+            <div class="progress-text text-xs text-gray-600" id="progress-text-compressForm" style="margin-top: -26px;">
+              Initializing Uploading process...
+            </div>
+
+            <!-- Time elapsed -->
+            <!-- <div class="flex justify-between text-xs text-gray-500 mt-2" style="display: none;">
+              <span id="progress-time-elapsed">Time: 0s</span>
+              <span id="progress-time-remaining">Est: --</span>
+            </div> -->
           </div>
-          <!-- <div class="progress" id="progress-compressForm">
-            <progress value="0" max="100" class="w-full h-2 rounded-full"></progress>
-            <div class="progress-text" id="progress-text-compressForm"></div>
+
+          <div id="result-compressForm" class="text-sm text-center min-h-[60px] flex items-center justify-center mt-4">
           </div>
-          <p id="result-compressForm" class="text-sm text-center"></p> -->
+
+          <div id="compression-results" class="hidden mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h3 class="text-lg font-medium text-gray-800 mb-3 flex items-center">
+              <i class="fas fa-chart-bar mr-2 text-blue-500"></i> Compression Size Estimates
+            </h3>
+            <ul id="compression-sizes" class="text-sm text-gray-600 space-y-2"></ul>
+            <div class="mt-3 pt-3 border-t border-gray-200">
+              <p class="text-xs text-gray-500 text-center">
+                <i class="fas fa-info-circle mr-1"></i>
+                <span id="estimate-note">These estimates match actual download sizes</span>
+              </p>
+            </div>
+          </div>
         </form>
       </div>
     </div>
@@ -1120,7 +1203,7 @@
               <span id="pdfToWord-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
             </div>
           </div>
-          <button type="button" onclick="processPDF('convert_pdf_to_word', 'pdfToWordForm')"
+          <button type="button" id="pdftowordbutton" onclick="processPDF('convert_pdf_to_word', 'pdfToWordForm')"
             class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
             <i class="fas fa-file-word mr-2"></i> Convert to Word </button>
           <div class="progress" id="progress-pdfToWordForm">
@@ -1222,7 +1305,7 @@
               <span id="pdfToExcel-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
             </div>
           </div>
-          <button type="button" onclick="processPDF('convert_pdf_to_excel', 'pdfToExcelForm')"
+          <button type="button" id="pdftoexcelbutton" onclick="processPDF('convert_pdf_to_excel', 'pdfToExcelForm')"
             class="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
             <i class="fas fa-file-excel mr-2"></i> Convert to Excel </button>
           <div class="progress" id="progress-pdfToExcelForm">
@@ -1545,7 +1628,8 @@
                 <span id="signature-image-file-name" class="ml-3 text-sm text-gray-500">No file selected</span>
               </div>
 
-              <p style="font-size: 12px; padding-left: -10px;margin-left: -18px;">Remove Image Background for best result.Check in PDF Tools.</p>
+              <p style="font-size: 12px; padding-left: -10px;margin-left: -18px;">Remove Image Background for best
+                result.Check in PDF Tools.</p>
 
               <!-- <progress value="0" max="100" class="w-full h-2 rounded-full"></progress> -->
               <div class="progress-text" id="progress-text-signatureForm" style="font-size: 17px;font-weight: bolder;">
@@ -1868,18 +1952,18 @@
             </div>
 
             <!-- Page Previews -->
-            <div id="insertPdf-previews" >
+            <div id="insertPdf-previews">
               <button type="button" onclick="insertPDFClientSide()" id="genpdf"
-              class="flex-1 bg-indigo-600 text-white p-3 mb-3 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 flex items-center justify-center" >
-              <i class="fas fa-file-import mr-2"></i> Generate Final PDF
-            </button>
+                class="flex-1 bg-indigo-600 text-white p-3 mb-3 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 flex items-center justify-center">
+                <i class="fas fa-file-import mr-2"></i> Generate Final PDF
+              </button>
               <!-- <h3 class="text-lg font-medium text-gray-700 mb-2">Main PDF Pages (Drag to reorder, click to select)</h3> -->
               <div class="bg-blue-50 border border-blue-200 rounded-lg mt-0"
                 style="padding-top: 1px;padding-bottom: 5px;">
                 <p class="text-blue-700 text-m">
                   <i class="mr-1 text-pink-500 text-2xl">🧠</i>
 
-                   Drag & Drop or ⬆️ ⬇️ to reorder Pages. 🎯 Click page to select for deletion ✅ Insert page (Optional)
+                  Drag & Drop or ⬆️ ⬇️ to reorder Pages. 🎯 Click page to select for deletion ✅ Insert page (Optional)
 
                 </p>
               </div>
@@ -2634,6 +2718,64 @@
 
   <!-- lazyloading approach -->
   <script src="/static/js/pdf-library-manager.js" defer></script>
+
+  <script>
+    // Add this to your existing JavaScript
+function updateProgressUI(taskId, progressData) {
+    const progressBar = document.getElementById('compressProgress');
+    const progressText = document.getElementById('progress-text-compressForm');
+    const progressPercent = document.getElementById('progress-percent-compressForm');
+    const progressStatus = document.getElementById('progress-status-compressForm');
+    
+    if (progressBar) progressBar.value = progressData.progress;
+    if (progressPercent) progressPercent.textContent = `${progressData.progress}%`;
+    if (progressText) progressText.textContent = progressData.message;
+    if (progressStatus) progressStatus.textContent = getProgressStatus(progressData.progress);
+    
+    // Update progress steps
+    updateProgressSteps(progressData.progress);
+    
+    // Update time
+    updateProgressTime();
+}
+
+function getProgressStatus(progress) {
+    if (progress < 20) return 'Uploading...';
+    if (progress < 40) return 'Processing...';
+    if (progress < 70) return 'Compressing...';
+    if (progress < 90) return 'Finalizing...';
+    return 'Complete!';
+}
+
+function updateProgressSteps(currentProgress) {
+    document.querySelectorAll('.progress-step').forEach(step => {
+        const stepValue = parseInt(step.dataset.step);
+        if (stepValue <= currentProgress) {
+            step.classList.add('text-blue-600', 'font-semibold');
+        } else {
+            step.classList.remove('text-blue-600', 'font-semibold');
+        }
+    });
+}
+
+
+// Time tracking
+let progressStartTime;
+function startProgressTimer() {
+    progressStartTime = Date.now();
+    updateProgressTime();
+}
+
+function updateProgressTime() {
+    if (!progressStartTime) return;
+    
+    const elapsed = Math.floor((Date.now() - progressStartTime) / 1000);
+    const elapsedElement = document.getElementById('progress-time-elapsed');
+    if (elapsedElement) {
+        elapsedElement.textContent = `Time: ${elapsed}s`;
+    }
+}
+  </script>
 
 
 

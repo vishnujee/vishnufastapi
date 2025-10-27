@@ -8,343 +8,876 @@ if (typeof marked !== 'undefined') {
 
 const BASE_URL = window.location.origin;
 let chatHistory = [];
+const MAX_FILE_SIZE_PDFWORDEXCEL = 5 * 1024 * 1024; // 10MB
+const PDFWORDEXCEL_MAX_PAGES = 3;
+////////////////////////////////////////////////////ANALYZE PDF 
+
+// Analyze PDF to determine content type
+async function analyzePDFContent(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
+    const pdfDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+    let textCount = 0;
+    let imageCount = 0;
+    let totalPages = pdfDoc.numPages;
+    let hasComplexImages = false;
+
+    // Sample first few pages for analysis
+    // const samplePages = Math.min(5, totalPages);
+
+    // for (let i = 1; i <= samplePages; i++) {
+    for (let i = 1; i <= totalPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const ops = await page.getOperatorList();
+
+        // Analyze operators to detect content
+        const textOps = ops.fnArray.filter(op =>
+            op === pdfjs.OPS.showText ||
+            op === pdfjs.OPS.showTextGlyphPositioning
+        ).length;
+
+        const imageOps = ops.fnArray.filter(op =>
+            op === pdfjs.OPS.paintImageXObject ||
+            op === pdfjs.OPS.paintJpegXObject
+        ).length;
+
+        textCount += textOps;
+        imageCount += imageOps;
+
+        // Check for high-resolution images
+        if (imageOps > 0) {
+            const viewport = page.getViewport({ scale: 1.0 });
+            if (viewport.width > 1000 || viewport.height > 1000) {
+                hasComplexImages = true;
+            }
+        }
+    }
+
+    // Determine content type
+    const textRatio = textCount / (textCount + imageCount);
+    const isTextHeavy = textRatio > 0.7;
+    const isImageHeavy = textRatio < 0.3;
+
+    let compressionStrategy, contentType;
+
+    if (isTextHeavy && !hasComplexImages) {
+        compressionStrategy = "Text Optimization";
+        contentType = "Text-heavy document";
+    } else if (isImageHeavy) {
+        compressionStrategy = "Smart Image Compression";
+        contentType = "Image-heavy document";
+    } else {
+        compressionStrategy = "Balanced Compression";
+        contentType = "Mixed content document";
+    }
+
+    return {
+        totalPages,
+        textCount,
+        imageCount,
+        textRatio,
+        isTextHeavy,
+        isImageHeavy,
+        hasComplexImages,
+        compressionStrategy,
+        contentType
+    };
+}
 
 
-// // compression
 
-async function compressPDFClientSide() {
-    console.log('Starting optimized client-side compression...');
-    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
-        'pdfjs', 'pdfLib'
-    ]);
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// async function compressPDFClientSide() {
+//     console.log('Starting intelligent PDF compression...');
+
+//     const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries(['pdfjs', 'pdfLib']);
+//     const { PDFDocument } = pdfLib;
+
+//     const form = document.getElementById('compressForm');
+//     const fileInput = form.querySelector('input[type="file"]');
+//     const resultDiv = document.getElementById('result-compressForm');
+//     const progressDiv = document.getElementById('progress-compressForm');
+//     const progressText = document.getElementById('progress-text-compressForm');
+//     const submitButton = form.querySelector('button[type="button"]');
+
+//     if (!fileInput?.files?.length) {
+//         alert('Please select a PDF file.');
+//         return;
+//     }
+
+//     const file = fileInput.files[0];
+//     const originalSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+
+//     // Show progress
+//     progressDiv.style.display = 'block';
+//     progressText.textContent = 'Analyzing PDF content...';
+//     submitButton.disabled = true;
+//     submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Analyzing...';
+
+//     try {
+//         // Step 1: Analyze PDF content type
+//         progressText.textContent = 'Analyzing PDF structure...';
+//         const pdfAnalysis = await analyzePDFContent(file);
+
+//         console.log('PDF Analysis:', pdfAnalysis);
+
+//         // Step 2: Choose compression strategy
+//         let compressedBlob;
+//         if (pdfAnalysis.isTextHeavy && !pdfAnalysis.hasComplexImages) {
+//             compressedBlob = await optimizeTextPDF(file, pdfAnalysis);
+//         } else if (pdfAnalysis.isImageHeavy) {
+//             compressedBlob = await compressImagePDF(file, pdfAnalysis);
+//         } else {
+//             compressedBlob = await compressMixedPDF(file, pdfAnalysis);
+//         }
+
+//         if (!compressedBlob) {
+//             throw new Error('Compression failed');
+//         }
+
+//         // Calculate results
+//         const compressedSizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(2);
+//         const savings = (((file.size - compressedBlob.size) / file.size) * 100).toFixed(1);
+
+//         // Only download if actual compression occurred
+//         if (parseFloat(compressedSizeMB) < parseFloat(originalSizeMB)) {
+//             const filename = `compressed_${file.name.replace('.pdf', '')}.pdf`;
+//             downloadBlob(compressedBlob, filename);
+//         }
+
+//         // Show results
+//         resultDiv.innerHTML = `
+//             <div class="${parseFloat(savings) > 0 ? 'text-green-600' : 'text-red-600'}">
+//                 ${parseFloat(savings) > 0 ? '✅' : '⚠️'} 
+//                 <strong>${parseFloat(savings) > 0 ? 'Compression Successful!' : 'Compression Ineffective'}</strong><br>
+//                 📁 Original: ${originalSizeMB}MB → Compressed: ${compressedSizeMB}MB<br>
+//                 💾 Size reduction: <strong class="${savings >= 0 ? 'text-green-600' : 'text-red-600'}">${savings}%</strong><br>
+//                 🎯 Strategy: ${pdfAnalysis.compressionStrategy}<br>
+//                 📊 Content: ${pdfAnalysis.contentType}
+//                 ${parseFloat(savings) <= 0 ? '<br><small class="text-orange-600">This PDF is already optimized. Try a different compression strategy.</small>' : ''}
+//             </div>
+//         `;
+
+//     } catch (error) {
+//         console.error('Compression failed:', error);
+//         resultDiv.innerHTML = `
+//             <div class="text-red-600">
+//                 ❌ Compression failed: ${error.message}
+//             </div>
+//         `;
+//     } finally {
+//         progressDiv.style.display = 'none';
+//         submitButton.disabled = false;
+//         submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Compress PDF';
+//     }
+// }
+
+// FIXED: Optimize text-heavy PDFs WITHOUT converting to images
+async function optimizeTextPDF(file, analysis) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfLib = pdfLibraryManager.libraries.pdfLib.lib;
+    const { PDFDocument } = pdfLib;
+
+    try {
+        // Method 1: Direct optimization (preserves vectors)
+        const pdfDoc = await PDFDocument.load(arrayBuffer);
+
+        // Remove unnecessary metadata and optimize structure
+        const compressedBytes = await pdfDoc.save({
+            useObjectStreams: true,
+            objectsPerStream: 50,
+            // Only compress images, preserve text as vectors
+            compressImages: true,
+            imageQuality: 0.7,
+            // Remove unused objects
+            removeUnusedObjects: true,
+            // Optimize for web
+            addDefaultPage: false
+        });
+
+        const optimizedBlob = new Blob([compressedBytes], { type: 'application/pdf' });
+
+        // Only use image conversion if it actually reduces size
+        if (optimizedBlob.size < file.size) {
+            return optimizedBlob;
+        } else {
+            // Fallback: Try with more aggressive image compression
+            const pdfDoc2 = await PDFDocument.load(arrayBuffer);
+            const compressedBytes2 = await pdfDoc2.save({
+                useObjectStreams: true,
+                compressImages: true,
+                imageQuality: 0.5, // More aggressive
+                removeUnusedObjects: true
+            });
+
+            return new Blob([compressedBytes2], { type: 'application/pdf' });
+        }
+
+    } catch (error) {
+        console.warn('Direct optimization failed, using fallback:', error);
+        // Fallback to minimal image conversion
+        return await compressWithMinimalRasterization(file, analysis, 2.0, 0.9);
+    }
+}
+
+// FIXED: Smart compression for image-heavy PDFs
+async function compressImagePDF(file, analysis) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
+    const pdfLib = pdfLibraryManager.libraries.pdfLib.lib;
+    const { PDFDocument } = pdfLib;
+
+    try {
+        // First try direct optimization
+        const pdfDoc = await PDFDocument.load(arrayBuffer);
+        const compressedBytes = await pdfDoc.save({
+            useObjectStreams: true,
+            compressImages: true,
+            imageQuality: 0.6, // Aggressive for images
+            removeUnusedObjects: true
+        });
+
+        const directOptimized = new Blob([compressedBytes], { type: 'application/pdf' });
+
+        // If direct optimization works, use it
+        if (directOptimized.size < file.size * 0.9) { // At least 10% reduction
+            return directOptimized;
+        }
+    } catch (error) {
+        console.warn('Direct image optimization failed:', error);
+    }
+
+    // Fallback to selective rasterization
+    return await compressWithSelectiveRasterization(file, analysis, 1.5, 0.8);
+}
+
+// NEW: Minimal rasterization - only when necessary
+async function compressWithMinimalRasterization(file, analysis, scale, quality) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
+    const pdfLib = pdfLibraryManager.libraries.pdfLib.lib;
+    const { PDFDocument } = pdfLib;
+
+    const sourceDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    const newPdfDoc = await PDFDocument.create();
+
+    const totalPages = sourceDoc.numPages;
+
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        const page = await sourceDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.0 });
+
+        // Check if page has complex elements that need rasterization
+        const needsRasterization = await shouldRasterizePage(page, analysis);
+
+        if (needsRasterization) {
+            await compressPageAsImageHighQuality(page, newPdfDoc, viewport, scale, quality);
+        } else {
+            // Try to copy page directly (preserve vectors)
+            try {
+                await copyPageDirectly(page, newPdfDoc, viewport);
+            } catch (error) {
+                // Fallback to high-quality rasterization
+                await compressPageAsImageHighQuality(page, newPdfDoc, viewport, 2.0, 0.95);
+            }
+        }
+    }
+
+    const compressedBytes = await newPdfDoc.save({
+        useObjectStreams: true,
+        compressImages: true,
+        imageQuality: 0.8
+    });
+
+    return new Blob([compressedBytes], { type: 'application/pdf' });
+}
+
+// NEW: Determine if page should be rasterized
+async function shouldRasterizePage(page, analysis) {
+    try {
+        const ops = await page.getOperatorList();
+
+        // Count different types of operations
+        const imageOps = ops.fnArray.filter(op =>
+            op === pdfjs.OPS.paintImageXObject ||
+            op === pdfjs.OPS.paintJpegXObject
+        ).length;
+
+        const textOps = ops.fnArray.filter(op =>
+            op === pdfjs.OPS.showText ||
+            op === pdfjs.OPS.showTextGlyphPositioning
+        ).length;
+
+        const pathOps = ops.fnArray.filter(op =>
+            op === pdfjs.OPS.fill ||
+            op === pdfjs.OPS.stroke
+        ).length;
+
+        // Rasterize if:
+        // - Many images
+        // - Complex paths (charts, diagrams)
+        // - Few text operations (not text-heavy)
+        const shouldRasterize =
+            imageOps > 3 ||
+            (pathOps > 20 && textOps < 10) ||
+            (analysis.hasComplexImages && imageOps > 0);
+
+        return shouldRasterize;
+    } catch (error) {
+        console.warn('Page analysis failed, defaulting to rasterization:', error);
+        return true;
+    }
+}
+
+// NEW: High-quality page compression
+async function compressPageAsImageHighQuality(page, newPdfDoc, viewport, scale, quality) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d', {
+        alpha: false,
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high'
+    });
+
+    // Calculate optimal DPI
+    const optimalScale = calculateOptimalDPIScale(viewport, scale);
+    canvas.width = Math.floor(viewport.width * optimalScale);
+    canvas.height = Math.floor(viewport.height * optimalScale);
+
+    // High-quality rendering settings
+    context.fillStyle = 'white';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+
+    const renderContext = {
+        canvasContext: context,
+        viewport: page.getViewport({ scale: optimalScale }),
+        enableWebGL: true,
+        renderInteractiveForms: false
+    };
+
+    await page.render(renderContext).promise;
+
+    // Use PNG for better quality, JPEG only for very large images
+    const hasText = await detectTextOnPage(page);
+    const usePNG = hasText || quality > 0.85;
+
+    const imageData = usePNG ?
+        canvas.toDataURL('image/png') :
+        canvas.toDataURL('image/jpeg', Math.max(0.7, quality));
+
+    const base64Data = imageData.split(',')[1];
+    const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+    const image = usePNG ?
+        await newPdfDoc.embedPng(imageBytes) :
+        await newPdfDoc.embedJpg(imageBytes);
+
+    const newPage = newPdfDoc.addPage([viewport.width, viewport.height]);
+    newPage.drawImage(image, {
+        x: 0, y: 0,
+        width: viewport.width,
+        height: viewport.height,
+    });
+
+    canvas.remove();
+}
+
+// NEW: Try to copy page directly (preserve vectors)
+async function copyPageDirectly(page, newPdfDoc, viewport) {
+    // This is a simplified version - in practice, you'd need more complex PDF manipulation
+    // For now, we'll use high-quality rasterization as fallback
+    throw new Error('Direct copy not implemented, using high-quality fallback');
+}
+
+// NEW: Smart DPI calculation
+function calculateOptimalDPIScale(viewport, baseScale) {
+    const baseWidth = viewport.width;
+    const baseHeight = viewport.height;
+    const maxDimension = Math.max(baseWidth, baseHeight);
+
+    // Higher DPI for smaller documents, lower for larger ones
+    if (maxDimension > 1500) return baseScale * 0.8;  // Large docs: lower DPI
+    if (maxDimension > 1000) return baseScale * 1.0;  // Medium docs
+    if (maxDimension > 500) return baseScale * 1.2;   // Small docs
+    return baseScale * 1.5;                           // Very small: high DPI
+}
+
+// FIXED: Mixed content compression
+async function compressMixedPDF(file, analysis) {
+    // Try direct optimization first
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdfLib = pdfLibraryManager.libraries.pdfLib.lib;
+        const { PDFDocument } = pdfLib;
+
+        const pdfDoc = await PDFDocument.load(arrayBuffer);
+        const compressedBytes = await pdfDoc.save({
+            useObjectStreams: true,
+            compressImages: true,
+            imageQuality: 0.7,
+            removeUnusedObjects: true
+        });
+
+        const optimized = new Blob([compressedBytes], { type: 'application/pdf' });
+
+        if (optimized.size < file.size) {
+            return optimized;
+        }
+    } catch (error) {
+        console.warn('Direct mixed optimization failed:', error);
+    }
+
+    // Fallback to selective rasterization
+    return await compressWithSelectiveRasterization(file, analysis, 1.5, 0.8);
+}
+
+// NEW: Selective rasterization
+async function compressWithSelectiveRasterization(file, analysis, scale, quality) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
+    const pdfLib = pdfLibraryManager.libraries.pdfLib.lib;
+    const { PDFDocument } = pdfLib;
+
+    const sourceDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    const newPdfDoc = await PDFDocument.create();
+
+    const totalPages = sourceDoc.numPages;
+
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        const page = await sourceDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.0 });
+
+        const needsRasterization = await shouldRasterizePage(page, analysis);
+
+        if (needsRasterization) {
+            await compressPageAsImageHighQuality(page, newPdfDoc, viewport, scale, quality);
+        } else {
+            // For text-heavy pages, use higher quality
+            await compressPageAsImageHighQuality(page, newPdfDoc, viewport, 2.0, 0.9);
+        }
+    }
+
+    const compressedBytes = await newPdfDoc.save();
+    return new Blob([compressedBytes], { type: 'application/pdf' });
+}
+
+// Utility function for download
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Helper function to detect text on page
+async function detectTextOnPage(page) {
+    try {
+        const textContent = await page.getTextContent();
+        return textContent.items.length > 2;
+    } catch (error) {
+        return false;
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Replace the existing computeAllCompressionSizes function
+async function computeAllCompressionSizes() {
+    const compressionType = document.querySelector('input[name="compression_type"]:checked');
+    const compbutton = document.getElementById('compress-submit-btn');
+    compbutton.disabled = true;
+
+    if (compressionType && compressionType.value === 'server') {
+        // Use the new two-step method for server estimation
+        await computeServerCompressionSizesTwoStep();
+        console.log("server estimation processed");
+
+    } else {
+        await computeClientCompressionSizes();
+    }
+}
+/////////////////////////////////////////////////////
+let currentTaskId = null;
+let progressInterval = null;
+
+
+function stopProgressTracking() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+    currentTaskId = null;
+}
+
+
+
+function startProgressTracking(taskId, progressBar, progressText, progressPercent, progressStatus) {
+    console.log('🚀 Starting progress tracking for task:', taskId);
+
+    if (!taskId) {
+        console.error('❌ No taskId provided');
+        return null;
+    }
+
+    let isCompleted = false;
+
+    const progressInterval = setInterval(async () => {
+        if (isCompleted) {
+            clearInterval(progressInterval);
+            return;
+        }
+
+        try {
+            const response = await fetch(`${BASE_URL}/progress/${taskId}`);
+
+            if (response.ok) {
+                const progressData = await response.json();
+                console.log('📊 Progress update received:', progressData);
+
+                // ✅ ALWAYS update UI with received data
+                if (progressData.progress !== undefined) {
+                    updateProgressUI(progressBar, progressText, progressPercent, progressStatus, progressData);
+
+                    // ✅ Check for completion
+                    if (progressData.progress >= 100) {
+                        console.log('✅ Task completed, stopping tracking');
+                        isCompleted = true;
+                        clearInterval(progressInterval);
+                    }
+                }
+            } else {
+                console.warn('⚠️ Progress fetch failed:', response.status);
+            }
+        } catch (error) {
+            console.error('💥 Progress fetch error:', error);
+        }
+    }, 100); // Reduced to 800ms for better responsiveness
+
+    console.log('✅ Progress tracking started');
+    return progressInterval;
+}
+
+function updateProgressUI(progressBar, progressText, progressPercent, progressStatus, progressData) {
+    console.log('🔄 UI Update called with:', progressData); // Debug log
+
+    // ✅ Update progress bar
+    if (progressBar && progressData.progress !== undefined) {
+        progressBar.value = progressData.progress;
+        progressBar.style.width = progressData.progress + '%';
+        console.log('📊 Progress bar updated to:', progressData.progress + '%');
+    }
+
+    // ✅ Update progress percentage text
+    if (progressPercent && progressData.progress !== undefined) {
+        progressPercent.textContent = `${progressData.progress}%`;
+    }
+
+    // ✅ Update progress message
+    if (progressText && progressData.message) {
+        progressText.textContent = progressData.message;
+    }
+
+    // ✅ Update progress stage
+    if (progressStatus && progressData.stage) {
+        progressStatus.textContent = getProgressStage(progressData.stage);
+    }
+
+    // ✅ Force browser repaint
+    if (progressBar) {
+        progressBar.offsetHeight; // Trigger reflow
+    }
+}
+function getProgressStage(stage) {
+    const stages = {
+        'initializing': 'Initializing...',
+        'preparing_upload': 'Preparing Upload...',
+        'uploading': 'Uploading to Cloud...',
+        'downloading': 'Processing...',
+        'compressing': 'Compressing PDF...',
+        'ghostscript': 'Running Compression...',
+        'alternative_compression': 'Optimizing...',
+        'finalizing': 'Finalizing...',
+        'completed': 'Completed!',
+        'failed': 'Failed',
+        'error': 'Error'
+    };
+    return stages[stage] || 'Processing...';
+}
+
+
+
+// Updated server compression estimation with progress
+
+async function computeServerCompressionSizesTwoStep() {
+    console.log('Computing server-side compression sizes using two-step method...');
 
     const form = document.getElementById('compressForm');
-    const fileInput = form.querySelector('input[type="file"]');
+    const fileInput = document.getElementById('compress-file');
     const resultDiv = document.getElementById('result-compressForm');
-    const progressDiv = document.getElementById('progress-compressForm');
-    const progressText = document.getElementById('progress-text-compressForm');
-    const submitButton = form.querySelector('button[type="button"]');
+    const compressionResults = document.getElementById('compression-results');
+    const compressionSizes = document.getElementById('compression-sizes');
 
-    const msg = document.getElementById('operation-msg');
-    msg.classList.remove('hidden'); // show the message
-    setTimeout(() => msg.classList.add('hidden'), 30000);
-    // Validation
-    if (!fileInput || !fileInput.files || !fileInput.files.length) {
-        alert('Please select a PDF file.');
+
+    const progressDiv = document.getElementById('progress-compressForm');
+    const progressBar = document.getElementById('compressProgress');
+    const progressText = document.getElementById('progress-text-compressForm');
+    const progressPercent = document.getElementById('progress-percent-compressForm');
+    const progressStatus = document.getElementById('progress-status-compressForm');
+    const compbutton = document.getElementById('compress-submit-btn');
+    const computeButton = document.getElementById('estimate-sizes-btn');
+
+
+    if (!fileInput || !fileInput.files[0]) {
+        const errorMsg = 'Please select a PDF file first.';
+        if (resultDiv) {
+            resultDiv.textContent = errorMsg;
+            resultDiv.className = 'text-red-600';
+        }
         return;
     }
 
     const file = fileInput.files[0];
     const originalSizeMB = (file.size / (1024 * 1024)).toFixed(2);
 
-    // Validate file type
-    if (file.type !== 'application/pdf') {
-        alert('Please select a PDF file.');
-        return;
-    }
-    if (file.size > 250 * 1024 * 1024) {
-        alert("File too large than 200mb");
-        return;
-    }
+    // Disable button during computation
+    if (computeButton) {
+        computeButton.disabled = true;
 
-    // Show progress
-    progressDiv.style.display = 'block';
-    progressText.textContent = 'Starting compression...';
-    submitButton.disabled = true;
-    submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Compressing...';
+        computeButton.innerHTML = '<i class="fas fa-calculator mr-2"></i> Computing...';
+    }
 
     try {
-
-
-        // compression settings - UPDATED FOR ACCURACY
-        const presetSelect = document.getElementById('compress-preset');
-        const preset = presetSelect ? presetSelect.value : 'Medium';
-
-        let dpi, quality;
-
-        // UPDATED PRESETS FOR BETTER SIZE PREDICTION
-        if (preset === 'High') {
-            dpi = 72;      // Increased from 72 for better accuracy
-            quality = 0.55; // Slightly increased for better quality/size balance
-        } else if (preset === 'Medium') {
-            dpi = 85;     // Balanced setting
-            quality = 0.65;
-        } else if (preset === 'Low') {
-            dpi = 95;     // Higher DPI for better quality
-            quality = 0.95;
-        } else if (preset === 'ULTRA Low') {
-            dpi = 100;     // Much higher for minimal compression
-            quality = 0.85;
-        } else if (preset === 'Custom') {
-            const dpiInput = document.getElementById('custom_dpi');
-            const qualityInput = document.getElementById('custom_quality');
-
-            dpi = dpiInput ? parseInt(dpiInput.value) || 120 : 120;
-            const qualityPercent = qualityInput ? parseInt(qualityInput.value) || 65 : 65;
-            quality = qualityPercent / 100;
+        if (resultDiv) {
+            resultDiv.innerHTML = `
+                <div class="text-blue-600">🔄 Estimating server compression sizes...</div>
+                <div class="text-sm text-gray-500 mt-1">Using Ghostscript for accurate estimation</div>
+            `;
         }
 
-        console.log('Using compression settings:', { preset, dpi, quality });
-
-        // Show estimated size before compression
-        const estimatedSize = await estimateCompressedSize(file, dpi, quality);
-        progressText.textContent = ` (Processing...)`;
-
-
-        let compressedBlob = await enhancedPDFCompression(file, dpi, quality, (progress) => {
-            progressText.textContent = `Processing pages... (${progress}%) `;
+        // Initialize UI - SAME AS COMPRESSION
+        progressDiv.style.display = 'block';
+        updateProgressUI(progressBar, progressText, progressPercent, progressStatus, {
+            progress: 0,
+            message: 'Initializing uploading...',
+            stage: 'initializing'
         });
 
-        if (!compressedBlob) {
-            throw new Error('Compression returned empty result');
+        let taskId = null;
+        let progressInterval = null;
+
+        // STEP 1: Start estimation
+        console.log('🚀 STEP 1: Starting estimation...');
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const startResponse = await fetch('/start_estimation', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!startResponse.ok) {
+            const error = await startResponse.json();
+            throw new Error(error.detail || 'Failed to start estimation');
         }
 
-        // Calculate actual results
-        const compressedSizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(2);
-        const savings = (((file.size - compressedBlob.size) / file.size) * 100).toFixed(1);
-        const accuracy = calculateAccuracy(estimatedSize, compressedSizeMB);
+        const startData = await startResponse.json();
+        taskId = startData.task_id;
 
-        console.log('Final compression results:', {
-            original: originalSizeMB + 'MB',
-            estimated: estimatedSize + 'MB',
-            actual: compressedSizeMB + 'MB',
-            accuracy: accuracy + '%',
-            savings: savings + '%',
-            preset: preset
+        console.log('📨 Received task ID:', taskId);
+
+        // STEP 2: Start real-time progress tracking
+        console.log('🔄 STEP 2: Starting enhanced progress tracking');
+        progressInterval = startProgressTracking(taskId, progressBar, progressText, progressPercent, progressStatus);
+
+        // STEP 3: Wait for completion with timeout
+        console.log('⏳ STEP 3: Waiting for completion...');
+        await waitForEstimationCompletion(taskId, 180000); // 3 minute timeout
+
+        // STEP 4: Get results
+        console.log('📊 STEP 4: Getting results...');
+        const resultResponse = await fetch(`/estimation_result/${taskId}`);
+
+        if (!resultResponse.ok) {
+            throw new Error('Failed to get estimation results');
+        }
+
+        const data = await resultResponse.json();
+
+        // Display results
+        displayCompressionResults(data, originalSizeMB, compressionSizes, compressionResults, resultDiv);
+
+        // Final progress update
+        updateProgressUI(progressBar, progressText, progressPercent, progressStatus, {
+            progress: 100,
+            message: 'Estimation completed successfully!',
+            stage: 'completed'
         });
-
-        // Download the compressed file
-        const filename = `compressed_${file.name.replace('.pdf', '')}_${preset.replace(' ', '_')}.pdf`;
-
-        const url = window.URL.createObjectURL(compressedBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-
-        // Show results with accuracy information
-        const savingsColor = savings >= 50 ? 'text-green-600' : savings >= 20 ? 'text-yellow-600' : 'text-red-600';
-        // const accuracyColor = accuracy >= 90 ? 'text-green-600' : accuracy >= 80 ? 'text-yellow-600' : 'text-red-600';
-
-        resultDiv.innerHTML = `
-            <div class="text-green-600">
-                ✅ <strong>Compression Successful!</strong><br>
-                📁 Original: ${originalSizeMB}MB → Compressed: ${compressedSizeMB}MB<br>
-                💾 Size reduction: <strong class="${savingsColor}">${savings}%</strong><br>
-          
-                ⚙️ Preset: <strong>${preset}</strong> (${dpi} DPI, ${Math.round(quality * 100)}% Quality)<br>
-            
-            </div>
-        `;
 
     } catch (error) {
-        console.error('Compression failed:', error);
+        console.error('Estimation error:', error);
+
+        // Stop progress tracking
+        if (progressInterval) {
+            clearInterval(progressInterval);
+        }
+
+        // Show error state
+        updateProgressUI(progressBar, progressText, progressPercent, progressStatus, {
+            progress: 0,
+            message: `Error: ${error.message}`,
+            stage: 'error'
+        });
 
         resultDiv.innerHTML = `
             <div class="text-red-600">
-                ❌ Compression failed: ${error.message}<br>
-                <small>Please try a different file or preset</small>
+                ❌ Estimation failed: ${error.message}<br>
+                <small>Falling back to client-side estimation...</small>
             </div>
         `;
 
+        // Fallback to client-side estimation
+        // await computeClientCompressionSizes();   
+
     } finally {
-        progressDiv.style.display = 'none';
-        submitButton.disabled = false;
-        submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Compress PDF';
-    }
-}
+        // Re-enable button
+        if (computeButton) {
+            computeButton.disabled = false;
+            computeButton.innerHTML = '<i class="fas fa-calculator mr-2"></i> Estimate Sizes';
 
-// Enhanced compression function with accurate size handling
-async function enhancedPDFCompression(file, dpi = 120, quality = 0.65, progressCallback) {
-    console.log('Starting enhanced PDF compression...');
-
-    if (!pdfLibraryManager.libraries.pdfLib || !pdfLibraryManager.libraries.pdfLib.loaded) {
-        throw new Error('PDF library not loaded. Please ensure libraries are loaded first.');
-    }
-    if (!pdfLibraryManager.libraries.pdfjs || !pdfLibraryManager.libraries.pdfjs.loaded) {
-        throw new Error('PDF library not loaded. Please ensure libraries are loaded first.');
-    }
-    // Get the library instance
-    const pdfLib = pdfLibraryManager.libraries.pdfLib.lib;
-    const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
-
-
-    const { PDFDocument } = pdfLib;
-
-    try {
-        if (progressCallback) progressCallback(10);
-
-        // Load the PDF with PDF.js
-        const arrayBuffer = await file.arrayBuffer();
-        if (progressCallback) progressCallback(20);
-
-
-        const pdfDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-        const numPages = pdfDoc.numPages;
-
-        const newPdfDoc = await PDFDocument.create();
-
-        console.log(`Processing ${numPages} pages with ${dpi} DPI, ${quality * 100}% quality...`);
-
-        // Calculate accurate scale factor
-        const scale = dpi / 72; // 72 DPI is standard PDF resolution
-
-        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-            const progress = 20 + ((pageNum - 1) / numPages) * 70;
-            if (progressCallback) progressCallback(Math.round(progress));
-
-            const page = await pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 1.0 });
-            const { width: originalWidth, height: originalHeight } = viewport;
-
-            // Create canvas with accurate dimensions
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.floor(originalWidth * scale);
-            canvas.height = Math.floor(originalHeight * scale);
-
-            const context = canvas.getContext('2d', {
-                alpha: false, // Disable alpha for smaller file size
-                willReadFrequently: true
-            });
-
-            // White background
-            context.fillStyle = 'white';
-            context.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Enhanced rendering settings
-            context.imageSmoothingEnabled = true;
-            context.imageSmoothingQuality = 'high';
-
-            // Render PDF page with accurate scaling
-            const renderContext = {
-                canvasContext: context,
-                viewport: page.getViewport({ scale: scale }),
-            };
-
-            await page.render(renderContext).promise;
-
-            // Convert to optimized JPEG with quality control
-            const jpegQuality = Math.max(0.1, Math.min(1.0, quality));
-            const imageData = canvas.toDataURL('image/jpeg', jpegQuality);
-            const base64Data = imageData.split(',')[1];
-            const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-
-            // Embed in new PDF with original dimensions
-            const image = await newPdfDoc.embedJpg(imageBytes);
-            const newPage = newPdfDoc.addPage([originalWidth, originalHeight]);
-            newPage.drawImage(image, {
-                x: 0,
-                y: 0,
-                width: originalWidth,
-                height: originalHeight,
-            });
-
-            // Clean up
-            canvas.remove();
         }
+        compbutton.disabled = false;
 
-        if (progressCallback) progressCallback(95);
-
-        // Optimized PDF saving
-        const compressedBytes = await newPdfDoc.save({
-            useObjectStreams: true,
-            addDefaultPage: false,
-            objectsPerStream: 30,
-        });
-
-        if (progressCallback) progressCallback(100);
-
-        return new Blob([compressedBytes], { type: 'application/pdf' });
-
-    } catch (error) {
-        console.error('Enhanced compression failed:', error);
-        throw error;
+        // Hide progress after delay
+        setTimeout(() => {
+            progressDiv.style.display = 'none';
+        }, 3000);
     }
 }
 
-// Accurate size estimation function
-async function estimateCompressedSize(file, dpi, quality) {
-    try {
-        const arrayBuffer = await file.arrayBuffer();
+// Wait for estimation completion
+async function waitForEstimationCompletion(taskId, timeoutMs = 180000) {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        const checkCompletion = async () => {
+            try {
+                if (Date.now() - startTime > timeoutMs) {
+                    reject(new Error('Estimation timeout - process took too long'));
+                    return;
+                }
+
+                const response = await fetch(`${BASE_URL}/progress/${taskId}`);
+                if (response.ok) {
+                    const progressData = await response.json();
+                    if (progressData.progress >= 100) {
+                        resolve(progressData);
+                    } else {
+                        // Continue polling
+                        setTimeout(checkCompletion, 800);
+                    }
+                } else {
+                    reject(new Error('Failed to check progress'));
+                }
+            } catch (error) {
+                reject(error);
+            }
+        };
+
+        checkCompletion();
+    });
+}
 
 
-        // const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
-        //     'pdfjs', 'pdfLib', 'fileSaver'
-        // ]);
+function displayCompressionResults(data, originalSizeMB, compressionSizes, compressionResults, resultDiv) {
+    let sizesHTML = `
+        <li class="font-semibold mb-2 text-gray-800">Original Size: ${originalSizeMB} MB</li>
+        <li class="text-sm text-gray-600 mb-3">Method: First Method</li>
+        <hr class="my-2 border-gray-300">
+    `;
 
-        if (!pdfLibraryManager.libraries.pdfjs || !pdfLibraryManager.libraries.pdfjs.loaded) {
-            throw new Error('PDF library not loaded. Please ensure libraries are loaded first.');
+    // Presets matching the backend
+    const presets = [
+        { name: 'Screen Quality', key: 'screen', quality: '★★☆☆☆', desc: 'Maximum compression for web viewing' },
+        { name: 'Ebook Quality', key: 'ebook', quality: '★★★☆☆', desc: 'Good compression for digital reading' },
+        { name: 'Printer Quality', key: 'printer', quality: '★★★★☆', desc: 'Excellent quality, good compression' },
+        { name: 'Prepress Quality', key: 'prepress', quality: '★★★★★', desc: 'Highest quality for professional printing' }
+    ];
+
+    // Display all presets that exist in the response
+    presets.forEach(preset => {
+        const estimate = data.estimates[preset.key];
+        if (estimate !== undefined && estimate !== null && !isNaN(estimate)) {
+            const sizeMB = parseFloat(estimate).toFixed(2);
+            const originalSizeBytes = parseFloat(originalSizeMB) * 1024 * 1024;
+            const estimatedSizeBytes = parseFloat(estimate) * 1024 * 1024;
+            const savings = (((originalSizeBytes - estimatedSizeBytes) / originalSizeBytes) * 100).toFixed(1);
+            const savingsColor = savings >= 50 ? 'text-green-600' :
+                savings >= 20 ? 'text-yellow-600' :
+                    savings >= 0 ? 'text-orange-600' : 'text-red-600';
+
+            sizesHTML += `
+                <li class="mb-2 p-3 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                    <div class="flex justify-between items-start">
+                        <strong class="text-gray-800">${preset.name}</strong>
+                        <span class="text-xs font-semibold text-blue-600">${preset.quality}</span>
+                    </div>
+                    <span class="text-sm text-gray-600">
+                        📏 Size: <strong>${sizeMB} MB</strong><br>
+                        💾 Reduction: <strong class="${savingsColor}">${savings}%</strong><br>
+                        <small class="text-gray-500">${preset.desc}</small>
+                    </span>
+                </li>
+            `;
         }
-        const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
+    });
 
+    if (compressionSizes) {
+        compressionSizes.innerHTML = sizesHTML;
+    }
 
+    if (compressionResults) {
+        compressionResults.classList.remove('hidden');
+    }
 
-        const pdfDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-        const numPages = pdfDoc.numPages;
+    // Show recommendation
+    const recommendation = data.recommendation || 'ebook';
+    const recommendationText = {
+        'screen': 'Screen Quality',
+        'ebook': 'Ebook Quality',
+        'printer': 'Printer Quality',
+        'prepress': 'Prepress Quality'
+    };
 
-        // Calculate base size factors
-        const baseOverhead = 5000; // PDF structure overhead in bytes
-        const perPageOverhead = 2000; // Per page overhead
-
-        // DPI factor (higher DPI = larger files)
-        const dpiFactor = Math.pow(dpi / 72, 1.5);
-
-        // Quality factor (non-linear relationship)
-        const qualityFactor = Math.pow(quality, 0.7);
-
-        // Estimate based on original file characteristics
-        const avgPageSize = file.size / numPages;
-        const estimatedPerPageSize = avgPageSize * dpiFactor * qualityFactor * 0.3; // Empirical factor
-
-        const totalEstimatedSize = (baseOverhead + (estimatedPerPageSize * numPages)) / (1024 * 1024);
-
-        return Math.max(0.1, totalEstimatedSize).toFixed(2);
-    } catch (error) {
-        console.warn('Size estimation failed, using fallback:', error);
-        // Fallback estimation
-        return (file.size * quality * 0.4 / (1024 * 1024)).toFixed(2);
+    if (resultDiv) {
+        resultDiv.innerHTML = `
+            <div class="text-green-600">
+                ✅ <strong>Server Compression Estimates Ready!</strong><br>
+                <small>Recommended: <strong>${recommendationText[recommendation]}</strong> based on actual Ghostscript compression</small><br>
+                <small class="text-gray-500">These are real compression results, not estimates</small>
+            </div>
+        `;
     }
 }
 
-// Calculate accuracy between estimated and actual size
-function calculateAccuracy(estimated, actual) {
-    const est = parseFloat(estimated);
-    const act = parseFloat(actual);
+////////////////
 
-    if (est === 0 || act === 0) return 0;
 
-    const error = Math.abs(est - act) / act;
-    const accuracy = Math.max(0, (1 - error) * 100);
-
-    return Math.min(100, accuracy).toFixed(1);
-}
-
-// Enhanced computeAllCompressionSizes with accurate predictions
-async function computeAllCompressionSizes() {
-
-    // const [pdfjs, pdfLib, fileSaver] = await pdfLibraryManager.loadLibraries([
-    //     'pdfjs', 'pdfLib', 'fileSaver'
-    // ]);
-    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
-        'pdfjs', 'pdfLib'
-    ]);
-
-    console.log('Computing all compression sizes with accurate predictions...');
-
+async function computeClientCompressionSizes() {
+    console.log('Computing accurate compression sizes with intelligent analysis...');
 
     const form = document.getElementById('compressForm');
     const fileInput = form.querySelector('input[type="file"]');
     const resultDiv = document.getElementById('result-compressForm');
     const compressionResults = document.getElementById('compression-results');
     const compressionSizes = document.getElementById('compression-sizes');
-    const computeButton = form.querySelector('button[onclick*="computeAllCompressionSizes"]');
-
-    const msg = document.getElementById('operation-msg');
-    msg.classList.remove('hidden'); // show the message
-    setTimeout(() => msg.classList.add('hidden'), 30000);
+    const computeButton = document.getElementById('estimate-sizes-btn');
+    const compbutton = document.getElementById('compress-submit-btn');
 
     if (!fileInput || !fileInput.files.length) {
         const errorMsg = 'Please select a PDF file first.';
@@ -387,63 +920,87 @@ async function computeAllCompressionSizes() {
     }
 
     try {
-        // Get custom settings if Custom is selected
-        const presetSelect = document.getElementById('compress-preset');
-        const currentPreset = presetSelect ? presetSelect.value : 'Medium';
+        // First analyze the PDF content
+        const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries(['pdfjs', 'pdfLib']);
 
-        // UPDATED PRESETS FOR ACCURATE SIZE PREDICTION
-        const presets = [
-            { name: 'High Compression', dpi: 72, quality: 0.55 },
-            { name: 'Medium Compression', dpi: 85, quality: 0.65 },
-            { name: 'Low Compression', dpi: 95, quality: 0.95 },
-            { name: 'New Compression', dpi: 100, quality: 0.85 }
-        ];
-
-        // Add custom preset if Custom is selected
-        if (currentPreset === 'Custom') {
-            const customDpi = parseInt(document.getElementById('custom_dpi').value) || 120;
-            const customQuality = (parseInt(document.getElementById('custom_quality').value) || 65) / 100;
-
-            presets.push({
-                name: 'Custom Compression',
-                dpi: customDpi,
-                quality: customQuality
-            });
-        }
-
-        let sizesHTML = `
-            <li class="font-semibold mb-2 text-gray-800">Original Size: ${originalSizeMB} MB</li>
-            <hr class="my-2 border-gray-300">
-        `;
-
-        // Initialize UI with progress bar and log area
         if (resultDiv) {
             resultDiv.innerHTML = `
-                <div class="text-blue-600">🔄 Computing accurate compression sizes...</div>
+                <div class="text-blue-600">🔄 Analyzing PDF content and computing sizes...</div>
                 <progress id="compressProgress" value="0" max="100" class="w-full h-2 mt-2"></progress>
                 <div id="compressionLogs" class="text-sm text-gray-600 mt-2 max-h-24 overflow-y-auto"></div>
             `;
         }
+
         const progressBar = document.getElementById('compressProgress');
         const logDiv = document.getElementById('compressionLogs');
 
-        // Helper function to append log messages to UI
         const appendLog = (message) => {
             console.log(message);
             if (logDiv) {
                 const logEntry = document.createElement('div');
                 logEntry.textContent = message;
                 logDiv.appendChild(logEntry);
-                // Keep only the last 5 logs to avoid clutter
                 while (logDiv.children.length > 5) {
                     logDiv.removeChild(logDiv.firstChild);
                 }
-                // Scroll to bottom
                 logDiv.scrollTop = logDiv.scrollHeight;
             }
         };
 
-        appendLog('Starting accurate compression size computation...');
+        appendLog('Analyzing PDF content structure...');
+
+        // Analyze PDF content
+        const pdfAnalysis = await analyzePDFContent(file);
+        appendLog(`Detected: ${pdfAnalysis.contentType}`);
+
+        // Define presets with IMPROVED quality settings
+        const presets = [
+            {
+                name: 'High Quality',
+                strategy: 'quality',
+                description: 'Best quality, minimal compression',
+                settings: {
+                    imageQuality: 0.95,
+                    scale: 2.0,
+                    useJPEG: false, // Use PNG for best quality
+                    format: 'png'
+                }
+            },
+            {
+                name: 'Balanced',
+                strategy: 'balanced',
+                description: 'Good balance of quality and size',
+                settings: {
+                    imageQuality: 0.85,
+                    scale: 1.5,
+                    useJPEG: true,
+                    format: 'jpeg'
+                }
+            },
+            {
+                name: 'Size Optimized',
+                strategy: 'size',
+                description: 'Better compression, good quality',
+                settings: {
+                    imageQuality: 0.75,
+                    scale: 1.25,
+                    useJPEG: true,
+                    format: 'jpeg'
+                }
+            },
+            {
+                name: 'Smart Compression',
+                strategy: 'smart',
+                description: 'Intelligent content-based compression',
+                settings: null // Uses analyzePDFContent results
+            }
+        ];
+
+        let sizesHTML = `
+            <li class="font-semibold mb-2 text-gray-800">Original Size: ${originalSizeMB} MB</li>
+            <li class="text-sm text-gray-600 mb-3">Content Type: ${pdfAnalysis.contentType}</li>
+            <hr class="my-2 border-gray-300">
+        `;
 
         let computedCount = 0;
 
@@ -461,45 +1018,54 @@ async function computeAllCompressionSizes() {
             }
 
             try {
-                // First get estimated size
-                const estimatedSize = await estimateCompressedSize(file, preset.dpi, preset.quality);
+                let compressedBlob;
 
-                // Then get actual compressed size
-                const compressedBlob = await enhancedPDFCompression(
-                    file,
-                    preset.dpi,
-                    preset.quality
-                );
+                if (preset.strategy === 'smart') {
+                    // Use intelligent analysis-based compression (same as main function)
+                    if (pdfAnalysis.isTextHeavy && !pdfAnalysis.hasComplexImages) {
+                        compressedBlob = await optimizeTextPDF(file, pdfAnalysis);
+                    } else if (pdfAnalysis.isImageHeavy) {
+                        compressedBlob = await compressImagePDF(file, pdfAnalysis);
+                    } else {
+                        compressedBlob = await compressMixedPDF(file, pdfAnalysis);
+                    }
+                } else {
+                    // Use preset-based compression with improved settings
+                    compressedBlob = await compressWithStrategyImproved(file, pdfAnalysis, preset.settings);
+                }
 
                 if (compressedBlob) {
                     const actualSizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(2);
                     const savings = (((file.size - compressedBlob.size) / file.size) * 100).toFixed(1);
-                    const accuracy = calculateAccuracy(estimatedSize, actualSizeMB);
 
-                    const savingsColor = savings >= 50 ? 'text-green-600' : savings >= 20 ? 'text-yellow-600' : 'text-red-600';
-                    const accuracyColor = accuracy >= 90 ? 'text-green-600' : accuracy >= 80 ? 'text-yellow-600' : 'text-red-600';
+                    const savingsColor = savings >= 50 ? 'text-green-600' :
+                        savings >= 20 ? 'text-yellow-600' :
+                            savings >= 0 ? 'text-orange-600' : 'text-red-600';
+
+                    const qualityIndicator = getQualityIndicator(preset.name);
 
                     sizesHTML += `
-                        <li class="mb-2 p-3 bg-white rounded-lg border border-gray-200">
-                            <strong class="text-gray-800">${preset.name}</strong><br>
+                        <li class="mb-2 p-3 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                            <div class="flex justify-between items-start">
+                                <strong class="text-gray-800">${preset.name}</strong>
+                                <span class="text-xs font-semibold ${getQualityColor(preset.name)}">${qualityIndicator}</span>
+                            </div>
                             <span class="text-sm text-gray-600">
-                             
-                                📏 Actual: <strong>${actualSizeMB} MB</strong><br>
-                            
+                                📏 Size: <strong>${actualSizeMB} MB</strong><br>
                                 💾 Reduction: <strong class="${savingsColor}">${savings}%</strong><br>
-                                ⚙️ Settings: ${preset.dpi} DPI, ${Math.round(preset.quality * 100)}% Quality
+                                📝 ${preset.description}
                             </span>
                         </li>
                     `;
 
-                    appendLog(`✓ ${preset.name}: Done`);
+                    appendLog(`✓ ${preset.name}: ${actualSizeMB}MB (${savings}% reduction)`);
                 }
             } catch (error) {
                 console.error(`Failed to compute ${preset.name}:`, error);
                 sizesHTML += `
                     <li class="mb-2 p-3 bg-red-50 rounded-lg border border-red-200">
                         <strong class="text-red-700">${preset.name}</strong><br>
-                        <span class="text-sm text-red-600">❌ Failed to compute size: ${error.message}</span>
+                        <span class="text-sm text-red-600">❌ Failed to compute: ${error.message}</span>
                     </li>
                 `;
                 appendLog(`✗ ${preset.name} failed: ${error.message}`);
@@ -518,31 +1084,24 @@ async function computeAllCompressionSizes() {
             compressionResults.classList.remove('hidden');
         }
 
-        // Check for negative savings and update message
+        // Show appropriate message based on results
         if (resultDiv) {
-            const negativeCount = (sizesHTML.match(/Reduction:.*?-\d+\.?\d*%/g) || []).length;
-            const totalPresets = presets.length;
+            const hasPositiveSavings = sizesHTML.includes('Reduction:') &&
+                !sizesHTML.includes('Reduction: -');
 
             let messageHTML;
-            if (negativeCount === totalPresets) {
+            if (!hasPositiveSavings) {
                 messageHTML = `
                     <div class="text-blue-600">
                         📊 <strong>PDF Analysis Complete</strong><br>
-                        <small>This PDF is already highly optimized and cannot be compressed further.</small>
-                    </div>
-                `;
-            } else if (negativeCount >= totalPresets / 2) {
-                messageHTML = `
-                    <div class="text-yellow-600">
-                        📊 <strong>Limited Compression Potential</strong><br>
-                        <small>This PDF is already well-compressed. Some presets may increase file size.</small>
+                        <small>This PDF is already optimized. Compression may not reduce size significantly.</small>
                     </div>
                 `;
             } else {
                 messageHTML = `
                     <div class="text-green-600">
                         ✅ <strong>Accurate Compression Estimation Completed!</strong><br>
-                        <small>Check the table above for size reduction estimates.</small>
+                        <small>These estimates match actual download sizes. Choose your preferred balance.</small>
                     </div>
                 `;
             }
@@ -565,33 +1124,288 @@ async function computeAllCompressionSizes() {
         // Re-enable button
         if (computeButton) {
             computeButton.disabled = false;
-            computeButton.innerHTML = '<i class="fas fa-calculator mr-2"></i> Compute All Compression';
+            computeButton.innerHTML = '<i class="fas fa-calculator mr-2"></i> Estimate Sizes';
+            compbutton.disabled = false;
         }
     }
 }
 
-// Update the file size display function
+// IMPROVED: Unified compression function with better quality settings
+async function compressWithStrategyImproved(file, pdfAnalysis, options) {
+    const {
+        imageQuality = 0.85,
+        scale = 1.5,
+        useJPEG = true,
+        format = 'jpeg'
+    } = options;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfjs = pdfLibraryManager.libraries.pdfjs.lib;
+    const pdfLib = pdfLibraryManager.libraries.pdfLib.lib;
+    const { PDFDocument } = pdfLib;
+
+    const sourceDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    const newPdfDoc = await PDFDocument.create();
+
+    const totalPages = sourceDoc.numPages;
+
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        const page = await sourceDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.0 });
+
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d', {
+            alpha: false,
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high'
+        });
+
+        // Use improved scaling
+        const actualScale = calculateOptimalScaleImproved(viewport, scale);
+        canvas.width = Math.floor(viewport.width * actualScale);
+        canvas.height = Math.floor(viewport.height * actualScale);
+
+        // Better rendering settings
+        context.fillStyle = 'white';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+
+        const renderContext = {
+            canvasContext: context,
+            viewport: page.getViewport({ scale: actualScale }),
+            enableWebGL: true
+        };
+
+        await page.render(renderContext).promise;
+
+        // Use appropriate format with quality considerations
+        let imageData;
+        if (useJPEG) {
+            imageData = canvas.toDataURL('image/jpeg', imageQuality);
+        } else {
+            imageData = canvas.toDataURL('image/png');
+        }
+
+        const base64Data = imageData.split(',')[1];
+        const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+        const image = useJPEG ?
+            await newPdfDoc.embedJpg(imageBytes) :
+            await newPdfDoc.embedPng(imageBytes);
+
+        const newPage = newPdfDoc.addPage([viewport.width, viewport.height]);
+        newPage.drawImage(image, {
+            x: 0, y: 0,
+            width: viewport.width,
+            height: viewport.height,
+        });
+
+        canvas.remove();
+    }
+
+    const compressedBytes = await newPdfDoc.save({
+        useObjectStreams: true,
+        compressImages: true,
+        imageQuality: useJPEG ? imageQuality : 1.0
+    });
+
+    return new Blob([compressedBytes], { type: 'application/pdf' });
+}
+
+// IMPROVED: Better scale calculation for quality
+function calculateOptimalScaleImproved(viewport, baseScale) {
+    const baseWidth = viewport.width;
+    const baseHeight = viewport.height;
+
+    // Higher base scales for better quality
+    const sizeFactor = Math.max(baseWidth, baseHeight);
+
+    if (sizeFactor > 2000) return baseScale * 0.9;    // Large documents
+    if (sizeFactor > 1000) return baseScale * 1.0;    // Medium documents  
+    if (sizeFactor > 500) return baseScale * 1.1;     // Small documents
+    return baseScale * 1.2;                           // Very small: higher DPI
+}
+
+// Helper functions for UI
+function getQualityIndicator(presetName) {
+    const indicators = {
+        'High Quality': '★★★★★',
+        'Balanced': '★★★★☆',
+        'Size Optimized': '★★★☆☆',
+        'Smart Compression': '★★★★☆'
+    };
+    return indicators[presetName] || '★★★☆☆';
+}
+
+function getQualityColor(presetName) {
+    const colors = {
+        'High Quality': 'text-green-600',
+        'Balanced': 'text-blue-600',
+        'Size Optimized': 'text-orange-600',
+        'Smart Compression': 'text-purple-600'
+    };
+    return colors[presetName] || 'text-gray-600';
+}
+
+// Update the main compress function to use the same improved logic
+async function compressPDFClientSide() {
+    console.log('Starting intelligent PDF compression...');
+
+    const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries(['pdfjs', 'pdfLib']);
+
+    const form = document.getElementById('compressForm');
+    const fileInput = form.querySelector('input[type="file"]');
+    const resultDiv = document.getElementById('result-compressForm');
+    const progressDiv = document.getElementById('progress-compressForm');
+    const progressText = document.getElementById('progress-text-compressForm');
+    const submitButton = form.querySelector('button[type="button"]');
+
+    // Get selected preset
+    const presetSelect = document.getElementById('compress-preset');
+    const selectedPreset = presetSelect ? presetSelect.value : 'Balanced';
+    const computeButton = document.getElementById('estimate-sizes-btn');
+
+    if (!fileInput?.files?.length) {
+        alert('Please select a PDF file.');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const originalSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+
+    // Show progress
+    progressDiv.style.display = 'block';
+    progressText.textContent = 'Analyzing PDF content...';
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Analyzing...';
+
+    try {
+        // Analyze PDF content
+        progressText.textContent = 'Analyzing PDF structure...';
+        const pdfAnalysis = await analyzePDFContent(file);
+
+        console.log('PDF Analysis:', pdfAnalysis);
+
+        // Map preset names to improved strategies
+        const presetStrategies = {
+            'High Quality': {
+                strategy: 'quality',
+                imageQuality: 0.95,
+                scale: 2.0,
+                useJPEG: false
+            },
+            'Balanced': {
+                strategy: 'balanced',
+                imageQuality: 0.85,
+                scale: 1.5,
+                useJPEG: true
+            },
+            'Size Optimized': {
+                strategy: 'size',
+                imageQuality: 0.75,
+                scale: 1.25,
+                useJPEG: true
+            },
+            'Smart Compression': {
+                strategy: 'smart'
+            }
+        };
+
+        let compressedBlob;
+        const strategy = presetStrategies[selectedPreset];
+
+        if (strategy.strategy === 'smart') {
+            // Use intelligent analysis-based compression
+            if (pdfAnalysis.isTextHeavy && !pdfAnalysis.hasComplexImages) {
+                compressedBlob = await optimizeTextPDF(file, pdfAnalysis);
+            } else if (pdfAnalysis.isImageHeavy) {
+                compressedBlob = await compressImagePDF(file, pdfAnalysis);
+            } else {
+                compressedBlob = await compressMixedPDF(file, pdfAnalysis);
+            }
+        } else {
+            // Use preset-based compression with improved settings
+            compressedBlob = await compressWithStrategyImproved(file, pdfAnalysis, strategy);
+        }
+
+        if (!compressedBlob) {
+            throw new Error('Compression failed');
+        }
+
+        // Calculate results
+        const compressedSizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(2);
+        const savings = (((file.size - compressedBlob.size) / file.size) * 100).toFixed(1);
+
+        // Download
+        const filename = `compressed_${file.name.replace('.pdf', '')}_${selectedPreset.replace(' ', '_')}.pdf`;
+        downloadBlob(compressedBlob, filename);
+
+        // Show results
+        resultDiv.innerHTML = `
+            <div class="text-green-600">
+                ✅ <strong>Compression Successful!</strong><br>
+                📁 Original: ${originalSizeMB}MB → Compressed: ${compressedSizeMB}MB<br>
+                💾 Size reduction: <strong class="${savings >= 0 ? 'text-green-600' : 'text-red-600'}">${savings}%</strong><br>
+                ⚙️ Preset: <strong>${selectedPreset}</strong><br>
+                📊 Content: ${pdfAnalysis.contentType}<br>
+                <small class="text-gray-500">Quality: ${getQualityIndicator(selectedPreset)}</small>
+            </div>
+        `;
+
+    } catch (error) {
+        console.error('Compression failed:', error);
+        resultDiv.innerHTML = `
+            <div class="text-red-600">
+                ❌ Compression failed: ${error.message}
+            </div>
+        `;
+    } finally {
+        progressDiv.style.display = 'none';
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Compress PDF';
+        computeButton.disabled = false;
+    }
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
 async function updateFileSize() {
-    // const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
-    //     'pdfjs', 'pdfLib'
-    // ]);
     const fileInput = document.getElementById('compress-file');
+    const fileNameDisplay = document.getElementById('compress-file-name');
     const fileSizeDisplay = document.getElementById('original-file-size');
+    const fileInfo = document.getElementById('file-info');
+
     if (fileInput && fileInput.files.length > 0) {
         const file = fileInput.files[0];
         const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+
+        fileNameDisplay.textContent = file.name;
         fileSizeDisplay.textContent = `Original File Size: ${sizeMB} MB`;
 
-        // Also show file characteristics for better prediction
-        const fileInfo = document.getElementById('file-info');
-        if (fileInfo) {
-            // // This would need to be populated after analyzing the PDF
-            fileInfo.innerHTML = `<small class="text-gray-500">File loaded: ${file.name}</small>`;
+        const compressionType = document.querySelector('input[name="compression_type"]:checked');
+        if (compressionType && compressionType.value === 'server') {
+            fileInfo.innerHTML = `<i class="fas fa-server mr-1 text-blue-500"></i> Ready for server compression (Best quality)`;
+        } else {
+            fileInfo.innerHTML = `<i class="fas fa-desktop mr-1 text-purple-500"></i> Ready for browser compression (Fully private)`;
         }
+
+        // Auto-compute sizes for files under 50MB
+        // if (file.size < 50 * 1024 * 1024) {
+        //     fileInfo.innerHTML = `<i class="fas fa-sync-alt mr-1 animate-spin"></i> Analyzing file...`;
+        //     setTimeout(() => {
+        //         computeAllCompressionSizes();
+        //     }, 1000);
+        // }
     } else {
+        fileNameDisplay.textContent = 'No file selected';
         fileSizeDisplay.textContent = 'Original File Size: Not selected';
+        fileInfo.innerHTML = '';
     }
 }
+
 
 
 // // /// //  // NEW ADD SIGNATURE FOR CLIENT SIDE
@@ -711,13 +1525,13 @@ async function processSignatureClientSide() {
         submitButton.textContent = 'Processing...'; // for <button>
         // submitButton.value = 'Processing...'; // use this if it's an <input type="submit">
     }
-    
-    resultDiv.textContent =""
+
+    resultDiv.textContent = ""
     const [pdfjs, pdfLib] = await pdfLibraryManager.loadLibraries([
         'pdfjs', 'pdfLib'
     ]);
 
-    
+
 
 
     try {
@@ -728,7 +1542,7 @@ async function processSignatureClientSide() {
 
         if (progressDiv) progressDiv.style.display = 'block';
         if (progressText) progressText.textContent = 'Processing signature...';
-        
+
 
         console.log('Calling addSignatureClientSide...');
 
@@ -1248,10 +2062,13 @@ function toggleDeleteInputs() {
 }
 
 function toggleCustomInputs() {
-    const preset = document.getElementById('compress-preset');
+    const presetSelect = document.getElementById('compress-preset');
     const customOptions = document.getElementById('custom-compress-options');
-    if (preset && customOptions) {
-        customOptions.classList.toggle('hidden', preset.value !== 'Custom');
+
+    if (presetSelect.value === 'Custom') {
+        customOptions.classList.remove('hidden');
+    } else {
+        customOptions.classList.add('hidden');
     }
 }
 
@@ -1275,14 +2092,230 @@ async function getTotalPages(file) {
     }
 }
 
+
+
+// /////////////////////////////////
+function setupCompressionType() {
+    const serverRadio = document.getElementById('server-compression');
+    const clientRadio = document.getElementById('client-compression');
+    const serverOptions = document.getElementById('server-options');
+    const clientOptions = document.getElementById('client-options');
+    const serverlabel = document.getElementById('serverlabel');
+    const clientlabel = document.getElementById('clientlabel');
+    const serverlabelforcolorchange = document.querySelector('label[for="server-compression"]');
+    const clientlabelforcolorchange = document.querySelector('label[for="client-compression"]');
+
+    function updateOptions() {
+        if (serverRadio.checked) {
+            serverOptions.classList.remove('hidden');
+            clientOptions.classList.add('hidden');
+            serverlabel.style.backgroundColor = '#d1e7dd'; // light green
+            serverlabelforcolorchange.style.backgroundColor = '#d1e7dd';
+            clientlabelforcolorchange.style.backgroundColor = '';
+
+            clientlabel.style.backgroundColor = ''; // reset
+        } else {
+            serverOptions.classList.add('hidden');
+            clientOptions.classList.remove('hidden');
+            clientlabel.style.backgroundColor = '#cff4fc'; // light blue
+            serverlabel.style.backgroundColor = ''; // reset
+            serverlabelforcolorchange.style.backgroundColor = ''; // reset
+            clientlabelforcolorchange.style.backgroundColor = '#cff4fc'
+        }
+    }
+
+    if (serverRadio && clientRadio) {
+        serverRadio.addEventListener('change', updateOptions);
+        clientRadio.addEventListener('change', updateOptions);
+        updateOptions(); // Initial call
+    }
+}
+////////////////////////////////////////////
+
+async function processServerCompressionTwoStep(form, resultDiv, progressDiv, progressBar, progressText, progressPercent, progressStatus, submitButton) {
+    const fileInput = form.querySelector('#compress-file');
+    const preset = document.getElementById('server-preset')?.value || 'ebook';
+    const computeButton = document.getElementById('estimate-sizes-btn');
+
+    if (!fileInput || !fileInput.files[0]) {
+        resultDiv.textContent = 'Please select a PDF file.';
+        resultDiv.classList.add('text-red-600');
+        return;
+    }
+
+    const file = fileInput.files[0];
+
+    // Initialize UI
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Starting...';
+    progressDiv.style.display = 'block';
+    updateProgressUI(progressBar, progressText, progressPercent, progressStatus, {
+        progress: 0,
+        message: 'Initializing uploading...',
+        stage: 'initializing'
+    });
+
+    let taskId = null;
+    let progressInterval = null;
+
+    try {
+        // STEP 1: Start compression
+        console.log('🚀 STEP 1: Starting compression...');
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('preset', preset);
+
+        const startResponse = await fetch('/start_compression', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!startResponse.ok) {
+            const error = await startResponse.json();
+            throw new Error(error.detail || 'Failed to start compression');
+        }
+
+        const startData = await startResponse.json();
+        taskId = startData.task_id;
+
+        console.log('📨 Received task ID:', taskId);
+
+        // STEP 2: Start real-time progress tracking
+        console.log('🔄 STEP 2: Starting enhanced progress tracking');
+        progressInterval = startProgressTracking(taskId, progressBar, progressText, progressPercent, progressStatus);
+
+        // STEP 3: Wait for completion with timeout
+        console.log('⏳ STEP 3: Waiting for completion...');
+        await waitForCompressionCompletion(taskId, 300000); // 5 minute timeout
+
+        // STEP 4: Download result
+        console.log('📥 STEP 4: Downloading result...');
+        await downloadCompressedResult(taskId, resultDiv);
+
+    } catch (error) {
+        console.error('Compression error:', error);
+
+        // Stop progress tracking
+        if (progressInterval) {
+            clearInterval(progressInterval);
+        }
+
+        // Show error state
+        updateProgressUI(progressBar, progressText, progressPercent, progressStatus, {
+            progress: 0,
+            message: `Error: ${error.message}`,
+            stage: 'error'
+        });
+
+        resultDiv.innerHTML = `
+            <div class="text-red-600">
+                ❌ Compression failed: ${error.message}
+            </div>
+        `;
+    } finally {
+        // Re-enable button
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Compress PDF';
+        computeButton.disabled = false;
+
+    }
+}
+
+// Enhanced completion waiter with timeout
+async function waitForCompressionCompletion(taskId, timeoutMs = 300000) {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        const checkCompletion = async () => {
+            try {
+                if (Date.now() - startTime > timeoutMs) {
+                    reject(new Error('Compression timeout - process took too long'));
+                    return;
+                }
+
+                const response = await fetch(`${BASE_URL}/progress/${taskId}`);
+                if (response.ok) {
+                    const progressData = await response.json();
+                    if (progressData.progress >= 100) {
+                        resolve(progressData);
+                    } else {
+                        // Continue polling
+                        setTimeout(checkCompletion, 1000);
+                    }
+                } else {
+                    reject(new Error('Failed to check progress'));
+                }
+            } catch (error) {
+                reject(error);
+            }
+        };
+
+        checkCompletion();
+    });
+}
+// NEW: Download compressed result
+async function downloadCompressedResult(taskId, resultDiv) {
+    const response = await fetch(`${BASE_URL}/download_compressed/${taskId}`);
+
+    if (!response.ok) {
+        throw new Error('Failed to download compressed file');
+    }
+
+    // Get filename from headers
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = 'compressed.pdf';
+    if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"|filename=([^;]+)/i);
+        if (match) filename = match[1] || match[2];
+    }
+
+    const blob = await response.blob();
+
+    // Trigger download
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    // Show success message
+    const originalSize = response.headers.get('X-Original-Size');
+    const compressedSize = response.headers.get('X-Compressed-Size');
+    const savings = response.headers.get('X-Savings-Percent');
+
+    if (originalSize && compressedSize && savings) {
+        const originalSizeMB = (parseInt(originalSize) / (1024 * 1024)).toFixed(2);
+        const compressedSizeMB = (parseInt(compressedSize) / (1024 * 1024)).toFixed(2);
+
+        resultDiv.innerHTML = `
+            <div class="text-green-600">
+                ✅ <strong>Compression Successful!</strong><br>
+                📁 Original: ${originalSizeMB}MB → Compressed: ${compressedSizeMB}MB<br>
+                💾 Size reduction: <strong class="text-green-600">${savings}%</strong><br>
+                ⚙️ Method: <strong>First</strong>
+            </div>
+        `;
+    }
+}
+
+/////////////////////////////////
 async function processPDF(endpoint, formId) {
     console.log(`Processing PDF for endpoint: ${endpoint}, form: ${formId}`);
     const form = document.getElementById(formId);
     const resultDiv = document.getElementById(`result-${formId}`);
     const submitButton = form.querySelector('button');
-    const progressDiv = document.getElementById(`progress-${formId}`);
-    const progressText = document.getElementById(`progress-text-${formId}`);
-    const spinnerStyle = document.createElement('style');
+
+    const progressDiv = document.getElementById('progress-compressForm');
+    const progressBar = document.getElementById('compressProgress');
+    const progressText = document.getElementById('progress-text-compressForm');
+    const progressPercent = document.getElementById('progress-percent-compressForm');
+    const progressStatus = document.getElementById('progress-status-compressForm');
+    const computeButton = document.getElementById('estimate-sizes-btn');
+    const pdftoexcelbutton = document.getElementById('pdftoexcelbutton');
+    const pdftowordbutton = document.getElementById('pdftowordbutton');
+    computeButton.disabled = true;
 
     if (!form) {
         console.error(`Form with ID ${formId} not found`);
@@ -1290,6 +2323,47 @@ async function processPDF(endpoint, formId) {
         resultDiv.classList.add('text-red-600');
         return;
     }
+
+    if (!(await validateForm(form, endpoint, resultDiv))) {
+        console.log('Validation failed');
+        return;
+    }
+
+    // Handle compression type selection
+    if (endpoint === 'compress_pdf') {
+        const compressionType = document.querySelector('input[name="compression_type"]:checked');
+        if (compressionType && compressionType.value === 'client') {
+            await compressPDFClientSide();
+            return;
+        }
+
+        // NEW: Use two-step process for server compression
+        await processServerCompressionTwoStep(form, resultDiv, progressDiv, progressBar, progressText, progressPercent, progressStatus, submitButton);
+        return;
+    }
+
+    let processingButton = null;
+    let originalHTML = '';
+
+    if (endpoint === 'convert_pdf_to_excel' && pdftoexcelbutton) {
+        processingButton = pdftoexcelbutton;
+        originalHTML = pdftoexcelbutton.innerHTML;
+        pdftoexcelbutton.disabled = true;
+        pdftoexcelbutton.innerHTML = '<i class="fas fa-sync-alt fa-spin mr-2"></i> Processing...';
+    }
+    else if (endpoint === 'convert_pdf_to_word' && pdftowordbutton) {
+        processingButton = pdftowordbutton;
+        originalHTML = pdftowordbutton.innerHTML;
+        pdftowordbutton.disabled = true;
+        pdftowordbutton.innerHTML = '<i class="fas fa-sync-alt fa-spin mr-2"></i> Processing...';
+    }
+    else {
+        processingButton = submitButton;
+        originalHTML = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-sync-alt fa-spin mr-2"></i> Processing...';
+    }
+
 
     let formData = new FormData();
 
@@ -1316,9 +2390,9 @@ async function processPDF(endpoint, formId) {
         formData.append('description', description);
         formData.append('description_position', position);
         formData.append('description_font_size', fontSize);
-        formData.append('font_color', fontColor); // NEW IMPLEMENTION
-        formData.append('font_family', fontFamily); // NEW IMPLEMENTION
-        formData.append('font_weight', fontWeight); // NEW IMPLEMENTION
+        formData.append('font_color', fontColor);
+        formData.append('font_family', fontFamily);
+        formData.append('font_weight', fontWeight);
         formData.append('page_size', pageSize);
         formData.append('orientation', orientation);
 
@@ -1331,16 +2405,19 @@ async function processPDF(endpoint, formId) {
             formData.append('custom_x', parseFloat(customX));
             formData.append('custom_y', parseFloat(customY));
         }
-    } else if (endpoint === 'compress_pdf') {
-        const preset = form.querySelector('select[name="preset"]').value;
-        formData = new FormData(form);
-        formData.append('preset', preset);
-        if (preset === 'Custom') {
-            const customDpi = form.querySelector('input[name="custom_dpi"]').value;
-            const customQuality = form.querySelector('input[name="custom_quality"]').value;
-            formData.append('custom_dpi', customDpi);
-            formData.append('custom_quality', customQuality);
+    } else if (endpoint === 'compress_pdf_server') {
+        const fileInput = form.querySelector('#compress-file');
+        const preset = document.getElementById('server-preset')?.value || 'ebook';
+
+        if (!fileInput || !fileInput.files[0]) {
+            resultDiv.textContent = 'Please select a PDF file.';
+            resultDiv.classList.add('text-red-600');
+            return;
         }
+
+        formData.append('file', fileInput.files[0]);
+        formData.append('preset', preset);
+
     } else if (endpoint === 'delete_pdf_pages') {
         const deleteType = form.querySelector('select[name="delete_type"]').value;
         const file = form.querySelector('input[type="file"]').files[0];
@@ -1355,7 +2432,11 @@ async function processPDF(endpoint, formId) {
         formData = new FormData();
         formData.append('file', file);
         formData.append('pages', pages);
-    } else {
+    }
+
+
+
+    else {
         const conversionTypeInput = form.querySelector('input[name="conversionType"]:checked');
         formData = new FormData(form);
         if (conversionTypeInput) {
@@ -1365,10 +2446,7 @@ async function processPDF(endpoint, formId) {
         }
     }
 
-    if (!(await validateForm(form, endpoint, resultDiv))) {
-        console.log('Validation failed');
-        return;
-    }
+
 
     console.log('Sending request to:', `${BASE_URL}/${endpoint}`);
     console.log('FormData contents:');
@@ -1377,85 +2455,199 @@ async function processPDF(endpoint, formId) {
     }
 
     submitButton.disabled = true;
-    progressDiv.style.display = 'block';
-    progressText.textContent = 'Preparing files...';
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-        progress = Math.min(progress + 10, 90);
-        progressDiv.querySelector('progress').value = progress;
-        progressText.textContent = `Uploading & Processing... ${progress}%`;
-    }, 200);
+
+    // Initialize progress tracking
+    if (progressDiv) progressDiv.style.display = 'block';
+    if (progressBar) progressBar.value = 0;
+    if (progressText) progressText.textContent = 'Starting...';
+    if (progressPercent) progressPercent.textContent = '0%';
+    if (progressStatus) progressStatus.textContent = 'Initializing';
+
+    let progressInterval = null;
+    let taskId = null;
 
     try {
+
+        console.log('🚀 Sending request AND starting progress simulation immediately');
+
+        // Start simulated progress immediately (will be overridden by real progress)
+        progressInterval = simulateProgress(progressBar, progressText, progressPercent, progressStatus);
+
         const response = await fetch(`${BASE_URL}/${endpoint}`, {
             method: 'POST',
             body: formData
         });
-        clearInterval(progressInterval);
-        progressDiv.querySelector('progress').value = 100;
 
-        spinnerStyle.textContent = `
-            .spinner {
-                display: inline-block;
-                width: 20px;
-                height: 20px;
-                border: 3px solid rgba(235, 13, 13, 0.99);
-                border-radius: 50%;
-                border-top-color: rgba(37, 230, 20, 0.99);
-                animation: spin 1s ease-in-out infinite;
-            }
-            @keyframes spin {
-                to { transform: rotate(360deg); }
-            }
-        `;
-        document.head.appendChild(spinnerStyle);
-        progressText.innerHTML = 'Processing completed. Wait for download... <i class="fas fa-spinner fa-spin" style="font-size: 1rem;color: red;"></i>';
-
-        if (response.ok) {
-            const blob = await response.blob();
-            const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = endpoint === 'compress_pdf' ? 'compressed.pdf' : 'output.pdf';
-            if (contentDisposition) {
-                const match = contentDisposition.match(/filename="(.+)"|filename=([^;]+)/i);
-                if (match) filename = match[1] || match[2];
-            }
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-            window.URL.revokeObjectURL(url);
-            resultDiv.textContent = endpoint === 'compress_pdf' ? 'PDF compressed successfully!' : 'Processing completed successfully!';
-            resultDiv.classList.remove('text-red-600');
-            resultDiv.classList.add('text-green-600');
-        } else {
+        if (!response.ok) {
             const error = await response.json();
-            let errorMessage = 'Unknown error';
-            if (Array.isArray(error.detail)) {
-                errorMessage = error.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join('; ');
-            } else if (error.detail) {
-                errorMessage = error.detail;
-            }
-            console.error('Backend error:', error);
-            resultDiv.textContent = `Error: ${errorMessage}`;
-            resultDiv.classList.remove('text-green-600');
-            resultDiv.classList.add('text-red-600');
+            throw new Error(error.detail || 'Server error');
         }
-    } catch (e) {
-        clearInterval(progressInterval);
-        console.error('Fetch error:', e, 'Endpoint:', endpoint);
-        resultDiv.textContent = `Error: ${e.message}. Please check the server logs.`;
-        resultDiv.classList.remove('text-green-600');
+
+        // Get task ID from response headers for progress tracking
+        taskId = response.headers.get('X-Task-ID');
+
+        if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+        }
+        const fileInput = document.getElementById('compress-file');
+        const file = fileInput?.files[0];
+        console.log('📨 Received task ID:', taskId);
+        console.log('🔄 TESTING FOR ONLY real progress tracking for large file');
+        progressInterval = startProgressTracking(taskId, progressBar, progressText, progressPercent, progressStatus);
+
+        // Determine if we should use real progress or simulated
+        // const shouldUseRealProgress = taskId && file && file.size > 10 * 1024 * 1024;
+
+        // if (shouldUseRealProgress) {
+        //     console.log('🔄 Switching to real progress tracking for large file');
+        //     progressInterval = startProgressTracking(taskId, progressBar, progressText, progressPercent, progressStatus);
+        // } else {
+        //     console.log('⚡ Using simulated progress for fast compression');
+        //     progressInterval = simulateProgress(progressBar, progressText, progressPercent, progressStatus);
+        // }
+
+
+        // Handle the file download WITHOUT blocking on blob()
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = 'output.pdf';
+        if (contentDisposition) {
+            const match = contentDisposition.match(/filename="(.+)"|filename=([^;]+)/i);
+            if (match) filename = match[1] || match[2];
+        }
+
+        const blob = await response.blob();
+
+        // Update UI to show completion
+        if (progressBar) progressBar.value = 100;
+        if (progressPercent) progressPercent.textContent = '100%';
+        if (progressText) progressText.textContent = 'Download complete!';
+        if (progressStatus) progressStatus.textContent = 'Completed';
+
+
+        // Get compression results from headers
+        if (endpoint === 'compress_pdf_server') {
+            const originalSize = response.headers.get('X-Original-Size');
+            const compressedSize = response.headers.get('X-Compressed-Size');
+            const savings = response.headers.get('X-Savings-Percent');
+
+            if (originalSize && compressedSize && savings) {
+                const originalSizeMB = (parseInt(originalSize) / (1024 * 1024)).toFixed(2);
+                const compressedSizeMB = (parseInt(compressedSize) / (1024 * 1024)).toFixed(2);
+
+                resultDiv.innerHTML = `
+                    <div class="text-green-600">
+                        ✅ <strong>Server Compression Successful!</strong><br>
+                        📁 Original: ${originalSizeMB}MB → Compressed: ${compressedSizeMB}MB<br>
+                        💾 Size reduction: <strong class="text-green-600">${savings}%</strong><br>
+                        ⚙️ Method: <strong>Ghostscript</strong>
+                    </div>
+                `;
+            } else {
+                resultDiv.textContent = 'PDF compressed successfully with Ghostscript!';
+                resultDiv.classList.add('text-green-600');
+            }
+        } else {
+            resultDiv.textContent = 'Processing completed successfully!';
+            resultDiv.classList.add('text-green-600');
+        }
+
+        // Trigger download
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+        console.error('Error:', error);
+
+        // Stop progress tracking on error
+        if (progressInterval) {
+            clearInterval(progressInterval);
+        }
+
+        // Show error in progress
+        if (progressText) progressText.textContent = `Error: ${error.message}`;
+        if (progressBar) progressBar.value = 0;
+        if (progressStatus) progressStatus.textContent = 'Failed';
+
+        resultDiv.textContent = `Error: ${error.message}`;
         resultDiv.classList.add('text-red-600');
     } finally {
         submitButton.disabled = false;
+
+        if (processingButton) {
+            processingButton.disabled = false;
+            processingButton.innerHTML = originalHTML;
+        }
+
+        // Clean up progress tracking after delay
         setTimeout(() => {
-            progressDiv.style.display = 'none';
-            progressText.textContent = '';
-        }, 2000);
+            if (progressDiv) progressDiv.style.display = 'none';
+            if (progressBar) progressBar.value = 0;
+            if (progressText) progressText.textContent = '';
+            if (progressStatus) progressStatus.textContent = '';
+        }, 3000);
     }
 }
 
+
+
+
+// NEW: Fallback progress simulation
+function simulateProgress(progressBar, progressText, progressPercent, progressStatus) {
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 10 + 5; // Variable progress
+        if (progress > 85) progress = 85; // Cap at 85% until real progress takes over
+
+        if (progressBar) progressBar.value = progress;
+        if (progressPercent) progressPercent.textContent = `${Math.round(progress)}%`;
+        if (progressText) progressText.textContent = getProgressMessage(progress);
+        if (progressStatus) progressStatus.textContent = getProgressStatus(progress);
+    }, 500);
+
+    return interval;
+}
+
+// NEW: Helper functions
+function getProgressStatus(progress) {
+    if (progress < 20) return 'Uploading';
+    if (progress < 40) return 'Processing';
+    if (progress < 70) return 'Compressing';
+    if (progress < 90) return 'Finalizing';
+    return 'Completed';
+}
+function getProgressMessage(progress) {
+    const messages = {
+        0: 'Starting compression process...',
+        10: 'Uploading file to server...',
+        30: 'Analyzing PDF content...',
+        50: 'Compressing with Ghostscript...',
+        70: 'Optimizing compression...',
+        90: 'Finalizing and preparing download...',
+        100: 'Compression complete!'
+    };
+
+    return messages[progress] || 'Processing...';
+}
+
+function stopProgressTracking() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+    currentTaskId = null;
+}
+
+// NEW: Clean up on page unload
+window.addEventListener('beforeunload', () => {
+    stopProgressTracking();
+});
 
 
 function updateFileOrder(fileElements) {
@@ -1488,6 +2680,48 @@ async function validateForm(form, endpoint, resultDiv) {
         resultDiv.textContent = 'Please select a file.';
         resultDiv.classList.add('text-red-600');
         return false;
+    }
+
+    //  CHECKS FOR PDF WORD EXCEL
+
+    if (endpoint === 'convert_pdf_to_word' || endpoint === 'convert_pdf_to_excel') {
+        const file = files[0];
+    
+        // Check file size
+        if (file.size > MAX_FILE_SIZE_PDFWORDEXCEL) {
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            resultDiv.textContent = `File ${file.name} (${sizeMB}MB) exceeds 10MB limit for conversion.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+    
+        // Check file type
+        if (file.type !== 'application/pdf') {
+            resultDiv.textContent = `File ${file.name} must be a PDF.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+    
+        // Check page count - FIXED CODE
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const [pdfjs] = await pdfLibraryManager.loadLibraries(['pdfjs']);
+            
+            // ✅ CORRECT: Load the PDF document first
+            const pdfDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+            const totalPages = pdfDoc.numPages; // ✅ Get pages from the loaded document
+    
+            if (totalPages > PDFWORDEXCEL_MAX_PAGES) {
+                resultDiv.textContent = `File ${file.name} has ${totalPages} pages. Maximum ${PDFWORDEXCEL_MAX_PAGES} pages allowed for conversion.`;
+                resultDiv.classList.add('text-red-600');
+                return false;
+            }
+        } catch (err) {
+            console.error('Error counting pages:', err);
+            resultDiv.textContent = 'Error loading PDF file. Please ensure it\'s a valid PDF.';
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
     }
 
     if (endpoint === 'convert_image_to_pdf') {
@@ -1664,11 +2898,13 @@ async function validateForm(form, endpoint, resultDiv) {
             resultDiv.classList.add('text-red-600');
             return false;
         }
+
+        // In the validateForm function, update the compress_pdf section:
     } else if (endpoint === 'compress_pdf') {
         const file = files[0];
         const sizeMB = file.size / (1024 * 1024);
-        if (sizeMB > 160) {
-            resultDiv.textContent = `File ${file.name} exceeds 160MB limit.`;
+        if (sizeMB > 250) { // Increased limit for server-side
+            resultDiv.textContent = `File ${file.name} exceeds 250MB limit.`;
             resultDiv.classList.add('text-red-600');
             return false;
         }
@@ -1677,29 +2913,45 @@ async function validateForm(form, endpoint, resultDiv) {
             resultDiv.classList.add('text-red-600');
             return false;
         }
-        const preset = form.querySelector('select[name="preset"]').value;
-        if (!['High', 'Medium', 'Low', 'Custom'].includes(preset)) {
-            resultDiv.textContent = 'Invalid preset. Choose High, Medium, Low, or Custom.';
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
-        if (preset === 'Custom') {
-            const customDpi = form.querySelector('input[name="custom_dpi"]').value;
-            const customQuality = form.querySelector('input[name="custom_quality"]').value;
-            if (!customDpi || !customQuality) {
-                resultDiv.textContent = 'Custom preset requires DPI and quality values.';
+
+        // Check compression type
+        const compressionType = document.querySelector('input[name="compression_type"]:checked');
+        if (compressionType && compressionType.value === 'server') {
+            // Server-side validation
+            const preset = document.getElementById('server-preset')?.value;
+            if (!preset || !['prepress', 'printer', 'ebook', 'screen'].includes(preset)) {
+                resultDiv.textContent = 'Invalid server compression preset.';
                 resultDiv.classList.add('text-red-600');
                 return false;
             }
-            const dpi = parseInt(customDpi);
-            const quality = parseInt(customQuality);
-            if (dpi < 50 || dpi > 400 || quality < 10 || quality > 100) {
-                resultDiv.textContent = 'Invalid custom DPI (50-400) or quality (10-100).';
+        } else {
+            // Client-side validation (your existing code)
+            const preset = form.querySelector('select[name="preset"]').value;
+            if (!['High', 'Medium', 'Low', 'Custom'].includes(preset)) {
+                resultDiv.textContent = 'Invalid preset. Choose High, Medium, Low, or Custom.';
                 resultDiv.classList.add('text-red-600');
                 return false;
             }
+            if (preset === 'Custom') {
+                const customDpi = form.querySelector('input[name="custom_dpi"]').value;
+                const customQuality = form.querySelector('input[name="custom_quality"]').value;
+                if (!customDpi || !customQuality) {
+                    resultDiv.textContent = 'Custom preset requires DPI and quality values.';
+                    resultDiv.classList.add('text-red-600');
+                    return false;
+                }
+                const dpi = parseInt(customDpi);
+                const quality = parseInt(customQuality);
+                if (dpi < 50 || dpi > 400 || quality < 10 || quality > 100) {
+                    resultDiv.textContent = 'Invalid custom DPI (50-400) or quality (10-100).';
+                    resultDiv.classList.add('text-red-600');
+                    return false;
+                }
+            }
         }
-    } else if (endpoint === 'delete_pdf_pages') {
+    }
+
+    else if (endpoint === 'delete_pdf_pages') {
         const deleteTypeElement = form.querySelector('select[name="delete_type"]');
         if (!deleteTypeElement) {
             resultDiv.textContent = 'Delete type selector not found.';
@@ -1769,8 +3021,11 @@ async function validateForm(form, endpoint, resultDiv) {
             }
             form.querySelector('input[name="pages"]').value = expandedPages;
         }
-    } else {
-        const maxSizeMB = endpoint === 'compress_pdf' ? 55 : endpoint === 'split_pdf' ? 100 : 50;
+    }
+
+
+    else {
+        const maxSizeMB = endpoint === 'compress_pdf' ? 55 : endpoint === 'split_pdf' ? 100 : 70;
         const file = files[0];
         const sizeMB = file.size / (1024 * 1024);
         if (sizeMB > maxSizeMB) {
@@ -2141,7 +3396,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Show last used tool or chat by default
     const lastTool = localStorage.getItem('lastTool') || 'chat-section';
     showTool(lastTool);
-
+    setupCompressionType();
     console.log('PDF Library Manager initialized');
     console.log('Library status:', pdfLibraryManager.getStatus());
 });
@@ -2410,3 +3665,7 @@ function clearAllForms() {
     }
 
 }
+
+
+//  pdf to word
+

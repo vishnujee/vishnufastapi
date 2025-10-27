@@ -1,7 +1,12 @@
-from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form,Body
+from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form,Body,Response,BackgroundTasks
 from fastapi.responses import HTMLResponse, FileResponse,StreamingResponse,JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+import platform
+import subprocess
+import uuid
+import aiofiles
+import redis
 import os
 import boto3
 import io
@@ -12,7 +17,6 @@ import requests
 import psutil
 import time
 import PyPDF2
-import io
 import re
 import pandas as pd
 import json
@@ -23,7 +27,9 @@ from pinecone import Pinecone, ServerlessSpec
 # from pydantic import BaseModel
 from botocore.exceptions import ClientError
 import pathlib
+import shutil
 
+from pypdf import PdfReader
 import gc
 
 from typing import Any, Dict, List, Optional
@@ -46,9 +52,28 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.documents import Document
 #### for openai
 from langchain_openai import OpenAIEmbeddings
-# from pathlib import Path
+from pathlib import Path
 import hashlib
 # from PyPDF2 import  PdfReader
+
+
+
+########  load pdf library
+
+
+# from adobe.pdfservices.operation.auth.service_principal_credentials import ServicePrincipalCredentials
+# from adobe.pdfservices.operation.exception.exceptions import ServiceApiException, ServiceUsageException, SdkException
+# from adobe.pdfservices.operation.io.cloud_asset import CloudAsset
+# from adobe.pdfservices.operation.io.stream_asset import StreamAsset
+# from adobe.pdfservices.operation.pdf_services import PDFServices
+# from adobe.pdfservices.operation.pdf_services_media_type import PDFServicesMediaType
+# from adobe.pdfservices.operation.pdfjobs.jobs.export_pdf_job import ExportPDFJob
+# from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_params import ExportPDFParams
+# from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_target_format import ExportPDFTargetFormat
+# from adobe.pdfservices.operation.pdfjobs.result.export_pdf_result import ExportPDFResult
+#############
+
+
 
 from rembg import remove
 from dotenv import load_dotenv
@@ -60,16 +85,13 @@ load_dotenv()
 from app.pdf_operations import  (
     upload_to_s3, cleanup_s3_file,
     merge_pdfs_pypdf2, merge_pdfs_ghostscript, safe_compress_pdf, encrypt_pdf,
-    convert_pdf_to_images, split_pdf, delete_pdf_pages, convert_pdf_to_word,
-    convert_pdf_to_excel, convert_image_to_pdf, remove_pdf_password,reorder_pdf_pages,
+    convert_pdf_to_images, split_pdf, delete_pdf_pages,  convert_image_to_pdf, remove_pdf_password,reorder_pdf_pages,
     add_page_numbers, add_signature,remove_background_rembg,convert_pdf_to_ppt,convert_pdf_to_editable_ppt,
     estimate_compression_sizes,cleanup_local_files
 )
 
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+
 app = FastAPI()
 
 
@@ -174,6 +196,39 @@ else:
 PDF_URL_TABULAR = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/2.pdf"  # Your main PDF with tables
 PDF_URL_NONTABULAR = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/1.pdf"
 S3_PREFIX = "Amazingvideo/"
+
+
+
+# ========== CENTRALIZED DIRECTORY CONFIGURATION ==========
+BASE_DIR = Path(__file__).parent
+TEMP_DIR = BASE_DIR / "temp_processing"
+UPLOAD_DIR = TEMP_DIR / "uploads"
+OUTPUT_DIR = TEMP_DIR / "output"
+ESTIMATION_DIR = TEMP_DIR / "estimation"
+PDFTOWORD = TEMP_DIR / "word"
+
+# File operation limits
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_PAGES = 5
+orphan_age_seconds = 400  # 15 minutes
+
+def setup_directories():
+    """Create necessary directories on startup - EC2 COMPATIBLE"""
+    directories = [TEMP_DIR, UPLOAD_DIR, OUTPUT_DIR, ESTIMATION_DIR, PDFTOWORD]
+    
+    for directory in directories:
+        try:
+            # ✅ Use os.makedirs for EC2 compatibility
+            os.makedirs(str(directory), exist_ok=True)
+            # ✅ Set proper permissions
+            os.chmod(str(directory), 0o755)
+            logger.info(f"✅ Directory ready: {directory}")
+        except Exception as e:
+            logger.error(f"❌ Failed to create directory {directory}: {e}")
+            # ✅ Critical - fail fast if directories can't be created
+            raise
+
+
 
 
 def download_from_url(url):
@@ -792,7 +847,7 @@ def initialize_vectorstore():
                     # Batch embed for efficiency
                     embeddings_list = embeddings.embed_documents(texts)
                     
-                    # ✅ ADD THESE LINES
+                    # ADD THESE LINES
                     logger.info(f"🔤 Generated {len(embeddings_list)} embeddings for batch")
                     if embeddings_list:
                         logger.info(f"📏 First embedding dimensions: {len(embeddings_list[0])}")
@@ -931,6 +986,7 @@ thread_pool = ThreadPoolExecutor(max_workers=4)
 async def startup_event():
     global retriever, llm
     logger.info("🚀 Starting AI services initialization...")
+    setup_directories()
     
     try:
         # Initialize only once at startup
@@ -964,44 +1020,44 @@ async def startup_event():
 
 
 
-@app.get("/memory-usage")
-async def memory_usage_stream(request: Request):
-    """Stream memory usage data every second"""
-    async def event_stream():
-        while True:
-            if await request.is_disconnected():
-                break
+# @app.get("/memory-usage")
+# async def memory_usage_stream(request: Request):
+#     """Stream memory usage data every second"""
+#     async def event_stream():
+#         while True:
+#             if await request.is_disconnected():
+#                 break
             
-            # Get memory info
-            mem = psutil.virtual_memory()
-            swap = psutil.swap_memory()
+#             # Get memory info
+#             mem = psutil.virtual_memory()
+#             swap = psutil.swap_memory()
             
-            data = {
-                "ram": {
-                    "total": mem.total,
-                    "used": mem.used,
-                    "free": mem.free,
-                    "percent": mem.percent
-                },
-                "rom": {
-                    "total": swap.total,
-                    "used": swap.used,
-                    "free": swap.free,
-                    "percent": swap.percent
-                }
-            }
+#             data = {
+#                 "ram": {
+#                     "total": mem.total,
+#                     "used": mem.used,
+#                     "free": mem.free,
+#                     "percent": mem.percent
+#                 },
+#                 "rom": {
+#                     "total": swap.total,
+#                     "used": swap.used,
+#                     "free": swap.free,
+#                     "percent": swap.percent
+#                 }
+#             }
             
-            yield f"data: {json.dumps(data)}\n\n"
-            await asyncio.sleep(1)
+#             yield f"data: {json.dumps(data)}\n\n"
+#             await asyncio.sleep(1)
     
-    return StreamingResponse(
-        event_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        }
-    )
+#     return StreamingResponse(
+#         event_stream(),
+#         media_type="text/event-stream",
+#         headers={
+#             "Cache-Control": "no-cache",
+#             "Connection": "keep-alive",
+#         }
+#     )
 
 
 
@@ -1128,9 +1184,61 @@ def quick_table_analysis(retriever, query):
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
+   
     index_path = os.path.join(static_dir, "index.html")
     with open(index_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+
+
+@app.get("/cleanup", response_class=HTMLResponse)
+async def cleanup_dashboard():
+    """Serve the comprehensive cleanup dashboard"""
+    cleanup_path = os.path.join(static_dir, "cleanup.html")
+    with open(cleanup_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
+@app.post("/test-cleanup")
+async def test_cleanup():
+    """Manual cleanup trigger for testing"""
+    try:
+        logger.info("🧹 Manual cleanup triggered via /test-cleanup")
+        cleanup_orphaned_files()
+        return {
+            "message": "Cleanup completed successfully", 
+            "timestamp": time.time(),
+            "status": "success"
+        }
+    except Exception as e:
+        logger.error(f"❌ Manual cleanup failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+
+@app.get("/cleanup-status")
+async def get_cleanup_status():
+    """Get current cleanup status and file statistics"""
+    try:
+        current_time = time.time()
+        stats = {
+            "last_cleanup_time": _last_cleanup_time if '_last_cleanup_time' in globals() else 0,
+            "current_time": current_time,
+            "next_cleanup_in": max(0, (_last_cleanup_time + 900) - current_time) if '_last_cleanup_time' in globals() else 0,
+            "directories": {}
+        }
+        
+        # Count files in each directory
+        for root_dir in [UPLOAD_DIR, OUTPUT_DIR, ESTIMATION_DIR, PDFTOWORD, TEMP_DIR]:
+            if root_dir.exists():
+                files = list(root_dir.iterdir())
+                stats["directories"][root_dir.name] = {
+                    "total_files": len([f for f in files if f.is_file()]),
+                    "total_dirs": len([f for f in files if f.is_dir()]),
+                    "old_files": len([f for f in files if f.is_file() and f.stat().st_mtime < (current_time - 900)])
+                }
+        
+        return stats
+    except Exception as e:
+        logger.error(f"❌ Cleanup status check failed: {e}")
+        return {"error": str(e)}
 
 @app.get("/debug-table-chunking")
 async def debug_table_chunking():
@@ -1504,118 +1612,652 @@ async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("Py
         gc.collect()
 
 
+######################################################################################################################################
+######################################################################################################################################
+# Redis for progress tracking (fallback to in-memory if Redis not available)
+try:
+    redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    redis_client.ping()
+    USE_REDIS = True
+    logger.info("Redis connected for progress tracking")
+except:
+    USE_REDIS = False
+    progress_store = {}
+    logger.info("Using in-memory progress tracking")
 
+# Platform-specific Ghostscript binary
+gs_binary = "gswin64c" if platform.system() == "Windows" else "gs"
+
+# Compression presets matching UI
 compression_presets = {
-    "High": {"dpi": 72, "quality": 20},
-    "Medium": {"dpi": 100, "quality": 30},
-    "Low": {"dpi": 120, "quality": 40},
-    "Custom": {"dpi": 180, "quality": 50}
+    "screen": {"dpi": 72, "quality": "screen", "desc": "Low quality, smallest size"},
+    "ebook": {"dpi": 150, "quality": "ebook", "desc": "Medium quality, good compression"},
+    "printer": {"dpi": 300, "quality": "printer", "desc": "High quality for printing"},
+    "prepress": {"dpi": 300, "quality": "prepress", "desc": "Highest quality, minimal compression"}
 }
 
-@app.post("/compress_pdf")
-async def compress_pdf(
-    file: UploadFile = File(...),
-    preset: str = Form(...),
-    custom_dpi: int = Form(None),
-    custom_quality: int = Form(None)
-):
-    logger.info(f"Compress request: file={file.filename}, preset={preset}, custom_dpi={custom_dpi}, custom_quality={custom_quality}")
-    MAX_FILE_SIZE_MB = 160
-    if file.size / (1024 * 1024) > MAX_FILE_SIZE_MB:
-        logger.error(f"File {file.filename} exceeds {MAX_FILE_SIZE_MB}MB limit")
-        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE_MB}MB limit")
+# ========== CENTRALIZED FILE SIZE CONFIGURATION ==========
+COMPRESS_MAX_FILE_SIZE_MB = 100  # Maximum allowed file size
+# =========================================================
 
-    if preset not in compression_presets:
-        logger.error(f"Invalid preset: {preset}")
-        raise HTTPException(status_code=422, detail="Invalid preset. Choose: High, Medium, Low, Custom")
 
-    dpi = compression_presets[preset]["dpi"]
-    quality = compression_presets[preset]["quality"]
-    if preset == "Custom":
-        if custom_dpi is None or custom_quality is None:
-            logger.error("Custom preset missing dpi or quality")
-            raise HTTPException(status_code=400, detail="Custom preset requires custom_dpi and custom_quality")
-        if not (50 <= custom_dpi <= 400 and 10 <= custom_quality <= 100):
-            logger.error(f"Invalid custom_dpi={custom_dpi} or custom_quality={custom_quality}")
-            raise HTTPException(status_code=400, detail="Invalid custom_dpi (50-400) or custom_quality (10-100)")
-        dpi = custom_dpi
-        quality = custom_quality
 
-    s3_key = None
-    try:
-        file_content = await file.read()
-        if USE_S3:
-            s3_key = upload_to_s3(file_content, file.filename)
-        else:
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(file_content)
-        compressed_pdf = safe_compress_pdf(file_content, dpi, quality)
-        if not compressed_pdf:
-            logger.error("Compression failed, no output returned")
-            raise HTTPException(status_code=500, detail="Compression failed")
-
-        logger.info("Compression successful")
-        return StreamingResponse(
-            io.BytesIO(compressed_pdf),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="compressed_{file.filename}"'}
+def validate_file_size(file_size_bytes: int):
+    """Validate file size against maximum limit"""
+    file_size_mb = file_size_bytes / (1024 * 1024)
+    if file_size_mb > COMPRESS_MAX_FILE_SIZE_MB:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"File exceeds {COMPRESS_MAX_FILE_SIZE_MB}MB limit"
         )
-    except Exception as e:
-        logger.error(f"Compression error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"PDF compression failed: {str(e)}")
-    finally:
-        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
-        if s3_key:
-            cleanup_s3_file(s3_key)
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
-        logger.info("Running garbage collection")
-        gc.collect()
 
-@app.post("/estimate_compression_sizes")
-async def estimate_sizes(
-    file: UploadFile = File(...),
-    custom_dpi: int = Form(180),
-    custom_quality: int = Form(50)
-):
-    logger.info(f"Estimate sizes request: file={file.filename}, custom_dpi={custom_dpi}, custom_quality={custom_quality}")
-    MAX_FILE_SIZE_MB = 160
-    if file.size / (1024 * 1024) > MAX_FILE_SIZE_MB:
-        logger.error(f"File {file.filename} exceeds {MAX_FILE_SIZE_MB}MB limit")
-        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE_MB}MB limit")
+class ProgressTracker:
+    def __init__(self):
+        self.tasks: Dict[str, dict] = {}
+    
+    async def update_progress(self, task_id: str, progress: int, message: str = "", stage: str = ""):
+        """Update progress with smooth transitions"""
+        progress_data = {
+            "progress": max(0, min(100, progress)),  # Ensure within bounds
+            "message": message,
+            "stage": stage,
+            "timestamp": time.time()
+        }
+        
+        # Store previous progress for smooth transitions
+        if task_id in self.tasks:
+            previous_progress = self.tasks[task_id].get("progress", 0)
+            # Ensure progress doesn't go backwards
+            if progress < previous_progress:
+                progress = previous_progress
+        
+        self.tasks[task_id] = progress_data
+        
+        if USE_REDIS:
+            try:
+                redis_client.setex(f"progress:{task_id}", 300, json.dumps(progress_data))
+            except Exception as e:
+                logger.error(f"Redis update error: {e}")
+        else:
+            progress_store[task_id] = progress_data
+        
+        logger.info(f"Progress: {task_id} - {progress}% - {message}")
+        
+        # Small delay to allow UI to process
+        await asyncio.sleep(0.1)
 
-    if not (50 <= custom_dpi <= 400 and 10 <= custom_quality <= 100):
-        logger.error(f"Invalid custom_dpi={custom_dpi} or custom_quality={custom_quality}")
-        raise HTTPException(status_code=400, detail="Invalid custom_dpi (50-400) or custom_quality (10-100)")
+    def get_progress(self, task_id: str):
+        """Get current progress"""
+        try:
+            if USE_REDIS:
+                data = redis_client.get(f"progress:{task_id}")
+                if data:
+                    return json.loads(data)
+            else:
+                return progress_store.get(task_id)
+        except:
+            return None
 
+    def update_progress_sync(self, task_id: str, progress: int, message: str = "", stage: str = ""):
+        """Synchronous version that properly handles async progress updates"""
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # ✅ This is SAFE - creates async task that runs concurrently
+                asyncio.create_task(self.update_progress(task_id, progress, message, stage))
+            else:
+                # ✅ This runs the async function to completion
+                loop.run_until_complete(self.update_progress(task_id, progress, message, stage))
+        except RuntimeError:
+            # ✅ Handles case where no event loop exists
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(self.update_progress(task_id, progress, message, stage))
+
+# Initialize progress tracker
+progress_tracker = ProgressTracker()
+
+async def update_progress(task_id: str, progress: int, message: str = "", stage: str = ""):
+    """Wrapper function for S3 callback to use"""
+    await progress_tracker.update_progress(task_id, progress, message, stage)
+
+def cleanup_local_files():
+    """Clean up files in input_pdfs and output_pdfs directories."""
+    directories = ["input_pdfs", "output_pdfs"]
+    for directory in directories:
+        if not os.path.exists(directory):
+            continue
+        for filename in os.listdir(directory):
+            file_path = os.path.join(directory, filename)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                    logger.info(f"Deleted local file: {file_path}")
+            except Exception as e:
+                logger.error(f"Failed to delete local file {file_path}: {str(e)}")
+
+def upload_to_s3(file_path: str, filename: str) -> str:
+    """Upload file to S3 from disk path without loading in RAM."""
+    s3_key = f"temp_uploads/{uuid.uuid4()}_{filename}"
+    logger.info(f"Uploading to S3: {s3_key}")
+    
     try:
-        file_content = await file.read()
-        sizes = estimate_compression_sizes(file_content, custom_dpi, custom_quality)
-        if not sizes:
-            logger.error("Size estimation failed")
-            raise HTTPException(status_code=500, detail="Size estimation failed")
-
-        logger.info("Size estimation successful")
-        return JSONResponse(content={
-            "high": sizes["high"] / (1024 * 1024),
-            "medium": sizes["medium"] / (1024 * 1024),
-            "low": sizes["low"] / (1024 * 1024),
-            "custom": sizes["custom"] / (1024 * 1024)
-        })
+        s3_client.upload_file(file_path, BUCKET_NAME, s3_key)
+        logger.info(f"Uploaded to S3: {s3_key}")
+        return s3_key
     except Exception as e:
-        logger.error(f"Size estimation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Size estimation failed: {str(e)}")
-    finally:
-        logger.info("No S3 cleanup needed (no S3 uploads)")
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
-        logger.info("Running garbage collection")
-        gc.collect()
+        logger.error(f"Failed to upload to S3: {str(e)}")
+        raise
 
+def cleanup_s3_file(s3_key: str):
+    """Delete file from S3."""
+    try:
+        s3_client.delete_object(Bucket=BUCKET_NAME, Key=s3_key)
+        logger.info(f"Deleted S3 file: {s3_key}")
+    except Exception as e:
+        logger.warning(f"Failed to delete S3 file {s3_key}: {e}")
+
+
+
+
+def safe_delete_temp_file(file_path: str):
+    """Safely delete a single temporary file with better error handling"""
+    if file_path and os.path.exists(file_path):
+        try:
+            os.unlink(file_path)
+            logger.info(f"✅ Deleted temp file: {file_path}")
+        except Exception as e:
+            logger.error(f"❌ Failed to delete temp file {file_path}: {str(e)}")
+
+
+
+#########################  estimate size $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+### helper function for size estimation
+
+def get_fallback_estimate(original_size_mb: float, preset_name: str) -> float:
+    """Get fallback compression ratios when actual compression fails."""
+    fallback_ratios = {
+        "screen": 0.2, 
+        "ebook": 0.4, 
+        "printer": 0.7, 
+        "prepress": 0.9
+    }
+    return round(original_size_mb * fallback_ratios.get(preset_name, 0.5), 2)
+
+def get_compression_recommendation(estimates: dict, original_size_mb: float) -> str:
+    """Determine the best compression recommendation."""
+    if estimates.get("ebook", original_size_mb) < original_size_mb * 0.6:
+        return "ebook"
+    elif estimates.get("printer", original_size_mb) < original_size_mb * 0.8:
+        return "printer"
+    else:
+        return "screen"
+
+
+
+############$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#######################################################
+
+def compress_pdf_ghostscript_file(input_path: str, output_path: str, compression_level: str = "ebook"):
+    """Compress PDF using Ghostscript with file I/O (for large files)"""
+    
+    compression_settings = {
+        "screen": "/screen",
+        "ebook": "/ebook", 
+        "printer": "/printer",
+        "prepress": "/prepress"
+    }
+    
+    if compression_level not in compression_settings:
+        compression_level = "ebook"
+
+    gs_command = [
+        gs_binary,
+        "-dNOPAUSE",
+        "-dBATCH", 
+        "-dQUIET",
+        "-sDEVICE=pdfwrite",
+        f"-dPDFSETTINGS={compression_settings[compression_level]}",
+        "-dCompatibilityLevel=1.4",
+        
+        # ✅ IMAGE COMPRESSION SETTINGS
+        "-dDetectDuplicateImages=true",
+        "-dCompressFonts=true",
+        "-dEmbedAllFonts=true", 
+        "-dSubsetFonts=true",
+        
+        # ✅ IMAGE DOWN SAMPLING
+        "-dColorImageDownsampleType=/Bicubic",
+        "-dColorImageResolution=150",
+        "-dGrayImageDownsampleType=/Bicubic",
+        "-dGrayImageResolution=150",
+        "-dMonoImageDownsampleType=/Bicubic",
+        "-dMonoImageResolution=150",
+        
+        # ✅ IMAGE FILTERS
+        "-dAutoFilterColorImages=false",
+        "-dAutoFilterGrayImages=false",
+        "-dColorImageFilter=/DCTEncode",
+        "-dGrayImageFilter=/DCTEncode",
+        
+        # ✅ COMPRESSION SETTINGS
+        "-dCompressPages=true",
+        
+        # ✅ ADJUSTED MEMORY LIMITS for larger files
+        "-dMaxPatternBitmap=10000000",    # Increased to 10MB
+        "-dBufferSpace=150000000",       # Increased to 150MB
+        "-dMaxBitmap=100000000",          # Increased to 100MB
+        "-dNumRenderingThreads=2",
+        "-dMaxScreenBitmap=1048576",     # Increased to 1MB
+        "-dUseFastColor=true",
+        # "-dNOGC",  # ⚠️ REMOVED - Let Ghostscript handle GC
+        
+        # ✅ ADDED PERFORMANCE SETTINGS
+        "-dDOINTERPOLATE",               # Improve image quality
+        "-dUseCropBox",                  # Use crop box instead of media box
+        "-dNEWPDF=false",                # Use older, more compatible PDF writer
+        
+        f"-sOutputFile=" + output_path,
+        input_path
+    ]
+    
+    try:
+        logger.info(f"Running Ghostscript file-based compression: {compression_level}")
+        
+        result = subprocess.run(
+            gs_command,
+            capture_output=True,
+            timeout=300
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"Ghostscript failed with return code {result.returncode}")
+            if result.stderr:
+                logger.error(f"Ghostscript stderr: {result.stderr.decode('utf-8', errors='ignore')}")
+            return False
+            
+        # Verify output file was created
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+            logger.info(f"File compression completed: {input_path} → {output_path}")
+            return True
+        else:
+            logger.error("Ghostscript output file is missing or too small")
+            return False
+            
+    except subprocess.TimeoutExpired:
+        logger.error("Ghostscript timeout")
+        return False
+    except Exception as e:
+        logger.error(f"Ghostscript file compression error: {str(e)}")
+        return False
+
+##############################File upload to disk #######################################
+# async def stream_upload_to_disk(file: UploadFile, task_id: str) -> str:
+#     """Stream file upload to disk to avoid RAM usage for ALL files"""
+#     # Use your UPLOAD_DIR instead of tempdir
+#     filename = f"{task_id}_{file.filename}"
+#     file_path = UPLOAD_DIR / filename
+    
+#     logger.info(f"Streaming upload to disk: {file_path}")
+#     with open(file_path, "wb") as buffer:
+#         while True:
+#             chunk = await file.read(65536)  # 8KB chunks
+#             if not chunk:
+#                 break
+#             buffer.write(chunk)
+    
+#     return str(file_path)
+
+async def stream_upload_to_disk(file: UploadFile, task_id: str) -> str:
+    """Stream file upload to disk to avoid RAM usage for ALL files with progress tracking"""
+    # Use your UPLOAD_DIR instead of tempdir
+    filename = f"{task_id}_{file.filename}"
+    file_path = UPLOAD_DIR / filename
+    
+    logger.info(f"Streaming upload to disk: {file_path}")
+    
+    # Get total file size for progress calculation
+    file_size = 0
+    if hasattr(file, 'size') and file.size:
+        file_size = file.size
+    else:
+        # If size is not available, we'll estimate based on chunks
+        logger.warning("File size not available, using chunk-based progress")
+    
+    uploaded_size = 0
+    chunk_number = 0
+    
+    with open(file_path, "wb") as buffer:
+        while True:
+            chunk = await file.read(128 * 1024)
+            if not chunk:
+                break
+            buffer.write(chunk)
+            
+            # Update progress based on uploaded chunks
+            uploaded_size += len(chunk)
+            chunk_number += 1
+            
+            # Calculate progress percentage
+            if file_size > 0:
+                progress = 10 + (uploaded_size / file_size) * 20  # 10-30% range for upload
+                progress = min(30, progress)  # Cap at 30%
+                
+                # Update progress every 10 chunks or 1MB to avoid too many updates
+                if chunk_number % 10 == 0 or uploaded_size % (1024 * 1024) == 0:
+                    await progress_tracker.update_progress(
+                        task_id, 
+                        int(progress), 
+                        f"Uploading to disk... ({uploaded_size / (1024 * 1024):.1f} MB)", 
+                        "uploading"
+                    )
+    
+    logger.info(f"File upload completed: {uploaded_size} bytes written to {file_path}")
+    
+    # Final upload completion update
+    await progress_tracker.update_progress(task_id, 30, "File streamed to disk!", "processing")
+    
+    return str(file_path)
+####################################  ESTIMATION $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+estimation_results = {}
+async def process_estimation_sequential_disk(task_id: str, file_path: str, filename: str):
+    """Estimation with sequential processing to save SYSTEM RESOURCES"""
+    try:
+        await progress_tracker.update_progress(task_id, 25, "Analyzing file sequentially...", "processing")
+        
+        original_size = os.path.getsize(file_path)
+        original_size_mb = original_size / (1024 * 1024)
+        
+        estimates = {}
+        key_presets = ["ebook", "printer", "screen", "prepress"]
+        
+        for i, preset_name in enumerate(key_presets):
+            progress = 30 + i * 15
+            await progress_tracker.update_progress(task_id, progress, f"Testing {preset_name} compression...", "compressing")
+            
+            try:
+                # Create output file in ESTIMATION_DIR
+                output_filename = f"{task_id}_{preset_name}_estimation.pdf"
+                output_path = ESTIMATION_DIR / output_filename
+                
+                # ✅ Run ONE compression at a time
+                success = compress_pdf_ghostscript_file(file_path, str(output_path), preset_name)
+                
+                if success and os.path.exists(output_path):
+                    compressed_size = os.path.getsize(output_path)
+                    compressed_size_mb = compressed_size / (1024 * 1024)
+                    estimates[preset_name] = round(compressed_size_mb, 2)
+                    
+                    # Calculate actual savings percentage
+                    savings_pct = ((original_size - compressed_size) / original_size) * 100
+                    logger.info(f"✅ {preset_name}: {original_size_mb:.1f}MB → {compressed_size_mb:.1f}MB ({savings_pct:.1f}% savings)")
+                    
+                    # Clean up temp file immediately
+                    safe_delete_temp_file(str(output_path))
+                    
+                    # ✅ Small delay to reduce system load
+                    await asyncio.sleep(0.5)
+                    
+                else:
+                    estimates[preset_name] = get_fallback_estimate(original_size_mb, preset_name)
+                    logger.warning(f"⚠️ {preset_name} compression failed, using fallback")
+                    
+            except Exception as e:
+                logger.error(f"Preset {preset_name} estimation failed: {str(e)}")
+                estimates[preset_name] = get_fallback_estimate(original_size_mb, preset_name)
+
+        estimates["original"] = round(original_size_mb, 2)
+
+        estimation_results[task_id] = {
+            "estimates": estimates,
+            "original_size_mb": round(original_size_mb, 2),
+            "used_s3": False,
+            "sequential_processing": True  # Flag to indicate sequential was used
+        }
+        
+        # Clean up input file
+        safe_delete_temp_file(file_path)
+        
+        await progress_tracker.update_progress(task_id, 100, "Sequential estimation completed!", "completed")
+        
+    except Exception as e:
+        logger.error(f'Sequential estimation error: {str(e)}')
+        safe_delete_temp_file(file_path)
+        await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
+
+
+
+@app.post("/start_estimation")
+async def start_estimation(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...)
+):
+    """Start estimation with SEQUENTIAL disk processing for better resource usage"""
+    logger.info(f"Starting SEQUENTIAL estimation: file={file.filename}")
+    
+    validate_file_size(file.size)
+    task_id = str(uuid.uuid4())
+    
+    await progress_tracker.update_progress(task_id, 0, "Starting sequential estimation...", "initializing")
+    
+    try:
+        await progress_tracker.update_progress(task_id, 10, "Streaming file to disk...", "uploading")
+        temp_path = await stream_upload_to_disk(file, task_id)
+        await progress_tracker.update_progress(task_id, 20, "File streamed to disk!", "processing")
+        
+        # ✅ USE SEQUENTIAL PROCESSING INSTEAD
+        background_tasks.add_task(process_estimation_sequential_disk, task_id, temp_path, file.filename)
+        
+        return JSONResponse(content={
+            "task_id": task_id,
+            "status": "started", 
+            "message": "Sequential estimation started in background",
+            "using_s3": False,
+            "processing_mode": "sequential_disk"  # Indicate sequential processing
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to start sequential estimation: {str(e)}")
+        await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
+        raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
+
+
+@app.get("/estimation_result/{task_id}")
+async def get_estimation_result(task_id: str):
+    """Get the final ACTUAL estimation results."""
+    if task_id not in estimation_results:
+        raise HTTPException(status_code=404, detail="Estimation result not found or expired")
+    
+    result = estimation_results[task_id]
+    
+    # ✅ Add savings percentages to the result
+    estimates = result["estimates"]
+    original_size = result["original_size_mb"]
+    
+    savings_data = {}
+    for preset, compressed_size in estimates.items():
+        if preset != "original":
+            savings_pct = ((original_size - compressed_size) / original_size) * 100
+            savings_data[preset] = f"{savings_pct:.1f}%"
+    
+    result["savings_percentages"] = savings_data
+    result["recommendation"] = get_compression_recommendation(estimates, original_size)
+    
+    del estimation_results[task_id]  # Clean up
+    
+    logger.info(f"✅ Returning ACTUAL estimation results for {task_id}: {savings_data}")
+    
+    return JSONResponse(content=result)
+
+
+########################################################################################
+############################# compression ###########################################################
+
+compression_results = {}
+
+
+async def process_compression_disk_only(task_id: str, input_path: str, filename: str, preset: str):
+    """Process compression using disk I/O for ALL files"""
+    try:
+        await progress_tracker.update_progress(task_id, 40, "Starting disk compression...", "compressing")
+        await asyncio.sleep(0.3)
+        
+        # Use your OUTPUT_DIR instead of tempdir
+        output_filename = f"compressed_{task_id}_{Path(filename).stem}_{preset}.pdf"
+        output_path = OUTPUT_DIR / output_filename
+        
+        # Use file-based compression
+        success = compress_pdf_ghostscript_file(input_path, str(output_path), preset)
+        
+        if not success:
+            error_msg = "Disk compression failed"
+            logger.error(f"❌ {error_msg}")
+            safe_delete_temp_file(input_path)
+            safe_delete_temp_file(str(output_path))
+            await progress_tracker.update_progress(task_id, 100, error_msg, "error")
+            raise Exception(error_msg)
+        
+        await progress_tracker.update_progress(task_id, 90, "Finalizing compressed PDF...", "finalizing")
+        
+        original_size = os.path.getsize(input_path)
+        compressed_size = os.path.getsize(output_path)
+        savings = ((original_size - compressed_size) / original_size) * 100 if original_size > 0 else 0
+        
+        # Store result with disk path
+        result_data = {
+            "file_path": str(output_path),
+            "filename": f"compressed_{Path(filename).stem}_{preset}.pdf",
+            "original_size": original_size,
+            "compressed_size": compressed_size,
+            "savings": savings,
+            "preset": preset,
+            "on_disk": True  # Always true now
+        }
+        
+        if USE_REDIS:
+            redis_client.setex(f"compressed_meta:{task_id}", 600, json.dumps(result_data))
+        else:
+            compression_results[task_id] = result_data
+        
+        # Clean up input file
+        safe_delete_temp_file(input_path)
+        
+        logger.info(f"✅ Disk compression completed! Savings: {savings:.1f}%")
+        await progress_tracker.update_progress(task_id, 100, f"Compression completed! Size reduced by {savings:.1f}%", "completed")
+        
+    except Exception as e:
+        logger.error(f'❌ Disk compression error: {str(e)}')
+        # Clean up on error
+        safe_delete_temp_file(input_path)
+        safe_delete_temp_file(str(output_path))
+        await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
+        raise
+
+
+
+@app.post("/start_compression")
+async def start_compression(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    preset: str = Form("ebook")
+):
+    """Start compression with disk processing for ALL files"""
+    logger.info(f"Starting compression: file={file.filename}, preset={preset}")
+    
+    validate_file_size(file.size)
+    task_id = str(uuid.uuid4())
+    
+    await progress_tracker.update_progress(task_id, 0, "Initializing compression...", "initializing")
+    
+    try:
+        # ✅ ALWAYS USE DISK PROCESSING - REMOVE MEMORY CHECK
+        await progress_tracker.update_progress(task_id, 10, "Streaming file to disk...", "uploading")
+        await asyncio.sleep(0.3)
+        temp_path = await stream_upload_to_disk(file, task_id)
+        await progress_tracker.update_progress(task_id, 30, "File streamed to disk!", "processing")
+        await asyncio.sleep(0.3)
+        
+        background_tasks.add_task(process_compression_disk_only, task_id, temp_path, file.filename, preset)
+        
+        return JSONResponse(content={
+            "task_id": task_id,
+            "status": "started", 
+            "message": "Compression started in background",
+            "using_s3": False,
+            "processing_mode": "disk"  # Always disk now
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to start compression: {str(e)}")
+        await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
+        raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
+
+
+@app.get("/download_compressed/{task_id}")
+async def download_compressed(task_id: str):
+    """Stream compressed file from disk ONLY"""
+    try:
+        result_data = None
+        
+        # Get metadata
+        if USE_REDIS:
+            metadata = redis_client.get(f"compressed_meta:{task_id}")
+            if metadata:
+                result_data = json.loads(metadata)
+        else:
+            result_data = compression_results.get(task_id)
+        
+        if not result_data:
+            raise HTTPException(status_code=404, detail="Compressed result not found or expired")
+        
+        filename = result_data["filename"]
+        
+        # ✅ Handle disk-based files ONLY (memory path removed)
+        file_path = result_data["file_path"]
+        
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="Compressed file not found")
+        
+        def file_generator():
+            with open(file_path, "rb") as f:
+                while chunk := f.read(128 * 1024):
+                    yield chunk
+            # Cleanup after streaming
+            safe_delete_temp_file(file_path)
+            if USE_REDIS:
+                redis_client.delete(f"compressed_meta:{task_id}")
+            elif task_id in compression_results:
+                del compression_results[task_id]
+            logger.info(f"Cleaned up disk file: {task_id}")
+        
+        return StreamingResponse(
+            file_generator(),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Original-Size": str(result_data["original_size"]),
+                "X-Compressed-Size": str(result_data["compressed_size"]),
+                "X-Savings-Percent": f"{result_data['savings']:.1f}",
+                "X-Compression-Level": result_data["preset"]
+            }
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Download error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to download compressed file")
+
+@app.get("/progress/{task_id}")
+async def get_progress_status(task_id: str):
+    """Get current progress for a task"""
+    progress_data = progress_tracker.get_progress(task_id)
+    if not progress_data:
+        raise HTTPException(status_code=404, detail="Task not found or expired")
+    
+    return JSONResponse(content=progress_data)
+
+#########################################################################################################################################################
 
 @app.post("/encrypt_pdf")
 async def encrypt_pdf_endpoint(file: UploadFile = File(...), password: str = Form(...)):
@@ -1778,84 +2420,470 @@ async def delete_pdf_pages_endpoint(file: UploadFile = File(...), pages: str = F
         logger.info("Running garbage collection")
         gc.collect()
 
+
+
+
+##########################################
+
+
+
+# Lazy import function for Adobe PDF Services
+def get_adobe_services():
+    from adobe.pdfservices.operation.auth.service_principal_credentials import ServicePrincipalCredentials
+    from adobe.pdfservices.operation.pdf_services import PDFServices
+    
+    credentials = ServicePrincipalCredentials(
+        client_id=os.getenv('PDF_SERVICES_CLIENT_ID'),
+        client_secret=os.getenv('PDF_SERVICES_CLIENT_SECRET')
+    )
+    return PDFServices(credentials=credentials)
+
+async def save_uploaded_file_disk(file: UploadFile, task_id: str) -> Path:
+    """Save uploaded file directly to disk without loading into RAM"""
+    # Validate file size
+    if file.size > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE/1024/1024}MB limit")
+    
+    # Create task-specific directory
+    task_upload_dir = UPLOAD_DIR / task_id
+    task_upload_dir.mkdir(exist_ok=True)
+    
+    # Save file directly to disk in chunks
+    file_path = task_upload_dir / file.filename
+    
+    with open(file_path, "wb") as buffer:
+        # Read and write in chunks to avoid RAM usage
+        while True:
+            chunk = await file.read(65536)
+ # 8KB chunks
+            if not chunk:
+                break
+            buffer.write(chunk)
+    
+    logger.info(f"✅ File saved to disk: {file_path}")
+    return file_path
+
+def validate_pdf_pages(file_path: Path) -> int:
+    """Validate PDF page count without loading into RAM"""
+    try:
+        with open(file_path, "rb") as f:
+            pdf_reader = PdfReader(f)
+            page_count = len(pdf_reader.pages)
+            
+            if page_count > MAX_PAGES:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"PDF exceeds {MAX_PAGES} pages limit. Found {page_count} pages."
+                )
+            return page_count
+    except Exception as e:
+        logger.error(f"PDF validation error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid PDF file")
+
+def cleanup_task_files(task_id: str):
+    """Clean up ALL files associated with a specific task across ALL directories"""
+    try:
+        cleaned_count = 0
+        
+        # Define all directories to check
+        directories_to_clean = [UPLOAD_DIR, OUTPUT_DIR, ESTIMATION_DIR, PDFTOWORD, TEMP_DIR]
+        
+        for base_dir in directories_to_clean:
+            if not base_dir.exists():
+                continue
+                
+            # Clean task-specific directories
+            task_dir = base_dir / task_id
+            if task_dir.exists() and task_dir.is_dir():
+                try:
+                    shutil.rmtree(task_dir)
+                    cleaned_count += 1
+                    logger.info(f"✅ Cleaned task directory: {task_dir}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to clean directory {task_dir}: {e}")
+            
+            # Clean individual files with task_id in filename
+            for pattern in [f"*{task_id}*", f"*{task_id}*.*"]:
+                for file_path in base_dir.glob(pattern):
+                    try:
+                        if file_path.is_file():
+                            file_path.unlink()
+                            cleaned_count += 1
+                            logger.info(f"✅ Cleaned task file: {file_path}")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to clean file {file_path}: {e}")
+        
+        if cleaned_count > 0:
+            logger.info(f"🧹 Cleanup completed for task {task_id}: {cleaned_count} items removed")
+        else:
+            logger.info(f"ℹ️ No files found to clean for task {task_id}")
+            
+    except Exception as e:
+        logger.error(f"💥 Critical error in cleanup_task_files for {task_id}: {e}") 
+
+
+def cleanup_orphaned_files():
+    """Clean up FILES older than 15 minutes considering ALL file activities"""
+    try:
+        current_time = time.time()
+        # orphan_age_seconds = 900  # 15 minutes
+        
+        cleaned_count = 0
+        for root_dir in [UPLOAD_DIR, OUTPUT_DIR, ESTIMATION_DIR, PDFTOWORD, TEMP_DIR]:
+            if not root_dir.exists():
+                continue
+                
+            for item in root_dir.iterdir():
+                try:
+                    if item.is_dir():
+                        continue
+                    
+                    stat = item.stat()
+                    
+                    # ✅ CONSIDER ALL TIMESTAMPS to protect against:
+                    # - Copying files (st_ctime updates on copy on most systems)
+                    # - Renaming files (st_ctime updates on metadata change)
+                    # - Moving files (st_ctime updates)
+                    # - Changing permissions (st_ctime updates) 
+                    # - Reading files (st_atime updates)
+                    # - Modifying content (st_mtime updates)
+                    
+                    most_recent = max(
+                        stat.st_mtime,  # Content modification
+                        stat.st_ctime,  # Metadata change (rename, move, permissions, copy)
+                        stat.st_atime   # Last access (reading)
+                    )
+                    
+                    # Skip if file had ANY activity in last 15 minutes
+                    if most_recent > (current_time - orphan_age_seconds):
+                        continue
+                        
+                    # Only delete truly orphaned files (no activity for 15+ minutes)
+                    if item.is_file():
+                        item.unlink()
+                        cleaned_count += 1
+                        logger.info(f"🧹 Cleaned up orphaned file: {item}")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Error cleaning {item}: {e}")
+        
+        if cleaned_count > 0:
+            logger.info(f"🎯 Orphaned files cleanup completed: {cleaned_count} files removed")
+        else:
+            logger.info("ℹ️ No orphaned files found for cleanup")
+            
+    except Exception as e:
+        logger.error(f"💥 Critical error in orphaned file cleanup: {e}")
+
+def convert_pdf_to_word_disk_based(pdf_file_path: Path, task_id: str, max_retries: int = 3) -> Optional[bytes]:
+    """Convert PDF to Word with retry logic - Disk-based Adobe approach"""
+    
+    output_docx_path = None
+    
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"🔄 PDF to Word conversion attempt {attempt + 1}/{max_retries} for task {task_id}")
+            
+            # Lazy import Adobe modules only when needed
+            from adobe.pdfservices.operation.exception.exceptions import ServiceApiException, ServiceUsageException, SdkException
+            from adobe.pdfservices.operation.io.cloud_asset import CloudAsset
+            from adobe.pdfservices.operation.io.stream_asset import StreamAsset
+            from adobe.pdfservices.operation.pdf_services_media_type import PDFServicesMediaType
+            from adobe.pdfservices.operation.pdfjobs.jobs.export_pdf_job import ExportPDFJob
+            from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_params import ExportPDFParams
+            from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_target_format import ExportPDFTargetFormat
+            from adobe.pdfservices.operation.pdfjobs.result.export_pdf_result import ExportPDFResult
+
+            # Verify input file still exists (might be deleted in previous failed cleanup)
+            if not pdf_file_path.exists():
+                logger.error(f"❌ Input file missing for retry: {pdf_file_path}")
+                return None
+
+            # Read PDF directly from disk for Adobe upload
+            with open(pdf_file_path, "rb") as file:
+                input_stream = file.read()
+            
+            # Get Adobe services
+            pdf_services = get_adobe_services()
+
+            # Upload input PDF from disk
+            input_asset = pdf_services.upload(input_stream=input_stream, mime_type=PDFServicesMediaType.PDF)
+
+            # Configure export params
+            export_pdf_params = ExportPDFParams(target_format=ExportPDFTargetFormat.DOCX)
+            export_pdf_job = ExportPDFJob(input_asset=input_asset, export_pdf_params=export_pdf_params)
+
+            # Submit job
+            location = pdf_services.submit(export_pdf_job)
+            result = pdf_services.get_job_result(location, ExportPDFResult)
+
+            # Get converted DOCX
+            result_asset: CloudAsset = result.get_result().get_asset()
+            stream_asset: StreamAsset = pdf_services.get_content(result_asset)
+
+            # Save to task-specific output directory
+            output_task_dir = OUTPUT_DIR / task_id
+            output_task_dir.mkdir(exist_ok=True)
+            output_docx_path = output_task_dir / "converted.docx"
+            
+            with open(output_docx_path, "wb") as out_file:
+                out_file.write(stream_asset.get_input_stream())
+
+            # Read the result for response
+            with open(output_docx_path, "rb") as f:
+                docx_bytes = f.read()
+            
+            logger.info(f"✅ PDF to Word conversion successful on attempt {attempt + 1}")
+            return docx_bytes
+
+        except (ServiceApiException, ServiceUsageException, SdkException) as e:
+            logger.error(f"❌ Adobe PDF Services error (attempt {attempt + 1}/{max_retries}): {str(e)}")
+            
+            # ⚠️ LIMITED CLEANUP - Only clean output files, NOT input file
+            if output_docx_path and output_docx_path.exists():
+                try:
+                    output_docx_path.unlink()
+                    logger.info(f"🧹 Cleaned failed output file: {output_docx_path}")
+                except Exception as cleanup_error:
+                    logger.error(f"❌ Failed to clean output file: {cleanup_error}")
+            
+            if attempt < max_retries - 1:  # Not the last attempt
+                wait_time = (2 ** attempt) + 1
+                logger.info(f"⏳ Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+                continue
+            else:
+                logger.error("💥 All conversion attempts failed")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Unexpected error in PDF to Word conversion (attempt {attempt + 1}): {str(e)}")
+            
+            # ⚠️ LIMITED CLEANUP - Only clean output files, NOT input file
+            if output_docx_path and output_docx_path.exists():
+                try:
+                    output_docx_path.unlink()
+                    logger.info(f"🧹 Cleaned failed output file: {output_docx_path}")
+                except Exception as cleanup_error:
+                    logger.error(f"❌ Failed to clean output file: {cleanup_error}")
+            
+            if attempt < max_retries - 1:  # Not the last attempt
+                wait_time = (2 ** attempt) + 1
+                logger.info(f"⏳ Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+                continue
+            else:
+                logger.error("💥 All conversion attempts failed")
+                return None
+    
+    # ❌ REMOVE THIS - Cleanup should happen in the endpoint's finally block
+    # cleanup_task_files(task_id)
+    return None
+# Update the endpoint call to pass task_id
 @app.post("/convert_pdf_to_word")
 async def convert_pdf_to_word_endpoint(file: UploadFile = File(...)):
-    logger.info(f"Received convert to Word request for {file.filename}")
-    if file.size / (1024 * 1024) > 50:
-        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+    """PDF to Word conversion with guaranteed cleanup"""
+    logger.info(f"📥 Received convert to Word request for {file.filename}")
+    
+    # Validate input
+    if file.size > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE/1024/1024}MB limit")
+    
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
-    s3_key = None
+    task_id = str(uuid.uuid4())
+    temp_file_path = None
+    
     try:
-        file_content = await file.read()
-        if USE_S3:
-            s3_key = upload_to_s3(file_content, file.filename)
-        else:
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(file_content)
-        docx_bytes = convert_pdf_to_word(file_content)
+        # Step 1: Save file to task-specific directory
+        temp_file_path = await save_uploaded_file_disk(file, task_id)
+        logger.info(f"💾 File saved to: {temp_file_path}")
+        
+        # Step 2: Validate PDF
+        page_count = validate_pdf_pages(temp_file_path)
+        logger.info(f"📄 PDF validated: {page_count} pages")
+        
+        # Step 3: Perform conversion
+        logger.info("🔄 Starting PDF to Word conversion...")
+        docx_bytes = convert_pdf_to_word_disk_based(temp_file_path, task_id)
+        
         if not docx_bytes:
-            raise HTTPException(status_code=500, detail="Conversion failed")
-
+            raise HTTPException(status_code=500, detail="Conversion failed after all retry attempts")
+        
+        # Step 4: Return successful result
+        logger.info(f"✅ Conversion successful for task {task_id}")
         return StreamingResponse(
             io.BytesIO(docx_bytes),
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             headers={"Content-Disposition": 'attachment; filename="converted_output.docx"'}
         )
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"PDF to Word error: {e}")
-        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+        logger.error(f"💥 Unexpected error in endpoint for task {task_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Conversion error: {str(e)}")
     finally:
-        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
-        if s3_key:
-            cleanup_s3_file(s3_key)
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
-        logger.info("Running garbage collection")
-        gc.collect()
+        # ✅ GUARANTEED CLEANUP - This runs in ALL cases (success or failure)
+        logger.info(f"🧹 Final cleanup for task {task_id}")
+        cleanup_task_files(task_id)
+        cleanup_orphaned_files()
 
+def convert_pdf_to_excel_disk_based(pdf_file_path: Path, task_id: str, max_retries: int = 3) -> Optional[bytes]:
+    """Convert PDF to Excel with retry logic - Disk-based Adobe approach"""
+    
+    output_xlsx_path = None
+    
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"🔄 PDF to Excel conversion attempt {attempt + 1}/{max_retries} for task {task_id}")
+            
+            # Lazy import Adobe modules only when needed
+            from adobe.pdfservices.operation.exception.exceptions import ServiceApiException, ServiceUsageException, SdkException
+            from adobe.pdfservices.operation.io.cloud_asset import CloudAsset
+            from adobe.pdfservices.operation.io.stream_asset import StreamAsset
+            from adobe.pdfservices.operation.pdf_services_media_type import PDFServicesMediaType
+            from adobe.pdfservices.operation.pdfjobs.jobs.export_pdf_job import ExportPDFJob
+            from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_params import ExportPDFParams
+            from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_target_format import ExportPDFTargetFormat
+            from adobe.pdfservices.operation.pdfjobs.result.export_pdf_result import ExportPDFResult
+
+            # Verify input file still exists (might be deleted in previous failed cleanup)
+            if not pdf_file_path.exists():
+                logger.error(f"❌ Input file missing for Excel conversion retry: {pdf_file_path}")
+                return None
+
+            # Read PDF directly from disk for Adobe upload
+            with open(pdf_file_path, "rb") as file:
+                input_stream = file.read()
+            
+            # Get Adobe services
+            pdf_services = get_adobe_services()
+
+            # Upload input PDF from disk
+            input_asset = pdf_services.upload(input_stream=input_stream, mime_type=PDFServicesMediaType.PDF)
+
+            # Configure export params for Excel
+            export_pdf_params = ExportPDFParams(target_format=ExportPDFTargetFormat.XLSX)
+            export_pdf_job = ExportPDFJob(input_asset=input_asset, export_pdf_params=export_pdf_params)
+
+            # Submit job
+            location = pdf_services.submit(export_pdf_job)
+            result = pdf_services.get_job_result(location, ExportPDFResult)
+
+            # Get converted Excel
+            result_asset: CloudAsset = result.get_result().get_asset()
+            stream_asset: StreamAsset = pdf_services.get_content(result_asset)
+
+            # Save to task-specific output directory
+            output_task_dir = OUTPUT_DIR / task_id
+            output_task_dir.mkdir(exist_ok=True)
+            output_xlsx_path = output_task_dir / "converted.xlsx"
+            
+            with open(output_xlsx_path, "wb") as out_file:
+                out_file.write(stream_asset.get_input_stream())
+
+            # Read the result for response
+            with open(output_xlsx_path, "rb") as f:
+                xlsx_bytes = f.read()
+            
+            logger.info(f"✅ PDF to Excel conversion successful on attempt {attempt + 1}")
+            return xlsx_bytes
+
+        except (ServiceApiException, ServiceUsageException, SdkException) as e:
+            logger.error(f"❌ Adobe PDF Services Excel error (attempt {attempt + 1}/{max_retries}): {str(e)}")
+            
+            # ⚠️ LIMITED CLEANUP - Only clean output files, NOT input file
+            if output_xlsx_path and output_xlsx_path.exists():
+                try:
+                    output_xlsx_path.unlink()
+                    logger.info(f"🧹 Cleaned failed Excel output file: {output_xlsx_path}")
+                except Exception as cleanup_error:
+                    logger.error(f"❌ Failed to clean Excel output file: {cleanup_error}")
+            
+            if attempt < max_retries - 1:  # Not the last attempt
+                wait_time = (2 ** attempt) + 1
+                logger.info(f"⏳ Retrying Excel conversion in {wait_time} seconds...")
+                time.sleep(wait_time)
+                continue
+            else:
+                logger.error("💥 All Excel conversion attempts failed")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Unexpected error in PDF to Excel conversion (attempt {attempt + 1}): {str(e)}")
+            
+            # ⚠️ LIMITED CLEANUP - Only clean output files, NOT input file
+            if output_xlsx_path and output_xlsx_path.exists():
+                try:
+                    output_xlsx_path.unlink()
+                    logger.info(f"🧹 Cleaned failed Excel output file: {output_xlsx_path}")
+                except Exception as cleanup_error:
+                    logger.error(f"❌ Failed to clean Excel output file: {cleanup_error}")
+            
+            if attempt < max_retries - 1:  # Not the last attempt
+                wait_time = (2 ** attempt) + 1
+                logger.info(f"⏳ Retrying Excel conversion in {wait_time} seconds...")
+                time.sleep(wait_time)
+                continue
+            else:
+                logger.error("💥 All Excel conversion attempts failed")
+                return None
+    
+    return None
+# Update the PDF to Excel endpoint
 @app.post("/convert_pdf_to_excel")
 async def convert_pdf_to_excel_endpoint(file: UploadFile = File(...)):
-    logger.info(f"Received convert to Excel request for {file.filename}")
-    if file.size / (1024 * 1024) > 50:
-        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+    """PDF to Excel conversion with guaranteed cleanup"""
+    logger.info(f"📥 Received convert to Excel request for {file.filename}")
+    
+    # Validate input
+    if file.size > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE/1024/1024}MB limit")
+    
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
-    s3_key = None
+    task_id = str(uuid.uuid4())
+    temp_file_path = None
+    
     try:
-        file_content = await file.read()
-        if USE_S3:
-            s3_key = upload_to_s3(file_content, file.filename)
-        else:
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(file_content)
-        xlsx_bytes = convert_pdf_to_excel(file_content)
-        if not xlsx_bytes:
-            raise HTTPException(status_code=500, detail="Conversion failed")
+        # Step 1: Save file to task-specific directory
+        temp_file_path = await save_uploaded_file_disk(file, task_id)
+        logger.info(f"💾 File saved to: {temp_file_path}")
         
+        # Step 2: Validate PDF
+        page_count = validate_pdf_pages(temp_file_path)
+        logger.info(f"📄 PDF validated: {page_count} pages")
+        
+        # Step 3: Perform conversion
+        logger.info("🔄 Starting PDF to Excel conversion...")
+        xlsx_bytes = convert_pdf_to_excel_disk_based(temp_file_path, task_id)
+        
+        if not xlsx_bytes:
+            raise HTTPException(status_code=500, detail="Excel conversion failed after all retry attempts")
+        
+        # Step 4: Return successful result
+        logger.info(f"✅ Excel conversion successful for task {task_id}")
         return StreamingResponse(
             io.BytesIO(xlsx_bytes),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": 'attachment; filename="converted_output.xlsx"'}
         )
-    except ValueError as ve:
-        logger.error(f"Conversion failed: {str(ve)}")
-        raise HTTPException(status_code=400, detail=str(ve))
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Conversion error: {str(e)}")
+        logger.error(f"💥 Unexpected error in Excel endpoint for task {task_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Excel conversion error: {str(e)}")
     finally:
-        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
-        if s3_key:
-            cleanup_s3_file(s3_key)
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
-        logger.info("Running garbage collection")
-        gc.collect()
+        # ✅ GUARANTEED CLEANUP - This runs in ALL cases (success or failure)
+        logger.info(f"🧹 Final cleanup for Excel task {task_id}")
+        cleanup_task_files(task_id)
+        logger.info(f"🗑️ Excel task {task_id} cleanup completed")
+
+####################################################
 
 @app.post("/convert_pdf_to_ppt")
 async def convert_pdf_to_ppt_endpoint(

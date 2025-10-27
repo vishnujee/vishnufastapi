@@ -791,3 +791,128 @@ input[type="range"]:focus {
 
 
 
+/* new\ */
+
+/* Custom slider styles */
+.slider::-webkit-slider-thumb {
+    appearance: none;
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: #8b5cf6;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.slider::-moz-range-thumb {
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: #8b5cf6;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Progress bar styling */
+.progress-bar::-webkit-progress-bar {
+    background-color: #e5e7eb;
+    border-radius: 10px;
+}
+
+.progress-bar::-webkit-progress-value {
+    background-color: #8b5cf6;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.progress-bar::-moz-progress-bar {
+    background-color: #8b5cf6;
+    border-radius: 10px;
+}
+
+/*   new for compress progress */
+
+/* Enhanced Progress Bar Styles */
+.progress-bar {
+  border-radius: 10px;
+  overflow: hidden;
+  background: #e5e7eb;
+}
+
+.progress-bar::-webkit-progress-bar {
+  background: #e5e7eb;
+  border-radius: 10px;
+}
+
+.progress-bar::-webkit-progress-value {
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  border-radius: 10px;
+  transition: width 0.3s ease-in-out;
+}
+
+.progress-bar::-moz-progress-bar {
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  border-radius: 10px;
+}
+
+.progress-step {
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.progress-step.active {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.progress-step.active::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  background: #3b82f6;
+  border-radius: 50%;
+}
+
+/* Pulse animation for active processing */
+.pulse-blue {
+  animation: pulse-blue 2s infinite;
+}
+
+@keyframes pulse-blue {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/*  new css for progress  */
+/* Smooth progress bar animations */
+progress {
+    border-radius: 8px;
+    height: 12px;
+}
+
+progress::-webkit-progress-bar {
+    background-color: #e5e7eb;
+    border-radius: 8px;
+}
+
+progress::-webkit-progress-value {
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    border-radius: 8px;
+    transition: all 0.5s ease-in-out;
+}
+
+progress::-moz-progress-bar {
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    border-radius: 8px;
+}
+
+/* Smooth transitions for progress text */
+.progress-text {
+    transition: all 0.3s ease-in-out;
+}

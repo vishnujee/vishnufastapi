@@ -42,16 +42,16 @@ from pptx.util import Inches
 import math
 
 
-from adobe.pdfservices.operation.auth.service_principal_credentials import ServicePrincipalCredentials
-from adobe.pdfservices.operation.exception.exceptions import ServiceApiException, ServiceUsageException, SdkException
-from adobe.pdfservices.operation.io.cloud_asset import CloudAsset
-from adobe.pdfservices.operation.io.stream_asset import StreamAsset
-from adobe.pdfservices.operation.pdf_services import PDFServices
-from adobe.pdfservices.operation.pdf_services_media_type import PDFServicesMediaType
-from adobe.pdfservices.operation.pdfjobs.jobs.export_pdf_job import ExportPDFJob
-from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_params import ExportPDFParams
-from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_target_format import ExportPDFTargetFormat
-from adobe.pdfservices.operation.pdfjobs.result.export_pdf_result import ExportPDFResult
+# from adobe.pdfservices.operation.auth.service_principal_credentials import ServicePrincipalCredentials
+# from adobe.pdfservices.operation.exception.exceptions import ServiceApiException, ServiceUsageException, SdkException
+# from adobe.pdfservices.operation.io.cloud_asset import CloudAsset
+# from adobe.pdfservices.operation.io.stream_asset import StreamAsset
+# from adobe.pdfservices.operation.pdf_services import PDFServices
+# from adobe.pdfservices.operation.pdf_services_media_type import PDFServicesMediaType
+# from adobe.pdfservices.operation.pdfjobs.jobs.export_pdf_job import ExportPDFJob
+# from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_params import ExportPDFParams
+# from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_target_format import ExportPDFTargetFormat
+# from adobe.pdfservices.operation.pdfjobs.result.export_pdf_result import ExportPDFResult
 
 # Configure logging
 # Configure logging
@@ -442,144 +442,172 @@ def delete_pdf_pages(pdf_bytes, pages_to_delete):
 
 
 
-import time
-from typing import Optional
 
-def convert_pdf_to_word(pdf_bytes: bytes, max_retries: int = 5) -> Optional[bytes]:
-    """Convert PDF to Word with retry logic for transient failures."""
+######################################################## PDF TO WORD#############################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+#####################################################################################################################
+
+
+
+
+
+# import time
+# from typing import Optional
+
+# def convert_pdf_to_word(pdf_bytes: bytes, max_retries: int = 5) -> Optional[bytes]:
+#     """Convert PDF to Word with retry logic for transient failures."""
     
-    input_pdf_path = None
-    output_docx_path = None
-
-    for attempt in range(max_retries):
-        try:
-            # Save PDF to a temp file
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as input_pdf:
-                input_pdf.write(pdf_bytes)
-                input_pdf_path = input_pdf.name
-
-            # Prepare output file path
-            output_docx_path = tempfile.NamedTemporaryFile(delete=False, suffix=".docx").name
-
-            # Authenticate with timeout
-            credentials = ServicePrincipalCredentials(
-                client_id=os.getenv('PDF_SERVICES_CLIENT_ID'),
-                client_secret=os.getenv('PDF_SERVICES_CLIENT_SECRET')
-            )
-            
-            pdf_services = PDFServices(credentials=credentials)
-
-            # Upload input PDF
-            with open(input_pdf_path, "rb") as file:
-                input_stream = file.read()
-            
-            input_asset = pdf_services.upload(input_stream=input_stream, mime_type=PDFServicesMediaType.PDF)
-
-            # Configure export params
-            export_pdf_params = ExportPDFParams(target_format=ExportPDFTargetFormat.DOCX)
-            export_pdf_job = ExportPDFJob(input_asset=input_asset, export_pdf_params=export_pdf_params)
-
-            # Submit job
-            location = pdf_services.submit(export_pdf_job)
-            result = pdf_services.get_job_result(location, ExportPDFResult)
-
-            # Get converted DOCX
-            result_asset: CloudAsset = result.get_result().get_asset()
-            stream_asset: StreamAsset = pdf_services.get_content(result_asset)
-
-            with open(output_docx_path, "wb") as out_file:
-                out_file.write(stream_asset.get_input_stream())
-
-            with open(output_docx_path, "rb") as f:
-                return f.read()
-
-        except (ServiceApiException, ServiceUsageException, SdkException) as e:
-            logger.error(f"Adobe PDF Services error (attempt {attempt + 1}/{max_retries}): {str(e)}")
-            
-            if attempt == max_retries - 1:  # Last attempt
-                return None
-                
-            # Wait before retry (exponential backoff)
-            wait_time = (2 ** attempt) + 1
-            logger.info(f"Retrying in {wait_time} seconds...")
-            time.sleep(wait_time)
-            
-        except Exception as e:
-            logger.exception(f"Unexpected error in Adobe PDF conversion: {e}")
-            return None
-            
-        finally:
-            # Cleanup temp files
-            for path in [input_pdf_path, output_docx_path]:
-                if path and os.path.exists(path):
-                    try:
-                        os.unlink(path)
-                    except:
-                        pass
-
-    return None
-
-# def convert_pdf_to_word(pdf_bytes: bytes) -> bytes | None:
 #     input_pdf_path = None
 #     output_docx_path = None
 
+#     for attempt in range(max_retries):
+#         try:
+#             # Save PDF to a temp file
+#             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as input_pdf:
+#                 input_pdf.write(pdf_bytes)
+#                 input_pdf_path = input_pdf.name
+
+#             # Prepare output file path
+#             output_docx_path = tempfile.NamedTemporaryFile(delete=False, suffix=".docx").name
+
+#             # Authenticate with timeout
+#             credentials = ServicePrincipalCredentials(
+#                 client_id=os.getenv('PDF_SERVICES_CLIENT_ID'),
+#                 client_secret=os.getenv('PDF_SERVICES_CLIENT_SECRET')
+#             )
+            
+#             pdf_services = PDFServices(credentials=credentials)
+
+#             # Upload input PDF
+#             with open(input_pdf_path, "rb") as file:
+#                 input_stream = file.read()
+            
+#             input_asset = pdf_services.upload(input_stream=input_stream, mime_type=PDFServicesMediaType.PDF)
+
+#             # Configure export params
+#             export_pdf_params = ExportPDFParams(target_format=ExportPDFTargetFormat.DOCX)
+#             export_pdf_job = ExportPDFJob(input_asset=input_asset, export_pdf_params=export_pdf_params)
+
+#             # Submit job
+#             location = pdf_services.submit(export_pdf_job)
+#             result = pdf_services.get_job_result(location, ExportPDFResult)
+
+#             # Get converted DOCX
+#             result_asset: CloudAsset = result.get_result().get_asset()
+#             stream_asset: StreamAsset = pdf_services.get_content(result_asset)
+
+#             with open(output_docx_path, "wb") as out_file:
+#                 out_file.write(stream_asset.get_input_stream())
+
+#             with open(output_docx_path, "rb") as f:
+#                 return f.read()
+
+#         except (ServiceApiException, ServiceUsageException, SdkException) as e:
+#             logger.error(f"Adobe PDF Services error (attempt {attempt + 1}/{max_retries}): {str(e)}")
+            
+#             if attempt == max_retries - 1:  # Last attempt
+#                 return None
+                
+#             # Wait before retry (exponential backoff)
+#             wait_time = (2 ** attempt) + 1
+#             logger.info(f"Retrying in {wait_time} seconds...")
+#             time.sleep(wait_time)
+            
+#         except Exception as e:
+#             logger.exception(f"Unexpected error in Adobe PDF conversion: {e}")
+#             return None
+            
+#         finally:
+#             # Cleanup temp files
+#             for path in [input_pdf_path, output_docx_path]:
+#                 if path and os.path.exists(path):
+#                     try:
+#                         os.unlink(path)
+#                     except:
+#                         pass
+
+#     return None
+
+# def convert_pdf_to_excel(pdf_bytes: bytes) -> bytes:
+#     """
+#     Convert PDF to Excel using Adobe PDF Services.
+#     :param pdf_bytes: The PDF file as bytes.
+#     :return: The converted Excel file as bytes.
+#     """
+#     input_pdf_path = None
+#     output_xlsx_path = None
+
 #     try:
-#         # Save PDF to a temp file
+#         # Validate input PDF
+#         pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
+#         if len(pdf_reader.pages) == 0:
+#             raise ValueError("PDF is empty or invalid")
+
+#         # Write PDF bytes to a temp file
 #         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as input_pdf:
 #             input_pdf.write(pdf_bytes)
 #             input_pdf_path = input_pdf.name
 
-#         # Prepare output file path
-#         output_docx_path = tempfile.NamedTemporaryFile(delete=False, suffix=".docx").name
+#         # Generate output file path
+#         output_xlsx_path = tempfile.mktemp(suffix=".xlsx")
 
-#         # Authenticate
+#         # Adobe credentials
 #         credentials = ServicePrincipalCredentials(
-#             client_id=os.getenv('PDF_SERVICES_CLIENT_ID'),
-#             client_secret=os.getenv('PDF_SERVICES_CLIENT_SECRET')
+#             client_id=os.getenv("PDF_SERVICES_CLIENT_ID"),
+#             client_secret=os.getenv("PDF_SERVICES_CLIENT_SECRET")
 #         )
-#         # Built-in timeout config (in milliseconds)
-#         # client_config = ClientConfig.builder().with_connect_timeout(30000).with_read_timeout(90000) .build()
-
 #         pdf_services = PDFServices(credentials=credentials)
 
-#         # Upload input PDF
-#         with open(input_pdf_path, "rb") as file:
-#             input_stream = file.read()
-#         input_asset = pdf_services.upload(input_stream=input_stream, mime_type=PDFServicesMediaType.PDF)
+#         # Upload the PDF
+#         with open(input_pdf_path, "rb") as f:
+#             input_stream = f.read()
+#         input_asset = pdf_services.upload(input_stream=input_stream, mime_type="application/pdf")
 
-#         # Configure export params
-#         export_pdf_params = ExportPDFParams(target_format=ExportPDFTargetFormat.DOCX)
-#         export_pdf_job = ExportPDFJob(input_asset=input_asset, export_pdf_params=export_pdf_params)
+#         # Prepare and submit job
+#         export_params = ExportPDFParams(target_format=ExportPDFTargetFormat.XLSX)
+#         export_job = ExportPDFJob(input_asset=input_asset, export_pdf_params=export_params)
+#         location = pdf_services.submit(export_job)
+#         job_result = pdf_services.get_job_result(location, ExportPDFResult)
 
-#         # Submit job
-#         location = pdf_services.submit(export_pdf_job)
-#         # result = pdf_services.get_job_result(location, ExportPDFJob.get_result_type())
-#         result = pdf_services.get_job_result(location, ExportPDFResult)
-
-#         # Get converted DOCX
-#         result_asset: CloudAsset = result.get_result().get_asset()
+#         # Get Excel content
+#         result_asset: CloudAsset = job_result.get_result().get_asset()
 #         stream_asset: StreamAsset = pdf_services.get_content(result_asset)
 
-#         with open(output_docx_path, "wb") as out_file:
-#             out_file.write(stream_asset.get_input_stream())
+#         # Write Excel output to file
+#         with open(output_xlsx_path, "wb") as f:
+#             f.write(stream_asset.get_input_stream())
 
-#         with open(output_docx_path, "rb") as f:
-#             return f.read()
+
+#         # Read as bytes to return
+#         with open(output_xlsx_path, "rb") as f:
+#             xlsx_bytes = f.read()
+
+#         return xlsx_bytes
 
 #     except (ServiceApiException, ServiceUsageException, SdkException) as e:
-#         logger.error(f"Adobe PDF Services error: {str(e)}")
-#         return None
+#         logging.error(f"Adobe PDF Services error: {str(e)}")
+#         raise ValueError("Adobe PDF Services failed: " + str(e))
 #     except Exception as e:
-#         logger.exception(f"Unexpected error in Adobe PDF conversion: {e}")
-#         return None
+#         logging.error(f"Unexpected error in conversion: {str(e)}")
+#         raise ValueError("Conversion failed: " + str(e))
 #     finally:
-#         for path in [input_pdf_path, output_docx_path]:
+#         for path in [input_pdf_path, output_xlsx_path]:
 #             if path and os.path.exists(path):
-#                 try:
-#                     os.unlink(path)
-#                 except:
-#                     pass
+#                 os.remove(path)
 #         gc.collect()
+
 
 
 def convert_pdf_to_ppt(pdf_bytes):
@@ -890,73 +918,6 @@ def convert_pdf_to_ppt(pdf_bytes):
         logger.error(f"PPT conversion failed: {str(e)}")
         return None
 
-def convert_pdf_to_excel(pdf_bytes: bytes) -> bytes:
-    """
-    Convert PDF to Excel using Adobe PDF Services.
-    :param pdf_bytes: The PDF file as bytes.
-    :return: The converted Excel file as bytes.
-    """
-    input_pdf_path = None
-    output_xlsx_path = None
-
-    try:
-        # Validate input PDF
-        pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
-        if len(pdf_reader.pages) == 0:
-            raise ValueError("PDF is empty or invalid")
-
-        # Write PDF bytes to a temp file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as input_pdf:
-            input_pdf.write(pdf_bytes)
-            input_pdf_path = input_pdf.name
-
-        # Generate output file path
-        output_xlsx_path = tempfile.mktemp(suffix=".xlsx")
-
-        # Adobe credentials
-        credentials = ServicePrincipalCredentials(
-            client_id=os.getenv("PDF_SERVICES_CLIENT_ID"),
-            client_secret=os.getenv("PDF_SERVICES_CLIENT_SECRET")
-        )
-        pdf_services = PDFServices(credentials=credentials)
-
-        # Upload the PDF
-        with open(input_pdf_path, "rb") as f:
-            input_stream = f.read()
-        input_asset = pdf_services.upload(input_stream=input_stream, mime_type="application/pdf")
-
-        # Prepare and submit job
-        export_params = ExportPDFParams(target_format=ExportPDFTargetFormat.XLSX)
-        export_job = ExportPDFJob(input_asset=input_asset, export_pdf_params=export_params)
-        location = pdf_services.submit(export_job)
-        job_result = pdf_services.get_job_result(location, ExportPDFResult)
-
-        # Get Excel content
-        result_asset: CloudAsset = job_result.get_result().get_asset()
-        stream_asset: StreamAsset = pdf_services.get_content(result_asset)
-
-        # Write Excel output to file
-        with open(output_xlsx_path, "wb") as f:
-            f.write(stream_asset.get_input_stream())
-
-
-        # Read as bytes to return
-        with open(output_xlsx_path, "rb") as f:
-            xlsx_bytes = f.read()
-
-        return xlsx_bytes
-
-    except (ServiceApiException, ServiceUsageException, SdkException) as e:
-        logging.error(f"Adobe PDF Services error: {str(e)}")
-        raise ValueError("Adobe PDF Services failed: " + str(e))
-    except Exception as e:
-        logging.error(f"Unexpected error in conversion: {str(e)}")
-        raise ValueError("Conversion failed: " + str(e))
-    finally:
-        for path in [input_pdf_path, output_xlsx_path]:
-            if path and os.path.exists(path):
-                os.remove(path)
-        gc.collect()
 
 import fitz
 import io

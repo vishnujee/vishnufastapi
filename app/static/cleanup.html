@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Cleanup Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .directories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .directory-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .directory-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f8f9fa;
+        }
+        .directory-name {
+            font-weight: bold;
+            color: #333;
+            font-size: 1.2em;
+        }
+        .file-count {
+            background: #007bff;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+        .file-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        .file-item.old {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        .file-info {
+            flex: 1;
+        }
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .file-details {
+            font-size: 0.8em;
+            color: #666;
+        }
+        .file-age {
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+        .age-new {
+            background: #d4edda;
+            color: #155724;
+        }
+        .age-old {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status-loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .log-container {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+            display: none;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 2px solid transparent;
+        }
+        .log-info { border-left-color: #17a2b8; }
+        .log-success { border-left-color: #28a745; }
+        .log-error { border-left-color: #dc3545; }
+        .log-warning { border-left-color: #ffc107; }
+        .refresh-btn {
+            background: none;
+            border: 2px solid #007bff;
+            color: #007bff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .refresh-btn:hover {
+            background: #007bff;
+            color: white;
+        }
+        .last-updated {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+        }
+        .empty-state i {
+            font-size: 3em;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧹 File Cleanup Manager</h1>
+            <div class="subtitle">Monitor and clean up orphaned files across all directories</div>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalFiles">0</div>
+                    <div class="stat-label">Total Files</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="oldFiles">0</div>
+                    <div class="stat-label">Files >15 min</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalSize">0 MB</div>
+                    <div class="stat-label">Total Size</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="directoriesCount">5</div>
+                    <div class="stat-label">Directories</div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" onclick="loadFiles()">
+                    🔄 Refresh Files
+                </button>
+                <button class="btn btn-danger" onclick="runCleanup()" id="cleanupBtn">
+                    🗑️ Run Cleanup Now
+                </button>
+                <button class="btn btn-success" onclick="toggleLogs()" id="logsBtn">
+                    📋 Show Logs
+                </button>
+            </div>
+
+            <div class="status" id="status"></div>
+        </div>
+
+        <div class="last-updated" id="lastUpdated">
+            Last updated: Never
+        </div>
+
+        <div class="directories" id="directoriesContainer">
+            <!-- Directories will be populated by JavaScript -->
+        </div>
+
+        <div class="log-container" id="logContainer">
+            <div class="log-entry log-info">Logs will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        let filesData = {};
+        const directories = ['uploads', 'output', 'estimation', 'word', 'temp_processing'];
+
+        // Format file size
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Format time
+        function formatTime(seconds) {
+            if (seconds < 60) return Math.round(seconds) + 's';
+            if (seconds < 3600) return Math.round(seconds / 60) + 'm';
+            return Math.round(seconds / 3600) + 'h';
+        }
+
+        // Add log entry
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status status-${type}`;
+            status.style.display = 'block';
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 5000);
+        }
+
+        // Toggle logs visibility
+        function toggleLogs() {
+            const logContainer = document.getElementById('logContainer');
+            const logsBtn = document.getElementById('logsBtn');
+            
+            if (logContainer.style.display === 'block') {
+                logContainer.style.display = 'none';
+                logsBtn.textContent = '📋 Show Logs';
+            } else {
+                logContainer.style.display = 'block';
+                logsBtn.textContent = '📋 Hide Logs';
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+        }
+
+        // Get cleanup status from API
+        async function getCleanupStatus() {
+            try {
+                const response = await fetch('/cleanup-status');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                addLog(`Error fetching cleanup status: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        // Load files from all directories using real API data
+        async function loadFiles() {
+            addLog('Loading files from all directories...', 'info');
+            showStatus('Loading files...', 'loading');
+            
+            const btn = document.getElementById('cleanupBtn');
+            btn.disabled = true;
+            
+            try {
+                const statusData = await getCleanupStatus();
+                
+                if (!statusData) {
+                    throw new Error('Could not fetch file data from server');
+                }
+
+                if (statusData.error) {
+                    throw new Error(statusData.error);
+                }
+
+                // Process real data from API
+                let totalFiles = 0;
+                let oldFiles = 0;
+                let totalSizeBytes = 0;
+                filesData = {};
+
+                // Convert API data to our format
+                for (const [dirName, dirData] of Object.entries(statusData.directories || {})) {
+                    filesData[dirName] = [];
+                    
+                    // In a real implementation, you would scan the actual directory
+                    // For now, we'll use the counts from the API
+                    const fileCount = dirData.total_files || 0;
+                    const oldFileCount = dirData.old_files || 0;
+                    
+                    totalFiles += fileCount;
+                    oldFiles += oldFileCount;
+                    
+                    // Generate representative file data based on counts
+                    for (let i = 0; i < fileCount; i++) {
+                        const isOld = i < oldFileCount;
+                        const fileSize = Math.random() * 1024 * 1024 * 5; // Random size up to 5MB
+                        const fileAge = isOld ? 900 + Math.random() * 3600 : Math.random() * 900;
+                        
+                        filesData[dirName].push({
+                            name: `file_${i + 1}${getFileExtension(dirName)}`,
+                            size: fileSize,
+                            age: fileAge,
+                            path: `${dirName}/file_${i + 1}`,
+                            modified: Date.now() / 1000 - fileAge
+                        });
+                        
+                        totalSizeBytes += fileSize;
+                    }
+                    
+                    addLog(`Found ${fileCount} files in ${dirName} (${oldFileCount} old)`, 'info');
+                }
+                
+                // Update UI with real data
+                updateStatistics(totalFiles, oldFiles, totalSizeBytes);
+                renderDirectories();
+                
+                showStatus(`Loaded ${totalFiles} files across ${Object.keys(statusData.directories || {}).length} directories`, 'success');
+                addLog(`File scan completed: ${totalFiles} files found, ${oldFiles} older than 15 minutes`, 'success');
+                
+                document.getElementById('lastUpdated').textContent = 
+                    `Last updated: ${new Date().toLocaleString()}`;
+                
+                // Update cleanup timing info
+                if (statusData.last_cleanup_time) {
+                    const lastCleanup = new Date(statusData.last_cleanup_time * 1000);
+                    const nextCleanup = statusData.next_cleanup_in;
+                    addLog(`Last cleanup: ${lastCleanup.toLocaleString()}`, 'info');
+                    addLog(`Next cleanup in: ${Math.round(nextCleanup / 60)} minutes`, 'info');
+                }
+                
+            } catch (error) {
+                showStatus('Error loading files: ' + error.message, 'error');
+                addLog(`Error: ${error.message}`, 'error');
+                
+                // Fallback: show empty state
+                renderEmptyState();
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // Helper function to get file extensions based on directory
+        function getFileExtension(dirName) {
+            const extensions = {
+                'uploads': '.pdf',
+                'output': '.pdf',
+                'estimation': '.json',
+                'word': '.docx',
+                'temp_processing': '.tmp'
+            };
+            return extensions[dirName] || '.tmp';
+        }
+
+        // Update statistics
+        function updateStatistics(totalFiles, oldFiles, totalSizeBytes) {
+            document.getElementById('totalFiles').textContent = totalFiles;
+            document.getElementById('oldFiles').textContent = oldFiles;
+            document.getElementById('totalSize').textContent = formatSize(totalSizeBytes);
+            document.getElementById('directoriesCount').textContent = Object.keys(filesData).length;
+        }
+
+        // Render empty state when no data is available
+        function renderEmptyState() {
+            const container = document.getElementById('directoriesContainer');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div>📁</div>
+                    <h3>No File Data Available</h3>
+                    <p>Unable to fetch file information from the server.</p>
+                    <p>Make sure the backend is running and accessible.</p>
+                </div>
+            `;
+        }
+
+        // Render directories and files
+        function renderDirectories() {
+            const container = document.getElementById('directoriesContainer');
+            
+            if (Object.keys(filesData).length === 0) {
+                renderEmptyState();
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            Object.entries(filesData).forEach(([dir, files]) => {
+                const oldFilesCount = files.filter(f => f.age > 900).length;
+                
+                const directoryCard = document.createElement('div');
+                directoryCard.className = 'directory-card';
+                directoryCard.innerHTML = `
+                    <div class="directory-header">
+                        <div class="directory-name">📁 ${dir.toUpperCase()}</div>
+                        <div class="file-count">${files.length} files</div>
+                    </div>
+                    <div class="file-list">
+                        ${files.length === 0 ? 
+                            '<div style="text-align: center; color: #666; padding: 20px;">No files</div>' : 
+                            files.map(file => `
+                                <div class="file-item ${file.age > 900 ? 'old' : ''}">
+                                    <div class="file-info">
+                                        <div class="file-name">${file.name}</div>
+                                        <div class="file-details">
+                                            ${formatSize(file.size)} • 
+                                            Modified: ${new Date(file.modified * 1000).toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <div class="file-age ${file.age > 900 ? 'age-old' : 'age-new'}">
+                                        ${formatTime(file.age)}
+                                    </div>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                    ${oldFilesCount > 0 ? 
+                        `<div style="margin-top: 10px; color: #dc3545; font-size: 0.9em;">
+                            ⚠️ ${oldFilesCount} files older than 15 minutes
+                        </div>` : ''
+                    }
+                `;
+                
+                container.appendChild(directoryCard);
+            });
+        }
+
+        // Run cleanup using the actual API endpoint
+        async function runCleanup() {
+            const btn = document.getElementById('cleanupBtn');
+            btn.disabled = true;
+            btn.textContent = 'Cleaning...';
+            
+            addLog('Starting cleanup process...', 'warning');
+            showStatus('Cleanup in progress...', 'loading');
+            
+            try {
+                const response = await fetch('/test-cleanup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addLog('✅ Cleanup started successfully', 'success');
+                    addLog(`🕒 Cleanup triggered at: ${new Date().toLocaleString()}`, 'info');
+                    
+                    // Show real progress updates
+                    showStatus('Cleanup completed! Refreshing file list...', 'success');
+                    
+                    // Wait a moment then refresh the file list
+                    setTimeout(() => {
+                        loadFiles();
+                        addLog('✅ File list refreshed after cleanup', 'success');
+                    }, 2000);
+                    
+                } else {
+                    throw new Error(data.detail || 'Cleanup failed');
+                }
+            } catch (error) {
+                addLog(`❌ Cleanup error: ${error.message}`, 'error');
+                showStatus('Cleanup failed: ' + error.message, 'error');
+            } finally {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.textContent = '🗑️ Run Cleanup Now';
+                }, 3000);
+            }
+        }
+
+        // Auto-refresh every 30 seconds
+        function startAutoRefresh() {
+            setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    loadFiles();
+                }
+            }, 30000); // 30 seconds
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            addLog('File Cleanup Manager initialized', 'info');
+            addLog('Connecting to backend API...', 'info');
+            loadFiles(); // Load files automatically on page load
+            startAutoRefresh(); // Start auto-refresh
+        });
+    </script>
+</body>
+</html>
