@@ -494,13 +494,17 @@ async function computeAllCompressionSizes() {
     const compbutton = document.getElementById('compress-submit-btn');
     compbutton.disabled = true;
 
-    if (compressionType && compressionType.value === 'server') {
-        // Use the new two-step method for server estimation
-        await computeServerCompressionSizesTwoStep();
-        console.log("server estimation processed");
-
-    } else {
-        await computeClientCompressionSizes();
+    try {
+        if (compressionType && compressionType.value === 'server') {
+            await computeServerCompressionSizesTwoStep();
+        } else {
+            await computeClientCompressionSizes();
+        }
+    } catch (error) {
+        console.error('Size computation failed:', error);
+    } finally {
+        // ✅ ALWAYS re-enable the button, even if there's an error
+        compbutton.disabled = false;
     }
 }
 /////////////////////////////////////////////////////
@@ -657,7 +661,7 @@ async function computeServerCompressionSizesTwoStep() {
         if (resultDiv) {
             resultDiv.innerHTML = `
                 <div class="text-blue-600">🔄 Estimating server compression sizes...</div>
-                <div class="text-sm text-gray-500 mt-1">Using Ghostscript for accurate estimation</div>
+                <div class="text-sm text-gray-500 mt-1">Using First method</div>
             `;
         }
 
@@ -925,9 +929,9 @@ async function computeClientCompressionSizes() {
 
         if (resultDiv) {
             resultDiv.innerHTML = `
-                <div class="text-blue-600">🔄 Analyzing PDF content and computing sizes...</div>
-                <progress id="compressProgress" value="0" max="100" class="w-full h-2 mt-2"></progress>
-                <div id="compressionLogs" class="text-sm text-gray-600 mt-2 max-h-24 overflow-y-auto"></div>
+              <div class="text-blue-600">🔄 Analyzing PDF content and computing sizes...</div>
+            <progress id="compressProgress" value="0" max="100" class="w-1/2 h-2 mt-2 ml-8 mx-auto"></progress>
+            <div id="compressionLogs" class="text-sm text-gray-600 mt-2 max-h-24 overflow-y-auto w-full"></div>
             `;
         }
 
@@ -1127,6 +1131,8 @@ async function computeClientCompressionSizes() {
             computeButton.innerHTML = '<i class="fas fa-calculator mr-2"></i> Estimate Sizes';
             compbutton.disabled = false;
         }
+        const compbutton = document.getElementById('compress-submit-btn');
+        if (compbutton) compbutton.disabled = false;
     }
 }
 
@@ -2900,24 +2906,23 @@ async function validateForm(form, endpoint, resultDiv) {
         }
 
         // In the validateForm function, update the compress_pdf section:
+
     } else if (endpoint === 'compress_pdf') {
         const file = files[0];
         const sizeMB = file.size / (1024 * 1024);
-        if (sizeMB > 250) { // Increased limit for server-side
-            resultDiv.textContent = `File ${file.name} exceeds 250MB limit.`;
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
-        if (file.type !== 'application/pdf') {
-            resultDiv.textContent = `File ${file.name} must be a PDF.`;
-            resultDiv.classList.add('text-red-600');
-            return false;
-        }
-
-        // Check compression type
+        
+        // Check compression type for different size limits
         const compressionType = document.querySelector('input[name="compression_type"]:checked');
+        
         if (compressionType && compressionType.value === 'server') {
-            // Server-side validation
+            // Server-side: 50MB limit
+            if (sizeMB > 50) {
+                resultDiv.textContent = `File ${file.name} (${sizeMB.toFixed(2)}MB) exceeds 50MB limit for server compression.`;
+                resultDiv.classList.add('text-red-600');
+                return false;
+            }
+            
+            // Server-side preset validation
             const preset = document.getElementById('server-preset')?.value;
             if (!preset || !['prepress', 'printer', 'ebook', 'screen'].includes(preset)) {
                 resultDiv.textContent = 'Invalid server compression preset.';
@@ -2925,31 +2930,77 @@ async function validateForm(form, endpoint, resultDiv) {
                 return false;
             }
         } else {
-            // Client-side validation (your existing code)
-            const preset = form.querySelector('select[name="preset"]').value;
-            if (!['High', 'Medium', 'Low', 'Custom'].includes(preset)) {
-                resultDiv.textContent = 'Invalid preset. Choose High, Medium, Low, or Custom.';
+            // Client-side: 250MB limit (or keep your existing limit)
+            if (sizeMB > 250) {
+                resultDiv.textContent = `File ${file.name} exceeds 250MB limit.`;
                 resultDiv.classList.add('text-red-600');
                 return false;
             }
-            if (preset === 'Custom') {
-                const customDpi = form.querySelector('input[name="custom_dpi"]').value;
-                const customQuality = form.querySelector('input[name="custom_quality"]').value;
-                if (!customDpi || !customQuality) {
-                    resultDiv.textContent = 'Custom preset requires DPI and quality values.';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-                const dpi = parseInt(customDpi);
-                const quality = parseInt(customQuality);
-                if (dpi < 50 || dpi > 400 || quality < 10 || quality > 100) {
-                    resultDiv.textContent = 'Invalid custom DPI (50-400) or quality (10-100).';
-                    resultDiv.classList.add('text-red-600');
-                    return false;
-                }
-            }
+            
+            // Client-side doesn't need preset validation
+            console.log('Client-side compression - using intelligent analysis');
         }
+        
+        // Common validation for both
+        if (file.type !== 'application/pdf') {
+            resultDiv.textContent = `File ${file.name} must be a PDF.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        
+        return true;
     }
+
+    // } else if (endpoint === 'compress_pdf') {
+    //     const file = files[0];
+    //     const sizeMB = file.size / (1024 * 1024);
+    //     if (sizeMB > 250) { // Increased limit for server-side
+    //         resultDiv.textContent = `File ${file.name} exceeds 250MB limit.`;
+    //         resultDiv.classList.add('text-red-600');
+    //         return false;
+    //     }
+    //     if (file.type !== 'application/pdf') {
+    //         resultDiv.textContent = `File ${file.name} must be a PDF.`;
+    //         resultDiv.classList.add('text-red-600');
+    //         return false;
+    //     }
+
+    //     // Check compression type
+    //     const compressionType = document.querySelector('input[name="compression_type"]:checked');
+    //     if (compressionType && compressionType.value === 'server') {
+    //         // Server-side validation
+    //         const preset = document.getElementById('server-preset')?.value;
+    //         if (!preset || !['prepress', 'printer', 'ebook', 'screen'].includes(preset)) {
+    //             resultDiv.textContent = 'Invalid server compression preset.';
+    //             resultDiv.classList.add('text-red-600');
+    //             return false;
+    //         }
+    //     } else {
+    //         // Client-side validation (your existing code)
+    //         const preset = form.querySelector('select[name="preset"]').value;
+    //         if (!['High', 'Medium', 'Low', 'Custom'].includes(preset)) {
+    //             resultDiv.textContent = 'Invalid preset. Choose High, Medium, Low, or Custom.';
+    //             resultDiv.classList.add('text-red-600');
+    //             return false;
+    //         }
+    //         if (preset === 'Custom') {
+    //             const customDpi = form.querySelector('input[name="custom_dpi"]').value;
+    //             const customQuality = form.querySelector('input[name="custom_quality"]').value;
+    //             if (!customDpi || !customQuality) {
+    //                 resultDiv.textContent = 'Custom preset requires DPI and quality values.';
+    //                 resultDiv.classList.add('text-red-600');
+    //                 return false;
+    //             }
+    //             const dpi = parseInt(customDpi);
+    //             const quality = parseInt(customQuality);
+    //             if (dpi < 50 || dpi > 400 || quality < 10 || quality > 100) {
+    //                 resultDiv.textContent = 'Invalid custom DPI (50-400) or quality (10-100).';
+    //                 resultDiv.classList.add('text-red-600');
+    //                 return false;
+    //             }
+    //         }
+    //     }
+    // }
 
     else if (endpoint === 'delete_pdf_pages') {
         const deleteTypeElement = form.querySelector('select[name="delete_type"]');

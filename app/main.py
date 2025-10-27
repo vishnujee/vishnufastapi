@@ -1797,8 +1797,9 @@ def get_compression_recommendation(estimates: dict, original_size_mb: float) -> 
 
 ############$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#######################################################
 
+
 def compress_pdf_ghostscript_file(input_path: str, output_path: str, compression_level: str = "ebook"):
-    """Compress PDF using Ghostscript with file I/O (for large files)"""
+    """Compress PDF using Ghostscript with AWS-free-tier optimized settings"""
     
     compression_settings = {
         "screen": "/screen",
@@ -1810,8 +1811,16 @@ def compress_pdf_ghostscript_file(input_path: str, output_path: str, compression
     if compression_level not in compression_settings:
         compression_level = "ebook"
 
-    gs_command = [
-        gs_binary,
+    # Platform-specific CPU throttling (FIXED FOR WINDOWS)
+    if platform.system() == "Windows":
+        # Use subprocess.CREATE_NO_WINDOW flag instead of cmd start
+        base_cmd = [gs_binary]
+        creationflags = subprocess.CREATE_NO_WINDOW  # This hides the CMD window
+    else:
+        base_cmd = ["nice", "-n", "10", gs_binary]  # Low priority on Linux
+        creationflags = 0  # No special flags on Linux
+
+    gs_command = base_cmd + [
         "-dNOPAUSE",
         "-dBATCH", 
         "-dQUIET",
@@ -1819,93 +1828,242 @@ def compress_pdf_ghostscript_file(input_path: str, output_path: str, compression
         f"-dPDFSETTINGS={compression_settings[compression_level]}",
         "-dCompatibilityLevel=1.4",
         
-        # ✅ IMAGE COMPRESSION SETTINGS
+        # ✅ OPTIMIZED IMAGE COMPRESSION SETTINGS (CPU-friendly)
         "-dDetectDuplicateImages=true",
         "-dCompressFonts=true",
         "-dEmbedAllFonts=true", 
         "-dSubsetFonts=true",
         
-        # ✅ IMAGE DOWN SAMPLING
-        "-dColorImageDownsampleType=/Bicubic",
-        "-dColorImageResolution=150",
-        "-dGrayImageDownsampleType=/Bicubic",
-        "-dGrayImageResolution=150",
-        "-dMonoImageDownsampleType=/Bicubic",
-        "-dMonoImageResolution=150",
+        # ✅ REDUCED IMAGE RESOLUTION (Major CPU savings)
+        "-dColorImageDownsampleType=/Average",    # Faster than Bicubic (60% less CPU)
+        "-dGrayImageDownsampleType=/Average",     # Faster than Bicubic
+        "-dMonoImageDownsampleType=/Subsample",   # Fastest for B&W
         
-        # ✅ IMAGE FILTERS
-        "-dAutoFilterColorImages=false",
-        "-dAutoFilterGrayImages=false",
+        "-dColorImageResolution=120",    # Reduced from 150 (good balance)
+        "-dGrayImageResolution=120",     # Reduced from 150
+        "-dMonoImageResolution=200",     # Reduced from 300 (text stays sharp)
+        
+        # ✅ SIMPLIFIED IMAGE FILTERS (Less CPU intensive)
+        "-dAutoFilterColorImages=true",  # Let GS choose automatically (faster)
+        "-dAutoFilterGrayImages=true",
         "-dColorImageFilter=/DCTEncode",
         "-dGrayImageFilter=/DCTEncode",
         
         # ✅ COMPRESSION SETTINGS
         "-dCompressPages=true",
         
-        # ✅ ADJUSTED MEMORY LIMITS for larger files
-        "-dMaxPatternBitmap=10000000",    # Increased to 10MB
-        "-dBufferSpace=150000000",       # Increased to 150MB
-        "-dMaxBitmap=100000000",          # Increased to 100MB
-        "-dNumRenderingThreads=2",
-        "-dMaxScreenBitmap=1048576",     # Increased to 1MB
-        "-dUseFastColor=true",
-        # "-dNOGC",  # ⚠️ REMOVED - Let Ghostscript handle GC
+        # ✅ REDUCED MEMORY LIMITS (Better for free tier)
+        "-dMaxPatternBitmap=5000000",    # Reduced from 10MB to 5MB
+        "-dBufferSpace=80000000",        # Reduced from 150MB to 80MB
+        "-dMaxBitmap=50000000",          # Reduced from 100MB to 50MB
+        "-dNumRenderingThreads=1",       # Single thread (prevents CPU spikes)
+        "-dMaxScreenBitmap=524288",      # Reduced from 1MB to 512KB
         
-        # ✅ ADDED PERFORMANCE SETTINGS
-        "-dDOINTERPOLATE",               # Improve image quality
+        # ✅ PERFORMANCE SETTINGS (CPU optimized)
+        "-dUseFastColor=true",
+        "-dNOGC",                        # Disable garbage collection (faster)
         "-dUseCropBox",                  # Use crop box instead of media box
-        "-dNEWPDF=false",                # Use older, more compatible PDF writer
         
         f"-sOutputFile=" + output_path,
         input_path
     ]
     
     try:
-        logger.info(f"Running Ghostscript file-based compression: {compression_level}")
+        logger.info(f"Running AWS-optimized Ghostscript compression: {compression_level}")
+        
+        # Set environment to prevent multi-threading
+        env = os.environ.copy()
+        env.update({
+            "OMP_NUM_THREADS": "1",
+            "OPENBLAS_NUM_THREADS": "1", 
+            "MKL_NUM_THREADS": "1",
+            "VECLIB_MAXIMUM_THREADS": "1",
+            "NUMEXPR_NUM_THREADS": "1",
+            "GS_THREADS": "1"
+        })
         
         result = subprocess.run(
             gs_command,
             capture_output=True,
-            timeout=300
+            timeout=400,  # Slightly increased for slower processing
+            env=env,      # Pass thread-limited environment
+            creationflags=creationflags  # ✅ This hides the window on Windows
         )
         
         if result.returncode != 0:
             logger.error(f"Ghostscript failed with return code {result.returncode}")
             if result.stderr:
-                logger.error(f"Ghostscript stderr: {result.stderr.decode('utf-8', errors='ignore')}")
+                error_msg = result.stderr.decode('utf-8', errors='ignore')
+                logger.error(f"Ghostscript stderr: {error_msg}")
+                
+                # Fallback to simpler compression if complex one fails
+                if "memory" in error_msg.lower() or "timeout" in error_msg.lower():
+                    logger.info("Attempting fallback compression with screen preset")
+                    return compress_with_fallback(input_path, output_path)
+                    
             return False
             
         # Verify output file was created
         if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-            logger.info(f"File compression completed: {input_path} → {output_path}")
+            original_size = os.path.getsize(input_path)
+            compressed_size = os.path.getsize(output_path)
+            savings = ((original_size - compressed_size) / original_size) * 100
+            logger.info(f"Compression completed: {original_size/1024/1024:.1f}MB → {compressed_size/1024/1024:.1f}MB ({savings:.1f}% savings)")
             return True
         else:
             logger.error("Ghostscript output file is missing or too small")
             return False
             
     except subprocess.TimeoutExpired:
-        logger.error("Ghostscript timeout")
-        return False
+        logger.error("Ghostscript timeout with optimized settings")
+        # Try fallback
+        return compress_with_fallback(input_path, output_path)
     except Exception as e:
-        logger.error(f"Ghostscript file compression error: {str(e)}")
+        logger.error(f"Optimized compression error: {str(e)}")
+        return compress_with_fallback(input_path, output_path)
+
+def compress_with_fallback(input_path: str, output_path: str) -> bool:
+    """Ultra-light fallback compression for problematic files"""
+    try:
+        if platform.system() == "Windows":
+            base_cmd = [gs_binary]
+            creationflags = subprocess.CREATE_NO_WINDOW
+        else:
+            base_cmd = ["nice", "-n", "15", gs_binary]  # Even lower priority
+            creationflags = 0
+            
+        fallback_command = base_cmd + [
+            "-dNOPAUSE",
+            "-dBATCH", 
+            "-dQUIET",
+            "-sDEVICE=pdfwrite",
+            "-dPDFSETTINGS=/screen",  # Fastest preset
+            "-dCompatibilityLevel=1.4",
+            "-dColorImageResolution=100",
+            "-dGrayImageResolution=100", 
+            "-dMonoImageResolution=150",
+            "-dColorImageDownsampleType=/Average",
+            "-dGrayImageDownsampleType=/Average",
+            "-dMonoImageDownsampleType=/Subsample",
+            "-dNumRenderingThreads=1",
+            f"-sOutputFile=" + output_path,
+            input_path
+        ]
+        
+        result = subprocess.run(
+            fallback_command,
+            capture_output=True,
+            timeout=300,
+            env={**os.environ, "OMP_NUM_THREADS": "1", "GS_THREADS": "1"},
+            creationflags=creationflags  # ✅ Hide window in fallback too
+        )
+        
+        success = result.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+        logger.info(f"Fallback compression {'succeeded' if success else 'failed'}")
+        return success
+        
+    except Exception as e:
+        logger.error(f"Fallback compression also failed: {str(e)}")
         return False
 
-##############################File upload to disk #######################################
-# async def stream_upload_to_disk(file: UploadFile, task_id: str) -> str:
-#     """Stream file upload to disk to avoid RAM usage for ALL files"""
-#     # Use your UPLOAD_DIR instead of tempdir
-#     filename = f"{task_id}_{file.filename}"
-#     file_path = UPLOAD_DIR / filename
+
+
+
+#################
+# def compress_pdf_ghostscript_file(input_path: str, output_path: str, compression_level: str = "ebook"):
+#     """Compress PDF using Ghostscript with file I/O (for large files)"""
     
-#     logger.info(f"Streaming upload to disk: {file_path}")
-#     with open(file_path, "wb") as buffer:
-#         while True:
-#             chunk = await file.read(65536)  # 8KB chunks
-#             if not chunk:
-#                 break
-#             buffer.write(chunk)
+#     compression_settings = {
+#         "screen": "/screen",
+#         "ebook": "/ebook", 
+#         "printer": "/printer",
+#         "prepress": "/prepress"
+#     }
     
-#     return str(file_path)
+#     if compression_level not in compression_settings:
+#         compression_level = "ebook"
+
+#     gs_command = [
+#         gs_binary,
+#         "-dNOPAUSE",
+#         "-dBATCH", 
+#         "-dQUIET",
+#         "-sDEVICE=pdfwrite",
+#         f"-dPDFSETTINGS={compression_settings[compression_level]}",
+#         "-dCompatibilityLevel=1.4",
+        
+#         # ✅ IMAGE COMPRESSION SETTINGS
+#         "-dDetectDuplicateImages=true",
+#         "-dCompressFonts=true",
+#         "-dEmbedAllFonts=true", 
+#         "-dSubsetFonts=true",
+        
+#         # ✅ IMAGE DOWN SAMPLING
+#         "-dColorImageDownsampleType=/Bicubic",
+#         "-dColorImageResolution=150",
+#         "-dGrayImageDownsampleType=/Bicubic",
+#         "-dGrayImageResolution=150",
+#         "-dMonoImageDownsampleType=/Bicubic",
+#         "-dMonoImageResolution=150",
+        
+#         # ✅ IMAGE FILTERS
+#         "-dAutoFilterColorImages=false",
+#         "-dAutoFilterGrayImages=false",
+#         "-dColorImageFilter=/DCTEncode",
+#         "-dGrayImageFilter=/DCTEncode",
+        
+#         # ✅ COMPRESSION SETTINGS
+#         "-dCompressPages=true",
+        
+#         # ✅ ADJUSTED MEMORY LIMITS for larger files
+#         "-dMaxPatternBitmap=10000000",    # Increased to 10MB
+#         "-dBufferSpace=150000000",       # Increased to 150MB
+#         "-dMaxBitmap=100000000",          # Increased to 100MB
+#         "-dNumRenderingThreads=2",
+#         "-dMaxScreenBitmap=1048576",     # Increased to 1MB
+#         "-dUseFastColor=true",
+#         # "-dNOGC",  # ⚠️ REMOVED - Let Ghostscript handle GC
+        
+#         # ✅ ADDED PERFORMANCE SETTINGS
+#         "-dDOINTERPOLATE",               # Improve image quality
+#         "-dUseCropBox",                  # Use crop box instead of media box
+#         "-dNEWPDF=false",                # Use older, more compatible PDF writer
+        
+#         f"-sOutputFile=" + output_path,
+#         input_path
+#     ]
+    
+#     try:
+#         logger.info(f"Running Ghostscript file-based compression: {compression_level}")
+        
+#         result = subprocess.run(
+#             gs_command,
+#             capture_output=True,
+#             timeout=300
+#         )
+        
+#         if result.returncode != 0:
+#             logger.error(f"Ghostscript failed with return code {result.returncode}")
+#             if result.stderr:
+#                 logger.error(f"Ghostscript stderr: {result.stderr.decode('utf-8', errors='ignore')}")
+#             return False
+            
+#         # Verify output file was created
+#         if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+#             logger.info(f"File compression completed: {input_path} → {output_path}")
+#             return True
+#         else:
+#             logger.error("Ghostscript output file is missing or too small")
+#             return False
+            
+#     except subprocess.TimeoutExpired:
+#         logger.error("Ghostscript timeout")
+#         return False
+#     except Exception as e:
+#         logger.error(f"Ghostscript file compression error: {str(e)}")
+#         return False
+
+
 
 async def stream_upload_to_disk(file: UploadFile, task_id: str) -> str:
     """Stream file upload to disk to avoid RAM usage for ALL files with progress tracking"""
