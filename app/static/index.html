@@ -810,7 +810,7 @@
                 <i class="fas fa-server text-blue-500 text-sm mr-2"></i>
                 <div class="flex-1 min-w-0">
                   <div class="font-medium text-gray-800 text-sm truncate">First Method</div>
-                  <div class="text-xs text-gray-500 truncate">May be slow. <br>Optimised. <br>Limit -50Mb</div>
+                  <div class="text-xs text-gray-500 truncate">May be slow. <br>Optimised. <br>Limit -50 Mb</div>
                 </div>
               </label>
             </div>
@@ -822,7 +822,7 @@
                 <i class="fas fa-desktop text-purple-500 text-sm mr-2"></i>
                 <div class="flex-1 min-w-0">
                   <div class="font-medium text-gray-800 text-sm truncate">Second Method</div>
-                  <div class="text-xs text-gray-500 truncate">Fast Speed <br> Limit-250mb <br> Try Both</div>
+                  <div class="text-xs text-gray-500 truncate">Fast Speed <br> Limit-250 Mb <br> Try Both</div>
                 </div>
               </label>
             </div>
@@ -867,22 +867,40 @@
           </div>
 
           <!-- Client Compression Options -->
+          <!-- Client Compression Options -->
           <div id="client-options" class="hidden">
             <div>
-              <label for="client-preset" class="block text-sm font-medium text-gray-600 mb-1" id="clientlabel">
+              <label for="compress-preset" class="block text-sm font-medium text-gray-600 mb-1" id="clientlabel">
                 Browser Compression Level
               </label>
-              <select id="client-preset" name="client_preset"
+              <select id="compress-preset" name="preset"
                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                <option value="High Quality">High Quality (Best quality, minimal compression)</option>
-                <option value="Balanced" selected>Balanced (Good balance of quality and size)</option>
-                <option value="Size Optimized">Size Optimized (Better compression, good quality)</option>
-                <option value="Smart Compression">Smart Compression (Intelligent content-based)</option>
+                <option value="High">High Compression (Best quality, minimal compression)</option>
+                <option value="Medium" selected>Medium Compression (Good balance of quality and size)</option>
+                <option value="Low">Low Compression (Better compression, good quality)</option>
+                <option value="ULTRA Low">New Compression (Maximum compression)</option>
+                <option value="Custom">Custom Compression (Advanced settings)</option>
               </select>
             </div>
 
             <div id="custom-compress-options" class="hidden space-y-4 bg-gray-50 p-4 rounded-lg">
+              <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                  DPI Resolution: <span id="dpi-value">120</span>
+                </label>
+                <input type="range" id="custom_dpi" name="custom_dpi" min="50" max="200" value="120"
+                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                <p class="text-xs text-gray-500 mt-1">Lower DPI = Smaller file size</p>
+              </div>
 
+              <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                  JPEG Quality: <span id="quality-value">65</span>%
+                </label>
+                <input type="range" id="custom_quality" name="custom_quality" min="10" max="100" value="65"
+                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                <p class="text-xs text-gray-500 mt-1">Lower quality = Smaller file size</p>
+              </div>
             </div>
           </div>
 
@@ -897,17 +915,10 @@
               id="estimate-sizes-btn">
               <i class="fas fa-calculator mr-2"></i> Estimate Sizes
             </button>
-            <!--stop operationn in  compress-section -->
-            <!-- <div class="mt-4">
-              <button type="button" onclick="stopAllOperations()"
-                class="w-full bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center">
-                <i class="fas fa-stop mr-2"></i> STOP ALL OPERATIONS
-              </button>
-            </div> -->
+
           </div>
 
-          <!-- Enhanced Progress Bar -->
-          <!-- Enhanced Progress Bar -->
+
           <div id="progress-compressForm" class="hidden mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div class="flex items-center justify-between mb-2">
               <div class="flex items-center">
@@ -921,26 +932,14 @@
             <div class="relative">
               <progress id="compressProgress" value="0" max="100"
                 class="w-full h-3 rounded-full progress-bar bg-gray-200"></progress>
-              <!-- Progress steps indicator -->
-              <!-- <div class="flex justify-between text-xs text-gray-500 mt-2 px-1"> -->
-              <!-- <span class="progress-step" data-step="0">Upload</span> -->
-              <!-- <span class="progress-step" data-step="25">Process</span> -->
-              <!-- <span class="progress-step" data-step="50">Compress</span> -->
-              <!-- <span class="progress-step" data-step="75">Finalize</span> -->
-              <!-- <span class="progress-step" data-step="100">Complete</span> -->
-              <!-- </div> -->
+
             </div>
 
             <!-- Detailed Progress Text -->
-            <div class="progress-text text-xs text-gray-600" id="progress-text-compressForm" style="margin-top: -26px;">
+            <div class="progress-text text-xs text-gray-600" id="progress-text-compressForm" style="margin-top: -26px;text-align: center;">
               Initializing Uploading process...
             </div>
 
-            <!-- Time elapsed -->
-            <!-- <div class="flex justify-between text-xs text-gray-500 mt-2" style="display: none;">
-              <span id="progress-time-elapsed">Time: 0s</span>
-              <span id="progress-time-remaining">Est: --</span>
-            </div> -->
           </div>
 
           <div id="result-compressForm" class="text-sm text-center min-h-[60px] flex items-center justify-center mt-4">

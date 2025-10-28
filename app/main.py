@@ -2364,6 +2364,7 @@ async def start_compression(
     
     try:
         # ✅ ALWAYS USE DISK PROCESSING - REMOVE MEMORY CHECK
+        setup_directories()
         await progress_tracker.update_progress(task_id, 10, "Streaming file to disk...", "uploading")
         await asyncio.sleep(0.3)
         temp_path = await stream_upload_to_disk(file, task_id)
@@ -2390,6 +2391,7 @@ async def start_compression(
 async def download_compressed(task_id: str):
     """Stream compressed file from disk ONLY"""
     try:
+        
         result_data = None
         
         # Get metadata
@@ -2749,7 +2751,7 @@ def cleanup_orphaned_files():
     """Clean up FILES older than 15 minutes considering ALL file activities"""
     try:
         current_time = time.time()
-        # orphan_age_seconds = 900  # 15 minutes
+        orphan_age_seconds = 900  # 15 minutes
         
         cleaned_count = 0
         for root_dir in [UPLOAD_DIR, OUTPUT_DIR, ESTIMATION_DIR, PDFTOWORD, TEMP_DIR]:
