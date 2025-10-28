@@ -9,7 +9,7 @@ if (typeof marked !== 'undefined') {
 const BASE_URL = window.location.origin;
 let chatHistory = [];
 const MAX_FILE_SIZE_PDFWORDEXCEL = 5 * 1024 * 1024; // 10MB
-const PDFWORDEXCEL_MAX_PAGES = 3;
+const PDFWORDEXCEL_MAX_PAGES = 5;
 ////////////////////////////////////////////////////ANALYZE PDF 
 
 // Analyze PDF to determine content type
@@ -492,10 +492,13 @@ async function detectTextOnPage(page) {
 async function computeAllCompressionSizes() {
     const compressionType = document.querySelector('input[name="compression_type"]:checked');
     const compbutton = document.getElementById('compress-submit-btn');
-    compbutton.disabled = true;
+    // compbutton.disabled = true;
 
     try {
         if (compressionType && compressionType.value === 'server') {
+
+            
+        
             await computeServerCompressionSizesTwoStep();
         } else {
             await computeClientCompressionSizes();
@@ -620,6 +623,8 @@ function getProgressStage(stage) {
 // Updated server compression estimation with progress
 
 async function computeServerCompressionSizesTwoStep() {
+
+    
     console.log('Computing server-side compression sizes using two-step method...');
 
     const form = document.getElementById('compressForm');
@@ -649,6 +654,18 @@ async function computeServerCompressionSizesTwoStep() {
 
     const file = fileInput.files[0];
     const originalSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    console.log(`Checking size: ${originalSizeMB} MB`);
+    
+    if (originalSizeMB > 50) {
+      resultDiv.textContent = 'Size exceeds 50MB';
+      return
+    } else {
+      resultDiv.textContent = `File size is ${originalSizeMB} MB`;
+      
+    }
+    
+    
+
 
     // Disable button during computation
     if (computeButton) {
@@ -861,7 +878,7 @@ function displayCompressionResults(data, originalSizeMB, compressionSizes, compr
     if (resultDiv) {
         resultDiv.innerHTML = `
             <div class="text-green-600">
-                ✅ <strong>Server Compression Estimates Ready!</strong><br>
+                ✅ <strong>Compression Estimates Ready!</strong><br>
                 <small>Recommended: <strong>${recommendationText[recommendation]}</strong> based on actual Ghostscript compression</small><br>
                 <small class="text-gray-500">These are real compression results, not estimates</small>
             </div>
@@ -1393,9 +1410,9 @@ async function updateFileSize() {
 
         const compressionType = document.querySelector('input[name="compression_type"]:checked');
         if (compressionType && compressionType.value === 'server') {
-            fileInfo.innerHTML = `<i class="fas fa-server mr-1 text-blue-500"></i> Ready for server compression (Best quality)`;
+            fileInfo.innerHTML = `<i class="fas fa-server mr-1 text-blue-500"></i>Compression`;
         } else {
-            fileInfo.innerHTML = `<i class="fas fa-desktop mr-1 text-purple-500"></i> Ready for browser compression (Fully private)`;
+            fileInfo.innerHTML = `<i class="fas fa-desktop mr-1 text-purple-500"></i>Compression (Fully private)`;
         }
 
         // Auto-compute sizes for files under 50MB
@@ -2108,11 +2125,13 @@ function setupCompressionType() {
     const clientOptions = document.getElementById('client-options');
     const serverlabel = document.getElementById('serverlabel');
     const clientlabel = document.getElementById('clientlabel');
+    const estimatesizebuttonforhideing = document.getElementById('estimate-sizes-btn');
     const serverlabelforcolorchange = document.querySelector('label[for="server-compression"]');
     const clientlabelforcolorchange = document.querySelector('label[for="client-compression"]');
 
     function updateOptions() {
         if (serverRadio.checked) {
+            estimatesizebuttonforhideing.style.display= 'none'
             serverOptions.classList.remove('hidden');
             clientOptions.classList.add('hidden');
             serverlabel.style.backgroundColor = '#d1e7dd'; // light green
@@ -2121,6 +2140,7 @@ function setupCompressionType() {
 
             clientlabel.style.backgroundColor = ''; // reset
         } else {
+            estimatesizebuttonforhideing.style.display= 'flex'
             serverOptions.classList.add('hidden');
             clientOptions.classList.remove('hidden');
             clientlabel.style.backgroundColor = '#cff4fc'; // light blue
@@ -2321,7 +2341,7 @@ async function processPDF(endpoint, formId) {
     const computeButton = document.getElementById('estimate-sizes-btn');
     const pdftoexcelbutton = document.getElementById('pdftoexcelbutton');
     const pdftowordbutton = document.getElementById('pdftowordbutton');
-    computeButton.disabled = true;
+    
 
     if (!form) {
         console.error(`Form with ID ${formId} not found`);
@@ -3718,5 +3738,17 @@ function clearAllForms() {
 }
 
 
-//  pdf to word
+//  abort compression opn\\
+
+function stopAllOperations() {
+    console.log('🛑 STOPPING ALL OPERATIONS');
+    
+    // For client-side: refresh page (kills everything)
+    window.location.reload();
+    
+    // For server-side: call stop endpoint
+    fetch('/stop_operations', { method: 'POST' })
+        .then(() => console.log('Server operations stopped'))
+        .catch(err => console.log('Stop request sent'));
+}
 

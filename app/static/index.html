@@ -320,7 +320,7 @@
 
               <a href="#remove-background" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('removeBackground-section')">Remove Image Background</a>
-               
+
             </div>
           </div>
           <!-- <a href="#videos" class="nav-link text-xl text-gray-700 hover:text-green-600"
@@ -389,7 +389,7 @@
 
             <a href="#remove-background" class="block py-1 text-gray-700 hover:text-green-600"
               onclick="showTool('removeBackground-section')">Remove Image Background</a>
-              
+
           </div>
         </div>
         <!-- <a href="#videos" class="block py-2 text-gray-700 hover:text-green-600"
@@ -804,8 +804,7 @@
           <label class="block text-sm font-semibold text-gray-800 mb-2">Compression Method</label>
           <div class="flex gap-2">
             <div class="compression-option flex-1" id="servermethod">
-              <input type="radio" id="server-compression" name="compression_type" value="server" 
-                class="hidden peer">
+              <input type="radio" id="server-compression" name="compression_type" value="server" class="hidden peer">
               <label for="server-compression" class="flex items-center p-3 border-2 border-gray-300 rounded-lg cursor-pointer transition-all duration-200
                 peer-checked:border-blue-500 peer-checked:bg-white peer-checked:shadow-md hover:bg-white">
                 <i class="fas fa-server text-blue-500 text-sm mr-2"></i>
@@ -816,7 +815,8 @@
               </label>
             </div>
             <div class="compression-option flex-1" id="browser">
-              <input type="radio" id="client-compression" name="compression_type" value="client" checked class="hidden peer">
+              <input type="radio" id="client-compression" name="compression_type" value="client" checked
+                class="hidden peer">
               <label for="client-compression" class="flex items-center p-3 border-2 border-gray-300 rounded-lg cursor-pointer transition-all duration-200
                 peer-checked:border-purple-500 peer-checked:bg-white peer-checked:shadow-md hover:bg-white">
                 <i class="fas fa-desktop text-purple-500 text-sm mr-2"></i>
@@ -897,6 +897,13 @@
               id="estimate-sizes-btn">
               <i class="fas fa-calculator mr-2"></i> Estimate Sizes
             </button>
+            <!--stop operationn in  compress-section -->
+            <!-- <div class="mt-4">
+              <button type="button" onclick="stopAllOperations()"
+                class="w-full bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center">
+                <i class="fas fa-stop mr-2"></i> STOP ALL OPERATIONS
+              </button>
+            </div> -->
           </div>
 
           <!-- Enhanced Progress Bar -->
@@ -916,11 +923,11 @@
                 class="w-full h-3 rounded-full progress-bar bg-gray-200"></progress>
               <!-- Progress steps indicator -->
               <!-- <div class="flex justify-between text-xs text-gray-500 mt-2 px-1"> -->
-                <!-- <span class="progress-step" data-step="0">Upload</span> -->
-                <!-- <span class="progress-step" data-step="25">Process</span> -->
-                <!-- <span class="progress-step" data-step="50">Compress</span> -->
-                <!-- <span class="progress-step" data-step="75">Finalize</span> -->
-                <!-- <span class="progress-step" data-step="100">Complete</span> -->
+              <!-- <span class="progress-step" data-step="0">Upload</span> -->
+              <!-- <span class="progress-step" data-step="25">Process</span> -->
+              <!-- <span class="progress-step" data-step="50">Compress</span> -->
+              <!-- <span class="progress-step" data-step="75">Finalize</span> -->
+              <!-- <span class="progress-step" data-step="100">Complete</span> -->
               <!-- </div> -->
             </div>
 
@@ -2721,60 +2728,60 @@
 
   <script>
     // Add this to your existing JavaScript
-function updateProgressUI(taskId, progressData) {
-    const progressBar = document.getElementById('compressProgress');
-    const progressText = document.getElementById('progress-text-compressForm');
-    const progressPercent = document.getElementById('progress-percent-compressForm');
-    const progressStatus = document.getElementById('progress-status-compressForm');
-    
-    if (progressBar) progressBar.value = progressData.progress;
-    if (progressPercent) progressPercent.textContent = `${progressData.progress}%`;
-    if (progressText) progressText.textContent = progressData.message;
-    if (progressStatus) progressStatus.textContent = getProgressStatus(progressData.progress);
-    
-    // Update progress steps
-    updateProgressSteps(progressData.progress);
-    
-    // Update time
-    updateProgressTime();
-}
+    function updateProgressUI(taskId, progressData) {
+      const progressBar = document.getElementById('compressProgress');
+      const progressText = document.getElementById('progress-text-compressForm');
+      const progressPercent = document.getElementById('progress-percent-compressForm');
+      const progressStatus = document.getElementById('progress-status-compressForm');
 
-function getProgressStatus(progress) {
-    if (progress < 20) return 'Uploading...';
-    if (progress < 40) return 'Processing...';
-    if (progress < 70) return 'Compressing...';
-    if (progress < 90) return 'Finalizing...';
-    return 'Complete!';
-}
+      if (progressBar) progressBar.value = progressData.progress;
+      if (progressPercent) progressPercent.textContent = `${progressData.progress}%`;
+      if (progressText) progressText.textContent = progressData.message;
+      if (progressStatus) progressStatus.textContent = getProgressStatus(progressData.progress);
 
-function updateProgressSteps(currentProgress) {
-    document.querySelectorAll('.progress-step').forEach(step => {
+      // Update progress steps
+      updateProgressSteps(progressData.progress);
+
+      // Update time
+      updateProgressTime();
+    }
+
+    function getProgressStatus(progress) {
+      if (progress < 20) return 'Uploading...';
+      if (progress < 40) return 'Processing...';
+      if (progress < 70) return 'Compressing...';
+      if (progress < 90) return 'Finalizing...';
+      return 'Complete!';
+    }
+
+    function updateProgressSteps(currentProgress) {
+      document.querySelectorAll('.progress-step').forEach(step => {
         const stepValue = parseInt(step.dataset.step);
         if (stepValue <= currentProgress) {
-            step.classList.add('text-blue-600', 'font-semibold');
+          step.classList.add('text-blue-600', 'font-semibold');
         } else {
-            step.classList.remove('text-blue-600', 'font-semibold');
+          step.classList.remove('text-blue-600', 'font-semibold');
         }
-    });
-}
-
-
-// Time tracking
-let progressStartTime;
-function startProgressTimer() {
-    progressStartTime = Date.now();
-    updateProgressTime();
-}
-
-function updateProgressTime() {
-    if (!progressStartTime) return;
-    
-    const elapsed = Math.floor((Date.now() - progressStartTime) / 1000);
-    const elapsedElement = document.getElementById('progress-time-elapsed');
-    if (elapsedElement) {
-        elapsedElement.textContent = `Time: ${elapsed}s`;
+      });
     }
-}
+
+
+    // Time tracking
+    let progressStartTime;
+    function startProgressTimer() {
+      progressStartTime = Date.now();
+      updateProgressTime();
+    }
+
+    function updateProgressTime() {
+      if (!progressStartTime) return;
+
+      const elapsed = Math.floor((Date.now() - progressStartTime) / 1000);
+      const elapsedElement = document.getElementById('progress-time-elapsed');
+      if (elapsedElement) {
+        elapsedElement.textContent = `Time: ${elapsed}s`;
+      }
+    }
   </script>
 
 

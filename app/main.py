@@ -210,7 +210,11 @@ PDFTOWORD = TEMP_DIR / "word"
 # File operation limits
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 MAX_PAGES = 5
-orphan_age_seconds = 400  # 15 minutes
+orphan_age_seconds = 900  # 15 minutes
+
+# Add these 2 lines with your other global variables
+# current_ghostscript_process = None
+# current_task_id = None
 
 def setup_directories():
     """Create necessary directories on startup - EC2 COMPATIBLE"""
@@ -982,39 +986,39 @@ thread_pool = ThreadPoolExecutor(max_workers=4)
 
 # ====================== Startup Event ======================
 
-@app.on_event("startup")
-async def startup_event():
-    global retriever, llm
-    logger.info("🚀 Starting AI services initialization...")
-    setup_directories()
+# @app.on_event("startup")
+# async def startup_event():
+#     global retriever, llm
+#     logger.info("🚀 Starting AI services initialization...")
+#     setup_directories()
     
-    try:
-        # Initialize only once at startup
-        index, embeddings = initialize_vectorstore()
-        retriever = PineconeRetriever(
-            index=index,
-            embeddings=embeddings,
-            search_type="similarity",
-            search_kwargs={
-                "k": 10,  # Increased for better coverage
-                "score_threshold": 0.3
-            }
-        )
-        llm = get_llm()
-        logger.info("✅ AI services initialized successfully")
-    except Exception as e:
-        logger.error(f"❌ Startup initialization failed: {e}", exc_info=True)
-        # Set fallback values
-        from langchain_core.retrievers import BaseRetriever
-        from langchain_core.documents import Document
+#     try:
+#         # Initialize only once at startup
+#         index, embeddings = initialize_vectorstore()
+#         retriever = PineconeRetriever(
+#             index=index,
+#             embeddings=embeddings,
+#             search_type="similarity",
+#             search_kwargs={
+#                 "k": 10,  # Increased for better coverage
+#                 "score_threshold": 0.3
+#             }
+#         )
+#         llm = get_llm()
+#         logger.info("✅ AI services initialized successfully")
+#     except Exception as e:
+#         logger.error(f"❌ Startup initialization failed: {e}", exc_info=True)
+#         # Set fallback values
+#         from langchain_core.retrievers import BaseRetriever
+#         from langchain_core.documents import Document
         
-        class FallbackRetriever(BaseRetriever):
-            def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
-                logger.warning("⚠️ Using fallback retriever")
-                return [Document(page_content="System initializing...", metadata={})]
+#         class FallbackRetriever(BaseRetriever):
+#             def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
+#                 logger.warning("⚠️ Using fallback retriever")
+#                 return [Document(page_content="System initializing...", metadata={})]
         
-        retriever = FallbackRetriever()
-        llm = get_llm()
+#         retriever = FallbackRetriever()
+#         llm = get_llm()
 
 
 
@@ -1800,6 +1804,7 @@ def get_compression_recommendation(estimates: dict, original_size_mb: float) -> 
 
 def compress_pdf_ghostscript_file(input_path: str, output_path: str, compression_level: str = "ebook"):
     """Compress PDF using Ghostscript with AWS-free-tier optimized settings"""
+    # global current_ghostscript_process, current_task_id
     
     compression_settings = {
         "screen": "/screen",
@@ -2063,7 +2068,28 @@ def compress_with_fallback(input_path: str, output_path: str) -> bool:
 #         logger.error(f"Ghostscript file compression error: {str(e)}")
 #         return False
 
+# ceanuo for compress estimation
 
+def cleanup_compression_estimation_files(task_id: str):
+    """Clean up compression and estimation files for specific task"""
+    try:
+        patterns = [
+            f"{task_id}_*",              # Uploaded files
+            f"compressed_{task_id}_*",    # Compression outputs
+            f"*{task_id}_*estimation.pdf" # Estimation files  
+        ]
+        
+        for base_dir in [UPLOAD_DIR, OUTPUT_DIR, ESTIMATION_DIR]:
+            if not base_dir.exists(): 
+                continue
+                
+            for pattern in patterns:
+                for file_path in base_dir.glob(pattern):
+                    if file_path.is_file():
+                        safe_delete_temp_file(str(file_path))
+                        
+    except Exception as e:
+        logger.error(f"Compression cleanup error for {task_id}: {e}")
 
 async def stream_upload_to_disk(file: UploadFile, task_id: str) -> str:
     """Stream file upload to disk to avoid RAM usage for ALL files with progress tracking"""
@@ -2182,6 +2208,9 @@ async def process_estimation_sequential_disk(task_id: str, file_path: str, filen
         logger.error(f'Sequential estimation error: {str(e)}')
         safe_delete_temp_file(file_path)
         await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
+        cleanup_compression_estimation_files(task_id)
+    finally:
+        cleanup_compression_estimation_files(task_id)   #### this may craette problemmmmm############################################
 
 
 
@@ -2191,6 +2220,7 @@ async def start_estimation(
     file: UploadFile = File(...)
 ):
     """Start estimation with SEQUENTIAL disk processing for better resource usage"""
+    # global current_task_id
     logger.info(f"Starting SEQUENTIAL estimation: file={file.filename}")
     
     validate_file_size(file.size)
@@ -2309,8 +2339,12 @@ async def process_compression_disk_only(task_id: str, input_path: str, filename:
         safe_delete_temp_file(input_path)
         safe_delete_temp_file(str(output_path))
         await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
+        cleanup_compression_estimation_files(task_id)
         raise
 
+    # finally:
+    #     # GUARANTEED cleanup for THIS operation
+    #     cleanup_compression_estimation_files(task_id)
 
 
 @app.post("/start_compression")
@@ -2320,6 +2354,7 @@ async def start_compression(
     preset: str = Form("ebook")
 ):
     """Start compression with disk processing for ALL files"""
+    # global current_task_id
     logger.info(f"Starting compression: file={file.filename}, preset={preset}")
     
     validate_file_size(file.size)
@@ -2405,6 +2440,9 @@ async def download_compressed(task_id: str):
     except Exception as e:
         logger.error(f"Download error: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to download compressed file")
+    # finally:
+    #     # GUARANTEED cleanup for THIS operation
+    #     cleanup_compression_estimation_files(task_id)
 
 @app.get("/progress/{task_id}")
 async def get_progress_status(task_id: str):
@@ -2414,6 +2452,33 @@ async def get_progress_status(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found or expired")
     
     return JSONResponse(content=progress_data)
+
+
+import subprocess
+import platform
+
+@app.post("/stop_operations")
+async def stop_operations():
+    """Kill ALL Ghostscript processes - Cross-platform"""
+    try:
+        system = platform.system()
+        
+        if system == "Windows":
+            # Windows - kill gswin64c and gswin32c
+            subprocess.run(["taskkill", "/f", "/im", "gswin64c.exe"], capture_output=True)
+            subprocess.run(["taskkill", "/f", "/im", "gswin32c.exe"], capture_output=True)
+        else:
+            # Linux (AWS EC2) - kill ghostscript processes
+            subprocess.run(["pkill", "-f", "ghostscript"], capture_output=True)
+            subprocess.run(["pkill", "-f", "gs"], capture_output=True)
+        
+        logger.info("✅ Killed all Ghostscript processes")
+        return {"status": "stopped", "message": "All operations terminated"}
+        
+    except Exception as e:
+        logger.error(f"Error stopping operations: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
 
 #########################################################################################################################################################
 
