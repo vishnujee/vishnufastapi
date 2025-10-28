@@ -2131,7 +2131,7 @@ function setupCompressionType() {
 
     function updateOptions() {
         if (serverRadio.checked) {
-            estimatesizebuttonforhideing.style.display= 'none'
+            estimatesizebuttonforhideing.style.display= 'none'  // this is hiding estimate size in server option
             serverOptions.classList.remove('hidden');
             clientOptions.classList.add('hidden');
             serverlabel.style.backgroundColor = '#d1e7dd'; // light green
