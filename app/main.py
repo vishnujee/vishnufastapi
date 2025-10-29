@@ -1201,6 +1201,231 @@ async def cleanup_dashboard():
     with open(cleanup_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+@app.get("/cleanup-logs")
+async def get_cleanup_logs():
+    """Get cleanup logs as JSON for the dashboard"""
+    try:
+        log_path = "/home/ubuntu/cron_cleanup.log"
+        if not os.path.exists(log_path):
+            return {
+                "logs": "No logs found yet. Cronjob may not have run.",
+                "last_updated": None,
+                "file_size": "0 KB",
+                "line_count": 0,
+                "recent_entries": []
+            }
+        
+        with open(log_path, 'r') as f:
+            log_content = f.read()
+        
+        stat = os.stat(log_path)
+        last_updated = stat.st_mtime
+        
+        # Get recent entries (last 10 lines)
+        lines = log_content.strip().split('\n')
+        recent_entries = lines[-10:] if lines else []
+        
+        return {
+            "logs": log_content,
+            "last_updated": last_updated,
+            "file_size": f"{stat.st_size / 1024:.2f} KB",
+            "line_count": len(lines),
+            "recent_entries": recent_entries,
+            "total_runs": len([line for line in lines if "Starting scheduled cleanup" in line])
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading logs: {str(e)}")
+
+@app.get("/cleanup-logs-page")
+async def get_cleanup_logs_page():
+    """Serve a dedicated page for viewing cleanup logs"""
+    log_path = "/home/ubuntu/cron_cleanup.log"
+    
+    if not os.path.exists(log_path):
+        log_content = "No logs found yet. Cronjob may not have run."
+    else:
+        with open(log_path, 'r') as f:
+            log_content = f.read()
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Cleanup Logs</title>
+        <style>
+            body {{ 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                margin: 0; padding: 20px; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+            }}
+            .container {{ 
+                max-width: 1200px; margin: 0 auto; 
+                background: white; padding: 30px; 
+                border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            }}
+            h1 {{ color: #333; margin-bottom: 20px; text-align: center; }}
+            .controls {{ 
+                display: flex; gap: 10px; margin-bottom: 20px; 
+                justify-content: center; flex-wrap: wrap;
+            }}
+            .btn {{ 
+                padding: 10px 20px; border: none; border-radius: 8px;
+                font-weight: 600; cursor: pointer; transition: all 0.3s ease;
+            }}
+            .btn-primary {{ background: #007bff; color: white; }}
+            .btn-primary:hover {{ background: #0056b3; transform: translateY(-2px); }}
+            .btn-secondary {{ background: #6c757d; color: white; }}
+            .btn-secondary:hover {{ background: #545b62; transform: translateY(-2px); }}
+            .log-container {{ 
+                background: #1e1e1e; color: #00ff00; padding: 20px;
+                border-radius: 8px; font-family: 'Courier New', monospace;
+                max-height: 600px; overflow-y: auto; white-space: pre-wrap;
+            }}
+            .log-entry {{ 
+                margin: 5px 0; padding: 5px; 
+                border-left: 3px solid transparent;
+            }}
+            .log-info {{ border-left-color: #17a2b8; }}
+            .log-success {{ border-left-color: #28a745; }}
+            .log-error {{ border-left-color: #dc3545; }}
+            .log-warning {{ border-left-color: #ffc107; }}
+            .stats {{ 
+                display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px; margin-bottom: 20px;
+            }}
+            .stat-card {{ 
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                color: white; padding: 15px; border-radius: 10px; text-align: center;
+            }}
+            .stat-number {{ font-size: 1.5em; font-weight: bold; margin-bottom: 5px; }}
+            .stat-label {{ font-size: 0.9em; opacity: 0.9; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🧹 Cron Cleanup Logs</h1>
+            
+            <div class="controls">
+                <button class="btn btn-primary" onclick="refreshLogs()">🔄 Refresh</button>
+                <button class="btn btn-secondary" onclick="goToDashboard()">📊 Dashboard</button>
+                <button class="btn btn-secondary" onclick="clearLogs()">🗑️ Clear Logs</button>
+                <button class="btn btn-secondary" onclick="downloadLogs()">📥 Download Logs</button>
+            </div>
+            
+            <div id="logStats" class="stats">
+                <!-- Stats will be populated by JavaScript -->
+            </div>
+            
+            <div class="log-container" id="logContent">
+                {log_content}
+            </div>
+        </div>
+        
+        <script>
+            function refreshLogs() {{
+                location.reload();
+            }}
+            
+            function goToDashboard() {{
+                window.location.href = '/cleanup';
+            }}
+            
+            async function clearLogs() {{
+                if (confirm('Are you sure you want to clear all logs?')) {{
+                    const response = await fetch('/clear-cleanup-logs', {{ method: 'POST' }});
+                    if (response.ok) {{
+                        location.reload();
+                    }} else {{
+                        alert('Failed to clear logs');
+                    }}
+                }}
+            }}
+            
+            function downloadLogs() {{
+                const logContent = document.getElementById('logContent').textContent;
+                const blob = new Blob([logContent], {{ type: 'text/plain' }});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'cleanup_logs.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }}
+            
+            // Color code logs
+            function colorCodeLogs() {{
+                const logContainer = document.getElementById('logContent');
+                const lines = logContainer.innerHTML.split('\\n');
+                const coloredLines = lines.map(line => {{
+                    let className = 'log-entry log-info';
+                    if (line.includes('ERROR') || line.includes('❌') || line.includes('💥')) 
+                        className = 'log-entry log-error';
+                    else if (line.includes('SUCCESS') || line.includes('✅') || line.includes('🎯')) 
+                        className = 'log-entry log-success';
+                    else if (line.includes('WARNING') || line.includes('⚠️')) 
+                        className = 'log-entry log-warning';
+                    
+                    return `<div class="${{className}}">${{line}}</div>`;
+                }});
+                logContainer.innerHTML = coloredLines.join('');
+            }}
+            
+            // Load stats
+            async function loadStats() {{
+                try {{
+                    const response = await fetch('/cleanup-logs');
+                    const data = await response.json();
+                    
+                    const statsHtml = `
+                        <div class="stat-card">
+                            <div class="stat-number">${{data.total_runs || 0}}</div>
+                            <div class="stat-label">Total Runs</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${{data.line_count || 0}}</div>
+                            <div class="stat-label">Log Entries</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${{data.file_size || '0 KB'}}</div>
+                            <div class="stat-label">Log Size</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${{data.last_updated ? new Date(data.last_updated * 1000).toLocaleDateString() : 'Never'}}</div>
+                            <div class="stat-label">Last Updated</div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('logStats').innerHTML = statsHtml;
+                }} catch (error) {{
+                    console.error('Error loading stats:', error);
+                }}
+            }}
+            
+            document.addEventListener('DOMContentLoaded', function() {{
+                colorCodeLogs();
+                loadStats();
+            }});
+        </script>
+    </body>
+    </html>
+    """
+    
+    return HTMLResponse(content=html_content)
+
+@app.post("/clear-cleanup-logs")
+async def clear_cleanup_logs():
+    """Clear the cron cleanup logs"""
+    try:
+        log_path = "/home/ubuntu/cron_cleanup.log"
+        if os.path.exists(log_path):
+            os.remove(log_path)
+        return {"message": "Logs cleared successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error clearing logs: {str(e)}")
+
 
 @app.post("/test-cleanup")
 async def test_cleanup():
