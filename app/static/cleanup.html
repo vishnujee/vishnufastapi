@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,40 +11,47 @@
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
         }
+
         .header {
             background: white;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             margin-bottom: 20px;
             text-align: center;
         }
+
         h1 {
             color: #333;
             margin-bottom: 10px;
             font-size: 2.5em;
         }
+
         .subtitle {
             color: #666;
             font-size: 1.1em;
             margin-bottom: 20px;
         }
+
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
         }
+
         .stat-card {
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
@@ -51,15 +59,18 @@
             border-radius: 10px;
             text-align: center;
         }
+
         .stat-number {
             font-size: 2em;
             font-weight: bold;
             margin-bottom: 5px;
         }
+
         .stat-label {
             font-size: 0.9em;
             opacity: 0.9;
         }
+
         .controls {
             display: flex;
             gap: 10px;
@@ -67,6 +78,7 @@
             flex-wrap: wrap;
             margin: 20px 0;
         }
+
         .btn {
             padding: 12px 24px;
             border: none;
@@ -76,55 +88,67 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
+
         .btn-primary {
             background: #007bff;
             color: white;
         }
+
         .btn-primary:hover {
             background: #0056b3;
             transform: translateY(-2px);
         }
+
         .btn-danger {
             background: #dc3545;
             color: white;
         }
+
         .btn-danger:hover {
             background: #c82333;
             transform: translateY(-2px);
         }
+
         .btn-success {
             background: #28a745;
             color: white;
         }
+
         .btn-success:hover {
             background: #218838;
             transform: translateY(-2px);
         }
+
         .btn-info {
             background: #17a2b8;
             color: white;
         }
+
         .btn-info:hover {
             background: #138496;
             transform: translateY(-2px);
         }
+
         .btn:disabled {
             background: #6c757d;
             cursor: not-allowed;
             transform: none;
         }
+
         .directories {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
         }
+
         .directory-card {
             background: white;
             border-radius: 10px;
             padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
+
         .directory-header {
             display: flex;
             justify-content: space-between;
@@ -133,11 +157,13 @@
             padding-bottom: 10px;
             border-bottom: 2px solid #f8f9fa;
         }
+
         .directory-name {
             font-weight: bold;
             color: #333;
             font-size: 1.2em;
         }
+
         .file-count {
             background: #007bff;
             color: white;
@@ -145,10 +171,12 @@
             border-radius: 20px;
             font-size: 0.9em;
         }
+
         .file-list {
             max-height: 300px;
             overflow-y: auto;
         }
+
         .file-item {
             display: flex;
             justify-content: space-between;
@@ -159,57 +187,69 @@
             border-radius: 6px;
             border-left: 4px solid #007bff;
         }
+
         .file-item.old {
             border-left-color: #dc3545;
             background: #fff5f5;
         }
+
         .file-info {
             flex: 1;
         }
+
         .file-name {
             font-weight: 600;
             color: #333;
             margin-bottom: 4px;
         }
+
         .file-details {
             font-size: 0.8em;
             color: #666;
         }
+
         .file-age {
             font-weight: 600;
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 0.8em;
         }
+
         .age-new {
             background: #d4edda;
             color: #155724;
         }
+
         .age-old {
             background: #f8d7da;
             color: #721c24;
         }
+
         .status {
             margin: 20px 0;
             padding: 15px;
             border-radius: 8px;
             display: none;
         }
+
         .status-success {
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
+
         .status-error {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+
         .status-loading {
             background: #fff3cd;
             color: #856404;
             border: 1px solid #ffeaa7;
         }
+
         .log-container {
             background: #1e1e1e;
             color: #00ff00;
@@ -221,15 +261,29 @@
             margin-top: 20px;
             display: none;
         }
+
         .log-entry {
             margin: 5px 0;
             padding: 5px;
             border-left: 2px solid transparent;
         }
-        .log-info { border-left-color: #17a2b8; }
-        .log-success { border-left-color: #28a745; }
-        .log-error { border-left-color: #dc3545; }
-        .log-warning { border-left-color: #ffc107; }
+
+        .log-info {
+            border-left-color: #17a2b8;
+        }
+
+        .log-success {
+            border-left-color: #28a745;
+        }
+
+        .log-error {
+            border-left-color: #dc3545;
+        }
+
+        .log-warning {
+            border-left-color: #ffc107;
+        }
+
         .refresh-btn {
             background: none;
             border: 2px solid #007bff;
@@ -239,34 +293,40 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
+
         .refresh-btn:hover {
             background: #007bff;
             color: white;
         }
+
         .last-updated {
             text-align: center;
             color: #666;
             font-size: 0.9em;
             margin-top: 10px;
         }
+
         .empty-state {
             text-align: center;
             color: #666;
             padding: 40px 20px;
         }
+
         .empty-state i {
             font-size: 3em;
             margin-bottom: 10px;
             opacity: 0.5;
         }
+
         /* Cron Status Styles */
         .cron-status {
             background: white;
             padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
         }
+
         .cron-header {
             display: flex;
             justify-content: space-between;
@@ -275,16 +335,19 @@
             padding-bottom: 15px;
             border-bottom: 2px solid #f8f9fa;
         }
+
         .cron-header h3 {
             color: #333;
             margin: 0;
         }
+
         .cron-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
         }
+
         .cron-stat {
             background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
             color: white;
@@ -292,15 +355,18 @@
             border-radius: 10px;
             text-align: center;
         }
+
         .cron-label {
             font-size: 0.9em;
             opacity: 0.9;
             margin-bottom: 5px;
         }
+
         .cron-value {
             font-size: 1.3em;
             font-weight: bold;
         }
+
         .recent-logs {
             background: #f8f9fa;
             border-radius: 8px;
@@ -308,6 +374,7 @@
             max-height: 200px;
             overflow-y: auto;
         }
+
         .log-line {
             padding: 8px 12px;
             margin: 5px 0;
@@ -317,26 +384,43 @@
             font-family: 'Courier New', monospace;
             font-size: 0.9em;
         }
+
         .log-line.error {
             border-left-color: #dc3545;
             background: #fff5f5;
         }
+
         .log-line.success {
             border-left-color: #28a745;
             background: #f8fff9;
         }
+
         .log-line.warning {
             border-left-color: #ffc107;
             background: #fffef0;
         }
     </style>
 </head>
+
 <body>
+
     <div class="container">
+
         <div class="header">
-            <h1>🧹 File Cleanup Manager</h1>
+
+            <div class="flex items-center space-x-4 py-0 w-full">
+                <a href="/" 
+                   class="text-lg font-semibold px-16 py-3 rounded-lg transition-all duration-300 w-full max-w-xs" 
+                   style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: block; text-align: center; height: 29px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.3);"
+                   onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.3)'; this.style.borderColor='rgba(255,255,255,0.6)'"
+                   onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.2)'; this.style.borderColor='rgba(255,255,255,0.3)'"
+                   onclick="showTool('chat-section')">
+                   🏠 Homepage
+                </a>
+            </div>
+            <h2>🧹 File Cleanup Manager</h2>
             <div class="subtitle">Monitor and clean up orphaned files across all directories</div>
-            
+
             <div class="stats">
                 <div class="stat-card">
                     <div class="stat-number" id="totalFiles">0</div>
@@ -386,7 +470,7 @@
                     📋 View Detailed Logs
                 </button>
             </div>
-            
+
             <div class="cron-stats">
                 <div class="cron-stat">
                     <div class="cron-label">Last Run</div>
@@ -465,7 +549,7 @@
         function toggleLogs() {
             const logContainer = document.getElementById('logContainer');
             const logsBtn = document.getElementById('logsBtn');
-            
+
             if (logContainer.style.display === 'block') {
                 logContainer.style.display = 'none';
                 logsBtn.textContent = '📋 Show Logs';
@@ -535,23 +619,23 @@
                 document.getElementById('recentLogs').innerHTML = '<div class="log-line">No logs available</div>';
                 return;
             }
-            
+
             // Update basic stats
             document.getElementById('logSize').textContent = data.file_size || '0 KB';
             document.getElementById('totalRuns').textContent = data.total_runs || '0';
-            
+
             // Calculate next run (every 15 minutes)
             const now = new Date();
             const currentMinute = now.getMinutes();
             let minutesToNextRun;
-            
+
             if (currentMinute < 15) minutesToNextRun = 15 - currentMinute;
             else if (currentMinute < 30) minutesToNextRun = 30 - currentMinute;
             else if (currentMinute < 45) minutesToNextRun = 45 - currentMinute;
             else minutesToNextRun = 60 - currentMinute + 15;
-            
+
             document.getElementById('nextCronRun').textContent = `${minutesToNextRun} min`;
-            
+
             // Find last run time
             if (data.last_updated) {
                 const lastRun = new Date(data.last_updated * 1000);
@@ -559,7 +643,7 @@
             } else {
                 document.getElementById('lastCronRun').textContent = 'Never';
             }
-            
+
             // Show recent logs
             const recentLogs = data.recent_entries || [];
             const recentLogsHTML = recentLogs.map(log => {
@@ -567,10 +651,10 @@
                 if (log.includes('ERROR') || log.includes('❌') || log.includes('💥')) className += ' error';
                 else if (log.includes('SUCCESS') || log.includes('✅') || log.includes('🎯')) className += ' success';
                 else if (log.includes('WARNING') || log.includes('⚠️')) className += ' warning';
-                
+
                 return `<div class="${className}">${log}</div>`;
             }).join('');
-            
+
             document.getElementById('recentLogs').innerHTML = recentLogsHTML || '<div class="log-line">No recent logs</div>';
         }
 
@@ -578,16 +662,16 @@
         async function loadFiles() {
             addLog('Loading files from all directories...', 'info');
             showStatus('Loading files...', 'loading');
-            
+
             const btn = document.getElementById('cleanupBtn');
             btn.disabled = true;
-            
+
             try {
                 const [statusData, cronData] = await Promise.all([
                     getCleanupStatus(),
                     getCronLogs()
                 ]);
-                
+
                 if (!statusData) {
                     throw new Error('Could not fetch file data from server');
                 }
@@ -605,21 +689,21 @@
                 // Convert API data to our format
                 for (const [dirName, dirData] of Object.entries(statusData.directories || {})) {
                     filesData[dirName] = [];
-                    
+
                     // In a real implementation, you would scan the actual directory
                     // For now, we'll use the counts from the API
                     const fileCount = dirData.total_files || 0;
                     const oldFileCount = dirData.old_files || 0;
-                    
+
                     totalFiles += fileCount;
                     oldFiles += oldFileCount;
-                    
+
                     // Generate representative file data based on counts
                     for (let i = 0; i < fileCount; i++) {
                         const isOld = i < oldFileCount;
                         const fileSize = Math.random() * 1024 * 1024 * 5; // Random size up to 5MB
                         const fileAge = isOld ? 900 + Math.random() * 3600 : Math.random() * 900;
-                        
+
                         filesData[dirName].push({
                             name: `file_${i + 1}${getFileExtension(dirName)}`,
                             size: fileSize,
@@ -627,26 +711,26 @@
                             path: `${dirName}/file_${i + 1}`,
                             modified: Date.now() / 1000 - fileAge
                         });
-                        
+
                         totalSizeBytes += fileSize;
                     }
-                    
+
                     addLog(`Found ${fileCount} files in ${dirName} (${oldFileCount} old)`, 'info');
                 }
-                
+
                 // Update UI with real data
                 updateStatistics(totalFiles, oldFiles, totalSizeBytes);
                 renderDirectories();
-                
+
                 // Update cron status
                 updateCronUI(cronData);
-                
+
                 showStatus(`Loaded ${totalFiles} files across ${Object.keys(statusData.directories || {}).length} directories`, 'success');
                 addLog(`File scan completed: ${totalFiles} files found, ${oldFiles} older than 15 minutes`, 'success');
-                
-                document.getElementById('lastUpdated').textContent = 
+
+                document.getElementById('lastUpdated').textContent =
                     `Last updated: ${new Date().toLocaleString()}`;
-                
+
                 // Update cleanup timing info
                 if (statusData.last_cleanup_time) {
                     const lastCleanup = new Date(statusData.last_cleanup_time * 1000);
@@ -654,11 +738,11 @@
                     addLog(`Last cleanup: ${lastCleanup.toLocaleString()}`, 'info');
                     addLog(`Next cleanup in: ${Math.round(nextCleanup / 60)} minutes`, 'info');
                 }
-                
+
             } catch (error) {
                 showStatus('Error loading files: ' + error.message, 'error');
                 addLog(`Error: ${error.message}`, 'error');
-                
+
                 // Fallback: show empty state
                 renderEmptyState();
             } finally {
@@ -702,17 +786,17 @@
         // Render directories and files
         function renderDirectories() {
             const container = document.getElementById('directoriesContainer');
-            
+
             if (Object.keys(filesData).length === 0) {
                 renderEmptyState();
                 return;
             }
-            
+
             container.innerHTML = '';
-            
+
             Object.entries(filesData).forEach(([dir, files]) => {
                 const oldFilesCount = files.filter(f => f.age > 900).length;
-                
+
                 const directoryCard = document.createElement('div');
                 directoryCard.className = 'directory-card';
                 directoryCard.innerHTML = `
@@ -721,9 +805,9 @@
                         <div class="file-count">${files.length} files</div>
                     </div>
                     <div class="file-list">
-                        ${files.length === 0 ? 
-                            '<div style="text-align: center; color: #666; padding: 20px;">No files</div>' : 
-                            files.map(file => `
+                        ${files.length === 0 ?
+                        '<div style="text-align: center; color: #666; padding: 20px;">No files</div>' :
+                        files.map(file => `
                                 <div class="file-item ${file.age > 900 ? 'old' : ''}">
                                     <div class="file-info">
                                         <div class="file-name">${file.name}</div>
@@ -737,15 +821,15 @@
                                     </div>
                                 </div>
                             `).join('')
-                        }
+                    }
                     </div>
-                    ${oldFilesCount > 0 ? 
+                    ${oldFilesCount > 0 ?
                         `<div style="margin-top: 10px; color: #dc3545; font-size: 0.9em;">
                             ⚠️ ${oldFilesCount} files older than 15 minutes
                         </div>` : ''
                     }
                 `;
-                
+
                 container.appendChild(directoryCard);
             });
         }
@@ -755,10 +839,10 @@
             const btn = document.getElementById('cleanupBtn');
             btn.disabled = true;
             btn.textContent = 'Cleaning...';
-            
+
             addLog('Starting cleanup process...', 'warning');
             showStatus('Cleanup in progress...', 'loading');
-            
+
             try {
                 const response = await fetch('/test-cleanup', {
                     method: 'POST',
@@ -766,22 +850,22 @@
                         'Content-Type': 'application/json',
                     }
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     addLog('✅ Cleanup started successfully', 'success');
                     addLog(`🕒 Cleanup triggered at: ${new Date().toLocaleString()}`, 'info');
-                    
+
                     // Show real progress updates
                     showStatus('Cleanup completed! Refreshing file list...', 'success');
-                    
+
                     // Wait a moment then refresh the file list
                     setTimeout(() => {
                         loadFiles();
                         addLog('✅ File list refreshed after cleanup', 'success');
                     }, 2000);
-                    
+
                 } else {
                     throw new Error(data.detail || 'Cleanup failed');
                 }
@@ -806,7 +890,7 @@
         }
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             addLog('File Cleanup Manager initialized', 'info');
             addLog('Connecting to backend API...', 'info');
             loadFiles(); // Load files automatically on page load
@@ -814,4 +898,5 @@
         });
     </script>
 </body>
+
 </html>

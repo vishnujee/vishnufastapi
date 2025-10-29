@@ -1,4 +1,4 @@
-from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form,Body,Response,BackgroundTasks
+from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form,Body,Response,BackgroundTasks,Depends
 from fastapi.responses import HTMLResponse, FileResponse,StreamingResponse,JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -159,6 +159,7 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")  
 USE_S3 = all([BUCKET_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY])
 CORRECT_PASSWORD_HASH = os.getenv("CORRECT_PASSWORD_HASH")
+CLEANUP_DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
 
 s3_client = boto3.client(
     "s3",
@@ -210,7 +211,7 @@ PDFTOWORD = TEMP_DIR / "word"
 # File operation limits
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 MAX_PAGES = 5
-orphan_age_seconds = 900  # 15 minutes
+orphan_age_seconds = 600  # 10 minutes
 
 # Add these 2 lines with your other global variables
 # current_ghostscript_process = None
@@ -1194,12 +1195,38 @@ async def serve_index():
         return HTMLResponse(content=f.read())
 
 
+
+DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD",)
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import secrets
+security = HTTPBasic()
+
+def verify_dashboard_access(credentials: HTTPBasicCredentials = Depends(security)):
+    """Verify dashboard access with password from .env"""
+    correct_username = "admin"  # You can make this configurable too
+    correct_password = DASHBOARD_PASSWORD
+    
+    is_correct_username = secrets.compare_digest(credentials.username, correct_username)
+    is_correct_password = secrets.compare_digest(credentials.password, correct_password)
+    
+    if not (is_correct_username and is_correct_password):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return True
+
 @app.get("/cleanup", response_class=HTMLResponse)
-async def cleanup_dashboard():
-    """Serve the comprehensive cleanup dashboard"""
+async def cleanup_dashboard(auth: bool = Depends(verify_dashboard_access)):
+    """Serve the comprehensive cleanup dashboard - PASSWORD PROTECTED"""
     cleanup_path = os.path.join(static_dir, "cleanup.html")
     with open(cleanup_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+
+
+
+
 
 @app.get("/cleanup-logs")
 async def get_cleanup_logs():
@@ -2976,7 +3003,7 @@ def cleanup_orphaned_files():
     """Clean up FILES older than 15 minutes considering ALL file activities"""
     try:
         current_time = time.time()
-        orphan_age_seconds = 900  # 15 minutes
+        # orphan_age_seconds = 900  # 15 minutes
         
         cleaned_count = 0
         for root_dir in [UPLOAD_DIR, OUTPUT_DIR, ESTIMATION_DIR, PDFTOWORD, TEMP_DIR]:
