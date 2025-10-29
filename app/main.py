@@ -39,6 +39,8 @@ from langchain_core.callbacks.manager import CallbackManagerForRetrieverRun
 from langchain_core.runnables.config import RunnableConfig
 from langchain_core.documents import Document
 from concurrent.futures import ThreadPoolExecutor
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 #langchain
 # LangChain & Embeddings
@@ -553,7 +555,8 @@ def post_process_retrieved_docs(docs, query):
     for doc in docs:
         content = doc.page_content
         source = doc.metadata.get("source", "unknown")
-        logger.info(f"🔧 Processing document from {source}")
+        # logger.info(f"🔧 Processing document from {source}")
+
       #  logger.info(f"📄 FULL CONTENT:\n{content}")
         # Check if it's a work experience table
         is_work_table = (
@@ -620,7 +623,7 @@ def ensure_tabular_inclusion(docs, query, min_tabular=2):
         if remaining_slots > 0:
             final_docs.extend(other_docs[:remaining_slots])
         
-        logger.info(f"📊 Final docs for work query: {len(final_docs)} total, {len(tabular_docs)} from work experience PDF")
+        # logger.info(f"📊 Final docs for work query: {len(final_docs)} total, {len(tabular_docs)} from work experience PDF")
     
     elif is_website_query:
         # NEW: Prioritize website-related documents
@@ -636,7 +639,7 @@ def ensure_tabular_inclusion(docs, query, min_tabular=2):
         if remaining_slots > 0:
             final_docs.extend(other_docs[:remaining_slots])
             
-        logger.info(f"🌐 Final docs for website query: {len(final_docs)} total, {len(website_docs)} website-specific")
+        # logger.info(f"🌐 Final docs for website query: {len(final_docs)} total, {len(website_docs)} website-specific")
     
     else:
         final_docs = docs[:5]  # Return top 5 for general queries
@@ -664,14 +667,12 @@ class PineconeRetriever(BaseRetriever):
         run_manager: CallbackManagerForRetrieverRun = None
     ) -> List[Document]:
         try:
-            logger.info(f"🔍 Starting retrieval for query: {query}")
+            # logger.info(f"🔍 Starting retrieval for query: {query}")
             query_embedding = self.embeddings.embed_query(query)
-            logger.info(f"✅ Query embedding generated, length: {len(query_embedding)}")
+            # logger.info(f"✅ Query embedding generated, length: {len(query_embedding)}")
 
              # Add timeout configuration
-            import requests
-            from requests.adapters import HTTPAdapter
-            from urllib3.util.retry import Retry
+           
             
             # Configure session with timeout
             session = requests.Session()
@@ -694,7 +695,7 @@ class PineconeRetriever(BaseRetriever):
                     logger.warning(f"⚠️ Pinecone query attempt {attempt + 1} failed: {e}")
                     time.sleep(1)  # Wait before retry
             
-            logger.info(f"📊 Pinecone returned {len(results['matches'])} matches")
+            # logger.info(f"📊 Pinecone returned {len(results['matches'])} matches")
             
             documents = []
             for match in results["matches"]:
@@ -710,7 +711,7 @@ class PineconeRetriever(BaseRetriever):
                     }
                 )
                 documents.append(document)
-                logger.info(f"📄 Retrieved doc - Score: {match['score']:.4f}, Source: {document.metadata['source']}")
+                # logger.info(f"📄 Retrieved doc - Score: {match['score']:.4f}, Source: {document.metadata['source']}")
             
             return documents
         except Exception as e:
@@ -761,11 +762,11 @@ def initialize_vectorstore():
             # Process Tabular PDF
             logger.info("📊 Processing tabular PDF...")
             pdf_bytes_tabular = download_from_url(PDF_URL_TABULAR)
-            logger.info(f"📥 Downloaded tabular PDF, size: {len(pdf_bytes_tabular)} bytes")
+            # logger.info(f"📥 Downloaded tabular PDF, size: {len(pdf_bytes_tabular)} bytes")
             
             # Use enhanced PDF extraction for tabular data
             tabular_text = extract_text_with_tables(pdf_bytes_tabular)
-            logger.info(f"📄 Extracted tabular text length: {len(tabular_text)} characters")
+            # logger.info(f"📄 Extracted tabular text length: {len(tabular_text)} characters")
             
             # Create document with metadata for tabular content
             tabular_doc = Document(
@@ -784,11 +785,11 @@ def initialize_vectorstore():
             logger.info("📝 Processing non-tabular PDF...")
             try:
                 pdf_bytes_nontabular = download_from_url(PDF_URL_NONTABULAR)
-                logger.info(f"📥 Downloaded non-tabular PDF, size: {len(pdf_bytes_nontabular)} bytes")
+                # logger.info(f"📥 Downloaded non-tabular PDF, size: {len(pdf_bytes_nontabular)} bytes")
                 
                 # Use non-tabular extraction for better text preservation
                 nontabular_text = extract_text_from_nontabular_pdf(pdf_bytes_nontabular)
-                logger.info(f"📄 Extracted non-tabular text length: {len(nontabular_text)} characters")
+                # logger.info(f"📄 Extracted non-tabular text length: {len(nontabular_text)} characters")
                 
                 # Split non-tabular content into logical sections
                 sections = split_into_logical_sections(nontabular_text)
@@ -806,7 +807,7 @@ def initialize_vectorstore():
                             }
                         )
                         all_documents.append(section_doc)
-                        logger.info(f"📑 Created section: {section_name} ({len(section_content)} chars)")
+                        # logger.info(f"📑 Created section: {section_name} ({len(section_content)} chars)")
                 
             except Exception as e:
                 logger.warning(f"⚠️ Failed to process non-tabular PDF: {e}. Continuing with tabular PDF only.")
@@ -832,7 +833,7 @@ def initialize_vectorstore():
                 else:
                     splits.extend(nontabular_splitter.split_documents([doc]))
             
-            logger.info(f"✂️ Split into {len(splits)} chunks from {len(all_documents)} documents")
+            # logger.info(f"✂️ Split into {len(splits)} chunks from {len(all_documents)} documents")
             
             # Log embedding process
             log_embedding_process(splits, "combined_pdfs")
@@ -846,33 +847,22 @@ def initialize_vectorstore():
                 batch = splits[i:i + batch_size]
                 texts = [doc.page_content for doc in batch]
                 
-                logger.info(f"🔤 Embedding batch {i//batch_size + 1}/{(len(splits)-1)//batch_size + 1}")
+                # logger.info(f"🔤 Embedding batch {i//batch_size + 1}/{(len(splits)-1)//batch_size + 1}")
                 
                 try:
                     # Batch embed for efficiency
                     embeddings_list = embeddings.embed_documents(texts)
                     
                     # ADD THESE LINES
-                    logger.info(f"🔤 Generated {len(embeddings_list)} embeddings for batch")
+                    # logger.info(f"🔤 Generated {len(embeddings_list)} embeddings for batch")
                     if embeddings_list:
                         logger.info(f"📏 First embedding dimensions: {len(embeddings_list[0])}")
                     
-                    logger.info(f"✅ Embedded {len(embeddings_list)} documents in batch")
+                    # logger.info(f"✅ Embedded {len(embeddings_list)} documents in batch")
                     
                     vectors = []
                     for j, (doc, embedding) in enumerate(zip(batch, embeddings_list)):
-                        # vectors.append({
-                        #     "id": f"doc_{i+j}",
-                        #     "values": embedding,
-                        #     "metadata": {
-                        #         "page_content": doc.page_content[:800],
-                        #         "source": doc.metadata.get("source", "unknown"),
-                        #         "content_type": doc.metadata.get("content_type", "mixed"),
-                        #         "document_type": doc.metadata.get("document_type", "unknown"),
-                        #         "section": doc.metadata.get("section", "general"),
-                        #         "chunk_index": i+j
-                        #     }
-                        # })
+          
                         vectors.append({
                             "id": f"doc_{i+j}",
                             "values": embedding,
@@ -887,13 +877,13 @@ def initialize_vectorstore():
                         })
                                             
                     if vectors:
-                        logger.info(f"📤 About to upsert {len(vectors)} vectors to Pinecone")
+                        # logger.info(f"📤 About to upsert {len(vectors)} vectors to Pinecone")
                         
                         # Upsert to Pinecone
                         upsert_response = index.upsert(vectors=vectors, namespace="vishnu_ai_docs")
                         
-                        logger.info(f"📤 Successfully upserted {len(vectors)} vectors to Pinecone")
-                        logger.info(f"📊 Upsert response: {upsert_response}")
+                        # logger.info(f"📤 Successfully upserted {len(vectors)} vectors to Pinecone")
+                        # logger.info(f"📊 Upsert response: {upsert_response}")
                         
                         total_vectors += len(vectors)
                         logger.info(f"📤 Upserted batch {i//batch_size + 1} with {len(vectors)} vectors")
@@ -906,7 +896,7 @@ def initialize_vectorstore():
             
             
             
-            logger.info(f"🎉 Successfully upserted {total_vectors} documents to Pinecone from {len(all_documents)} source documents")
+            # logger.info(f"🎉 Successfully upserted {total_vectors} documents to Pinecone from {len(all_documents)} source documents")
         
         logger.info("✅ Vectorstore initialization completed successfully")
         return index, embeddings
@@ -960,8 +950,6 @@ def split_into_logical_sections(text):
     return sections
 
 
-
-
 # Initialize LLM
 def get_llm():
     return ChatGoogleGenerativeAI(
@@ -973,16 +961,10 @@ def get_llm():
         api_key=GOOGLE_API_KEY
     )
 
-
-
-
 retriever = None
 llm = None
 thread_pool = ThreadPoolExecutor(max_workers=4)
 # chat_history = []
-
-
-
 
 
 # ====================== Startup Event ======================
@@ -1020,9 +1002,6 @@ async def startup_event():
         
         retriever = FallbackRetriever()
         llm = get_llm()
-
-
-
 
 
 # @app.get("/memory-usage")
@@ -1070,19 +1049,19 @@ def analyze_table_chunking(docs, query):
     """Analyze how table content is chunked across documents"""
     table_docs = [d for d in docs if "2.pdf" in d.metadata.get("source", "")]
     
-    logger.info(f"📊 TABLE CHUNK ANALYSIS FOR QUERY: '{query}'")
-    logger.info(f"📋 Found {len(table_docs)} documents from work experience PDF")
+    # logger.info(f"📊 TABLE CHUNK ANALYSIS FOR QUERY: '{query}'")
+    # logger.info(f"📋 Found {len(table_docs)} documents from work experience PDF")
     
     for i, doc in enumerate(table_docs, 1):
         content = doc.page_content
-        logger.info(f"\n🔍 TABLE CHUNK #{i}:")
-        logger.info(f"📏 Content length: {len(content)} characters")
-        logger.info(f"📄 Metadata: {doc.metadata}")
+        # logger.info(f"\n🔍 TABLE CHUNK #{i}:")
+        # logger.info(f"📏 Content length: {len(content)} characters")
+        # logger.info(f"📄 Metadata: {doc.metadata}")
         
         # Check table structure
         lines = content.split('\n')
         table_lines = [line for line in lines if '|' in line]
-        logger.info(f"📊 Table lines count: {len(table_lines)}")
+        # logger.info(f"📊 Table lines count: {len(table_lines)}")
         
         # Check for specific companies
         companies_to_check = ['KEI', 'Larsen', 'Toubro', 'Vindhya', 'Punj', 'GNG']
@@ -1091,11 +1070,11 @@ def analyze_table_chunking(docs, query):
             if company.lower() in content.lower():
                 found_companies.append(company)
         
-        logger.info(f"🏢 Companies found in this chunk: {found_companies}")
+        # logger.info(f"🏢 Companies found in this chunk: {found_companies}")
         
         # Log first 500 chars of content
         preview = content[:500] + "..." if len(content) > 500 else content
-        logger.info(f"👀 Content preview:\n{preview}")
+        # logger.info(f"👀 Content preview:\n{preview}")
     
     return table_docs
 
@@ -1116,28 +1095,28 @@ def check_complete_table_in_vectorstore():
             }
         )
         
-        logger.info("🔍 COMPLETE TABLE CHUNK ANALYSIS IN VECTOR STORE")
-        logger.info("=" * 80)
+        # logger.info("🔍 COMPLETE TABLE CHUNK ANALYSIS IN VECTOR STORE")
+        # logger.info("=" * 80)
         
         all_companies = ['KEI', 'Larsen', 'Toubro', 'Vindhya', 'Punj', 'GNG']
         found_companies = set()
         
         for i, match in enumerate(results['matches'], 1):
             content = match['metadata'].get('page_content', '')
-            logger.info(f"\n📄 CHUNK #{i}:")
-            logger.info(f"📏 Length: {len(content)} chars")
-            logger.info(f"📊 Score: {match['score']:.4f}")
+            # logger.info(f"\n📄 CHUNK #{i}:")
+            # logger.info(f"📏 Length: {len(content)} chars")
+            # logger.info(f"📊 Score: {match['score']:.4f}")
             
             # Check companies in this chunk
             chunk_companies = [c for c in all_companies if c.lower() in content.lower()]
-            logger.info(f"🏢 Companies: {chunk_companies}")
+            # logger.info(f"🏢 Companies: {chunk_companies}")
             found_companies.update(chunk_companies)
             
             # Show FULL content for table chunks
-            if "TABLE" in content:
-                logger.info(f"📋 FULL TABLE CONTENT:\n{content}")
-            else:
-                logger.info(f"📝 Content preview: {content[:200]}...")
+            # if "TABLE" in content:
+            #     logger.info(f"📋 FULL TABLE CONTENT:\n{content}")
+            # else:
+            #     logger.info(f"📝 Content preview: {content[:200]}...")
             
 
             
@@ -1147,20 +1126,20 @@ def check_complete_table_in_vectorstore():
                 include_metadata=True,
                 namespace="vishnu_ai_docs"
             )
-            logger.info("*$" * 50)
-            for i, match in enumerate(chunkresults['matches'], 1):
-                print(f"\n--- CHUNK #{i} ---")
-                print(f"ID: {match['id']}")
-                print(f"Content:\n{match['metadata'].get('page_content', '')}\n")
+            # logger.info("*$" * 50)
+            # for i, match in enumerate(chunkresults['matches'], 1):
+            #     print(f"\n--- CHUNK #{i} ---")
+            #     print(f"ID: {match['id']}")
+            #     print(f"Content:\n{match['metadata'].get('page_content', '')}\n")
 
 
 
-            logger.info("*$" * 50)
+            # logger.info("*$" * 50)
         
-        logger.info(f"\n🎯 SUMMARY:")
-        logger.info(f"Total table chunks: {len(results['matches'])}")
-        logger.info(f"Companies found across all chunks: {sorted(found_companies)}")
-        logger.info(f"Missing companies: {set(all_companies) - found_companies}")
+        # logger.info(f"\n🎯 SUMMARY:")
+        # logger.info(f"Total table chunks: {len(results['matches'])}")
+        # logger.info(f"Companies found across all chunks: {sorted(found_companies)}")
+        # logger.info(f"Missing companies: {set(all_companies) - found_companies}")
         
         return len(results['matches']), found_companies
         
@@ -1182,7 +1161,7 @@ def quick_table_analysis(retriever, query):
                 "source": {"$eq": "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/2.pdf"}
             }
         )
-        logger.info(f"📋 Table docs in store: {len(all_table_results['matches'])}")
+        # logger.info(f"📋 Table docs in store: {len(all_table_results['matches'])}")
     except Exception:
         pass  # Silent fail - this is just diagnostic
 
@@ -1539,11 +1518,6 @@ async def debug_retrieval(query: str = Form(...)):
 
 
 
-
-
-
-
-
 class ChatRequest(BaseModel):
     query: str
     mode: str = None  # Optional chat mode selection
@@ -1594,7 +1568,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
     if not query.strip() or len(query) > 10000:
         raise HTTPException(status_code=400, detail="Invalid query length")
     
-    logger.info(f"🎯 CHAT QUERY: '{query}' | Mode: {mode if mode else 'Default'} | History: {'Provided' if history else 'None'}") 
+    # logger.info(f"🎯 CHAT QUERY: '{query}' | Mode: {mode if mode else 'Default'} | History: {'Provided' if history else 'None'}") 
     
     # ✅ ADD THIS: Parse and limit history to last 4 conversations (8 messages)
     limited_history = []
@@ -1603,9 +1577,9 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             history_data = json.loads(history)
             # Keep only last 6 messages (3 conversations)
             limited_history = history_data[-6:]
-            logger.info(f"📝 HISTORY RECEIVED: {len(history_data)} messages, LIMITED TO: {len(limited_history)} messages")
+            # logger.info(f"📝 HISTORY RECEIVED: {len(history_data)} messages, LIMITED TO: {len(limited_history)} messages")
         except Exception as e:
-            logger.warning(f"Failed to parse chat history: {e}")
+            # logger.warning(f"Failed to parse chat history: {e}")
             limited_history = []
     else:
         logger.info(f"📝 HISTORY RECEIVED: None")
@@ -1625,7 +1599,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             
             # ✅ USE LIMITED_HISTORY instead of full history
             if limited_history:
-                logger.info(f"🧠 MODE-SPECIFIC HISTORY: {len(limited_history)} messages")
+                # logger.info(f"🧠 MODE-SPECIFIC HISTORY: {len(limited_history)} messages")
                 # Add conversation history to messages
                 for msg in limited_history:
                     if msg["role"] == "user":
@@ -1636,7 +1610,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             # Add current user message
             messages.append(("human", query))
             
-            logger.info(f"📨 FINAL MESSAGES TO LLM: {len(messages)} total messages")
+            # logger.info(f"📨 FINAL MESSAGES TO LLM: {len(messages)} total messages")
             
       
             
@@ -1652,9 +1626,9 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
 
 
                 answer = response.content if hasattr(response, 'content') else str(response)
-                logger.info(f"✅ LLM generation completed in mode '{mode}', response length: {len(answer)}")
+                # logger.info(f"✅ LLM generation completed in mode '{mode}', response length: {len(answer)}")
             except asyncio.TimeoutError:
-                logger.warning("⏰ LLM generation timeout in mode")
+                # logger.warning("⏰ LLM generation timeout in mode")
                 answer = "I'm taking too long to generate a response. Please try again."
             generation_end = time.time()
             timings["generation_time"] = generation_end - generation_start
@@ -1678,22 +1652,20 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     timeout=45.0
                 )
             except asyncio.TimeoutError:
-                logger.warning(f"⏰ Retrieval timeout for query: {query}")
+                # logger.warning(f"⏰ Retrieval timeout for query: {query}")
                 raw_docs = []
             except Exception as e:
-                logger.error(f"❌ Retrieval error: {e}")
+                # logger.error(f"❌ Retrieval error: {e}")
                 raw_docs = []
 
             retrieval_end = time.time()
             timings["retrieval_time"] = retrieval_end - retrieval_start
             
-            if raw_docs:
-                logger.info(f"✅ Retrieval completed in {timings['retrieval_time']:.2f}s, found {len(raw_docs)} documents")
-            else:
-                logger.warning(f"⚠️ Retrieval completed in {timings['retrieval_time']:.2f}s, but found 0 documents")
+            # if raw_docs:
+            #     logger.info(f"✅ Retrieval completed in {timings['retrieval_time']:.2f}s, found {len(raw_docs)} documents")
+            # else:
+            #     logger.warning(f"⚠️ Retrieval completed in {timings['retrieval_time']:.2f}s, but found 0 documents")
 
-            # Log retrieved documents
-            log_retrieved_documents(raw_docs, query)
 
             # ---------------- DOCUMENT PROCESSING ----------------
             processing_start = time.time()
@@ -1703,30 +1675,30 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             
             processing_end = time.time()
             timings["processing_time"] = processing_end - processing_start
-            logger.info(f"✅ Document processing completed in {timings['processing_time']:.2f}s")
+            # logger.info(f"✅ Document processing completed in {timings['processing_time']:.2f}s")
 
             # ---------------- GENERATION ----------------
             generation_start = time.time()
             
             if not processed_docs:
                 answer = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
-                logger.warning("⚠️ No relevant documents found for query")
+                # logger.warning("⚠️ No relevant documents found for query")
             else:
                 table_context = any("2.pdf" in doc.metadata.get("source", "") for doc in processed_docs)
-                if table_context:
-                    logger.info("✅ TABLE DATA IS IN LLM CONTEXT!")
-                else:
-                    logger.info("ℹ️ No table data in context for this query")
+                # if table_context:
+                #     logger.info("✅ TABLE DATA IS IN LLM CONTEXT!")
+                # else:
+                #     logger.info("ℹ️ No table data in context for this query")
 
     # ✅ LOG FINAL DOCUMENTS GOING TO LLM
-                logger.info("📤 FINAL DOCUMENTS BEING SENT TO LLM:")
-                for i, doc in enumerate(processed_docs, 1):
-                    logger.info(f"📄 Document {i}/{len(processed_docs)}:")
-                    logger.info(f"   Source: {doc.metadata.get('source', 'unknown')}")
-                    logger.info(f"   Content Type: {doc.metadata.get('content_type', 'unknown')}")
-                    logger.info(f"   Content Preview: {doc.page_content}...")
-                    logger.info(f"   Full Content Length: {len(doc.page_content)} chars")
-                    logger.info("   ---")
+                # logger.info("📤 FINAL DOCUMENTS BEING SENT TO LLM:")
+                # for i, doc in enumerate(processed_docs, 1):
+                #     logger.info(f"📄 Document {i}/{len(processed_docs)}:")
+                #     logger.info(f"   Source: {doc.metadata.get('source', 'unknown')}")
+                #     logger.info(f"   Content Type: {doc.metadata.get('content_type', 'unknown')}")
+                #     logger.info(f"   Content Preview: {doc.page_content}...")
+                #     logger.info(f"   Full Content Length: {len(doc.page_content)} chars")
+                #     logger.info("   ---")
 
 
 
@@ -1757,14 +1729,14 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                         timeout=15.0
                     )
                     answer = response.strip()
-                    logger.info(f"✅ LLM generation completed, response length: {len(answer)}")
+                    # logger.info(f"✅ LLM generation completed, response length: {len(answer)}")
                 except asyncio.TimeoutError:
-                    logger.warning("⏰ LLM generation timeout")
+                    # logger.warning("⏰ LLM generation timeout")
                     answer = "I'm taking too long to generate a response. Please try again."
 
             generation_end = time.time()
             timings["generation_time"] = generation_end - generation_start
-            logger.info(f"✅ Generation completed in {timings['generation_time']:.2f}s")
+            # logger.info(f"✅ Generation completed in {timings['generation_time']:.2f}s")
 
         # ---------------- RESPONSE ----------------
         chat_history = []
@@ -1775,7 +1747,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
 
         total_end = time.time()
         timings["total_time"] = total_end - start_time
-        logger.info(f"🎉 Total processing time: {timings['total_time']:.2f}s")
+        # logger.info(f"🎉 Total processing time: {timings['total_time']:.2f}s")
 
         return {
             "answer": answer,
@@ -2225,102 +2197,6 @@ def compress_with_fallback(input_path: str, output_path: str) -> bool:
 
 
 
-
-#################
-# def compress_pdf_ghostscript_file(input_path: str, output_path: str, compression_level: str = "ebook"):
-#     """Compress PDF using Ghostscript with file I/O (for large files)"""
-    
-#     compression_settings = {
-#         "screen": "/screen",
-#         "ebook": "/ebook", 
-#         "printer": "/printer",
-#         "prepress": "/prepress"
-#     }
-    
-#     if compression_level not in compression_settings:
-#         compression_level = "ebook"
-
-#     gs_command = [
-#         gs_binary,
-#         "-dNOPAUSE",
-#         "-dBATCH", 
-#         "-dQUIET",
-#         "-sDEVICE=pdfwrite",
-#         f"-dPDFSETTINGS={compression_settings[compression_level]}",
-#         "-dCompatibilityLevel=1.4",
-        
-#         # ✅ IMAGE COMPRESSION SETTINGS
-#         "-dDetectDuplicateImages=true",
-#         "-dCompressFonts=true",
-#         "-dEmbedAllFonts=true", 
-#         "-dSubsetFonts=true",
-        
-#         # ✅ IMAGE DOWN SAMPLING
-#         "-dColorImageDownsampleType=/Bicubic",
-#         "-dColorImageResolution=150",
-#         "-dGrayImageDownsampleType=/Bicubic",
-#         "-dGrayImageResolution=150",
-#         "-dMonoImageDownsampleType=/Bicubic",
-#         "-dMonoImageResolution=150",
-        
-#         # ✅ IMAGE FILTERS
-#         "-dAutoFilterColorImages=false",
-#         "-dAutoFilterGrayImages=false",
-#         "-dColorImageFilter=/DCTEncode",
-#         "-dGrayImageFilter=/DCTEncode",
-        
-#         # ✅ COMPRESSION SETTINGS
-#         "-dCompressPages=true",
-        
-#         # ✅ ADJUSTED MEMORY LIMITS for larger files
-#         "-dMaxPatternBitmap=10000000",    # Increased to 10MB
-#         "-dBufferSpace=150000000",       # Increased to 150MB
-#         "-dMaxBitmap=100000000",          # Increased to 100MB
-#         "-dNumRenderingThreads=2",
-#         "-dMaxScreenBitmap=1048576",     # Increased to 1MB
-#         "-dUseFastColor=true",
-#         # "-dNOGC",  # ⚠️ REMOVED - Let Ghostscript handle GC
-        
-#         # ✅ ADDED PERFORMANCE SETTINGS
-#         "-dDOINTERPOLATE",               # Improve image quality
-#         "-dUseCropBox",                  # Use crop box instead of media box
-#         "-dNEWPDF=false",                # Use older, more compatible PDF writer
-        
-#         f"-sOutputFile=" + output_path,
-#         input_path
-#     ]
-    
-#     try:
-#         logger.info(f"Running Ghostscript file-based compression: {compression_level}")
-        
-#         result = subprocess.run(
-#             gs_command,
-#             capture_output=True,
-#             timeout=300
-#         )
-        
-#         if result.returncode != 0:
-#             logger.error(f"Ghostscript failed with return code {result.returncode}")
-#             if result.stderr:
-#                 logger.error(f"Ghostscript stderr: {result.stderr.decode('utf-8', errors='ignore')}")
-#             return False
-            
-#         # Verify output file was created
-#         if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-#             logger.info(f"File compression completed: {input_path} → {output_path}")
-#             return True
-#         else:
-#             logger.error("Ghostscript output file is missing or too small")
-#             return False
-            
-#     except subprocess.TimeoutExpired:
-#         logger.error("Ghostscript timeout")
-#         return False
-#     except Exception as e:
-#         logger.error(f"Ghostscript file compression error: {str(e)}")
-#         return False
-
-# ceanuo for compress estimation
 
 def cleanup_compression_estimation_files(task_id: str):
     """Clean up compression and estimation files for specific task"""

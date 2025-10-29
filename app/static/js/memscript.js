@@ -43,22 +43,22 @@
             }
         }
     
-        // Connect to SSE endpoint
-        // const eventSource = new EventSource('/memory-usage');
-        const eventSource = new EventSource(`${BASE_URL}/memory-usage`);
+        // Connect to SSE endpoint  this commented out memory-usage  endpoint also commented out
+
+        // const eventSource = new EventSource(`${BASE_URL}/memory-usage`);
         
-        eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            updateMemoryUI(data);
-        };
+        // eventSource.onmessage = (event) => {
+        //     const data = JSON.parse(event.data);
+        //     updateMemoryUI(data);
+        // };
     
-        eventSource.onerror = () => {
-            console.error('EventSource failed');
-            // Attempt to reconnect after 2 seconds
-            setTimeout(() => {
-                eventSource.close();
-                new EventSource('/memory-usage');
-            }, 2000);
-        };
+        // eventSource.onerror = () => {
+        //     console.error('EventSource failed');
+        //     // Attempt to reconnect after 2 seconds
+        //     setTimeout(() => {
+        //         eventSource.close();
+        //         new EventSource('/memory-usage');
+        //     }, 2000);
+        // };
     });
     
