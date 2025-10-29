@@ -754,7 +754,7 @@ def initialize_vectorstore():
         
         index = pc.Index(index_name)
         # embeddings = OpenAIEmbeddings(model="text-embedding-3-large", dimensions=1536)  # Updated to large model
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512,request_timeout=20,max_retries=1,)
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512,request_timeout=20)
   
         # Efficient empty check
         stats = index.describe_index_stats()
