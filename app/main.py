@@ -163,6 +163,10 @@ USE_S3 = all([BUCKET_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY])
 CORRECT_PASSWORD_HASH = os.getenv("CORRECT_PASSWORD_HASH")
 CLEANUP_DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
 
+
+
+
+
 s3_client = boto3.client(
     "s3",
     aws_access_key_id=AWS_ACCESS_KEY,
@@ -731,6 +735,8 @@ class PineconeRetriever(BaseRetriever):
 def initialize_vectorstore():
     try:
         logger.info("🚀 Starting vectorstore initialization...")
+        os.environ['OPENAI_API_BASE'] = 'https://api.openai.com/v1'
+        os.environ['NO_PROXY'] = 'api.openai.com'
         pc = Pinecone(api_key=PINECONE_API_KEY)
         index_name = "vishnu-ai-docs"
         
@@ -748,8 +754,8 @@ def initialize_vectorstore():
         
         index = pc.Index(index_name)
         # embeddings = OpenAIEmbeddings(model="text-embedding-3-large", dimensions=1536)  # Updated to large model
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512,request_timeout=20)
-        
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512,request_timeout=20,max_retries=1,)
+  
         # Efficient empty check
         stats = index.describe_index_stats()
         namespace_stats = stats.get("namespaces", {}).get("vishnu_ai_docs", {})
