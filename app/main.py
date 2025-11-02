@@ -1010,44 +1010,7 @@ async def startup_event():
         llm = get_llm()
 
 
-# @app.get("/memory-usage")
-# async def memory_usage_stream(request: Request):
-#     """Stream memory usage data every second"""
-#     async def event_stream():
-#         while True:
-#             if await request.is_disconnected():
-#                 break
-            
-#             # Get memory info
-#             mem = psutil.virtual_memory()
-#             swap = psutil.swap_memory()
-            
-#             data = {
-#                 "ram": {
-#                     "total": mem.total,
-#                     "used": mem.used,
-#                     "free": mem.free,
-#                     "percent": mem.percent
-#                 },
-#                 "rom": {
-#                     "total": swap.total,
-#                     "used": swap.used,
-#                     "free": swap.free,
-#                     "percent": swap.percent
-#                 }
-#             }
-            
-#             yield f"data: {json.dumps(data)}\n\n"
-#             await asyncio.sleep(1)
-    
-#     return StreamingResponse(
-#         event_stream(),
-#         media_type="text/event-stream",
-#         headers={
-#             "Cache-Control": "no-cache",
-#             "Connection": "keep-alive",
-#         }
-#     )
+
 
 
 

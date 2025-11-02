@@ -1253,11 +1253,12 @@ async function handleFileSelectForRotatePages() {
 
 
 
-    // if (!fileInput.files[0]) {
-    //     console.log("No file selected");
-    //     // alert(`⚠️ select pdf file`);
-    //     return;
-    // }
+    if (!fileInput.files[0]) {
+        console.log("No file selected");
+        // alert(`⚠️ select pdf file`);
+        return;
+    }
+    
 
     // 200 MB size validation
     const maxSizeMB = 200;

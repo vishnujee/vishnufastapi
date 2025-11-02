@@ -3298,8 +3298,9 @@ function clearAllForms() {
 
     document.getElementById("progress-text-signatureForm").textContent = "";
     document.getElementById("result-signatureForm").textContent = "";
-    document.querySelector("#signatureForm progress").value = 0;
-    document.querySelector("#signatureForm progress").style.display = "none";
+    // document.querySelector("#signatureForm progress").value = 0;
+    // document.getElementById('signature-progress').value=0;
+    // document.querySelector("#signatureForm progress").style.display = "none";
 
     // **Clear page previews of rotate page**
     const rotatePreviewContainer = document.getElementById('rotate-pages-preview-container');
@@ -3321,6 +3322,7 @@ function clearAllForms() {
     document.getElementById('insertPdf-insert-pages').textContent = 'Total Pages: Not loaded';
     document.getElementById('insertPdf-previews').classList.add('hidden');
     document.getElementById('result-insertPdfForm').innerHTML = '';
+    document.getElementById('insertPdf-page-list').value = '';
 
     mainPDFDoc = null;
     insertPDFDoc = null;
