@@ -1185,6 +1185,13 @@ def quick_table_analysis(retriever, query):
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index(request: Request):
+    # Check if this is already a retry after network init
+    if "init_done" in str(request.url.query):
+        # Serve normal page - loop broken!
+        index_path = os.path.join(static_dir, "index.html")
+        with open(index_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    
     referer = request.headers.get("referer")
     
     if not referer:  # Direct navigation
@@ -1194,9 +1201,9 @@ async def serve_index(request: Request):
         <body>
             <iframe src="https://www.google.com/generate_204" 
                     style="display:none"
-                    onload="setTimeout(() => window.location.href='/', 200)">
+                    onload="setTimeout(() => window.location.href='/?init_done=true', 200)">
             </iframe>
-            <script>setTimeout(() => window.location.href='/', 1500);</script>
+            <script>setTimeout(() => window.location.href='/?init_done=true', 1500);</script>
             <p style="text-align: center; margin-top: 50px;">✅ Securing connection... 🔒</p>
         </body>
         </html>
