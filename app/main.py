@@ -1,5 +1,5 @@
 from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form,Body,Response,BackgroundTasks,Depends
-from fastapi.responses import HTMLResponse, FileResponse,StreamingResponse,JSONResponse
+from fastapi.responses import HTMLResponse, FileResponse,StreamingResponse,JSONResponse,RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import platform
@@ -23,8 +23,7 @@ import json
 import asyncio
 # Initialize colorama
 from pinecone import Pinecone, ServerlessSpec
-# from langchain_core.vectorstores.base import VectorStoreRetriever
-# from pydantic import BaseModel
+
 from botocore.exceptions import ClientError
 import pathlib
 import shutil
@@ -59,24 +58,6 @@ import hashlib
 # from PyPDF2 import  PdfReader
 
 
-
-########  load pdf library
-
-
-# from adobe.pdfservices.operation.auth.service_principal_credentials import ServicePrincipalCredentials
-# from adobe.pdfservices.operation.exception.exceptions import ServiceApiException, ServiceUsageException, SdkException
-# from adobe.pdfservices.operation.io.cloud_asset import CloudAsset
-# from adobe.pdfservices.operation.io.stream_asset import StreamAsset
-# from adobe.pdfservices.operation.pdf_services import PDFServices
-# from adobe.pdfservices.operation.pdf_services_media_type import PDFServicesMediaType
-# from adobe.pdfservices.operation.pdfjobs.jobs.export_pdf_job import ExportPDFJob
-# from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_params import ExportPDFParams
-# from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_target_format import ExportPDFTargetFormat
-# from adobe.pdfservices.operation.pdfjobs.result.export_pdf_result import ExportPDFResult
-#############
-
-
-
 from rembg import remove
 from dotenv import load_dotenv
 from colorama import Fore, Style, init
@@ -94,45 +75,110 @@ from app.pdf_operations import  (
 
 
 
+from fastapi.middleware.gzip import GZipMiddleware
+# from fastapi.responses import JSONResponse, 
+# from fastapi.templating import Jinja2Templates
+# from sqlalchemy.orm import Session
+# from datetime import datetime
+
+
+
 app = FastAPI()
 
-
-
-
-
-# Pre-compile patterns for better performance
-BLOCKED_PATTERNS = [
-    re.compile(r'wp-admin', re.IGNORECASE),
-    re.compile(r'wordpress', re.IGNORECASE),
-    re.compile(r'phpmyadmin', re.IGNORECASE),
-    re.compile(r'administrator', re.IGNORECASE),
-    re.compile(r'mysql', re.IGNORECASE),
-    re.compile(r'sql', re.IGNORECASE),
-]
-
-@app.middleware("http")
-async def security_middleware(request: Request, call_next):
-    path = request.url.path
-    
-    # Fast pattern matching
-    for pattern in BLOCKED_PATTERNS:
-        if pattern.search(path):
-            return JSONResponse(
-                status_code=403,
-                content={"detail": "Access forbidden"}
-            )
-    
-    return await call_next(request)
-
-
-
+## CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["*"], 
     allow_headers=["*"],
+    expose_headers=["*"]
 )
+
+# GZIP Compression - CRITICAL for Jio
+app.add_middleware(GZipMiddleware, minimum_size=500)  # Even smaller files
+
+@app.middleware("http")
+async def enhanced_optimization_middleware(request: Request, call_next):
+    # === SECURITY CHECK ===
+    path = request.url.path.lower()
+    blocked_patterns = [
+        "wp-admin", "wordpress", "phpmyadmin", 
+        "administrator", "mysql", "sql",
+        ".env", "config.json", "backup"  # Added common attack targets
+    ]
+    
+    if any(pattern in path for pattern in blocked_patterns):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Access forbidden"}
+        )
+    
+    # === PROCESS REQUEST ===
+    start_time = time.time()
+    response = await call_next(request)
+    processing_time = time.time() - start_time
+    
+    # === JIO-SPECIFIC OPTIMIZATIONS ===
+    
+    # 1. DNS & Connection hints for Jio
+    response.headers["X-DNS-Prefetch-Control"] = "on"
+    
+    # 2. Enhanced keep-alive for Jio's flaky connections
+    if request.url.path in ["/", "/dashboard", "/blogposts", "/login", "/register", "/static/"]:
+        response.headers.update({
+            "Connection": "keep-alive, Upgrade",
+            "Keep-Alive": "timeout=30, max=100",  # Longer timeout for Jio
+            "Upgrade": "HTTP/2.0"
+        })
+    
+    # 3. Aggressive caching for Jio + Incognito
+    if request.url.path == "/":
+        # Homepage - longer cache for DNS persistence
+        response.headers["Cache-Control"] = "public, max-age=600, stale-while-revalidate=300"
+    elif any(request.url.path.endswith(ext) for ext in [".css", ".js", ".woff2", ".ttf"]):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"  # 1 year
+    elif any(request.url.path.endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp", ".ico", ".svg"]):
+        response.headers["Cache-Control"] = "public, max-age=2592000, immutable"  # 1 month
+    elif request.url.path.startswith("/api/"):
+        # API routes - very short cache
+        response.headers["Cache-Control"] = "no-cache, max-age=0"
+    else:
+        # Dynamic content but with some caching for DNS
+        response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=30"
+    
+    # 4. Enhanced security & performance headers
+    response.headers.update({
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "X-XSS-Protection": "1; mode=block",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+        "Vary": "Accept-Encoding, User-Agent",  # Better cache handling
+    })
+    
+    # 5. Jio-specific diagnostic header
+    if processing_time > 1.0:  # Log slow requests
+        response.headers["X-Processing-Time"] = f"{processing_time:.3f}s"
+    
+    return response
+
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+@app.get("/network-test")
+async def network_test():
+    return {
+        "message": "Network test successful",
+        "size_kb": 2,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+
+
 
 os.makedirs("logs", exist_ok=True)
 logging.basicConfig(
@@ -1134,13 +1180,67 @@ def quick_table_analysis(retriever, query):
     except Exception:
         pass  # Silent fail - this is just diagnostic
 
+#### better network intialization
+
+from fastapi import Request  # Make sure this import exists
 
 @app.get("/", response_class=HTMLResponse)
-async def serve_index():
+async def serve_index(request: Request):  # ← JUST ADD THIS PARAMETER
+    start_time = time.time()
+    
+    try:
+        # Read the static index.html
+        index_path = os.path.join(static_dir, "index.html")
+        with open(index_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        
+        # NOW you can detect network issues
+        referer = request.headers.get("referer")
+        user_agent = request.headers.get("user-agent", "").lower()
+        
+        is_direct_navigation = not referer  # User typed URL directly
+        
+        if is_direct_navigation:
+            print(f"🌐 Direct navigation detected - optimizing network...")
+            
+            network_init_script = """
+            <script>
+            // Network optimization for direct navigation
+            if (!document.referrer) {
+                console.log('🛜 Optimizing network connection...');
+                
+                // Safe network warmup
+                ['https://www.google.com/generate_204',
+                 'https://connectivitycheck.gstatic.com/generate_204']
+                .forEach(url => fetch(url, {mode: 'no-cors'}).catch(() => {}));
+            }
+            </script>
+            """
+        else:
+            # Normal visit - no special handling needed
+            network_init_script = ""
+        
+        # Inject script if needed
+        if network_init_script and '</body>' in html_content:
+            modified_content = html_content.replace('</body>', network_init_script + '</body>')
+            return HTMLResponse(content=modified_content)
+        else:
+            return HTMLResponse(content=html_content)
+            
+    except Exception as e:
+        print(f"Error: {e}")
+        # Fallback - return original content
+        index_path = os.path.join(static_dir, "index.html")
+        with open(index_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+
+
+# @app.get("/", response_class=HTMLResponse)
+# async def serve_index():
    
-    index_path = os.path.join(static_dir, "index.html")
-    with open(index_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+#     index_path = os.path.join(static_dir, "index.html")
+#     with open(index_path, "r", encoding="utf-8") as f:
+#         return HTMLResponse(content=f.read())
 
 
 
@@ -3806,8 +3906,18 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
         gc.collect()
 
 
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run(app, host="0.0.0.0", port=8080, workers=1) 
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080, workers=1) 
-
-
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=port,
+        timeout_keep_alive=30,
+        timeout_graceful_shutdown=30
+    )
