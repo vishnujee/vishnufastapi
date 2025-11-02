@@ -1182,59 +1182,30 @@ def quick_table_analysis(retriever, query):
 
 #### better network intialization
 
-from fastapi import Request  # Make sure this import exists
 
 @app.get("/", response_class=HTMLResponse)
-async def serve_index(request: Request):  # ← JUST ADD THIS PARAMETER
-    start_time = time.time()
+async def serve_index(request: Request):
+    referer = request.headers.get("referer")
     
-    try:
-        # Read the static index.html
-        index_path = os.path.join(static_dir, "index.html")
-        with open(index_path, "r", encoding="utf-8") as f:
-            html_content = f.read()
-        
-        # NOW you can detect network issues
-        referer = request.headers.get("referer")
-        user_agent = request.headers.get("user-agent", "").lower()
-        
-        is_direct_navigation = not referer  # User typed URL directly
-        
-        if is_direct_navigation:
-            print(f"🌐 Direct navigation detected - optimizing network...")
-            
-            network_init_script = """
-            <script>
-            // Network optimization for direct navigation
-            if (!document.referrer) {
-                console.log('🛜 Optimizing network connection...');
-                
-                // Safe network warmup
-                ['https://www.google.com/generate_204',
-                 'https://connectivitycheck.gstatic.com/generate_204']
-                .forEach(url => fetch(url, {mode: 'no-cors'}).catch(() => {}));
-            }
-            </script>
-            """
-        else:
-            # Normal visit - no special handling needed
-            network_init_script = ""
-        
-        # Inject script if needed
-        if network_init_script and '</body>' in html_content:
-            modified_content = html_content.replace('</body>', network_init_script + '</body>')
-            return HTMLResponse(content=modified_content)
-        else:
-            return HTMLResponse(content=html_content)
-            
-    except Exception as e:
-        print(f"Error: {e}")
-        # Fallback - return original content
+    if not referer:  # Direct navigation
+        html = """
+        <!DOCTYPE html>
+        <html>
+        <body>
+            <iframe src="https://www.google.com/generate_204" 
+                    style="display:none"
+                    onload="setTimeout(() => window.location.href='/', 200)">
+            </iframe>
+            <script>setTimeout(() => window.location.href='/', 1500);</script>
+            <p style="text-align: center; margin-top: 50px;">✅ Securing connection... 🔒</p>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html)
+    else:
         index_path = os.path.join(static_dir, "index.html")
         with open(index_path, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
-
-
 # @app.get("/", response_class=HTMLResponse)
 # async def serve_index():
    
@@ -3906,18 +3877,8 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
         gc.collect()
 
 
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=8080, workers=1) 
-
-
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(
-        app, 
-        host="0.0.0.0", 
-        port=port,
-        timeout_keep_alive=30,
-        timeout_graceful_shutdown=30
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8080) 
+
+
