@@ -76,16 +76,12 @@ from app.pdf_operations import  (
 
 
 from fastapi.middleware.gzip import GZipMiddleware
-# from fastapi.responses import JSONResponse, 
-# from fastapi.templating import Jinja2Templates
-# from sqlalchemy.orm import Session
+
+
 from datetime import datetime
-
-
 
 app = FastAPI()
 
-## CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -119,6 +115,17 @@ async def enhanced_optimization_middleware(request: Request, call_next):
     response = await call_next(request)
     processing_time = time.time() - start_time
     
+    # === IPHONE SSL FIX HEADERS ===
+    response.headers.update({
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1; mode=block",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Content-Security-Policy": "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'",
+        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+    })
+    
     # === JIO-SPECIFIC OPTIMIZATIONS ===
     
     # 1. DNS & Connection hints for Jio
@@ -147,21 +154,12 @@ async def enhanced_optimization_middleware(request: Request, call_next):
         # Dynamic content but with some caching for DNS
         response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=30"
     
-    # 4. Enhanced security & performance headers
-    response.headers.update({
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "SAMEORIGIN",
-        "X-XSS-Protection": "1; mode=block",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        "Vary": "Accept-Encoding, User-Agent",  # Better cache handling
-    })
-    
     # 5. Jio-specific diagnostic header
     if processing_time > 1.0:  # Log slow requests
         response.headers["X-Processing-Time"] = f"{processing_time:.3f}s"
     
     return response
+
 
 
 @app.get("/health")
@@ -1180,39 +1178,122 @@ def quick_table_analysis(retriever, query):
     except Exception:
         pass  # Silent fail - this is just diagnostic
 
-#### better network intialization
-
+#### better network intialization 
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index(request: Request):
-    # Check if this is already a retry after network init
-    if "init_done" in str(request.url.query):
-        # Serve normal page - loop broken!
-        index_path = os.path.join(static_dir, "index.html")
-        with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+    """
+    Enhanced JioFiber connection priming with captive portal simulation
+    """
+    user_agent = request.headers.get("user-agent", "").lower()
+    is_iphone = "iphone" in user_agent
     
-    referer = request.headers.get("referer")
+    # If already initialized, serve main page
+    if "init_done" in str(request.url.query) or request.headers.get("referer"):
+        return await serve_main_page()
     
-    if not referer:  # Direct navigation
-        html = """
-        <!DOCTYPE html>
-        <html>
-        <body>
-            <iframe src="https://www.google.com/generate_204" 
-                    style="display:none"
-                    onload="setTimeout(() => window.location.href='/?init_done=true', 200)">
-            </iframe>
-            <script>setTimeout(() => window.location.href='/?init_done=true', 1500);</script>
-            <p style="text-align: center; margin-top: 50px;">✅ Securing connection... 🔒</p>
-        </body>
-        </html>
-        """
-        return HTMLResponse(content=html)
-    else:
-        index_path = os.path.join(static_dir, "index.html")
-        with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+    # IPHONE USERS: Simple approach
+    if is_iphone:
+        return await serve_iphone_simple_page()
+    
+    # JIOFIBER USERS: Aggressive connection priming
+    return await serve_jiofiber_aggressive_priming()
+
+async def serve_jiofiber_aggressive_priming():
+    """Clean, minimal JioFiber connection priming WITH all required priming elements"""
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Loading...</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 20px;
+                font-family: Arial, sans-serif;
+                text-align: center;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .container {
+                background: rgba(255,255,255,0.1);
+                padding: 40px;
+                border-radius: 15px;
+                backdrop-filter: blur(10px);
+                max-width: 400px;
+            }
+            .spinner {
+                border: 4px solid rgba(255,255,255,0.3);
+                border-radius: 50%;
+                border-top: 4px solid white;
+                width: 40px;
+                height: 40px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 20px;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="spinner"></div>
+            <h2>🔗 Welcome Aliens 👽</h2>
+            <p>⚡Eastablishing Fast connection..</p>
+        </div>
+
+        <!-- ESSENTIAL JIOFIBER PRIMING ELEMENTS -->
+        <iframe src="https://www.google.com/generate_204" style="display:none"></iframe>
+        <iframe src="https://connectivitycheck.gstatic.com/generate_204" style="display:none"></iframe>
+        <iframe src="https://www.google.com" style="display:none"></iframe>
+        <iframe src="https://www.youtube.com" style="display:none"></iframe>
+        
+        <!-- Essential priming resources -->
+        <img src="https://www.google.com/favicon.ico" style="display:none">
+        <img src="https://www.gstatic.com/favicon.ico" style="display:none">
+        <img src="https://www.youtube.com/favicon.ico" style="display:none">
+        
+        <script>
+            console.log('🚀 Starting JioFiber connection priming...');
+            
+            // Simple, clean approach - just 2 attempts
+            setTimeout(() => {
+                window.location.replace('/?init_done=true&t=' + Date.now());
+            }, 2000);
+            
+            // Backup attempt
+            setTimeout(() => {
+                window.location.replace('/?init_done=true&t=' + Date.now());
+            }, 5000);
+            
+            // Click anywhere to skip wait
+            document.body.addEventListener('click', () => {
+                window.location.replace('/?init_done=true&skip=true&t=' + Date.now());
+            });
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html)
+
+
+
+
+#### better network intialization
+
+
+
+
+
+
 
 
 
