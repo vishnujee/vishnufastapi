@@ -1215,115 +1215,122 @@ def quick_table_analysis(retriever, query):
         pass  # Silent fail - this is just diagnostic
 
 #### ################## Better network intialization 
-@app.get("/", response_class=HTMLResponse)
-async def serve_index(request: Request):
-    if "init_done" in str(request.url.query):
-        return await serve_main_page()
+# @app.get("/", response_class=HTMLResponse)
+# async def serve_index(request: Request):
+#     if "init_done" in str(request.url.query):
+#         return await serve_main_page()
     
-    user_agent = request.headers.get("user-agent", "").lower()
+#     user_agent = request.headers.get("user-agent", "").lower()
     
-    html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Connecting...</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-            body {
-                margin: 0;
-                padding: 20px;
-                font-family: Arial, sans-serif;
-                text-align: center;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .container {
-                background: rgba(255,255,255,0.1);
-                padding: 40px;
-                border-radius: 15px;
-                backdrop-filter: blur(10px);
-                max-width: 400px;
-            }
-            .spinner {
-                border: 4px solid rgba(255,255,255,0.3);
-                border-radius: 50%;
-                border-top: 4px solid white;
-                width: 40px;
-                height: 40px;
-                animation: spin 1s linear infinite;
-                margin: 0 auto 20px;
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        </style>
-    </head>
-    <body>
-               <div class="container">
-                    <div class="spinner"></div>
-                    <h2>🔗 Welcome Aliens 👽</h2>
-                    <p>⚡ Establishing Fast connection..</p>
-                </div>
+#     html = """
+#     <!DOCTYPE html>
+#     <html>
+#     <head>
+#         <title>Connecting...</title>
+#         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+#                 <style>
+#             body {
+#                 margin: 0;
+#                 padding: 20px;
+#                 font-family: Arial, sans-serif;
+#                 text-align: center;
+#                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+#                 color: white;
+#                 min-height: 100vh;
+#                 display: flex;
+#                 align-items: center;
+#                 justify-content: center;
+#             }
+#             .container {
+#                 background: rgba(255,255,255,0.1);
+#                 padding: 40px;
+#                 border-radius: 15px;
+#                 backdrop-filter: blur(10px);
+#                 max-width: 400px;
+#             }
+#             .spinner {
+#                 border: 4px solid rgba(255,255,255,0.3);
+#                 border-radius: 50%;
+#                 border-top: 4px solid white;
+#                 width: 40px;
+#                 height: 40px;
+#                 animation: spin 1s linear infinite;
+#                 margin: 0 auto 20px;
+#             }
+#             @keyframes spin {
+#                 0% { transform: rotate(0deg); }
+#                 100% { transform: rotate(360deg); }
+#             }
+#         </style>
+#     </head>
+#     <body>
+#                <div class="container">
+#                     <div class="spinner"></div>
+#                     <h2>🔗 Welcome Aliens 👽</h2>
+#                     <p>⚡ Establishing Fast connection..</p>
+#                 </div>
 
 
-        <!-- MULTIPLE CAPTIVE PORTAL TRIGGERS -->
-        <iframe src="https://www.google.com/generate_204" style="display:none"></iframe>
-        <iframe src="https://connectivitycheck.gstatic.com/generate_204" style="display:none"></iframe>
-        <img src="https://www.gstatic.com/favicon.ico" style="display:none">
-        <img src="https://www.google.com/favicon.ico" style="display:none">
+#         <!-- MULTIPLE CAPTIVE PORTAL TRIGGERS -->
+#         <iframe src="https://www.google.com/generate_204" style="display:none"></iframe>
+#         <iframe src="https://connectivitycheck.gstatic.com/generate_204" style="display:none"></iframe>
+#         <img src="https://www.gstatic.com/favicon.ico" style="display:none">
+#         <img src="https://www.google.com/favicon.ico" style="display:none">
         
-        <script>
-            // ENHANCED: Handle strict browsers (DuckDuckGo, Incognito)
-            let shouldRedirect = true;
+#         <script>
+#             // ENHANCED: Handle strict browsers (DuckDuckGo, Incognito)
+#             let shouldRedirect = true;
             
-            // Check if localStorage is available
-            try {
-                if (localStorage.getItem('jio_initialized') || 
-                    document.referrer.includes(window.location.hostname)) {
-                    window.location.href = '/?init_done=true&t=' + Date.now();
-                    shouldRedirect = false;
-                }
-            } catch (e) {
-                // localStorage not available (incognito) - continue with timeout
-                console.log('Incognito mode detected');
-            }
+#             // Check if localStorage is available
+#             try {
+#                 if (localStorage.getItem('jio_initialized') || 
+#                     document.referrer.includes(window.location.hostname)) {
+#                     window.location.href = '/?init_done=true&t=' + Date.now();
+#                     shouldRedirect = false;
+#                 }
+#             } catch (e) {
+#                 // localStorage not available (incognito) - continue with timeout
+#                 console.log('Incognito mode detected');
+#             }
             
-            if (shouldRedirect) {
-                setTimeout(() => {
-                    try {
-                        localStorage.setItem('jio_initialized', 'true');
-                    } catch (e) {
-                        // Ignore localStorage errors in incognito
-                    }
-                    window.location.href = '/?init_done=true&t=' + Date.now();
-                }, 800); // Slightly longer for strict browsers
-            }
-        </script>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html)
+#             if (shouldRedirect) {
+#                 setTimeout(() => {
+#                     try {
+#                         localStorage.setItem('jio_initialized', 'true');
+#                     } catch (e) {
+#                         // Ignore localStorage errors in incognito
+#                     }
+#                     window.location.href = '/?init_done=true&t=' + Date.now();
+#                 }, 800); // Slightly longer for strict browsers
+#             }
+#         </script>
+#     </body>
+#     </html>
+#     """
+#     return HTMLResponse(content=html)
 
-async def serve_main_page():
-    """Serve your actual application"""
-    try:
-        index_path = os.path.join(static_dir, "index.html")
-        with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    except Exception as e:
-        # Simple fallback
-        return HTMLResponse(content="<h1>Vishnu AI Tools</h1><p>App loaded</p>")
+# async def serve_main_page():
+#     """Serve your actual application"""
+#     try:
+#         index_path = os.path.join(static_dir, "index.html")
+#         with open(index_path, "r", encoding="utf-8") as f:
+#             return HTMLResponse(content=f.read())
+#     except Exception as e:
+#         # Simple fallback
+#         return HTMLResponse(content="<h1>Vishnu AI Tools</h1><p>App loaded</p>")
 
 
 
 #### better network intialization
 
 
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_index():
+   
+    index_path = os.path.join(static_dir, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 
 
