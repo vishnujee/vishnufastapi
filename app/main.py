@@ -130,72 +130,6 @@ async def security_middleware(request: Request, call_next):
 
 
 
-# @app.middleware("http")
-# async def enhanced_optimization_middleware(request: Request, call_next):
-#     # === SECURITY CHECK ===
-#     path = request.url.path.lower()
-#     blocked_patterns = [
-#         "wp-admin", "wordpress", "phpmyadmin", 
-#         "administrator", "mysql", "sql",
-#         ".env", "config.json", "backup"  # Added common attack targets
-#     ]
-    
-#     if any(pattern in path for pattern in blocked_patterns):
-#         return JSONResponse(
-#             status_code=403,
-#             content={"detail": "Access forbidden"}
-#         )
-    
-#     # === PROCESS REQUEST ===
-#     start_time = time.time()
-#     response = await call_next(request)
-#     processing_time = time.time() - start_time
-    
-#     # === IPHONE SSL FIX HEADERS ===
-#     response.headers.update({
-#         "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-#         "X-Content-Type-Options": "nosniff",
-#         "X-Frame-Options": "DENY",
-#         "X-XSS-Protection": "1; mode=block",
-#         "Referrer-Policy": "strict-origin-when-cross-origin",
-#         "Content-Security-Policy": "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'",
-#         "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-#     })
-    
-#     # === JIO-SPECIFIC OPTIMIZATIONS ===
-    
-#     # 1. DNS & Connection hints for Jio
-#     response.headers["X-DNS-Prefetch-Control"] = "on"
-    
-#     # 2. Enhanced keep-alive for Jio's flaky connections
-#     if request.url.path in ["/", "/dashboard", "/blogposts", "/login", "/register", "/static/"]:
-#         response.headers.update({
-#             "Connection": "keep-alive, Upgrade",
-#             "Keep-Alive": "timeout=30, max=100",  # Longer timeout for Jio
-#             "Upgrade": "HTTP/2.0"
-#         })
-    
-#     # 3. Aggressive caching for Jio + Incognito
-#     if request.url.path == "/":
-#         # Homepage - longer cache for DNS persistence
-#         response.headers["Cache-Control"] = "public, max-age=600, stale-while-revalidate=300"
-#     elif any(request.url.path.endswith(ext) for ext in [".css", ".js", ".woff2", ".ttf"]):
-#         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"  # 1 year
-#     elif any(request.url.path.endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp", ".ico", ".svg"]):
-#         response.headers["Cache-Control"] = "public, max-age=2592000, immutable"  # 1 month
-#     elif request.url.path.startswith("/api/"):
-#         # API routes - very short cache
-#         response.headers["Cache-Control"] = "no-cache, max-age=0"
-#     else:
-#         # Dynamic content but with some caching for DNS
-#         response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=30"
-    
-#     # 5. Jio-specific diagnostic header
-#     if processing_time > 1.0:  # Log slow requests
-#         response.headers["X-Processing-Time"] = f"{processing_time:.3f}s"
-    
-#     return response
-
 
 
 @app.get("/health")
@@ -1214,126 +1148,21 @@ def quick_table_analysis(retriever, query):
     except Exception:
         pass  # Silent fail - this is just diagnostic
 
-#### ################## Better network intialization 
+
+
+
+
 # @app.get("/", response_class=HTMLResponse)
-# async def serve_index(request: Request):
-#     if "init_done" in str(request.url.query):
-#         return await serve_main_page()
-    
-#     user_agent = request.headers.get("user-agent", "").lower()
-    
-#     html = """
-#     <!DOCTYPE html>
-#     <html>
-#     <head>
-#         <title>Connecting...</title>
-#         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-#                 <style>
-#             body {
-#                 margin: 0;
-#                 padding: 20px;
-#                 font-family: Arial, sans-serif;
-#                 text-align: center;
-#                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-#                 color: white;
-#                 min-height: 100vh;
-#                 display: flex;
-#                 align-items: center;
-#                 justify-content: center;
-#             }
-#             .container {
-#                 background: rgba(255,255,255,0.1);
-#                 padding: 40px;
-#                 border-radius: 15px;
-#                 backdrop-filter: blur(10px);
-#                 max-width: 400px;
-#             }
-#             .spinner {
-#                 border: 4px solid rgba(255,255,255,0.3);
-#                 border-radius: 50%;
-#                 border-top: 4px solid white;
-#                 width: 40px;
-#                 height: 40px;
-#                 animation: spin 1s linear infinite;
-#                 margin: 0 auto 20px;
-#             }
-#             @keyframes spin {
-#                 0% { transform: rotate(0deg); }
-#                 100% { transform: rotate(360deg); }
-#             }
-#         </style>
-#     </head>
-#     <body>
-#                <div class="container">
-#                     <div class="spinner"></div>
-#                     <h2>🔗 Welcome Aliens 👽</h2>
-#                     <p>⚡ Establishing Fast connection..</p>
-#                 </div>
-
-
-#         <!-- MULTIPLE CAPTIVE PORTAL TRIGGERS -->
-#         <iframe src="https://www.google.com/generate_204" style="display:none"></iframe>
-#         <iframe src="https://connectivitycheck.gstatic.com/generate_204" style="display:none"></iframe>
-#         <img src="https://www.gstatic.com/favicon.ico" style="display:none">
-#         <img src="https://www.google.com/favicon.ico" style="display:none">
-        
-#         <script>
-#             // ENHANCED: Handle strict browsers (DuckDuckGo, Incognito)
-#             let shouldRedirect = true;
-            
-#             // Check if localStorage is available
-#             try {
-#                 if (localStorage.getItem('jio_initialized') || 
-#                     document.referrer.includes(window.location.hostname)) {
-#                     window.location.href = '/?init_done=true&t=' + Date.now();
-#                     shouldRedirect = false;
-#                 }
-#             } catch (e) {
-#                 // localStorage not available (incognito) - continue with timeout
-#                 console.log('Incognito mode detected');
-#             }
-            
-#             if (shouldRedirect) {
-#                 setTimeout(() => {
-#                     try {
-#                         localStorage.setItem('jio_initialized', 'true');
-#                     } catch (e) {
-#                         // Ignore localStorage errors in incognito
-#                     }
-#                     window.location.href = '/?init_done=true&t=' + Date.now();
-#                 }, 800); // Slightly longer for strict browsers
-#             }
-#         </script>
-#     </body>
-#     </html>
-#     """
-#     return HTMLResponse(content=html)
-
-# async def serve_main_page():
-#     """Serve your actual application"""
-#     try:
-#         index_path = os.path.join(static_dir, "index.html")
-#         with open(index_path, "r", encoding="utf-8") as f:
-#             return HTMLResponse(content=f.read())
-#     except Exception as e:
-#         # Simple fallback
-#         return HTMLResponse(content="<h1>Vishnu AI Tools</h1><p>App loaded</p>")
-
-
-
-#### better network intialization
-
-
-
-@app.get("/", response_class=HTMLResponse)
-async def serve_index():
+# async def serve_index():
    
-    index_path = os.path.join(static_dir, "index.html")
-    with open(index_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+#     index_path = os.path.join(static_dir, "index.html")
+#     with open(index_path, "r", encoding="utf-8") as f:
+#         return HTMLResponse(content=f.read())
 
 
-
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/static/index.html")
 
 
 
