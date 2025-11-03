@@ -1178,36 +1178,23 @@ def quick_table_analysis(retriever, query):
     except Exception:
         pass  # Silent fail - this is just diagnostic
 
-#### better network intialization 
-
+#### ################## Better network intialization 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index(request: Request):
     """
-    Enhanced JioFiber connection priming with captive portal simulation
+    Simple JioFiber captive portal bypass
     """
-    user_agent = request.headers.get("user-agent", "").lower()
-    is_iphone = "iphone" in user_agent
-    
-    # If already initialized, serve main page
-    if "init_done" in str(request.url.query) or request.headers.get("referer"):
+    # If already initialized, serve main app
+    if "init_done" in str(request.url.query):
         return await serve_main_page()
     
-    # IPHONE USERS: Simple approach
-    if is_iphone:
-        return await serve_iphone_simple_page()
-    
-    # JIOFIBER USERS: Aggressive connection priming
-    return await serve_jiofiber_aggressive_priming()
-
-async def serve_jiofiber_aggressive_priming():
-    """Clean, minimal JioFiber connection priming WITH all required priming elements"""
+    # SIMPLE CAPTIVE PORTAL BYPASS
     html = """
     <!DOCTYPE html>
     <html>
     <head>
-        <meta charset="UTF-8">
+        <title>Connecting...</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Loading...</title>
         <style>
             body {
                 margin: 0;
@@ -1243,47 +1230,38 @@ async def serve_jiofiber_aggressive_priming():
             }
         </style>
     </head>
-    <body>
-        <div class="container">
+    <body style="margin:0; padding:20px; text-align:center; font-family:Arial;">
+                <div class="container">
             <div class="spinner"></div>
             <h2>🔗 Welcome Aliens 👽</h2>
             <p>⚡Eastablishing Fast connection..</p>
         </div>
 
-        <!-- ESSENTIAL JIOFIBER PRIMING ELEMENTS -->
-        <iframe src="https://www.google.com/generate_204" style="display:none"></iframe>
-        <iframe src="https://connectivitycheck.gstatic.com/generate_204" style="display:none"></iframe>
-        <iframe src="https://www.google.com" style="display:none"></iframe>
-        <iframe src="https://www.youtube.com" style="display:none"></iframe>
         
-        <!-- Essential priming resources -->
-        <img src="https://www.google.com/favicon.ico" style="display:none">
+        <!-- CAPTIVE PORTAL TRIGGER - SIMPLE & EFFECTIVE -->
+        <iframe src="https://www.google.com/generate_204" style="display:none"></iframe>
         <img src="https://www.gstatic.com/favicon.ico" style="display:none">
-        <img src="https://www.youtube.com/favicon.ico" style="display:none">
         
         <script>
-            console.log('🚀 Starting JioFiber connection priming...');
-            
-            // Simple, clean approach - just 2 attempts
+            // Wait 2 seconds for captive portal detection, then redirect
             setTimeout(() => {
-                window.location.replace('/?init_done=true&t=' + Date.now());
+                window.location.href = '/?init_done=true&t=' + Date.now();
             }, 2000);
-            
-            // Backup attempt
-            setTimeout(() => {
-                window.location.replace('/?init_done=true&t=' + Date.now());
-            }, 5000);
-            
-            // Click anywhere to skip wait
-            document.body.addEventListener('click', () => {
-                window.location.replace('/?init_done=true&skip=true&t=' + Date.now());
-            });
         </script>
     </body>
     </html>
     """
     return HTMLResponse(content=html)
 
+async def serve_main_page():
+    """Serve your actual application"""
+    try:
+        index_path = os.path.join(static_dir, "index.html")
+        with open(index_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except Exception as e:
+        # Simple fallback
+        return HTMLResponse(content="<h1>Vishnu AI Tools</h1><p>App loaded</p>")
 
 
 
