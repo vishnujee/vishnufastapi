@@ -1217,106 +1217,56 @@ def quick_table_analysis(retriever, query):
 #### ################## Better network intialization 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index(request: Request):
-    """
-    Simple JioFiber captive portal bypass
-    """
-    # If already initialized, serve main app
     if "init_done" in str(request.url.query):
         return await serve_main_page()
     
-    # SIMPLE CAPTIVE PORTAL BYPASS
+    user_agent = request.headers.get("user-agent", "").lower()
+    
     html = """
     <!DOCTYPE html>
     <html>
     <head>
         <title>Connecting...</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {
-                margin: 0;
-                padding: 20px;
-                font-family: Arial, sans-serif;
-                text-align: center;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .container {
-                background: rgba(255,255,255,0.1);
-                padding: 40px;
-                border-radius: 15px;
-                backdrop-filter: blur(10px);
-                max-width: 400px;
-            }
-            .spinner {
-                border: 4px solid rgba(255,255,255,0.3);
-                border-radius: 50%;
-                border-top: 4px solid white;
-                width: 40px;
-                height: 40px;
-                animation: spin 1s linear infinite;
-                margin: 0 auto 20px;
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        </style>
     </head>
-    <body style="margin:0; padding:20px; text-align:center; font-family:Arial;">
-                <div class="container">
-            <div class="spinner"></div>
-            <h2>🔗 Welcome Aliens 👽</h2>
-            <p>⚡Eastablishing Fast connection..</p>
+    <body>
+        <div style="text-align: center; padding: 50px;">
+            <h3>Loading Vishnu AI Tools...</h3>
         </div>
 
-        
-        <!-- CAPTIVE PORTAL TRIGGER - SIMPLE & EFFECTIVE -->
+        <!-- MULTIPLE CAPTIVE PORTAL TRIGGERS -->
         <iframe src="https://www.google.com/generate_204" style="display:none"></iframe>
+        <iframe src="https://connectivitycheck.gstatic.com/generate_204" style="display:none"></iframe>
         <img src="https://www.gstatic.com/favicon.ico" style="display:none">
+        <img src="https://www.google.com/favicon.ico" style="display:none">
         
-    <script>
-        // Check both localStorage and referrer to avoid loading screen on refreshes
-        if (localStorage.getItem('jio_initialized') || document.referrer.includes(window.location.hostname)) {
-            window.location.href = '/?init_done=true&t=' + Date.now();
-        } else {
-            setTimeout(() => {
-                localStorage.setItem('jio_initialized', 'true');
-                window.location.href = '/?init_done=true&t=' + Date.now();
-            }, 500);
-        }
-    </script>
-
-    <script>
-        // Enhanced URL cleaning with analytics
-        (function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const initParams = ['init_done', 'jio_init', 'fallback', 't', 'retry'];
-            let hadInitParams = false;
+        <script>
+            // ENHANCED: Handle strict browsers (DuckDuckGo, Incognito)
+            let shouldRedirect = true;
             
-            initParams.forEach(param => {
-                if (urlParams.has(param)) {
-                    hadInitParams = true;
-                    console.log(`🔧 JioFiber param detected: ${param}=${urlParams.get(param)}`);
+            // Check if localStorage is available
+            try {
+                if (localStorage.getItem('jio_initialized') || 
+                    document.referrer.includes(window.location.hostname)) {
+                    window.location.href = '/?init_done=true&t=' + Date.now();
+                    shouldRedirect = false;
                 }
-            });
-            
-            if (hadInitParams) {
-                // Clean the URL
-                const cleanUrl = window.location.pathname + window.location.hash;
-                window.history.replaceState(null, '', cleanUrl);
-                
-                // Optional: Send to analytics
-                console.log('🎯 JioFiber connection flow completed successfully');
-                
-                // Set a flag to prevent infinite loops
-                sessionStorage.setItem('jio_connection_established', 'true');
+            } catch (e) {
+                // localStorage not available (incognito) - continue with timeout
+                console.log('Incognito mode detected');
             }
-        })();
-    </script>
+            
+            if (shouldRedirect) {
+                setTimeout(() => {
+                    try {
+                        localStorage.setItem('jio_initialized', 'true');
+                    } catch (e) {
+                        // Ignore localStorage errors in incognito
+                    }
+                    window.location.href = '/?init_done=true&t=' + Date.now();
+                }, 800); // Slightly longer for strict browsers
+            }
+        </script>
     </body>
     </html>
     """
