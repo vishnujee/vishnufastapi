@@ -5,7 +5,41 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
   <link rel="profile" href="https://gmpg.org/xfn/11">
+  # Add to your HTML head or as link headers
+  <link rel="preconnect" href="https://recallmind.online/">
+  <link rel="dns-prefetch" href="https://recallmind.online/">
 
+
+  <!--  FOR REMOVING INIT TAG FROM WEBSITE -->
+
+  <script>
+    // Enhanced URL cleaning with analytics
+    (function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const initParams = ['init_done', 'jio_init', 'fallback', 't', 'retry'];
+        let hadInitParams = false;
+        
+        initParams.forEach(param => {
+            if (urlParams.has(param)) {
+                hadInitParams = true;
+                console.log(`🔧 JioFiber param detected: ${param}=${urlParams.get(param)}`);
+            }
+        });
+        
+        if (hadInitParams) {
+            // Clean the URL
+            const cleanUrl = window.location.pathname + window.location.hash;
+            window.history.replaceState(null, '', cleanUrl);
+            
+            // Optional: Send to analytics
+            console.log('🎯 JioFiber connection flow completed successfully');
+            
+            // Set a flag to prevent infinite loops
+            sessionStorage.setItem('jio_connection_established', 'true');
+        }
+    })();
+    </script>
+  <!--  FOR REMOVING INIT TAG FROM WEBSITE -->
   <!-- Primary Meta Tags -->
   <title>RecallMind - AI PDF Editor | Smart Chatbot for Documents | Free Online Tool</title>
   <meta name="description"
@@ -15,6 +49,9 @@
   <!-- Canonical & Alternate URLs -->
   <link rel="canonical" href="https://recallmind.online/" />
   <link rel="alternate" hreflang="x-default" href="https://recallmind.online/" />
+
+
+
 
   <!-- favicon -->
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
