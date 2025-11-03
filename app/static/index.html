@@ -12,33 +12,7 @@
 
   <!--  FOR REMOVING INIT TAG FROM WEBSITE -->
 
-  <script>
-    // Enhanced URL cleaning with analytics
-    (function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const initParams = ['init_done', 'jio_init', 'fallback', 't', 'retry'];
-        let hadInitParams = false;
-        
-        initParams.forEach(param => {
-            if (urlParams.has(param)) {
-                hadInitParams = true;
-                console.log(`🔧 JioFiber param detected: ${param}=${urlParams.get(param)}`);
-            }
-        });
-        
-        if (hadInitParams) {
-            // Clean the URL
-            const cleanUrl = window.location.pathname + window.location.hash;
-            window.history.replaceState(null, '', cleanUrl);
-            
-            // Optional: Send to analytics
-            console.log('🎯 JioFiber connection flow completed successfully');
-            
-            // Set a flag to prevent infinite loops
-            sessionStorage.setItem('jio_connection_established', 'true');
-        }
-    })();
-    </script>
+  
   <!--  FOR REMOVING INIT TAG FROM WEBSITE -->
   <!-- Primary Meta Tags -->
   <title>RecallMind - AI PDF Editor | Smart Chatbot for Documents | Free Online Tool</title>

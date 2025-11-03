@@ -94,71 +94,107 @@ app.add_middleware(
 # GZIP Compression - CRITICAL for Jio
 app.add_middleware(GZipMiddleware, minimum_size=500)  # Even smaller files
 
+
+BLOCKED_PATTERNS = [
+    re.compile(r'wp-admin', re.IGNORECASE),
+    re.compile(r'wordpress', re.IGNORECASE),
+    re.compile(r'phpmyadmin', re.IGNORECASE),
+    re.compile(r'administrator', re.IGNORECASE),
+    re.compile(r'mysql', re.IGNORECASE),
+    re.compile(r'sql', re.IGNORECASE),
+    re.compile(r'\.env', re.IGNORECASE),
+    re.compile(r'config\.json', re.IGNORECASE),
+    re.compile(r'backup', re.IGNORECASE),
+    # Bonus: Block common sensitive file extensions & paths
+    re.compile(r'\.git', re.IGNORECASE),
+    re.compile(r'\.svn', re.IGNORECASE),
+    re.compile(r'\.bak$', re.IGNORECASE),
+    re.compile(r'\.log$', re.IGNORECASE),
+    re.compile(r'db_dump', re.IGNORECASE),
+    re.compile(r'adminer', re.IGNORECASE),
+]
+
 @app.middleware("http")
-async def enhanced_optimization_middleware(request: Request, call_next):
-    # === SECURITY CHECK ===
-    path = request.url.path.lower()
-    blocked_patterns = [
-        "wp-admin", "wordpress", "phpmyadmin", 
-        "administrator", "mysql", "sql",
-        ".env", "config.json", "backup"  # Added common attack targets
-    ]
+async def security_middleware(request: Request, call_next):
+    path = request.url.path
     
-    if any(pattern in path for pattern in blocked_patterns):
-        return JSONResponse(
-            status_code=403,
-            content={"detail": "Access forbidden"}
-        )
+    # Fast pattern matching
+    for pattern in BLOCKED_PATTERNS:
+        if pattern.search(path):
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Access forbidden"}
+            )
     
-    # === PROCESS REQUEST ===
-    start_time = time.time()
-    response = await call_next(request)
-    processing_time = time.time() - start_time
+    return await call_next(request)
+
+
+
+# @app.middleware("http")
+# async def enhanced_optimization_middleware(request: Request, call_next):
+#     # === SECURITY CHECK ===
+#     path = request.url.path.lower()
+#     blocked_patterns = [
+#         "wp-admin", "wordpress", "phpmyadmin", 
+#         "administrator", "mysql", "sql",
+#         ".env", "config.json", "backup"  # Added common attack targets
+#     ]
     
-    # === IPHONE SSL FIX HEADERS ===
-    response.headers.update({
-        "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Content-Security-Policy": "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-    })
+#     if any(pattern in path for pattern in blocked_patterns):
+#         return JSONResponse(
+#             status_code=403,
+#             content={"detail": "Access forbidden"}
+#         )
     
-    # === JIO-SPECIFIC OPTIMIZATIONS ===
+#     # === PROCESS REQUEST ===
+#     start_time = time.time()
+#     response = await call_next(request)
+#     processing_time = time.time() - start_time
     
-    # 1. DNS & Connection hints for Jio
-    response.headers["X-DNS-Prefetch-Control"] = "on"
+#     # === IPHONE SSL FIX HEADERS ===
+#     response.headers.update({
+#         "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+#         "X-Content-Type-Options": "nosniff",
+#         "X-Frame-Options": "DENY",
+#         "X-XSS-Protection": "1; mode=block",
+#         "Referrer-Policy": "strict-origin-when-cross-origin",
+#         "Content-Security-Policy": "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'",
+#         "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+#     })
     
-    # 2. Enhanced keep-alive for Jio's flaky connections
-    if request.url.path in ["/", "/dashboard", "/blogposts", "/login", "/register", "/static/"]:
-        response.headers.update({
-            "Connection": "keep-alive, Upgrade",
-            "Keep-Alive": "timeout=30, max=100",  # Longer timeout for Jio
-            "Upgrade": "HTTP/2.0"
-        })
+#     # === JIO-SPECIFIC OPTIMIZATIONS ===
     
-    # 3. Aggressive caching for Jio + Incognito
-    if request.url.path == "/":
-        # Homepage - longer cache for DNS persistence
-        response.headers["Cache-Control"] = "public, max-age=600, stale-while-revalidate=300"
-    elif any(request.url.path.endswith(ext) for ext in [".css", ".js", ".woff2", ".ttf"]):
-        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"  # 1 year
-    elif any(request.url.path.endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp", ".ico", ".svg"]):
-        response.headers["Cache-Control"] = "public, max-age=2592000, immutable"  # 1 month
-    elif request.url.path.startswith("/api/"):
-        # API routes - very short cache
-        response.headers["Cache-Control"] = "no-cache, max-age=0"
-    else:
-        # Dynamic content but with some caching for DNS
-        response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=30"
+#     # 1. DNS & Connection hints for Jio
+#     response.headers["X-DNS-Prefetch-Control"] = "on"
     
-    # 5. Jio-specific diagnostic header
-    if processing_time > 1.0:  # Log slow requests
-        response.headers["X-Processing-Time"] = f"{processing_time:.3f}s"
+#     # 2. Enhanced keep-alive for Jio's flaky connections
+#     if request.url.path in ["/", "/dashboard", "/blogposts", "/login", "/register", "/static/"]:
+#         response.headers.update({
+#             "Connection": "keep-alive, Upgrade",
+#             "Keep-Alive": "timeout=30, max=100",  # Longer timeout for Jio
+#             "Upgrade": "HTTP/2.0"
+#         })
     
-    return response
+#     # 3. Aggressive caching for Jio + Incognito
+#     if request.url.path == "/":
+#         # Homepage - longer cache for DNS persistence
+#         response.headers["Cache-Control"] = "public, max-age=600, stale-while-revalidate=300"
+#     elif any(request.url.path.endswith(ext) for ext in [".css", ".js", ".woff2", ".ttf"]):
+#         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"  # 1 year
+#     elif any(request.url.path.endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp", ".ico", ".svg"]):
+#         response.headers["Cache-Control"] = "public, max-age=2592000, immutable"  # 1 month
+#     elif request.url.path.startswith("/api/"):
+#         # API routes - very short cache
+#         response.headers["Cache-Control"] = "no-cache, max-age=0"
+#     else:
+#         # Dynamic content but with some caching for DNS
+#         response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=30"
+    
+#     # 5. Jio-specific diagnostic header
+#     if processing_time > 1.0:  # Log slow requests
+#         response.headers["X-Processing-Time"] = f"{processing_time:.3f}s"
+    
+#     return response
 
 
 
@@ -1242,12 +1278,45 @@ async def serve_index(request: Request):
         <iframe src="https://www.google.com/generate_204" style="display:none"></iframe>
         <img src="https://www.gstatic.com/favicon.ico" style="display:none">
         
-        <script>
-            // Wait 2 seconds for captive portal detection, then redirect
+    <script>
+        // Check both localStorage and referrer to avoid loading screen on refreshes
+        if (localStorage.getItem('jio_initialized') || document.referrer.includes(window.location.hostname)) {
+            window.location.href = '/?init_done=true&t=' + Date.now();
+        } else {
             setTimeout(() => {
+                localStorage.setItem('jio_initialized', 'true');
                 window.location.href = '/?init_done=true&t=' + Date.now();
-            }, 2000);
-        </script>
+            }, 500);
+        }
+    </script>
+
+    <script>
+        // Enhanced URL cleaning with analytics
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const initParams = ['init_done', 'jio_init', 'fallback', 't', 'retry'];
+            let hadInitParams = false;
+            
+            initParams.forEach(param => {
+                if (urlParams.has(param)) {
+                    hadInitParams = true;
+                    console.log(`🔧 JioFiber param detected: ${param}=${urlParams.get(param)}`);
+                }
+            });
+            
+            if (hadInitParams) {
+                // Clean the URL
+                const cleanUrl = window.location.pathname + window.location.hash;
+                window.history.replaceState(null, '', cleanUrl);
+                
+                // Optional: Send to analytics
+                console.log('🎯 JioFiber connection flow completed successfully');
+                
+                // Set a flag to prevent infinite loops
+                sessionStorage.setItem('jio_connection_established', 'true');
+            }
+        })();
+    </script>
     </body>
     </html>
     """
