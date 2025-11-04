@@ -1152,17 +1152,17 @@ def quick_table_analysis(retriever, query):
 
 
 
-# @app.get("/", response_class=HTMLResponse)
-# async def serve_index():
+@app.get("/", response_class=HTMLResponse)
+async def serve_index():
    
-#     index_path = os.path.join(static_dir, "index.html")
-#     with open(index_path, "r", encoding="utf-8") as f:
-#         return HTMLResponse(content=f.read())
+    index_path = os.path.join(static_dir, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 
-@app.get("/")
-async def root():
-    return RedirectResponse(url="/static/index.html")
+# @app.get("/")
+# async def root():
+#     return RedirectResponse(url="/static/index.html")
 
 
 
