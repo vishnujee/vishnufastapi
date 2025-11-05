@@ -2897,7 +2897,6 @@ const funnyLoadingMessages = [
     "Waking up the silicon neurons... 🖥️✨",
     "Brewing a fresh pot of intelligence... ☕🧠",
     "Assembling wisdom bits and bytes... 01010111🧩",
-    "Tickling the AI's funny bone... 🦴😂",
     "Downloading genius.exe... 📥💡",
     "Doing mental gymnastics... 🤸‍♂️🧠",
     "Polishing the crystal ball... 🔮✨",
@@ -2913,11 +2912,9 @@ const funnyLoadingMessages = [
     "Polishing the response diamond... 💎✨",
     "Herding the information cats... 🐱📈",
     "Doing the knowledge foxtrot... 🦊💃",
-    "Charging the humor capacitors... ⚡😄",
     "Playing mind ping-pong... 🏓🧠",
     "Doing the data disco... 💿🕺",
     "Waking the sleeping algorithms... 😴⚡",
-    "Doing the binary boogie... 101💃",
     "Polishing the AI's wit... ✨😄",
     "Doing the thinking cap cha-cha... 🎩💃"
 ];
@@ -3030,14 +3027,20 @@ async function sendChat() {
         aiResponseDiv.className = 'mb-4';
         
         aiResponseDiv.innerHTML = `
-            <div class="flex items-start space-x-2">
-                <div class="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <span class="text-green-600 text-sm">🤖</span>
-                </div>
+            <div class="flex flex-col items-center space-y-2">
+
+<div class="flex justify-start w-full">
+  <span class="inline-flex flex-col p-2 items-center justify-center w-16 h-16 text-red-600 text-sm font-semibold border-2 border-red-600 rounded-full">
+    🤖
+    <span>AI</span>
+  </span>
+</div>
+
+
                 <div class="bg-green-50 rounded-lg p-3 flex-1">
                     <div class="ai-response"></div>
                     <div class="text-xs text-gray-500 mt-1 flex items-center">
-                        <span>AI Assistant</span>
+                        <span>AI </span>
                         <span class="mx-2">•</span>
                         <span class="text-green-600">✨ Powered by Vishnu Magic</span>
                     </div>
