@@ -3027,26 +3027,24 @@ async function sendChat() {
         aiResponseDiv.className = 'mb-4';
         
         aiResponseDiv.innerHTML = `
-            <div class="flex flex-col items-center space-y-2">
-
-<div class="flex justify-start w-full">
-  <span class="inline-flex flex-col p-2 items-center justify-center w-16 h-16 text-red-600 text-sm font-semibold border-2 border-red-600 rounded-full">
-    🤖
-    <span>AI</span>
-  </span>
-</div>
-
-
-                <div class="bg-green-50 rounded-lg p-3 flex-1">
-                    <div class="ai-response"></div>
-                    <div class="text-xs text-gray-500 mt-1 flex items-center">
-                        <span>AI </span>
-                        <span class="mx-2">•</span>
-                        <span class="text-green-600">✨ Powered by Vishnu Magic</span>
-                    </div>
+        <div class="flex flex-col items-start space-y-2">
+        
+            <div class="bg-green-50 rounded-lg p-3 flex-1 w-full">
+                <div class="flex justify-start w-full">
+                <span class="inline-flex flex-col p-2 items-center justify-center w-16 h-16 text-red-600 text-sm font-semibold border-2 border-red-600 rounded-full">
+                    🤖
+                    <span>AI</span>
+                </span>
+            </div>
+                <div class="ai-response"></div>
+                <div class="text-xs text-gray-500 mt-1 flex items-center">
+                    <span>AI</span>
+                    <span class="mx-2">•</span>
+                    <span class="text-green-600">✨ Powered by Vishnu Magic</span>
                 </div>
             </div>
-        `;
+        </div>
+    `;
         
         chatOutput.insertBefore(aiResponseDiv, chatOutput.firstChild);
         
