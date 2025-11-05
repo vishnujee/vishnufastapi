@@ -2888,50 +2888,125 @@ async function typewriterAddText(element, text, speed) {
 
 // new send chat
 
+// Add fun loading messages
+const funnyLoadingMessages = [
+    "Activating neural pathways... 🧠⚡",
+    "Consulting the digital brain trust... 🤝💻",
+    "Stirring the AI soup of knowledge... 🍲🤖",
+    "Doing the knowledge tango... 💃🕺",
+    "Waking up the silicon neurons... 🖥️✨",
+    "Brewing a fresh pot of intelligence... ☕🧠",
+    "Assembling wisdom bits and bytes... 01010111🧩",
+    "Tickling the AI's funny bone... 🦴😂",
+    "Downloading genius.exe... 📥💡",
+    "Doing mental gymnastics... 🤸‍♂️🧠",
+    "Polishing the crystal ball... 🔮✨",
+    "Charging up the brain cells... 🔋⚡",
+    "Playing 4D chess with data... ♟️🌌",
+    "Juggling facts and figures... 🤹‍♂️📊",
+    "Warming up the thought engine... 🔥🚂",
+    "Mixing the perfect answer cocktail... 🍸💭",
+    "Doing the robot shuffle... 🤖🕺",
+    "Consulting with digital Yoda... 🐸🌟",
+    "Wrangling the data dragons... 🐉📚",
+    "Doing the AI macarena... 💃🎵",
+    "Polishing the response diamond... 💎✨",
+    "Herding the information cats... 🐱📈",
+    "Doing the knowledge foxtrot... 🦊💃",
+    "Charging the humor capacitors... ⚡😄",
+    "Playing mind ping-pong... 🏓🧠",
+    "Doing the data disco... 💿🕺",
+    "Waking the sleeping algorithms... 😴⚡",
+    "Doing the binary boogie... 101💃",
+    "Polishing the AI's wit... ✨😄",
+    "Doing the thinking cap cha-cha... 🎩💃"
+];
+
+// For more professional contexts
+const professionalLoadingMessages = [
+    "Analyzing query patterns... 📊",
+    "Processing semantic context... 🔍",
+    "Optimizing response generation... ⚡",
+    "Cross-referencing knowledge bases... 🔄",
+    "Synthesizing information streams... 🌊",
+    "Validating response accuracy... ✅",
+    "Generating optimal solution... 🎯",
+    "Processing multi-dimensional data... 🧮",
+    "Executing cognitive algorithms... 🤖",
+    "Calibrating response parameters... ⚙️",
+    "Integrating contextual awareness... 🧩",
+    "Processing natural language patterns... 💬",
+    "Optimizing information retrieval... 📈",
+    "Executing knowledge synthesis... 🔄",
+    "Validating semantic coherence... ✅",
+    "Generating contextual response... 🎯"
+];
+
+// Smart function to pick appropriate messages
+function getRandomLoadingMessage() {
+    const messages = [
+        ...funnyLoadingMessages,
+        ...professionalLoadingMessages
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
+}
+
+// Update your sendChat function
+
 async function sendChat() {
     const chatInput = document.getElementById('chatInput');
     const chatOutput = document.getElementById('chatOutput');
-    const progressDiv = document.getElementById('progress-chat');
     const progressText = document.getElementById('progress-text-chat');
-    const modeToggle = document.getElementById('mode-toggle');
-    const modeSelect = document.getElementById('mode-select');
 
-    // if (!chatInput || !chatInput.value.trim()) {
-    //     chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
-    //     return;
-    // }
-
-    if (!chatInput || !chatInput.value.trim() || chatInput.value.length > 10000) {
-        chatOutput.innerHTML = `<p class="text-red-600">${!chatInput.value.trim() ? 'Please enter a query.' : 'Query too long (max 10000 characters)'}</p>`;
+    if (!chatInput || !chatInput.value.trim()) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'text-yellow-600 mb-4 text-center';
+        errorDiv.innerHTML = `<p>🤖 <i>"Even AI needs something to work with!"</i></p>`;
+        chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
         return;
     }
 
     const userMessage = chatInput.value.trim();
+    
+    // Show funny loading message
+    if (progressText) {
+        progressText.textContent = getRandomLoadingMessage();
+        progressText.style.display = 'block';
+    }
 
-    console.log("📝 Current chatHistory BEFORE adding new message:", chatHistory);
+    // Add user message with fun styling
+    const userMessageDiv = document.createElement('div');
+    userMessageDiv.className = 'mb-4 text-right';
+    userMessageDiv.innerHTML = `
+        <div class="inline-block bg-blue-100 rounded-lg p-3 max-w-xs lg:max-w-md">
+            <p class="text-gray-800">${userMessage}</p>
+            <div class="text-xs text-gray-500 mt-1">👤 You</div>
+        </div>
+    `;
+    chatOutput.insertBefore(userMessageDiv, chatOutput.firstChild);
 
-    progressDiv.style.display = 'block';
-    progressText.textContent = 'Processing query...';
+    // Clear input
+    chatInput.value = '';
+
+    let responseData; // ✅ Define responseData here
 
     try {
         // Get the selected mode
         let selectedMode = null;
+        const modeToggle = document.getElementById('mode-toggle');
+        const modeSelect = document.getElementById('mode-select');
         if (modeToggle && modeToggle.checked && modeSelect && modeSelect.value) {
             selectedMode = modeSelect.value;
         }
 
         // Send only LAST 4 conversations (8 messages) to LLM
-        const recentHistory = chatHistory.slice(-8); // Last 4 conversations (4 user + 4 assistant)
+        const recentHistory = chatHistory.slice(-8);
 
         const body = new URLSearchParams({
             query: userMessage,
             mode: selectedMode || '',
-            history: JSON.stringify(recentHistory) // Send only recent history
+            history: JSON.stringify(recentHistory)
         });
-
-        console.log("📤 Sending to backend - Query:", userMessage);
-        console.log("📤 Sending to backend - Recent History (last 4 convos):", JSON.stringify(recentHistory));
-        console.log("📊 Full history length:", chatHistory.length, "Recent history length:", recentHistory.length);
 
         const response = await fetch('/chat', {
             method: 'POST',
@@ -2944,61 +3019,240 @@ async function sendChat() {
             throw new Error(errorData.detail || 'Chat error');
         }
 
-        const data = await response.json();
+        responseData = await response.json(); // ✅ Store response data
 
-        // Add BOTH user message and AI response to FULL history (for UI)
-        chatHistory.push({ role: 'user', content: userMessage });
-        chatHistory.push({ role: 'assistant', content: data.answer });
+        // Add to chat history
+        chatHistory.push({ role: "user", content: userMessage });
+        chatHistory.push({ role: "assistant", content: responseData.answer });
 
-        // Update UI with ALL messages
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'mb-4';
-
-        const userQuery = document.createElement('p');
-        userQuery.className = 'font-semibold text-blue-600';
-        userQuery.textContent = `You: ${userMessage}`;
-        messageDiv.appendChild(userQuery);
-
-        const aiResponse = document.createElement('div');
-        aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
-        messageDiv.appendChild(aiResponse);
-
-        chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
-
-        chatInput.value = '';
-
-        // Use marked.parse for proper markdown rendering
+        // Add AI response with fun styling
+        const aiResponseDiv = document.createElement('div');
+        aiResponseDiv.className = 'mb-4';
+        
+        aiResponseDiv.innerHTML = `
+            <div class="flex items-start space-x-2">
+                <div class="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <span class="text-green-600 text-sm">🤖</span>
+                </div>
+                <div class="bg-green-50 rounded-lg p-3 flex-1">
+                    <div class="ai-response"></div>
+                    <div class="text-xs text-gray-500 mt-1 flex items-center">
+                        <span>AI Assistant</span>
+                        <span class="mx-2">•</span>
+                        <span class="text-green-600">✨ Powered by Vishnu Magic</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        chatOutput.insertBefore(aiResponseDiv, chatOutput.firstChild);
+        
+        // Format the response with markdown
+        const aiResponseContent = aiResponseDiv.querySelector('.ai-response');
         if (typeof marked !== 'undefined') {
-            aiResponse.innerHTML = marked.parse(data.answer);
+            aiResponseContent.innerHTML = marked.parse(responseData.answer); // ✅ Use responseData
         } else {
-            aiResponse.textContent = data.answer;
+            aiResponseContent.textContent = responseData.answer; // ✅ Use responseData
         }
 
-        // Keep full history for UI
-        if (chatHistory.length > 100) { // Keep reasonable limit for browser memory
-            chatHistory = chatHistory.slice(-100);
-            console.log("🗂️ Trimmed full history to 100 messages for UI");
-        }
-
-
-        console.log("📝 Updated FULL chatHistory (UI):", chatHistory.length, "messages");
-        console.log("📝 Next LLM will receive:", Math.min(chatHistory.length, 8), "messages");
+        // Add occasional fun reactions
+        addFunReactions(responseData.answer); // ✅ Use responseData
 
     } catch (error) {
         console.error("Chat error:", error);
-
+        
+        // Fun error message
         const errorDiv = document.createElement('div');
-        errorDiv.className = 'text-red-600 mb-4';
+        errorDiv.className = 'mb-4';
         errorDiv.innerHTML = `
-            <p>Error: ${error.message}</p>
-            <p class="text-sm text-gray-600">Please try again or refresh the page.</p>
+            <div class="flex items-start space-x-2">
+                <div class="flex-shrink-0 w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                    <span class="text-red-600 text-sm">😵</span>
+                </div>
+                <div class="bg-red-50 rounded-lg p-3 flex-1">
+                    <p class="text-red-800">
+                        <strong>Whoops! Brain freeze! 🧊</strong><br>
+                        <small>Error: ${error.message}. Let's try that again!</small>
+                    </p>
+                </div>
+            </div>
         `;
         chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
     } finally {
-        progressDiv.style.display = 'none';
-        progressText.textContent = '';
+        if (progressText) {
+            progressText.style.display = 'none';
+        }
+        
+        // Keep full history for UI (limit to prevent memory issues)
+        if (chatHistory.length > 100) {
+            chatHistory = chatHistory.slice(-100);
+        }
     }
 }
+
+
+
+// Add fun reactions based on content
+function addFunReactions(responseText) {
+    const reactions = {
+        'thank': '🎉',
+        'welcome': '😊', 
+        'sorry': '🤗',
+        'funny': '😂',
+        'interesting': '🤔',
+        'amazing': '✨',
+        'problem': '🔧',
+        'question': '❓'
+    };
+    
+    // You can add this to show reactions in the UI
+    setTimeout(() => {
+        // Optional: Add floating emoji reactions
+        Object.entries(reactions).forEach(([keyword, emoji]) => {
+            if (responseText.toLowerCase().includes(keyword)) {
+                console.log(`Detected ${keyword} - ${emoji}`); // For debugging
+            }
+        });
+    }, 500);
+}
+
+// Add some CSS for fun animations
+const funStyles = `
+    @keyframes bounceIn {
+        0% { transform: scale(0.3); opacity: 0; }
+        50% { transform: scale(1.05); }
+        70% { transform: scale(0.9); }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .ai-message {
+        animation: bounceIn 0.6s ease-out;
+    }
+    
+    .user-message {
+        animation: bounceIn 0.5s ease-out;
+    }
+`;
+
+// Add styles to document
+if (!document.querySelector('#fun-chat-styles')) {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'fun-chat-styles';
+    styleEl.textContent = funStyles;
+    document.head.appendChild(styleEl);
+}
+
+// async function sendChat() {
+//     const chatInput = document.getElementById('chatInput');
+//     const chatOutput = document.getElementById('chatOutput');
+//     const progressDiv = document.getElementById('progress-chat');
+//     const progressText = document.getElementById('progress-text-chat');
+//     const modeToggle = document.getElementById('mode-toggle');
+//     const modeSelect = document.getElementById('mode-select');
+
+//     // if (!chatInput || !chatInput.value.trim()) {
+//     //     chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
+//     //     return;
+//     // }
+
+//     if (!chatInput || !chatInput.value.trim() || chatInput.value.length > 10000) {
+//         chatOutput.innerHTML = `<p class="text-red-600">${!chatInput.value.trim() ? 'Please enter a query.' : 'Query too long (max 10000 characters)'}</p>`;
+//         return;
+//     }
+
+//     const userMessage = chatInput.value.trim();
+
+//     console.log("📝 Current chatHistory BEFORE adding new message:", chatHistory);
+
+//     progressDiv.style.display = 'block';
+//     progressText.textContent = 'Processing query...';
+
+//     try {
+//         // Get the selected mode
+//         let selectedMode = null;
+//         if (modeToggle && modeToggle.checked && modeSelect && modeSelect.value) {
+//             selectedMode = modeSelect.value;
+//         }
+
+//         // Send only LAST 4 conversations (8 messages) to LLM
+//         const recentHistory = chatHistory.slice(-8); // Last 4 conversations (4 user + 4 assistant)
+
+//         const body = new URLSearchParams({
+//             query: userMessage,
+//             mode: selectedMode || '',
+//             history: JSON.stringify(recentHistory) // Send only recent history
+//         });
+
+//         console.log("📤 Sending to backend - Query:", userMessage);
+//         console.log("📤 Sending to backend - Recent History (last 4 convos):", JSON.stringify(recentHistory));
+//         console.log("📊 Full history length:", chatHistory.length, "Recent history length:", recentHistory.length);
+
+//         const response = await fetch('/chat', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+//             body: body
+//         });
+
+//         if (!response.ok) {
+//             const errorData = await response.json();
+//             throw new Error(errorData.detail || 'Chat error');
+//         }
+
+//         const data = await response.json();
+
+//         // Add BOTH user message and AI response to FULL history (for UI)
+//         chatHistory.push({ role: 'user', content: userMessage });
+//         chatHistory.push({ role: 'assistant', content: data.answer });
+
+//         // Update UI with ALL messages
+//         const messageDiv = document.createElement('div');
+//         messageDiv.className = 'mb-4';
+
+//         const userQuery = document.createElement('p');
+//         userQuery.className = 'font-semibold text-blue-600';
+//         userQuery.textContent = `You: ${userMessage}`;
+//         messageDiv.appendChild(userQuery);
+
+//         const aiResponse = document.createElement('div');
+//         aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
+//         messageDiv.appendChild(aiResponse);
+
+//         chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
+
+//         chatInput.value = '';
+
+//         // Use marked.parse for proper markdown rendering
+//         if (typeof marked !== 'undefined') {
+//             aiResponse.innerHTML = marked.parse(data.answer);
+//         } else {
+//             aiResponse.textContent = data.answer;
+//         }
+
+//         // Keep full history for UI
+//         if (chatHistory.length > 100) { // Keep reasonable limit for browser memory
+//             chatHistory = chatHistory.slice(-100);
+//             console.log("🗂️ Trimmed full history to 100 messages for UI");
+//         }
+
+
+//         console.log("📝 Updated FULL chatHistory (UI):", chatHistory.length, "messages");
+//         console.log("📝 Next LLM will receive:", Math.min(chatHistory.length, 8), "messages");
+
+//     } catch (error) {
+//         console.error("Chat error:", error);
+
+//         const errorDiv = document.createElement('div');
+//         errorDiv.className = 'text-red-600 mb-4';
+//         errorDiv.innerHTML = `
+//             <p>Error: ${error.message}</p>
+//             <p class="text-sm text-gray-600">Please try again or refresh the page.</p>
+//         `;
+//         chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
+//     } finally {
+//         progressDiv.style.display = 'none';
+//         progressText.textContent = '';
+//     }
+// }
 
 
 function showTool(toolId, event = null) {
@@ -3144,12 +3398,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (modeToggle.checked) {
                 // Tone Selector ENABLED
-                chatInput.placeholder = "Ask anything (except Vishnu)...";
+                chatInput.placeholder = "Ask anything (except Vishnu)... (Press Enter to send)";
                 modeLabel.innerHTML = 'Tone Selector <br> <span class="text-xs text-gray-500">General Mode</span>';
                 modeSelect.style.display = 'flex';
             } else {
                 // Tone Selector DISABLED
-                chatInput.placeholder = "Ask anything about Vishnu...";
+                chatInput.placeholder = "Ask anything about Vishnu... (Press Enter to send)";
                 modeLabel.innerHTML = 'Tone Selector <br> <span class="text-xs text-gray-500">Vishnu Mode</span>';
                 modeSelect.style.display = 'none';
             }
@@ -3353,4 +3607,20 @@ function stopAllOperations() {
         .then(() => console.log('Server operations stopped'))
         .catch(err => console.log('Stop request sent'));
 }
+
+
+
+// // SIMPLE SOLUTION - press enter to submit repsone
+document.addEventListener('DOMContentLoaded', function() {
+    const chatInput = document.getElementById('chatInput');
+    
+    if (chatInput) {
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChat();
+            }
+        });
+    }
+});
 

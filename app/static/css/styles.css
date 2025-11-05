@@ -916,3 +916,9 @@ progress::-moz-progress-bar {
 .progress-text {
     transition: all 0.3s ease-in-out;
 }
+
+
+#chatInput:focus {
+    border-color: #10B981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
