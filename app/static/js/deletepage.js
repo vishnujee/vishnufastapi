@@ -72,10 +72,10 @@ async function displayTotalPages(fileInputId, totalPagesId) {
 
 
         // FILE SIZE VALIDATION - Add here!
-        if (file.size > 150 * 1024 * 1024) {
-            fileNameElement.textContent = 'File too large (max 150MB)';
+        if (file.size > 200 * 1024 * 1024) {
+            fileNameElement.textContent = 'File too large (max 200MB)';
             totalPagesElement.textContent = 'Total Pages: File too large';
-            alert('File size exceeds 150MB limit. Please use a smaller PDF file.');
+            alert('File size exceeds 200MB limit. Please use a smaller PDF file.');
             fileInput.value = ''; // Clear the file input
             return;
         }
@@ -147,8 +147,8 @@ async function deletePDFPagesClientSide() {
     const file = fileInput.files[0];
 
     // File size validation
-    if (file.size > 150 * 1024 * 1024) {
-        alert("Use PDF less than 150 mb");
+    if (file.size > 200 * 1024 * 1024) {
+        alert("Use PDF less than 200 mb");
         return;
     }
 
@@ -427,8 +427,8 @@ async function processTextBasedDeletion() {
     const file = fileInput.files[0];
 
     // File size validation
-    if (file.size > 150 * 1024 * 1024) {
-        alert("Use PDF less than 150 mb");
+    if (file.size > 200 * 1024 * 1024) {
+        alert("Use PDF less than 200 mb");
         return;
     }
 

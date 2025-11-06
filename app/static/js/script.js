@@ -2897,7 +2897,6 @@ const funnyLoadingMessages = [
     "Waking up the silicon neurons... 🖥️✨",
     "Brewing a fresh pot of intelligence... ☕🧠",
     "Assembling wisdom bits and bytes... 01010111🧩",
-    "Downloading genius.exe... 📥💡",
     "Doing mental gymnastics... 🤸‍♂️🧠",
     "Polishing the crystal ball... 🔮✨",
     "Charging up the brain cells... 🔋⚡",
