@@ -131,20 +131,52 @@ async def security_middleware(request: Request, call_next):
 
 
 
+embedding_semaphore = asyncio.Semaphore(6)  # Max 6 concurrent embeddings
+
+async def rate_limited_embed_query(query: str):
+    async with embedding_semaphore:
+        return await async_embed_query(query)
 
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+##############asycronous  embedding for chat ########################
 
-@app.get("/network-test")
-async def network_test():
-    return {
-        "message": "Network test successful",
-        "size_kb": 2,
-        "timestamp": datetime.now().isoformat()
-    }
+# Add after your existing imports
+import aiohttp
+from aiohttp import ClientTimeout
 
+async def async_embed_query(query: str) -> List[float]:
+    """Async embedding generation to avoid blocking"""
+    async with aiohttp.ClientSession() as session:
+        payload = {
+            "input": query,
+            "model": "text-embedding-3-small",
+            "dimensions": 512
+
+        }
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            async with session.post(
+                "https://api.openai.com/v1/embeddings",
+                json=payload,
+                headers=headers,
+                timeout=ClientTimeout(total=8)
+            ) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    return result["data"][0]["embedding"]
+                else:
+                    raise Exception(f"Embedding API error: {response.status}")
+        except Exception as e:
+            logger.error(f"Async embedding failed: {e}")
+            # Fallback to sync embedding
+            raise
+
+
+##############################
 
 
 
@@ -645,64 +677,37 @@ def ensure_tabular_inclusion(docs, query, min_tabular=2):
 
 
 ###  PINECONE CLOUD 
-
 class PineconeRetriever(BaseRetriever):
     index: Any = Field(...)
     embeddings: Any = Field(...)
     search_type: str = Field(default="similarity")
-    search_kwargs: Optional[Dict] = Field(default_factory=lambda: {"k": 10})
+    search_kwargs: Optional[Dict] = Field(default_factory=lambda: {"k": 8})
 
-    def _get_relevant_documents(
-        self, 
-        query: str, 
-        *, 
-        run_manager: CallbackManagerForRetrieverRun = None
-    ) -> List[Document]:
+    def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun = None) -> List[Document]:
+        # Keep your existing sync method as fallback
+        return asyncio.run(self._aget_relevant_documents(query))
+
+    async def _aget_relevant_documents(self, query: str) -> List[Document]:
+        """Async version for non-blocking retrieval"""
         try:
-            # logger.info(f"🔍 Starting retrieval for query: {query}")
-
+            # 🚀 ASYNC EMBEDDING CALL
             embed_start = time.time()
-            query_embedding = self.embeddings.embed_query(query)
+            # query_embedding = await async_embed_query(query)
+            query_embedding = await rate_limited_embed_query(query)
             embed_time = time.time() - embed_start
-            # logger.info(f"⏱️ Embedding generation: {embed_time:.2f}s")
-            # logger.info(f"✅ Query embedding generated, length: {len(query_embedding)}")
+            logger.info(f"⏱️ Async embedding generation: {embed_time:.2f}s")
 
-             # Add timeout configuration
-           
-            
-            # Configure session with timeout
-            session = requests.Session()
-            session.timeout = 30  # 30 second timeout
-            
-            # Add timeout and retry logic
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    pinecone_start = time.time()
-                    results = self.index.query(
-                        vector=query_embedding,
-                        # top_k=self.search_kwargs.get("k", 10),
-                        top_k=self.search_kwargs["k"],
-                        include_metadata=True,
-                        namespace="vishnu_ai_docs"
-                    )
-                    pinecone_time = time.time() - pinecone_start
-                    # logger.info(f"⏱️ Pinecone query: {pinecone_time:.2f}s")
+            # Pinecone query (relatively fast, keep sync)
+            pinecone_start = time.time()
+            results = self.index.query(
+                vector=query_embedding,
+                top_k=self.search_kwargs["k"],
+                include_metadata=True,
+                namespace="vishnu_ai_docs"
+            )
+            pinecone_time = time.time() - pinecone_start
+            logger.info(f"⏱️ Pinecone query: {pinecone_time:.2f}s")
 
-                    # 3. Log results
-                    # logger.info(f"📊 Pinecone returned {len(results['matches'])} matches in {pinecone_time:.2f}s")
-                    
-                    total_time = time.time() - embed_start
-                    # logger.info(f"🎯 Total retrieval: {total_time:.2f}s")
-                    break
-                except Exception as e:
-                    if attempt == max_retries - 1:
-                        raise e
-                    logger.warning(f"⚠️ Pinecone query attempt {attempt + 1} failed: {e}")
-                    time.sleep(1)  # Wait before retry
-            
-            # logger.info(f"📊 Pinecone returned {len(results['matches'])} matches")
-            
             documents = []
             for match in results["matches"]:
                 text_content = match["metadata"].get("page_content", match["metadata"].get("text", ""))
@@ -714,28 +719,18 @@ class PineconeRetriever(BaseRetriever):
                         "score": match["score"],
                         "content_type": match["metadata"].get("content_type", "unknown"),
                         "document_type": match["metadata"].get("document_type", "unknown"),
-                        "chunk_num": int(match["metadata"].get("chunk_num", 0)),  # Force integer
-                        "total_chunks_page": int(match["metadata"].get("total_chunks_page", 1)),  # Force integer
+                        "chunk_num": int(match["metadata"].get("chunk_num", 0)),
+                        "total_chunks_page": int(match["metadata"].get("total_chunks_page", 1)),
                     }
                 )
                 documents.append(document)
-                # logger.info(f"📄 Retrieved doc - Score: {match['score']:.4f}, Source: {document.metadata['source']}")
             
             return documents
+            
         except Exception as e:
-            logger.error(f"❌ Retrieval failed: {e}", exc_info=True)
-            # Return empty list instead of raising exception to allow fallback
+            logger.error(f"❌ Async retrieval failed: {e}")
             return []
-
-    def invoke(
-        self, 
-        input: str, 
-        config: Optional[RunnableConfig] = None, 
-        **kwargs
-    ) -> List[Document]:
-        """Handle invoke calls with config parameter"""
-        return self._get_relevant_documents(input)
-
+        
 ##########NEW APPROACH #############
 def process_non_tabular_pdf_complete(pdf_bytes, pdf_url, max_chunks_per_page=3, target_chunk_size=2500):
     """Process non-tabular PDF with 100% content preservation and strict page boundaries"""
@@ -1112,7 +1107,9 @@ def initialize_vectorstore():
         logger.info("🚀 Starting vectorstore initialization...")
         os.environ['OPENAI_API_BASE'] = 'https://api.openai.com/v1'
         os.environ['NO_PROXY'] = 'api.openai.com'
-        pc = Pinecone(api_key=PINECONE_API_KEY)
+        pc = Pinecone(api_key=PINECONE_API_KEY,  pool_connections=10,
+            pool_maxsize=10,
+            max_retries=2)
         index_name = "vishnu-ai-docs"
         
         # Check if index exists
@@ -1129,6 +1126,9 @@ def initialize_vectorstore():
         
         index = pc.Index(index_name)
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512, request_timeout=20)
+        # embeddings = OpenAIEmbeddings(model="text-embedding-3-small",  request_timeout=15)
+        test_embedding = embeddings.embed_query("test")
+        logger.info(f"🔍 Actual embedding dimensions detected: {len(test_embedding)}")
   
         # Efficient empty check
         stats = index.describe_index_stats()
@@ -1214,7 +1214,8 @@ def initialize_vectorstore():
             
             # Define separate text splitters for tabular and non-tabular documents
             tabular_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=5100,
+                # chunk_size=5100,
+                chunk_size=2100,
                 chunk_overlap=300,
                 separators=["\n\n", "\n", "•", " - ", "|", " "]
             )
@@ -1370,7 +1371,7 @@ def perform_quality_checks(index, original_docs):
     
     try:
         # Get all documents for comprehensive check
-        dummy_vector = [0] * 512
+        dummy_vector = [0.1] * 512
         all_stored = index.query(
             vector=dummy_vector,
             top_k=1000,
@@ -1433,9 +1434,9 @@ def log_pinecone_contents(index, namespace="vishnu_ai_docs", sample_count=40, ve
         logger.info("🔍 QUERYING PINECONE FOR STORED DOCUMENTS - WITH CROSS-VALIDATION")
         logger.info(f"{'='*80}")
         
-        dummy_vector = [0] * 512
+        dummy_embedding  = [0.1] * 512
         results = index.query(
-            vector=dummy_vector,
+            vector=dummy_embedding,
             top_k=sample_count if sample_count else 100,
             include_metadata=True,
             include_values=False,
@@ -1712,6 +1713,26 @@ def test_rag_retrieval():
         except Exception as e:
             logger.error(f"❌ Retrieval failed: {e}")
 
+
+async def diagnose_retrieval_speed():
+    """Test retrieval performance with different queries"""
+    test_queries = [
+        "short test",
+        "what companies has vishnu worked for",
+        "tell me about work experience",
+        "tell about vishnu",
+        "when vishnu started working",
+        "when vishnu joined l&t"
+    ]
+    
+    for query in test_queries:
+        start = time.time()
+        docs = await asyncio.get_event_loop().run_in_executor(
+            thread_pool, 
+            lambda: retriever.invoke(query) if retriever else []
+        )
+        end = time.time()
+        logger.info(f"🔍 RETRIEVAL DIAGNOSTIC: '{query[:30]}...' → {len(docs)} docs in {end-start:.2f}s")
 ###
 
 # Initialize LLM
@@ -1727,7 +1748,7 @@ def get_llm():
 
 retriever = None
 llm = None
-thread_pool = ThreadPoolExecutor(max_workers=4)
+thread_pool = ThreadPoolExecutor(max_workers=8)
 # chat_history = []
 
 
@@ -1749,7 +1770,7 @@ async def startup_event():
             embeddings=embeddings,
             search_type="similarity",
             search_kwargs={
-                "k": 10,  # Increased for better coverage
+                "k": 8,  # Increased for better coverage
                 "score_threshold": 0.3
             }
         )
@@ -1757,6 +1778,7 @@ async def startup_event():
         logger.info("✅ AI services initialized successfully")
         # testing rag retrival
         # test_rag_retrieval()
+        await diagnose_retrieval_speed()
     except Exception as e:
         logger.error(f"❌ Startup initialization failed: {e}", exc_info=True)
         # Set fallback values
@@ -1790,7 +1812,29 @@ async def serve_index():
 # async def root():
 #     return RedirectResponse(url="/static/index.html")
 
-
+# Temporary debug endpoint
+@app.get("/test-embedding-blocking")
+async def test_embedding_blocking():
+    start = time.time()
+    
+    # Test sync (blocking) embedding
+    sync_embedding = embeddings.embed_query("test query")
+    sync_time = time.time() - start
+    
+    # Test async embedding
+    start_async = time.time()
+    async_embedding = await async_embed_query("test query", embeddings)
+    async_time = time.time() - start_async
+    
+    # ✅ ADD THIS: Call your diagnostic function
+    await diagnose_retrieval_speed()
+    
+    return {
+        "sync_embedding_time": sync_time,
+        "async_embedding_time": async_time,
+        "blocking_overhead": sync_time - async_time,
+        "diagnostic_complete": True  # Add confirmation
+    }
 
 
 DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD",)
@@ -2133,27 +2177,7 @@ CHAT_MODES = {
 
     # Add more modes as needed
 
-def debug_pinecone_metadata(raw_docs, query):
-    """Debug function to see EXACT metadata from Pinecone"""
-    logger.info(f"\n🔍 DEBUG PINECONE METADATA FOR QUERY: '{query}'")
-    logger.info("=" * 80)
-    
-    for i, doc in enumerate(raw_docs):
-        logger.info(f"\n📄 RAW DOC #{i+1} FULL METADATA INSPECTION:")
-        logger.info(f"📦 ALL METADATA KEYS: {list(doc.metadata.keys())}")
-        logger.info(f"📦 COMPLETE METADATA: {doc.metadata}")
-        
-        # Check page_num specifically
-        page_num_value = doc.metadata.get('page_num', 'MISSING')
-        logger.info(f"🔍 page_num VALUE: {page_num_value} (type: {type(page_num_value)})")
-        
-        # Also check if 'page' exists
-        page_value = doc.metadata.get('page', 'MISSING') 
-        logger.info(f"🔍 page VALUE: {page_value} (type: {type(page_value)})")
-        
-        logger.info(f"📁 Source: {doc.metadata.get('source', 'Unknown')}")
-        logger.info(f"📊 Score: {doc.metadata.get('score', 'N/A')}")
-        logger.info("-" * 60)
+
 @app.post("/chat")
 async def chat(query: str = Form(...), mode: str = Form(None), history: str = Form(None)):
     if not query.strip() or len(query) > 10000:
@@ -2209,61 +2233,56 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             processed_docs = []
       
         else:
-            prompt = ChatPromptTemplate.from_messages([
-                ("system",
-                "You are Vishnu AI Assintant — a friendly but bit funny "
-                "Provide accurate, clear, human-like answers in a warm and professional tone. "
-                "Add light Indian humor naturally when it fits (for example, 'as easy as making Maggi'). "
-                "Keep humor after the main answer, on a new line, ending with a small emoji"
-                "If the user asks a general question, gently suggest they can change the tone using the 'tone selector'."),
+            # prompt = ChatPromptTemplate.from_messages([
+            #     ("system",
+            #     "You are Vishnu AI Assintant — a friendly but bit funny "
+            #     "Provide accurate, clear, human-like answers in a warm and professional tone. "
+            #     "Add light Indian humor naturally when it fits (for example, 'as easy as making Maggi'). "
+            #     "Keep humor after the main answer, on a new line, ending with a small emoji"
+            #     "If the user asks a general question, gently suggest they can change the tone using the 'tone selector'."),
                 
-                ("human",
-                "Context: {context}\n\nQuestion: {input}\n\nAnswer:")
-            ])
+            #     ("human",
+            #     "Context: {context}\n\nQuestion: {input}\n\nAnswer:")
+            # ])
 
-            question_answer_chain = create_stuff_documents_chain(llm, prompt)
+            # question_answer_chain = create_stuff_documents_chain(llm, prompt)
 
             # prompt = ChatPromptTemplate.from_messages([
             #     ("system", "You are Vishnu, an Indian AI assistant — friendly, funny (with Indian-style humor), and accurate. Give clear & human-like answers."),
             #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
             # ])
 
-            # prompt = ChatPromptTemplate.from_messages([
-            #     ("system", "You are Vishnu, an Indian AI assistant — friendly and accurate. Give clear & human-like answers."),
-            #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-            # ])
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", "You are Vishnu, an Indian AI assistant — friendly and accurate. Give clear & human-like answers."),
+                ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
+            ])
             
 
-            # question_answer_chain = create_stuff_documents_chain(llm, prompt)
+            question_answer_chain = create_stuff_documents_chain(llm, prompt)
             
+
             # 🚀 STEP 2: NOW start retrieval in parallel
-            retrieval_future = loop.run_in_executor(
-                thread_pool, 
-                lambda: retriever.invoke(query) if retriever else []
-            )
-            
             retrieval_start = time.time()
-            
-            # 🚀 Wait for retrieval ONLY
             try:
-                raw_docs = await asyncio.wait_for(retrieval_future, timeout=15.0)
-                # debug_pinecone_metadata(raw_docs, query)
-                # for i, doc in enumerate(raw_docs, 1):
-                #     logger.info(f"\n📄 RAW DOC #{i}:")
-                #     logger.info(f"📁 Source: {doc.metadata.get('source', 'Unknown')}")
-                #     logger.info(f"📄 Page: {doc.metadata.get('page', 'N/A')}")
-                #     logger.info(f"🔢 Chunk: {doc.metadata.get('chunk_num', 'N/A')}/{doc.metadata.get('total_chunks_page', 'N/A')}")
-                #     logger.info(f"📊 Score: {doc.metadata.get('score', 'N/A')}")
-                #     logger.info(f"📝 Content Preview: {doc.page_content}...")
-                #     logger.info(f"🏷️ Metadata: {doc.metadata}")
+                # 🚀 DIRECT ASYNC CALL - No ThreadPool overhead
+                if hasattr(retriever, '_aget_relevant_documents'):
+                    raw_docs = await retriever._aget_relevant_documents(query)
+                else:
+                    # Fallback to sync with shorter timeout
+                    raw_docs = await asyncio.wait_for(
+                        loop.run_in_executor(thread_pool, lambda: retriever.invoke(query)),
+                        timeout=8.0
+                    )
             except asyncio.TimeoutError:
                 raw_docs = []
             except Exception as e:
+                logger.error(f"Retrieval error: {e}")
                 raw_docs = []
 
             retrieval_end = time.time()
             timings["retrieval_time"] = retrieval_end - retrieval_start
-            # logger.info(f"⏱️ Retrieval took {timings['retrieval_time']:.2f}s")
+
+            logger.info(f"⏱️ Retrieval took {timings['retrieval_time']:.2f}s")
 
             # 🚀 FAST Document Processing
             processing_start = time.time()
@@ -2283,7 +2302,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             
             processing_end = time.time()
             timings["processing_time"] = processing_end - processing_start
-            # logger.info(f"⏱️ Processing took {timings['processing_time']:.2f}s")
+            logger.info(f"⏱️ Processing took {timings['processing_time']:.2f}s")
 
             # 🚀 GENERATION
             generation_start = time.time()
@@ -2307,7 +2326,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
 
             generation_end = time.time()
             timings["generation_time"] = generation_end - generation_start
-            # logger.info(f"⏱️ Generation took {timings['generation_time']:.2f}s")
+            logger.info(f"⏱️ Generation took {timings['generation_time']:.2f}s")
             
             
         # Response formatting
@@ -2320,12 +2339,12 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
         total_end = time.time()
         timings["total_time"] = total_end - start_time
 
-        # logger.info("#" * 100)
-        # logger.info(f"⏱️ Retrieval took {timings['retrieval_time']:.2f}s")
-        # logger.info(f"⏱️ Processing took {timings['processing_time']:.2f}s")
-        # logger.info(f"⏱️ Generation took {timings['generation_time']:.2f}s")
-        # logger.info(f"🧮 TOTAL chat request took {timings['total_time']:.2f}s")
-        # logger.info("#" * 100)
+        logger.info("#" * 100)
+        logger.info(f"⏱️ Retrieval took {timings['retrieval_time']:.2f}s")
+        logger.info(f"⏱️ Processing took {timings['processing_time']:.2f}s")
+        logger.info(f"⏱️ Generation took {timings['generation_time']:.2f}s")
+        logger.info(f"🧮 TOTAL chat request took {timings['total_time']:.2f}s")
+        logger.info("#" * 100)
 
 
         return {

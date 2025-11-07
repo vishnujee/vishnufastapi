@@ -2564,56 +2564,7 @@ async function validateForm(form, endpoint, resultDiv) {
         return true;
     }
 
-    // } else if (endpoint === 'compress_pdf') {
-    //     const file = files[0];
-    //     const sizeMB = file.size / (1024 * 1024);
-    //     if (sizeMB > 250) { // Increased limit for server-side
-    //         resultDiv.textContent = `File ${file.name} exceeds 250MB limit.`;
-    //         resultDiv.classList.add('text-red-600');
-    //         return false;
-    //     }
-    //     if (file.type !== 'application/pdf') {
-    //         resultDiv.textContent = `File ${file.name} must be a PDF.`;
-    //         resultDiv.classList.add('text-red-600');
-    //         return false;
-    //     }
 
-    //     // Check compression type
-    //     const compressionType = document.querySelector('input[name="compression_type"]:checked');
-    //     if (compressionType && compressionType.value === 'server') {
-    //         // Server-side validation
-    //         const preset = document.getElementById('server-preset')?.value;
-    //         if (!preset || !['prepress', 'printer', 'ebook', 'screen'].includes(preset)) {
-    //             resultDiv.textContent = 'Invalid server compression preset.';
-    //             resultDiv.classList.add('text-red-600');
-    //             return false;
-    //         }
-    //     } else {
-    //         // Client-side validation (your existing code)
-    //         const preset = form.querySelector('select[name="preset"]').value;
-    //         if (!['High', 'Medium', 'Low', 'Custom'].includes(preset)) {
-    //             resultDiv.textContent = 'Invalid preset. Choose High, Medium, Low, or Custom.';
-    //             resultDiv.classList.add('text-red-600');
-    //             return false;
-    //         }
-    //         if (preset === 'Custom') {
-    //             const customDpi = form.querySelector('input[name="custom_dpi"]').value;
-    //             const customQuality = form.querySelector('input[name="custom_quality"]').value;
-    //             if (!customDpi || !customQuality) {
-    //                 resultDiv.textContent = 'Custom preset requires DPI and quality values.';
-    //                 resultDiv.classList.add('text-red-600');
-    //                 return false;
-    //             }
-    //             const dpi = parseInt(customDpi);
-    //             const quality = parseInt(customQuality);
-    //             if (dpi < 50 || dpi > 400 || quality < 10 || quality > 100) {
-    //                 resultDiv.textContent = 'Invalid custom DPI (50-400) or quality (10-100).';
-    //                 resultDiv.classList.add('text-red-600');
-    //                 return false;
-    //             }
-    //         }
-    //     }
-    // }
 
     else if (endpoint === 'delete_pdf_pages') {
         const deleteTypeElement = form.querySelector('select[name="delete_type"]');
@@ -2754,141 +2705,11 @@ function expandPageRange(range, totalPages) {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i).join(',');
 }
 
-function formatResponse(text) {
-    if (!text) return '';
 
-    text = text.replace(/(\|[^\n]+\|\r?\n\|[-: |]+\|\r?\n)((?:\|[^\n]+\|\r?\n?)+)/g, function (match, header, body) {
-        let html = '<div class="overflow-x-auto"><table class="w-full border-collapse my-3">';
-        const headers = header.split('|').slice(1, -1).map(h => h.trim());
-        html += '<thead><tr class="bg-gray-100">';
-        headers.forEach(h => {
-            html += `<th class="p-2 border text-left">${h}</th>`;
-        });
-        html += '</tr></thead><tbody>';
-        const rows = body.trim().split('\n');
-        rows.forEach(row => {
-            const cells = row.split('|').slice(1, -1).map(c => c.trim());
-            html += '<tr>';
-            cells.forEach(cell => {
-                html += `<td class="p-2 border">${formatMarkdownInline(cell)}</td>`;
-            });
-            html += '</tr>';
-        });
-        html += '</tbody></table></div>';
-        return html;
-    });
-
-    text = text.replace(/^([*-]|\d+\.)\s+(.+)$/gm, function (match, bullet, content) {
-        return `<li class="ml-5">${formatMarkdownInline(content)}</li>`;
-    });
-
-    text = text.replace(/(<li>.*<\/li>)+/g, function (match) {
-        const listType = match.includes('<li class="ml-5">') ? 'ul' : 'ol';
-        return `<${listType} class="list-disc pl-5 my-2">${match}</${listType}>`;
-    });
-
-    text = formatMarkdownInline(text);
-
-    text = text.replace(/\n/g, function (match, offset, fullText) {
-        if (!fullText.substring(offset).match(/^\n*(<table|<ul|<ol)/) &&
-            !fullText.substring(0, offset).match(/(<\/table|<\/ul|<\/ol>)\n*$/)) {
-            return '<br>';
-        }
-        return match;
-    });
-
-    // UPDATED LINK FORMATTING WITH UNDERLINES
-    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline underline-offset-2 decoration-1" target="_blank" rel="noopener noreferrer">$1</a>');
-
-    // handle raw URLs that might not be in markdown format
-    text = text.replace(/(https?:\/\/[^\s]+|www\.[^\s]+)/g, '<a href="$1" class="text-blue-600 hover:underline underline-offset-2 decoration-1" target="_blank" rel="noopener noreferrer">$1</a>');
-
-    return text;
-}
-// Add this CSS
-const linkStyles = `
-    .chat-link {
-        color: #2563eb;
-        text-decoration: underline;
-        text-underline-offset: 3px;
-        text-decoration-thickness: 1.5px;
-        transition: all 0.2s ease;
-        font-weight: 500;
-    }
-    .chat-link:hover {
-        color: #1d4ed8;
-        text-decoration-thickness: 2px;
-        background-color: rgba(37, 99, 235, 0.05);
-    }
-`;
-
-// styles to document
-if (!document.querySelector('#chat-link-styles')) {
-    const styleEl = document.createElement('style');
-    styleEl.id = 'chat-link-styles';
-    styleEl.textContent = linkStyles;
-    document.head.appendChild(styleEl);
-}
-
-
-function formatMarkdownInline(text) {
-    if (!text) return '';
-
-    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    text = text.replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>');
-
-    return text;
-}
-
-async function typewriterEffect(element, text, speed = 20) {
-    const formattedText = formatResponse(text);
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = formattedText;
-    element.innerHTML = '';
-    await typewriterProcessNodes(element, tempDiv.childNodes, speed);
-}
-
-async function typewriterProcessNodes(parent, nodes, speed) {
-    for (const node of nodes) {
-        if (node.nodeType === Node.TEXT_NODE) {
-            await typewriterAddText(parent, node.textContent, speed);
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-            if (node.tagName === 'TABLE') {
-                const clone = node.cloneNode(true);
-                parent.appendChild(clone);
-            } else {
-                const newElement = document.createElement(node.tagName);
-                for (const attr of node.attributes) {
-                    newElement.setAttribute(attr.name, attr.value);
-                }
-                if (node.className) {
-                    newElement.className = node.className;
-                }
-                parent.appendChild(newElement);
-                await typewriterProcessNodes(newElement, node.childNodes, speed);
-            }
-        }
-    }
-}
-
-async function typewriterAddText(element, text, speed) {
-    for (let i = 0; i < text.length; i++) {
-        element.textContent += text[i];
-        if (i < text.length - 1) {
-            const cursor = document.createElement('span');
-            cursor.className = 'blinking-cursor';
-            cursor.textContent = '|';
-            element.appendChild(cursor);
-            await new Promise(resolve => setTimeout(resolve, speed));
-            element.removeChild(cursor);
-        }
-    }
-}
 
 // new send chat
 
-// Add fun loading messages
+
 const funnyLoadingMessages = [
     "Activating neural pathways... 🧠⚡",
     "Consulting the digital brain trust... 🤝💻",
@@ -2984,7 +2805,7 @@ async function sendChat() {
     // Clear input
     chatInput.value = '';
 
-    let responseData; // ✅ Define responseData here
+    let responseData; 
 
     try {
         // Get the selected mode
@@ -3134,7 +2955,7 @@ const funStyles = `
     }
 `;
 
-// Add styles to document
+
 if (!document.querySelector('#fun-chat-styles')) {
     const styleEl = document.createElement('style');
     styleEl.id = 'fun-chat-styles';
@@ -3142,117 +2963,6 @@ if (!document.querySelector('#fun-chat-styles')) {
     document.head.appendChild(styleEl);
 }
 
-// async function sendChat() {
-//     const chatInput = document.getElementById('chatInput');
-//     const chatOutput = document.getElementById('chatOutput');
-//     const progressDiv = document.getElementById('progress-chat');
-//     const progressText = document.getElementById('progress-text-chat');
-//     const modeToggle = document.getElementById('mode-toggle');
-//     const modeSelect = document.getElementById('mode-select');
-
-//     // if (!chatInput || !chatInput.value.trim()) {
-//     //     chatOutput.innerHTML = '<p class="text-red-600">Please enter a query.</p>';
-//     //     return;
-//     // }
-
-//     if (!chatInput || !chatInput.value.trim() || chatInput.value.length > 10000) {
-//         chatOutput.innerHTML = `<p class="text-red-600">${!chatInput.value.trim() ? 'Please enter a query.' : 'Query too long (max 10000 characters)'}</p>`;
-//         return;
-//     }
-
-//     const userMessage = chatInput.value.trim();
-
-//     console.log("📝 Current chatHistory BEFORE adding new message:", chatHistory);
-
-//     progressDiv.style.display = 'block';
-//     progressText.textContent = 'Processing query...';
-
-//     try {
-//         // Get the selected mode
-//         let selectedMode = null;
-//         if (modeToggle && modeToggle.checked && modeSelect && modeSelect.value) {
-//             selectedMode = modeSelect.value;
-//         }
-
-//         // Send only LAST 4 conversations (8 messages) to LLM
-//         const recentHistory = chatHistory.slice(-8); // Last 4 conversations (4 user + 4 assistant)
-
-//         const body = new URLSearchParams({
-//             query: userMessage,
-//             mode: selectedMode || '',
-//             history: JSON.stringify(recentHistory) // Send only recent history
-//         });
-
-//         console.log("📤 Sending to backend - Query:", userMessage);
-//         console.log("📤 Sending to backend - Recent History (last 4 convos):", JSON.stringify(recentHistory));
-//         console.log("📊 Full history length:", chatHistory.length, "Recent history length:", recentHistory.length);
-
-//         const response = await fetch('/chat', {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-//             body: body
-//         });
-
-//         if (!response.ok) {
-//             const errorData = await response.json();
-//             throw new Error(errorData.detail || 'Chat error');
-//         }
-
-//         const data = await response.json();
-
-//         // Add BOTH user message and AI response to FULL history (for UI)
-//         chatHistory.push({ role: 'user', content: userMessage });
-//         chatHistory.push({ role: 'assistant', content: data.answer });
-
-//         // Update UI with ALL messages
-//         const messageDiv = document.createElement('div');
-//         messageDiv.className = 'mb-4';
-
-//         const userQuery = document.createElement('p');
-//         userQuery.className = 'font-semibold text-blue-600';
-//         userQuery.textContent = `You: ${userMessage}`;
-//         messageDiv.appendChild(userQuery);
-
-//         const aiResponse = document.createElement('div');
-//         aiResponse.className = 'ai-response bg-gray-50 p-3 rounded mt-1';
-//         messageDiv.appendChild(aiResponse);
-
-//         chatOutput.insertBefore(messageDiv, chatOutput.firstChild);
-
-//         chatInput.value = '';
-
-//         // Use marked.parse for proper markdown rendering
-//         if (typeof marked !== 'undefined') {
-//             aiResponse.innerHTML = marked.parse(data.answer);
-//         } else {
-//             aiResponse.textContent = data.answer;
-//         }
-
-//         // Keep full history for UI
-//         if (chatHistory.length > 100) { // Keep reasonable limit for browser memory
-//             chatHistory = chatHistory.slice(-100);
-//             console.log("🗂️ Trimmed full history to 100 messages for UI");
-//         }
-
-
-//         console.log("📝 Updated FULL chatHistory (UI):", chatHistory.length, "messages");
-//         console.log("📝 Next LLM will receive:", Math.min(chatHistory.length, 8), "messages");
-
-//     } catch (error) {
-//         console.error("Chat error:", error);
-
-//         const errorDiv = document.createElement('div');
-//         errorDiv.className = 'text-red-600 mb-4';
-//         errorDiv.innerHTML = `
-//             <p>Error: ${error.message}</p>
-//             <p class="text-sm text-gray-600">Please try again or refresh the page.</p>
-//         `;
-//         chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
-//     } finally {
-//         progressDiv.style.display = 'none';
-//         progressText.textContent = '';
-//     }
-// }
 
 
 function showTool(toolId, event = null) {
