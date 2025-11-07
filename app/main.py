@@ -287,7 +287,7 @@ HEADER_KEYWORDS = [
 ]
 
 TITLE_KEYWORDS = [
-    "Work Experience"
+    "Work Experience", "Project or Work Experience"
 ]
 
 
@@ -375,11 +375,22 @@ def extract_text_with_tables(pdf_bytes):
             
             for i, page in enumerate(pdf.pages, 1):
                 text = page.extract_text()
-                table_content = set()  # Track all table-related content
-                filtered_lines = []  # Non-table text
-                cleaned_tables = []  # Collect cleaned tables
+                table_content = set()
+                filtered_lines = []
+                cleaned_tables = []
 
-                # Extract tables
+                # 🆕 NEW: Extract table title from page text WITHOUT affecting table processing
+                table_title = None
+                if text:
+                    lines = text.split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        # Look for the specific title pattern in page text
+                        if ("project or work experience" in line.lower() and "year" in line.lower()):
+                            table_title = line
+                            break
+
+                # Extract tables - KEEP ORIGINAL LOGIC UNCHANGED
                 tables = page.extract_tables() or []
                 for table in tables:
                     cleaned_table = []
@@ -387,17 +398,14 @@ def extract_text_with_tables(pdf_bytes):
                     title_row = None
 
                     for row in table:
-                        # Handle None cells
                         row = ["" if cell is None else str(cell).strip() for cell in row]
                         row_str = ' '.join(cell for cell in row if cell)
                         if not row_str.strip():
                             continue
 
-                        # Normalize row string
                         norm_row_str = normalize_text(row_str)
                         table_content.add(norm_row_str)
 
-                        # Add individual cell content, handling multi-line cells
                         for cell in row:
                             if cell:
                                 cell_lines = cell.split('\n')
@@ -405,6 +413,7 @@ def extract_text_with_tables(pdf_bytes):
                                     if cell_line.strip():
                                         table_content.add(normalize_text(cell_line))
 
+                        # KEEP ORIGINAL table title detection (but it won't find the main title)
                         if is_table_title(row_str, TITLE_KEYWORDS):
                             title_row = row_str
                             continue
@@ -418,7 +427,7 @@ def extract_text_with_tables(pdf_bytes):
                     if cleaned_table:
                         cleaned_tables.append((title_row, header_row, cleaned_table))
 
-                # Process text lines (only if text exists)
+                # Process text lines - KEEP ORIGINAL LOGIC
                 if text:
                     lines = text.split('\n')
                     for line in lines:
@@ -426,7 +435,6 @@ def extract_text_with_tables(pdf_bytes):
                         if not line:
                             continue
 
-                        # Normalize line for comparison
                         norm_line = normalize_text(line)
                         
                         # Skip lines that are table-related
@@ -434,25 +442,20 @@ def extract_text_with_tables(pdf_bytes):
                             is_substring_match(line, table_content) or
                             is_table_title(line, TITLE_KEYWORDS) or
                             is_header_row(line, HEADER_KEYWORDS) or
-                            is_raw_table_text(line)):
+                            is_raw_table_text(line) or
+                            line == table_title):  # 🆕 ONLY ADD: Skip the extracted title
                             continue
-                            
-                        # # Additional table content checks
-                        # if (re.match(r'^\d+\s', line) or  
-                        #     any(x in line.lower() for x in ['no', 'nos', 'qty', 'km', 'mtr']) or
-                        #     re.search(r'\d{4,}', line)):  # Long numbers
-                        #     continue
 
                         filtered_lines.append(line)
 
-                # Add filtered text to full_text
+                # Add filtered text
                 if filtered_lines:
                     full_text.append(f"--- PAGE {i} ---\n" + "\n".join(filtered_lines))
 
-                # Add tables to full_text
+                # Add tables to full_text - 🆕 MINIMAL CHANGE: Use extracted title if available
                 for title_row, header_row, cleaned_table in cleaned_tables:
                     try:
-                        # Ensure consistent column lengths
+                        # KEEP ORIGINAL table processing logic
                         max_cols = max(len(row) for row in cleaned_table)
                         cleaned_table = [row + [""] * (max_cols - len(row)) for row in cleaned_table]
 
@@ -462,10 +465,14 @@ def extract_text_with_tables(pdf_bytes):
                             df = pd.DataFrame(cleaned_table[1:], columns=cleaned_table[0]) if len(cleaned_table) > 1 else pd.DataFrame(cleaned_table)
 
                         markdown_table = df.to_markdown(index=False)
-                        if title_row:  # If we found a natural title
-                            full_text.append(f"\n{title_row}\n{markdown_table}\n")
-                        else:  # Otherwise use the default header
+                        
+                        # 🆕 ONLY CHANGE: Prefer the extracted page title over table row title
+                        final_title = table_title if table_title else title_row
+                        if final_title:
+                            full_text.append(f"\n{final_title}\n{markdown_table}\n")
+                        else:
                             full_text.append(f"\nTABLE (Page {i}):\n{markdown_table}\n")
+                        
                     except Exception as e:
                         full_text.append(f"\nTABLE_RAW (Page {i}):\n{str(cleaned_table)}\n")
 
@@ -475,7 +482,6 @@ def extract_text_with_tables(pdf_bytes):
         raise Exception(f"Invalid PDF format: {e}")
     except Exception as e:
         raise Exception(f"Error processing PDF: {e}")
-
 
 
 # ====================== Enhanced Logging Functions ======================
@@ -528,9 +534,9 @@ def post_process_retrieved_docs(docs, query):
         content = doc.page_content
         source = doc.metadata.get("source", "unknown")
 
-        page_num = doc.metadata.get("page")
+        page_num = doc.metadata.get("page_num")  # ✅ CHANGED from "page"
         if page_num and isinstance(page_num, float):
-            doc.metadata["page"] = int(page_num)
+            doc.metadata["page_num"] = int(page_num) 
         
         # Check if it's a work experience table from PDF 3
         is_work_table = (
@@ -557,6 +563,27 @@ def post_process_retrieved_docs(docs, query):
         processed.append(doc)
 
     return processed
+
+
+###### top 5 on score basis only
+# def ensure_tabular_inclusion(docs, query, min_tabular=2):
+#     """Return top 5 documents by similarity score regardless of content type"""
+    
+#     # 🆕 FIRST: Always sort documents by score (highest first)
+#     sorted_docs = sorted(docs, key=lambda x: x.metadata.get("score", 0), reverse=True)
+    
+#     # 🆕 SECOND: Simply return top 5 documents by score
+#     final_docs = sorted_docs[:3]
+    
+#     # Log the score-based selection
+#     logger.info(f"🎯 Score-based selection: {len(final_docs)} docs (top 5 by score)")
+#     for i, doc in enumerate(final_docs):
+#         logger.info(f"   #{i+1}: Score={doc.metadata.get('score', 0):.4f}, "
+#                    f"Source={doc.metadata.get('source', 'unknown').split('/')[-1]}, "
+#                    f"Type={doc.metadata.get('content_type', 'unknown')}")
+    
+#     return final_docs
+
 
 def ensure_tabular_inclusion(docs, query, min_tabular=2):
     """Ensure relevant content is included based on query type"""
@@ -654,7 +681,8 @@ class PineconeRetriever(BaseRetriever):
                     pinecone_start = time.time()
                     results = self.index.query(
                         vector=query_embedding,
-                        top_k=self.search_kwargs.get("k", 10),
+                        # top_k=self.search_kwargs.get("k", 10),
+                        top_k=self.search_kwargs["k"],
                         include_metadata=True,
                         namespace="vishnu_ai_docs"
                     )
@@ -682,7 +710,7 @@ class PineconeRetriever(BaseRetriever):
                     page_content=text_content,
                     metadata={
                         "source": match["metadata"].get("source", ""),
-                        "page": int(match["metadata"].get("page", 0)),  # Force integer
+                        "page": int(match["metadata"].get("page_num", 0)),
                         "score": match["score"],
                         "content_type": match["metadata"].get("content_type", "unknown"),
                         "document_type": match["metadata"].get("document_type", "unknown"),
@@ -709,7 +737,7 @@ class PineconeRetriever(BaseRetriever):
         return self._get_relevant_documents(input)
 
 ##########NEW APPROACH #############
-def process_non_tabular_pdf_complete(pdf_bytes, pdf_url, max_chunks_per_page=3, target_chunk_size=2000):
+def process_non_tabular_pdf_complete(pdf_bytes, pdf_url, max_chunks_per_page=3, target_chunk_size=2500):
     """Process non-tabular PDF with 100% content preservation and strict page boundaries"""
     try:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
@@ -807,53 +835,66 @@ def clean_text_preserve_all(text):
     return text.strip()
 
 def split_into_preserved_sections(text):
-    """Split text into sections while preserving ALL content"""
+    """Split text into sections while preserving ALL content - MINIMAL FIX"""
     if not text:
         return []
     
     sections = []
     
-    # First, split by major section breaks (double newlines)
-    major_sections = text.split('\n\n')
+    # First, split by major section breaks (double newlines) BUT be smarter about it
+    lines = text.split('\n')
+    current_section = []
     
-    for section in major_sections:
-        section = section.strip()
-        if not section:
-            continue
-            
-        # If section is too long, split by single newlines but preserve order
-        if len(section) > 800:
-            lines = section.split('\n')
-            current_section = []
-            current_length = 0
-            
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                    
-                line_length = len(line)
-                
-                # If adding this line would make too long, start new section
-                if current_length + line_length > 600 and current_section:
-                    sections.append(' '.join(current_section))
-                    current_section = [line]
-                    current_length = line_length
-                else:
-                    current_section.append(line)
-                    current_length += line_length + 1
-            
+    for line in lines:
+        line = line.strip()
+        if not line:
+            # Empty line - potential section break
             if current_section:
-                sections.append(' '.join(current_section))
-        else:
-            # Use section as is
-            sections.append(section)
+                # Check if we should preserve current section as is
+                section_text = ' '.join(current_section)
+                if should_preserve_section(current_section):
+                    sections.append(section_text)
+                    current_section = []
+                else:
+                    # Continue accumulating if it's a coherent paragraph
+                    current_section.append("")  # Add empty line as separator
+            continue
+        
+        # Add line to current section
+        current_section.append(line)
+    
+    # Add the last section
+    if current_section:
+        section_text = ' '.join(current_section)
+        sections.append(section_text)
     
     # If we have no sections (shouldn't happen), return the original text
     if not sections:
         return [text]
     
     return sections
+def should_preserve_section(lines):
+    """MINIMAL: Check if current lines form a section that should be preserved together"""
+    if len(lines) < 2:
+        return True  # Single line sections are fine
+    
+    # Check if first line looks like a heading and subsequent lines are content
+    first_line = lines[0]
+    is_heading_like = (
+        first_line.endswith(':') or 
+        (len(first_line) < 100 and first_line and first_line[0].isalnum())
+    )
+    
+    # Check if we have bullet points or short content lines after heading
+    if is_heading_like:
+        subsequent_content = lines[1:]
+        has_bullet_points = any(line.startswith('•') for line in subsequent_content)
+        has_short_content = all(len(line) < 200 for line in subsequent_content)
+        
+        if has_bullet_points or (has_short_content and len(subsequent_content) <= 5):
+            return False  # Don't break this section yet
+    
+    return True  # Default to breaking at empty lines
 
 def create_content_preserving_chunks(sections, max_chunks, target_size, page_num):
     """Create chunks that guarantee 100% content preservation"""
@@ -1115,6 +1156,9 @@ def initialize_vectorstore():
                     "content_type": "mixed_text_and_tables",
                     "document_type": "tabular",
                     "section": "work_experience",
+                    "page_num": 1,  
+                    "chunk_num": 1,    
+                    "total_chunks_page": 1,  
                     "processed_at": time.time()
                 }
             )
@@ -1135,7 +1179,7 @@ def initialize_vectorstore():
                         pdf_bytes, 
                         pdf_url,
                         max_chunks_per_page=3,
-                        target_chunk_size=2000
+                        target_chunk_size=2500
                     )
                     
                     logger.info(f"📑 Created {len(page_chunks)} chunks from {pdf_name}")
@@ -1445,10 +1489,13 @@ def log_pinecone_contents(index, namespace="vishnu_ai_docs", sample_count=40, ve
         
         # Log sample documents with enhanced info
         for i, match in enumerate(results['matches'][:sample_count], 1):
+            content = match["metadata"].get("page_content", "")
+            char_count = len(content)
             logger.info(f"\n📄 STORED DOCUMENT #{i}:")
             logger.info(f"🆔 ID: {match['id']}")
             logger.info(f"📊 Score: {match['score']:.4f}")
             logger.info(f"📁 Source: {match['metadata'].get('source', 'Unknown')}")
+            logger.info(f"📏 Size: {char_count} characters")
             
             page_num = match['metadata'].get('page_num')
             if page_num:
@@ -2086,6 +2133,27 @@ CHAT_MODES = {
 
     # Add more modes as needed
 
+def debug_pinecone_metadata(raw_docs, query):
+    """Debug function to see EXACT metadata from Pinecone"""
+    logger.info(f"\n🔍 DEBUG PINECONE METADATA FOR QUERY: '{query}'")
+    logger.info("=" * 80)
+    
+    for i, doc in enumerate(raw_docs):
+        logger.info(f"\n📄 RAW DOC #{i+1} FULL METADATA INSPECTION:")
+        logger.info(f"📦 ALL METADATA KEYS: {list(doc.metadata.keys())}")
+        logger.info(f"📦 COMPLETE METADATA: {doc.metadata}")
+        
+        # Check page_num specifically
+        page_num_value = doc.metadata.get('page_num', 'MISSING')
+        logger.info(f"🔍 page_num VALUE: {page_num_value} (type: {type(page_num_value)})")
+        
+        # Also check if 'page' exists
+        page_value = doc.metadata.get('page', 'MISSING') 
+        logger.info(f"🔍 page VALUE: {page_value} (type: {type(page_value)})")
+        
+        logger.info(f"📁 Source: {doc.metadata.get('source', 'Unknown')}")
+        logger.info(f"📊 Score: {doc.metadata.get('score', 'N/A')}")
+        logger.info("-" * 60)
 @app.post("/chat")
 async def chat(query: str = Form(...), mode: str = Form(None), history: str = Form(None)):
     if not query.strip() or len(query) > 10000:
@@ -2141,27 +2209,12 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             processed_docs = []
       
         else:
- 
-            # prompt = ChatPromptTemplate.from_messages([
-            #         (
-            #             "system",
-            #             "You are Vishnu AI assistant — concise, friendly, and accurate. Give clear, human-like answers."
-            #             "Add light Indian humor naturally when it fits (like 'as easy as making Maggi'). "
-            #             "Humor should come after clarity with emoji in last, never before it."
-            #         ),
-            #         (
-            #             "human",
-            #             "Context: {context}\n\n"
-            #             "Question: {input}\n\n"
-            #             "Answer:"
-            #         )
-            #     ])
             prompt = ChatPromptTemplate.from_messages([
                 ("system",
                 "You are Vishnu AI Assintant — a friendly but bit funny "
-                "Provide clear, human-like answers in a warm and professional tone. "
+                "Provide accurate, clear, human-like answers in a warm and professional tone. "
                 "Add light Indian humor naturally when it fits (for example, 'as easy as making Maggi'). "
-                "Always place humor after delivering clarity in new paragraph, ending with a small emoji — never before the main answer. "
+                "Keep humor after the main answer, on a new line, ending with a small emoji"
                 "If the user asks a general question, gently suggest they can change the tone using the 'tone selector'."),
                 
                 ("human",
@@ -2171,7 +2224,12 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             question_answer_chain = create_stuff_documents_chain(llm, prompt)
 
             # prompt = ChatPromptTemplate.from_messages([
-            #     ("system", "You are Vishnu AI assistant — friendly, funny and accurate. Give human-like concise answers in 2-3 paragraphs."),
+            #     ("system", "You are Vishnu, an Indian AI assistant — friendly, funny (with Indian-style humor), and accurate. Give clear & human-like answers."),
+            #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
+            # ])
+
+            # prompt = ChatPromptTemplate.from_messages([
+            #     ("system", "You are Vishnu, an Indian AI assistant — friendly and accurate. Give clear & human-like answers."),
             #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
             # ])
             
@@ -2189,6 +2247,15 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             # 🚀 Wait for retrieval ONLY
             try:
                 raw_docs = await asyncio.wait_for(retrieval_future, timeout=15.0)
+                # debug_pinecone_metadata(raw_docs, query)
+                # for i, doc in enumerate(raw_docs, 1):
+                #     logger.info(f"\n📄 RAW DOC #{i}:")
+                #     logger.info(f"📁 Source: {doc.metadata.get('source', 'Unknown')}")
+                #     logger.info(f"📄 Page: {doc.metadata.get('page', 'N/A')}")
+                #     logger.info(f"🔢 Chunk: {doc.metadata.get('chunk_num', 'N/A')}/{doc.metadata.get('total_chunks_page', 'N/A')}")
+                #     logger.info(f"📊 Score: {doc.metadata.get('score', 'N/A')}")
+                #     logger.info(f"📝 Content Preview: {doc.page_content}...")
+                #     logger.info(f"🏷️ Metadata: {doc.metadata}")
             except asyncio.TimeoutError:
                 raw_docs = []
             except Exception as e:
@@ -2204,6 +2271,15 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             processed_docs = post_process_retrieved_docs(final_docs, query)
             # logger.info(f"\n🎯 PROCESSED DOCUMENTS AFTER FILTERING:")
             # logger.info(f"📊 Final documents sent to LLM: {len(processed_docs)}")
+            # for i, doc in enumerate(processed_docs, 1):
+            #     logger.info(f"\n📄 FINAL DOC #{i}:")
+            #     logger.info(f"📁 Source: {doc.metadata.get('source', 'Unknown')}")
+            #     logger.info(f"📄 Page: {doc.metadata.get('page', 'N/A')}")
+            #     logger.info(f"🔢 Chunk: {doc.metadata.get('chunk_num', 'N/A')}/{doc.metadata.get('total_chunks_page', 'N/A')}")
+            #     logger.info(f"📊 Score: {doc.metadata.get('score', 'N/A')}")
+            #     logger.info(f"📄 Content Type: {doc.metadata.get('content_type', 'unknown')}")
+            #     logger.info(f"📏 Doc Size: {len(doc.page_content)} characters")
+            #     logger.info(f"📝 Content Preview: {doc.page_content}...")
             
             processing_end = time.time()
             timings["processing_time"] = processing_end - processing_start
@@ -2234,111 +2310,6 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             # logger.info(f"⏱️ Generation took {timings['generation_time']:.2f}s")
             
             
-            # # 🚀 PARALLEL: Start retrieval AND prepare LLM chain simultaneously
-            # retrieval_future = loop.run_in_executor(
-            #     thread_pool, 
-            #     lambda: retriever.invoke(query) if retriever else []
-            # )
-            
-            # # 🚀 PARALLEL: Prepare prompt and chain while retrieval runs
-
-            # ##############  this is working #################
-            # # prompt = ChatPromptTemplate.from_messages([
-            # #     ("system", "You are Vishnu AI assistant — friendly, funny and accurate. Give human-like answers."),
-            # #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-            # # ])
-
-            # prompt = ChatPromptTemplate.from_messages([
-            #     (
-            #         "system",
-            #         "You are Vishnu AI - the desi tech guru with a great sense of humor! "
-            #         "Your response has TWO clear parts:\n"
-            #         "PHASE 1: Present COMPLETE data (tables must be 100% complete)\n" 
-            #         "PHASE 2: Add witty Indian humor commentary\n"
-            #         "NEVER let humor interfere with data completeness."
-            #     ),
-            #     (
-            #         "human",
-            #         "Context: {context}\n\n"
-            #         "Question: {input}\n\n"
-            #         "Follow this EXACT format:\n"
-            #         "📊 **COMPLETE DATA TABLE:**\n"
-            #         "[Full table with all rows - no truncation ever]\n\n"
-            #         "😄 **VISHNU'S DESI FLAVOR:**\n"
-            #         "[Witty Indian humor commentary here]\n\n"
-            #         "Answer:"
-            #     )
-            # ])
-
-
-            # question_answer_chain = create_stuff_documents_chain(llm, prompt)
-
-            # retrieval_start = time.time()
-            
-            # # 🚀 Wait for retrieval (with shorter timeout)
-            # try:
-            #     raw_docs = await asyncio.wait_for(retrieval_future, timeout=15.0)  # Reduced from 45s
-            #     # for i, doc in enumerate(raw_docs, 1):
-            #     #     logger.info(f"\n📄 RAW DOC #{i}:")
-            #     #     logger.info(f"📁 Source: {doc.metadata.get('source', 'Unknown')}")
-            #     #     logger.info(f"📄 Page: {doc.metadata.get('page_num', 'N/A')}")
-            #     #     logger.info(f"🔢 Chunk: {doc.metadata.get('chunk_num', 'N/A')}/{doc.metadata.get('total_chunks_page', 'N/A')}")
-            #     #     logger.info(f"📊 Score: {doc.metadata.get('score', 'N/A')}")
-            #     #     logger.info(f"📝 Content Preview: {doc.page_content}...")
-            #     #     logger.info(f"🏷️ Metadata: {doc.metadata}")
-            # except asyncio.TimeoutError:
-            #     raw_docs = []
-            # except Exception as e:
-            #     raw_docs = []
-
-            # retrieval_end = time.time()
-            # timings["retrieval_time"] = retrieval_end - retrieval_start
-            # logger.info(f"⏱️ Retrieval took {timings['retrieval_time']:.2f}s")
-
-            # # 🚀 FAST Document Processing
-            # processing_start = time.time()
-            # final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
-            # processed_docs = post_process_retrieved_docs(final_docs, query)
-            # logger.info(f"\n🎯 PROCESSED DOCUMENTS AFTER FILTERING:")
-            # logger.info(f"📊 Final documents sent to LLM: {len(processed_docs)}")
-            # # for i, doc in enumerate(processed_docs, 1):
-            # #     logger.info(f"\n📄 FINAL DOC #{i}:")
-            # #     logger.info(f"📁 Source: {doc.metadata.get('source', 'Unknown')}")
-            # #     logger.info(f"📄 Page: {doc.metadata.get('page_num', 'N/A')}")
-            # #     logger.info(f"🔢 Chunk: {doc.metadata.get('chunk_num', 'N/A')}/{doc.metadata.get('total_chunks_page', 'N/A')}")
-            # #     logger.info(f"📊 Score: {doc.metadata.get('score', 'N/A')}")
-            # #     logger.info(f"📄 Content Type: {doc.metadata.get('content_type', 'unknown')}")
-            # #     logger.info(f"📝 Content Preview: {doc.page_content}...")
-            # processing_end = time.time()
-            # timings["processing_time"] = processing_end - processing_start
-            # logger.info(f"⏱️ Processing took {timings['processing_time']:.2f}s")
-
-   
-            #  # 🚀 GENERATION with shorter timeout
-            # generation_start = time.time()
-            # if not processed_docs:
-            #     answer = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
-            # else:
-            #     try:
-            #         response = await asyncio.wait_for(
-            #             loop.run_in_executor(
-            #                 thread_pool,
-            #                 lambda: question_answer_chain.invoke({
-            #                     "input": query,
-            #                     "context": processed_docs
-            #                 })
-            #             ),
-            #             timeout=16.0  # Reduced from 15s
-            #         )
-            #         answer = response.strip()
-            #     except asyncio.TimeoutError:
-            #         answer = "I'm taking too long to generate a perfect response. Here's what I found quickly!"
-
-            # generation_end = time.time()
-            # timings["generation_time"] = generation_end - generation_start
-
-            # logger.info(f"⏱️ Generation took {timings['generation_time']:.2f}s")
-
         # Response formatting
         chat_history = []
         chat_entry = f"You: {query}\nAI: {answer}"
@@ -2348,7 +2319,14 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
 
         total_end = time.time()
         timings["total_time"] = total_end - start_time
+
+        # logger.info("#" * 100)
+        # logger.info(f"⏱️ Retrieval took {timings['retrieval_time']:.2f}s")
+        # logger.info(f"⏱️ Processing took {timings['processing_time']:.2f}s")
+        # logger.info(f"⏱️ Generation took {timings['generation_time']:.2f}s")
         # logger.info(f"🧮 TOTAL chat request took {timings['total_time']:.2f}s")
+        # logger.info("#" * 100)
+
 
         return {
             "answer": answer,
