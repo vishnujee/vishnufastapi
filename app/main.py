@@ -42,6 +42,7 @@ from concurrent.futures import ThreadPoolExecutor
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+
 #langchain
 # LangChain & Embeddings
 # from langchain_community.document_loaders import PyPDFLoader, WebBaseLoader,PyMuPDFLoader
@@ -131,51 +132,44 @@ async def security_middleware(request: Request, call_next):
 
 
 
-embedding_semaphore = asyncio.Semaphore(6)  # Max 6 concurrent embeddings
+##### ehuggingface
 
-async def rate_limited_embed_query(query: str):
-    async with embedding_semaphore:
-        return await async_embed_query(query)
-
-
-##############asycronous  embedding for chat ########################
-
-# Add after your existing imports
-import aiohttp
-from aiohttp import ClientTimeout
-
-async def async_embed_query(query: str) -> List[float]:
-    """Async embedding generation to avoid blocking"""
-    async with aiohttp.ClientSession() as session:
-        payload = {
-            "input": query,
-            "model": "text-embedding-3-small",
-            "dimensions": 512
-
-        }
-        headers = {
-            "Authorization": f"Bearer {OPENAI_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        
-        try:
-            async with session.post(
-                "https://api.openai.com/v1/embeddings",
-                json=payload,
-                headers=headers,
-                timeout=ClientTimeout(total=8)
-            ) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    return result["data"][0]["embedding"]
-                else:
-                    raise Exception(f"Embedding API error: {response.status}")
-        except Exception as e:
-            logger.error(f"Async embedding failed: {e}")
-            # Fallback to sync embedding
-            raise
+from sentence_transformers import SentenceTransformer
+import threading
 
 
+# ------------------------------------------------------------------
+# 1. Load the HF model once (thread-safe, CPU-only)
+# ------------------------------------------------------------------
+_HF_MODEL_LOCK = threading.Lock()
+_HF_MODEL: Optional[SentenceTransformer] = None
+
+def get_hf_model() -> SentenceTransformer:
+    """Lazy-load the model the first time it is needed."""
+    global _HF_MODEL
+    with _HF_MODEL_LOCK:
+        if _HF_MODEL is None:
+            logger.info("Loading HuggingFace model sentence-transformers/all-MiniLM-L6-v2…")
+            _HF_MODEL = SentenceTransformer(
+                "sentence-transformers/all-MiniLM-L6-v2",
+                device="cpu"
+            )
+            logger.info("HF model loaded (384-dim).")
+        return _HF_MODEL
+
+# ------------------------------------------------------------------
+# 2. LangChain-compatible wrapper
+# ------------------------------------------------------------------
+class HFEmbeddings:
+    """Simple LangChain-compatible wrapper"""
+    def embed_query(self, text: str) -> List[float]:
+        model = get_hf_model()
+        return model.encode(text, normalize_embeddings=True).tolist()
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        model = get_hf_model()
+        return model.encode(texts, normalize_embeddings=True).tolist()
+    
 ##############################
 
 
@@ -298,18 +292,44 @@ def setup_directories():
 
 
 
+
 def download_from_url(url):
     try:
-        headers = {"User-Agent": os.getenv("USER_AGENT", "VishnuAI/1.0")}
-        response = requests.get(url, headers=headers, timeout=10)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "application/pdf, */*"
+        }
+        
+        # Increased timeout and added retry strategy
+        session = requests.Session()
+        retry_strategy = requests.packages.urllib3.util.retry.Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        adapter = requests.adapters.HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        response = session.get(url, headers=headers, timeout=15)  # Increased timeout
         response.raise_for_status()
+        
+        # Verify it's actually a PDF
+        content_type = response.headers.get('content-type', '')
+        if 'pdf' not in content_type.lower() and not response.content.startswith(b'%PDF'):
+            logger.warning(f"⚠️ URL {url} might not be a PDF. Content-Type: {content_type}")
+            
         return response.content
+        
+    except requests.exceptions.Timeout:
+        logger.error(f"⏰ Timeout downloading PDF from {url}")
+        raise HTTPException(status_code=500, detail=f"Timeout downloading PDF: {url}")
+    except requests.exceptions.ConnectionError:
+        logger.error(f"🔌 Connection error downloading PDF from {url}")
+        raise HTTPException(status_code=500, detail=f"Connection error - cannot reach {url}")
     except Exception as e:
-        logger.error(f"Failed to download PDF from {url}: {e}")
+        logger.error(f"❌ Failed to download PDF from {url}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to download PDF: {str(e)}")
-    
-
-
 ######################################################### NEW IMPLEMENTATION FOR RAG #########################################################
 
 
@@ -597,24 +617,6 @@ def post_process_retrieved_docs(docs, query):
     return processed
 
 
-###### top 5 on score basis only
-# def ensure_tabular_inclusion(docs, query, min_tabular=2):
-#     """Return top 5 documents by similarity score regardless of content type"""
-    
-#     # 🆕 FIRST: Always sort documents by score (highest first)
-#     sorted_docs = sorted(docs, key=lambda x: x.metadata.get("score", 0), reverse=True)
-    
-#     # 🆕 SECOND: Simply return top 5 documents by score
-#     final_docs = sorted_docs[:3]
-    
-#     # Log the score-based selection
-#     logger.info(f"🎯 Score-based selection: {len(final_docs)} docs (top 5 by score)")
-#     for i, doc in enumerate(final_docs):
-#         logger.info(f"   #{i+1}: Score={doc.metadata.get('score', 0):.4f}, "
-#                    f"Source={doc.metadata.get('source', 'unknown').split('/')[-1]}, "
-#                    f"Type={doc.metadata.get('content_type', 'unknown')}")
-    
-#     return final_docs
 
 
 def ensure_tabular_inclusion(docs, query, min_tabular=2):
@@ -674,63 +676,38 @@ def ensure_tabular_inclusion(docs, query, min_tabular=2):
 
 
 
-
-
-###  PINECONE CLOUD 
-class PineconeRetriever(BaseRetriever):
-    index: Any = Field(...)
-    embeddings: Any = Field(...)
-    search_type: str = Field(default="similarity")
-    search_kwargs: Optional[Dict] = Field(default_factory=lambda: {"k": 8})
-
-    def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun = None) -> List[Document]:
-        # Keep your existing sync method as fallback
-        return asyncio.run(self._aget_relevant_documents(query))
-
-    async def _aget_relevant_documents(self, query: str) -> List[Document]:
-        """Async version for non-blocking retrieval"""
+##### chromadb
+class ChromaDBRetriever(BaseRetriever):
+    vectorstore: Any = Field(...)
+    search_kwargs: Dict = Field(default_factory=lambda: {"k": 10})
+    
+    def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
         try:
-            # 🚀 ASYNC EMBEDDING CALL
-            embed_start = time.time()
-            # query_embedding = await async_embed_query(query)
-            query_embedding = await rate_limited_embed_query(query)
-            embed_time = time.time() - embed_start
-            logger.info(f"⏱️ Async embedding generation: {embed_time:.2f}s")
-
-            # Pinecone query (relatively fast, keep sync)
-            pinecone_start = time.time()
-            results = self.index.query(
-                vector=query_embedding,
-                top_k=self.search_kwargs["k"],
-                include_metadata=True,
-                namespace="vishnu_ai_docs"
-            )
-            pinecone_time = time.time() - pinecone_start
-            logger.info(f"⏱️ Pinecone query: {pinecone_time:.2f}s")
-
-            documents = []
-            for match in results["matches"]:
-                text_content = match["metadata"].get("page_content", match["metadata"].get("text", ""))
-                document = Document(
-                    page_content=text_content,
-                    metadata={
-                        "source": match["metadata"].get("source", ""),
-                        "page": int(match["metadata"].get("page_num", 0)),
-                        "score": match["score"],
-                        "content_type": match["metadata"].get("content_type", "unknown"),
-                        "document_type": match["metadata"].get("document_type", "unknown"),
-                        "chunk_num": int(match["metadata"].get("chunk_num", 0)),
-                        "total_chunks_page": int(match["metadata"].get("total_chunks_page", 1)),
-                    }
-                )
-                documents.append(document)
+            start_time = time.time()
             
-            return documents
+            # ✅ ONLY RETRIEVAL - no business logic
+            docs_with_scores = self.vectorstore.similarity_search_with_score(
+                query, 
+                k=self.search_kwargs["k"]
+            )
+            
+            # Add scores to metadata
+            docs = []
+            for doc, score in docs_with_scores:
+                doc.metadata["score"] = float(score)
+                docs.append(doc)
+            
+            retrieval_time = time.time() - start_time
+            logger.info(f"⚡ ChromaDB retrieval: {retrieval_time:.3f}s for {len(docs)} docs")
+            
+            
+            return docs  # ✅ Return raw retrieved docs
             
         except Exception as e:
-            logger.error(f"❌ Async retrieval failed: {e}")
+            logger.error(f"❌ ChromaDB retrieval failed: {e}")
             return []
-        
+
+
 ##########NEW APPROACH #############
 def process_non_tabular_pdf_complete(pdf_bytes, pdf_url, max_chunks_per_page=3, target_chunk_size=2500):
     """Process non-tabular PDF with 100% content preservation and strict page boundaries"""
@@ -1101,85 +1078,88 @@ def run_comprehensive_content_audit():
 
 ######################
 
-
 def initialize_vectorstore():
     try:
-        logger.info("🚀 Starting vectorstore initialization...")
-        os.environ['OPENAI_API_BASE'] = 'https://api.openai.com/v1'
-        os.environ['NO_PROXY'] = 'api.openai.com'
-        pc = Pinecone(api_key=PINECONE_API_KEY,  pool_connections=10,
-            pool_maxsize=10,
-            max_retries=2)
-        index_name = "vishnu-ai-docs"
+        logger.info("🚀 Initializing ChromaDB with HuggingFace embeddings...")
         
-        # Check if index exists
-        if index_name not in pc.list_indexes().names():
-            logger.info(f"📦 Creating new index: {index_name}")
-            pc.create_index(
-                name=index_name,
-                dimension=512,
-                metric="cosine",
-                spec=ServerlessSpec(cloud="aws", region="us-east-1")
+        # Use HuggingFace embeddings instead of OpenAI
+        embeddings = HFEmbeddings()
+        
+        # Define persist directory
+        persist_dir = "./chroma_db"
+        os.makedirs(persist_dir, exist_ok=True)
+        
+        # Check if ChromaDB already exists and has data
+        collection_exists = False
+        documents_count = 0
+        
+        try:
+            existing_vectorstore = Chroma(
+                collection_name="vishnu_ai_docs",
+                embedding_function=embeddings,
+                persist_directory=persist_dir
             )
-            logger.info(f"✅ Created new index: {index_name}")
-            time.sleep(20)
+            
+            documents_count = existing_vectorstore._collection.count()
+            collection_exists = documents_count > 0
+            
+            if collection_exists:
+                logger.info(f"📚 Existing ChromaDB found with {documents_count} documents")
+                return existing_vectorstore, embeddings
+            else:
+                logger.info("📭 ChromaDB exists but is empty, will recreate...")
+                
+        except Exception as e:
+            logger.info(f"🆕 No existing ChromaDB found: {e}")
+            collection_exists = False
         
-        index = pc.Index(index_name)
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512, request_timeout=20)
-        # embeddings = OpenAIEmbeddings(model="text-embedding-3-small",  request_timeout=15)
-        test_embedding = embeddings.embed_query("test")
-        logger.info(f"🔍 Actual embedding dimensions detected: {len(test_embedding)}")
-  
-        # Efficient empty check
-        stats = index.describe_index_stats()
-        namespace_stats = stats.get("namespaces", {}).get("vishnu_ai_docs", {})
+        # If we reach here, need to create new ChromaDB
+        logger.info("📦 Creating new ChromaDB collection...")
         
-        if namespace_stats.get("vector_count", 0) == 0:
-            logger.info("📭 Index is empty, processing documents with ENHANCED sequential chunking...")
-            
-            all_documents = []
-            
-            # Process Tabular PDF (keep existing)
-            logger.info("📊 Processing tabular PDF...")
-            pdf_bytes_tabular = download_from_url(PDF_URL_TABULAR)
-            logger.info(f"📥 Downloaded tabular PDF, size: {len(pdf_bytes_tabular)} bytes")
-            
-            # Use enhanced PDF extraction for tabular data
-            tabular_text = extract_text_with_tables(pdf_bytes_tabular)
-            logger.info(f"📄 Extracted tabular text length: {len(tabular_text)} characters")
-            
-            # Create document with metadata for tabular content
-            tabular_doc = Document(
-                page_content=tabular_text,
-                metadata={
-                    "source": PDF_URL_TABULAR,
-                    "content_type": "mixed_text_and_tables",
-                    "document_type": "tabular",
-                    "section": "work_experience",
-                    "page_num": 1,  
-                    "chunk_num": 1,    
-                    "total_chunks_page": 1,  
-                    "processed_at": time.time()
-                }
-            )
-            all_documents.append(tabular_doc)
-            
-            # ENHANCED: Process Non-Tabular PDFs with sequential chunking
-                       # ENHANCED: Process Non-Tabular PDFs with complete content preservation
-            logger.info("📝 Processing non-tabular PDFs with 100% content preservation...")
-            
-            for pdf_url in NONTABULAR_PDFS:
-                try:
-                    pdf_bytes = download_from_url(pdf_url)
-                    pdf_name = pdf_url.split('/')[-1]
-                    logger.info(f"📥 Processing: {pdf_name}")
+        vectorstore = Chroma(
+            collection_name="vishnu_ai_docs",
+            embedding_function=embeddings,
+            persist_directory=persist_dir
+        )
+        
+        # Process documents only if collection is empty
+        all_documents = []
+        
+        # Try to download and process PDFs with graceful fallback
+        pdf_urls_to_try = [PDF_URL_TABULAR] + NONTABULAR_PDFS
+        successful_downloads = 0
+        
+        for pdf_url in pdf_urls_to_try:
+            try:
+                logger.info(f"📥 Attempting to download: {pdf_url}")
+                pdf_bytes = download_from_url(pdf_url)
+                pdf_name = pdf_url.split('/')[-1]
+                successful_downloads += 1
+                
+                if pdf_url == PDF_URL_TABULAR:
+                    # Process tabular PDF
+                    logger.info("📊 Processing tabular PDF...")
+                    tabular_text = extract_text_with_tables(pdf_bytes)
+                    tabular_doc = Document(
+                        page_content=tabular_text,
+                        metadata={
+                            "source": pdf_url,
+                            "content_type": "mixed_text_and_tables", 
+                            "document_type": "tabular",
+                            "section": "work_experience",
+                            "page_num": 1,
+                            "chunk_num": 1,
+                            "total_chunks_page": 1
+                        }
+                    )
+                    all_documents.append(tabular_doc)
+                    logger.info(f"✅ Tabular PDF processed: {len(tabular_text)} characters")
                     
-                    # Use COMPLETE content preservation processing
+                else:
+                    # Process non-tabular PDF
+                    logger.info(f"📝 Processing: {pdf_name}")
                     page_chunks = process_non_tabular_pdf_complete(
-                        pdf_bytes, 
-                        pdf_url,
-                        max_chunks_per_page=3,
-                        target_chunk_size=2500
+                        pdf_bytes, pdf_url, max_chunks_per_page=3, target_chunk_size=2500
                     )
                     
                     logger.info(f"📑 Created {len(page_chunks)} chunks from {pdf_name}")
@@ -1190,180 +1170,87 @@ def initialize_vectorstore():
                             metadata={
                                 "source": pdf_url,
                                 "content_type": "text_heavy",
-                                "document_type": "nontabular", 
-                                "section": "complete_chunk",
+                                "document_type": "nontabular",
                                 "page_num": chunk_info['page_num'],
                                 "chunk_num": chunk_info['chunk_num'],
                                 "total_chunks_page": chunk_info['total_chunks_page'],
                                 "pdf_source": chunk_info['pdf_source'],
-                                "content_hash": chunk_info['content_hash'],
-                                "processed_at": time.time()
+                                "content_hash": chunk_info['content_hash']
                             }
                         )
                         all_documents.append(chunk_doc)
                     
-                    # Log page distribution
                     pages_covered = set(chunk['page_num'] for chunk in page_chunks)
                     logger.info(f"📊 {pdf_name}: {len(pages_covered)} pages → {len(page_chunks)} chunks")
-                        
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to process {pdf_url}: {e}")
-            
-            # Log the enhanced embedding process
-            # log_embedding_process(all_documents, "enhanced_sequential_pdfs")
-            
-            # Define separate text splitters for tabular and non-tabular documents
-            tabular_splitter = RecursiveCharacterTextSplitter(
-                # chunk_size=5100,
-                chunk_size=2100,
-                chunk_overlap=300,
-                separators=["\n\n", "\n", "•", " - ", "|", " "]
-            )
-            
-            # For non-tabular, use larger chunks since we already did sequential chunking
-            nontabular_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=2000,
-                chunk_overlap=200,
-                separators=["\n\n", "\n", "•", " - ", "|", " "]
-            )
-            
-            # Split documents based on their type
-            splits = []
-            for doc in all_documents:
-                if doc.metadata.get("document_type") == "tabular":
-                    splits.extend(tabular_splitter.split_documents([doc]))
-                else:
-                    # For non-tabular, we already have sequential chunks, so minimal splitting
-                    if len(doc.page_content) > 2500:
-                        splits.extend(nontabular_splitter.split_documents([doc]))
-                    else:
-                        splits.append(doc)  # Keep original sequential chunk
-            
-            logger.info(f"✂️ Final split into {len(splits)} chunks from {len(all_documents)} source documents")
-            
-            # Batch processing with progress
-            batch_size = 50
-            total_vectors = 0
-
-            for i in range(0, len(splits), batch_size):
-                batch = splits[i:i + batch_size]
-                texts = [doc.page_content for doc in batch]
-                
-                logger.info(f"🔤 Embedding batch {i//batch_size + 1}/{(len(splits)-1)//batch_size + 1}")
-                
-                try:
-                    # Batch embed for efficiency
-                    embeddings_list = embeddings.embed_documents(texts)
-                    if not verify_embeddings_quality(embeddings_list):
-                        logger.error("🚨 EMBEDDING QUALITY ISSUE - Regenerating...")
-                        # Regenerate embeddings with different parameters
-                        embeddings_list = embeddings.embed_documents(texts, chunk_size=10)  # Smaller chunks
                     
-                    logger.info(f"✅ Generated {len(embeddings_list)} embeddings for batch")
-                    if embeddings_list:
-                        logger.info(f"📏 First embedding dimensions: {len(embeddings_list[0])}")
-                    
-                    vectors = []
-                    for j, (doc, embedding) in enumerate(zip(batch, embeddings_list)):
-                        # Enhanced metadata with PROPER TYPE CASTING
-                        metadata = {
-                            "page_content": doc.page_content,
-                            "source": doc.metadata.get("source", "unknown"),
-                            "content_type": doc.metadata.get("content_type", "mixed"),
-                            "document_type": doc.metadata.get("document_type", "unknown"),
-                            "section": doc.metadata.get("section", "general"),
-                            "chunk_index": i + j,
-                            "processed_at": time.time()
-                        }
-                        
-                        # 🚨 CRITICAL: Add proper type casting for page numbers and chunks
-                        if "page_num" in doc.metadata:
-                            metadata["page_num"] = int(doc.metadata["page_num"])  # Force integer
-                        
-                        if "chunk_num" in doc.metadata:
-                            metadata["chunk_num"] = int(doc.metadata["chunk_num"])  # Force integer
-                        
-                        if "total_chunks_page" in doc.metadata:
-                            metadata["total_chunks_page"] = int(doc.metadata["total_chunks_page"])  # Force integer
-                        
-                        # Add sequential chunking metadata if available
-                        if "pdf_source" in doc.metadata:
-                            metadata["pdf_source"] = doc.metadata["pdf_source"]
-                        
-                        if "content_hash" in doc.metadata:
-                            metadata["content_hash"] = doc.metadata["content_hash"]
-                        
-                        vectors.append({
-                            "id": f"doc_{i+j}_{int(time.time())}",
-                            "values": embedding,
-                            "metadata": metadata
-                        })
-                                    
-                    if vectors:
-                        # Upsert to Pinecone
-                        verify_metadata_types(vectors)
-
-                        # Add this verification before upserting u can ucomment later
-                        # try:
-                        #     verify_embeddings(embeddings_list)
-                        #     logger.info("✅ Embeddings verified successfully")
-                        # except ValueError as e:
-                        #     logger.error(f"❌ Embedding verification failed: {e}")
-
-                         ###########   actual upserting at pinecoen 
-                        upsert_response = index.upsert(vectors=vectors, namespace="vishnu_ai_docs")
-                        
-                        total_vectors += len(vectors)
-                        logger.info(f"📤 Upserted batch {i//batch_size + 1} with {len(vectors)} vectors")
-                        
-                        # Log sample of what was stored
-                        # if i == 0:  # Log first batch for verification
-                        #     logger.info("🔍 Sample of first batch stored:")
-                        #     for k, vector in enumerate(vectors[:3]):
-                        #         logger.info(f"   Sample {k+1}: {len(vector['metadata']['page_content'])} chars, " 
-                        #                   f"Page: {vector['metadata'].get('page_num', 'N/A')}, "
-                        #                   f"Chunk: {vector['metadata'].get('chunk_num', 'N/A')}")
-                    else:
-                        logger.warning("⚠️ No vectors to upsert in this batch")
-                        
-                except Exception as e:
-                    logger.error(f"❌ Batch {i//batch_size + 1} failed: {e}", exc_info=True)
-                    continue  # Continue with next batch
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to download/process {pdf_url}: {e}")
+                continue
+        
+        # Check if we have any documents to add
+        if not all_documents:
+            logger.error("❌ No PDFs could be downloaded. Creating empty ChromaDB with fallback data.")
             
-            logger.info(f"🎉 Successfully upserted {total_vectors} documents to Pinecone")
-            
-            # Enhanced verification with cross-validation
-            stored_count = log_pinecone_contents(
-                index, 
-                "vishnu_ai_docs", 
-                sample_count=25, 
-                verify_against=splits
+            # Add minimal fallback document
+            fallback_doc = Document(
+                page_content="Vishnu Kumar - Electrical Engineer with 12 years experience. Worked at L&T, KEI Industries, Punj Lloyd. Skills: substation execution, project management, quality assurance.",
+                metadata={
+                    "source": "fallback",
+                    "content_type": "text",
+                    "document_type": "fallback", 
+                    "page_num": 1,
+                    "chunk_num": 1
+                }
             )
-            
-            # Additional quality checks
-            # perform_quality_checks(index, splits)
+            all_documents.append(fallback_doc)
         
-        else:
-            logger.info("📚 Index already contains data, skipping re-initialization")
-            # Still log current contents for verification
-            # stored_count = log_pinecone_contents(index, "vishnu_ai_docs", sample_count=15)
+        # Add documents to ChromaDB
+        logger.info(f"📤 Adding {len(all_documents)} documents to ChromaDB ({successful_downloads}/{len(pdf_urls_to_try)} PDFs successful)")
         
-        logger.info("✅ Vectorstore initialization completed successfully")
-        return index, embeddings
+        if all_documents:
+            # HuggingFace embeddings work better with smaller batches
+            batch_size = 20  # Reduced from 50 for better memory management
+            for i in range(0, len(all_documents), batch_size):
+                batch = all_documents[i:i + batch_size]
+                vectorstore.add_documents(batch)
+                logger.info(f"✅ Added batch {i//batch_size + 1}/{(len(all_documents)-1)//batch_size + 1}")
+                
+                # Small delay between batches to prevent memory issues
+                if i + batch_size < len(all_documents):
+                    time.sleep(0.5)
+        
+        final_count = vectorstore._collection.count()
+        logger.info(f"🎉 ChromaDB initialization completed with {final_count} documents")
+        
+        return vectorstore, embeddings
         
     except Exception as e:
-        logger.error(f"❌ Vectorstore initialization failed: {e}", exc_info=True)
+        logger.error(f"❌ ChromaDB initialization failed: {e}", exc_info=True)
         
-        # Fallback retriever
-        class FallbackRetriever(BaseRetriever):
-            def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
-                logger.warning("⚠️ Using fallback retriever - vectorstore initialization failed")
-                return [Document(
-                    page_content="System is initializing. Please try again in a moment.", 
-                    metadata={"source": "fallback", "error": True}
-                )]
-        
-        return FallbackRetriever(), get_llm()
+        # Emergency fallback - return empty ChromaDB
+        logger.info("🆘 Creating emergency fallback ChromaDB...")
+        try:
+            embeddings = get_huggingface_embeddings()
+            
+            vectorstore = Chroma(
+                collection_name="vishnu_ai_docs_fallback",
+                embedding_function=embeddings,
+                persist_directory="./chroma_db_fallback"
+            )
+            
+            # Add minimal document
+            fallback_doc = Document(
+                page_content="System is initializing. Please try chat functionality.",
+                metadata={"source": "fallback", "error": True}
+            )
+            vectorstore.add_documents([fallback_doc])
+            
+            return vectorstore, embeddings
+            
+        except Exception as fallback_error:
+            logger.critical(f"💥 Even fallback failed: {fallback_error}")
+            raise
+
 
 def perform_quality_checks(index, original_docs):
     """Perform quality checks on stored vectors"""
@@ -1371,7 +1258,7 @@ def perform_quality_checks(index, original_docs):
     
     try:
         # Get all documents for comprehensive check
-        dummy_vector = [0.1] * 512
+        dummy_vector = [0.1] * 384
         all_stored = index.query(
             vector=dummy_vector,
             top_k=1000,
@@ -1434,7 +1321,7 @@ def log_pinecone_contents(index, namespace="vishnu_ai_docs", sample_count=40, ve
         logger.info("🔍 QUERYING PINECONE FOR STORED DOCUMENTS - WITH CROSS-VALIDATION")
         logger.info(f"{'='*80}")
         
-        dummy_embedding  = [0.1] * 512
+        dummy_embedding  = [0.1] * 384
         results = index.query(
             vector=dummy_embedding,
             top_k=sample_count if sample_count else 100,
@@ -1660,7 +1547,7 @@ def verify_embeddings(embeddings_list):
         raise ValueError("No embeddings generated")
     
     for i, embedding in enumerate(embeddings_list):
-        if len(embedding) != 512:
+        if len(embedding) != 384:
             raise ValueError(f"Embedding {i} has wrong dimension: {len(embedding)}")
         
         # Check if embedding is all zeros or contains NaN
@@ -1748,54 +1635,55 @@ def get_llm():
 
 retriever = None
 llm = None
-thread_pool = ThreadPoolExecutor(max_workers=8)
+thread_pool = ThreadPoolExecutor(max_workers=4)
 # chat_history = []
 
 
 # ====================== Startup Event ======================
-
 @app.on_event("startup")
 async def startup_event():
-    global retriever, llm
-    logger.info("🚀 Starting AI services initialization...")
+    global retriever, llm, vectorstore
+    logger.info("🚀 Starting AI services...")
     setup_directories()
     
-    try:
-        # Initialize only once at startup
-        index, embeddings = initialize_vectorstore()
-        # audit check
-        # run_comprehensive_content_audit()
-        retriever = PineconeRetriever(
-            index=index,
-            embeddings=embeddings,
-            search_type="similarity",
-            search_kwargs={
-                "k": 8,  # Increased for better coverage
-                "score_threshold": 0.3
-            }
-        )
-        llm = get_llm()
-        logger.info("✅ AI services initialized successfully")
-        # testing rag retrival
-        # test_rag_retrieval()
-        await diagnose_retrieval_speed()
-    except Exception as e:
-        logger.error(f"❌ Startup initialization failed: {e}", exc_info=True)
-        # Set fallback values
-
+    max_retries = 2
+    for attempt in range(max_retries + 1):
+        try:
+            vectorstore, embeddings = initialize_vectorstore()
             
-        class FallbackRetriever(BaseRetriever):
-            def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
-                logger.warning("⚠️ Using fallback retriever")
-                return [Document(page_content="System initializing...", metadata={})]
-        
-        retriever = FallbackRetriever()
-        llm = get_llm()
-
-
-
-
-
+            retriever = ChromaDBRetriever(
+                vectorstore=vectorstore,
+                search_kwargs={"k": 10}
+            )
+            
+            llm = get_llm()
+            
+            # Test retrieval
+            test_start = time.time()
+            test_docs = retriever.invoke("test")
+            test_time = time.time() - test_start
+            
+            logger.info(f"✅ AI services initialized successfully! Test retrieval: {test_time:.3f}s")
+            break  # Success, exit retry loop
+            
+        except Exception as e:
+            logger.error(f"❌ Startup attempt {attempt + 1}/{max_retries + 1} failed: {e}")
+            
+            if attempt < max_retries:
+                logger.info(f"🔄 Retrying in 5 seconds...")
+                time.sleep(5)
+            else:
+                logger.critical("💥 All startup attempts failed. Using fallback mode.")
+                # Ultimate fallback
+                class FallbackRetriever(BaseRetriever):
+                    def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
+                        return [Document(
+                            page_content="System is experiencing technical difficulties. Please try again later.",
+                            metadata={"source": "fallback", "error": True}
+                        )]
+                
+                retriever = FallbackRetriever()
+                llm = get_llm()
 
 
 
@@ -1807,34 +1695,6 @@ async def serve_index():
     with open(index_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
-
-# @app.get("/")
-# async def root():
-#     return RedirectResponse(url="/static/index.html")
-
-# Temporary debug endpoint
-@app.get("/test-embedding-blocking")
-async def test_embedding_blocking():
-    start = time.time()
-    
-    # Test sync (blocking) embedding
-    sync_embedding = embeddings.embed_query("test query")
-    sync_time = time.time() - start
-    
-    # Test async embedding
-    start_async = time.time()
-    async_embedding = await async_embed_query("test query", embeddings)
-    async_time = time.time() - start_async
-    
-    # ✅ ADD THIS: Call your diagnostic function
-    await diagnose_retrieval_speed()
-    
-    return {
-        "sync_embedding_time": sync_time,
-        "async_embedding_time": async_time,
-        "blocking_overhead": sync_time - async_time,
-        "diagnostic_complete": True  # Add confirmation
-    }
 
 
 DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD",)
@@ -2137,7 +1997,26 @@ async def get_cleanup_status():
         return {"error": str(e)}
 
 
-
+async def async_retrieve_documents(query: str, retriever, max_timeout: float = 6.0):
+    """Async wrapper for document retrieval with timeout"""
+    try:
+        loop = asyncio.get_event_loop()
+        
+        # Run retrieval in thread pool with timeout
+        docs = await asyncio.wait_for(
+            loop.run_in_executor(
+                thread_pool, 
+                lambda: retriever.invoke(query) if retriever else []
+            ),
+            timeout=max_timeout
+        )
+        return docs
+    except asyncio.TimeoutError:
+        logger.warning(f"⏰ Retrieval timeout for query: {query}")
+        return []
+    except Exception as e:
+        logger.error(f"❌ Retrieval error: {e}")
+        return []
 
 # Predefined chat modes with custom prompts (bypassing RAG)
 
@@ -2233,17 +2112,17 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             processed_docs = []
       
         else:
-            # prompt = ChatPromptTemplate.from_messages([
-            #     ("system",
-            #     "You are Vishnu AI Assintant — a friendly but bit funny "
-            #     "Provide accurate, clear, human-like answers in a warm and professional tone. "
-            #     "Add light Indian humor naturally when it fits (for example, 'as easy as making Maggi'). "
-            #     "Keep humor after the main answer, on a new line, ending with a small emoji"
-            #     "If the user asks a general question, gently suggest they can change the tone using the 'tone selector'."),
+            prompt = ChatPromptTemplate.from_messages([
+                ("system",
+                "You are Vishnu AI Assintant — a friendly but bit funny "
+                "Provide accurate, clear, human-like answers in a warm and professional tone. "
+                "Add light Indian humor naturally when it fits (for example, 'as easy as making Maggi'). "
+                "Keep humor after the main answer, on a new line, ending with a small emoji"
+                "If the user asks a general question, gently suggest they can change the tone using the 'tone selector'."),
                 
-            #     ("human",
-            #     "Context: {context}\n\nQuestion: {input}\n\nAnswer:")
-            # ])
+                ("human",
+                "Context: {context}\n\nQuestion: {input}\n\nAnswer:")
+            ])
 
             # question_answer_chain = create_stuff_documents_chain(llm, prompt)
 
@@ -2252,10 +2131,10 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
             # ])
 
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are Vishnu, an Indian AI assistant — friendly and accurate. Give clear & human-like answers."),
-                ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-            ])
+            # prompt = ChatPromptTemplate.from_messages([
+            #     ("system", "You are Vishnu, an Indian AI assistant — friendly and accurate. Give clear & human-like answers."),
+            #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
+            # ])
             
 
             question_answer_chain = create_stuff_documents_chain(llm, prompt)
@@ -2265,14 +2144,20 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             retrieval_start = time.time()
             try:
                 # 🚀 DIRECT ASYNC CALL - No ThreadPool overhead
-                if hasattr(retriever, '_aget_relevant_documents'):
-                    raw_docs = await retriever._aget_relevant_documents(query)
-                else:
-                    # Fallback to sync with shorter timeout
-                    raw_docs = await asyncio.wait_for(
-                        loop.run_in_executor(thread_pool, lambda: retriever.invoke(query)),
-                        timeout=8.0
-                    )
+                # if hasattr(retriever, '_aget_relevant_documents'):
+                #     raw_docs = await retriever._aget_relevant_documents(query)
+                # else:
+                #     # Fallback to sync with shorter timeout
+                #     raw_docs = await asyncio.wait_for(
+                #         loop.run_in_executor(thread_pool, lambda: retriever.invoke(query)),
+                #         timeout=8.0
+                #     )
+                # ✅ Simple direct call (local embeddings are fast)
+                retrieval_start = time.time()
+                # raw_docs = retriever.invoke(query) if retriever else []
+                raw_docs = await async_retrieve_documents(query, retriever, max_timeout=6.0)
+                retrieval_end = time.time()
+                timings["retrieval_time"] = retrieval_end - retrieval_start
             except asyncio.TimeoutError:
                 raw_docs = []
             except Exception as e:
