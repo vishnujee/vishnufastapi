@@ -44,24 +44,29 @@ from urllib3.util.retry import Retry
 
 
 #langchain
-# LangChain & Embeddings
-# from langchain_community.document_loaders import PyPDFLoader, WebBaseLoader,PyMuPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_community.vectorstores import Chroma
 
-from langchain_google_genai import  ChatGoogleGenerativeAI
-# from langchain_chroma import Chroma
-from langchain_community.vectorstores import Chroma   ###  using for aws
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+# ✅ FIXED: Use langchain_community for chains
+from langchain_community.chains.retrieval_qa.base import create_retrieval_chain
+from langchain_community.chains.combine_documents.stuff import create_stuff_documents_chain
+
 from langchain_core.prompts import ChatPromptTemplate
 
 #### for openai
 from langchain_openai import OpenAIEmbeddings
 from pathlib import Path
 import hashlib
-# from PyPDF2 import  PdfReader
 import numpy as np  
+
+###
+
+
+
+
+
 
 from rembg import remove
 from dotenv import load_dotenv
