@@ -50,13 +50,13 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.vectorstores import Chroma
 
 # ✅ FIXED: Use langchain_community for chains
-from langchain_community.chains.retrieval_qa.base import create_retrieval_chain
+
 from langchain_community.chains.combine_documents.stuff import create_stuff_documents_chain
 
 from langchain_core.prompts import ChatPromptTemplate
 
 #### for openai
-from langchain_openai import OpenAIEmbeddings
+# from langchain_openai import OpenAIEmbeddings
 from pathlib import Path
 import hashlib
 import numpy as np  
