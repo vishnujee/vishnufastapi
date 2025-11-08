@@ -50,7 +50,8 @@ from urllib3.util.retry import Retry
 # from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from langchain_google_genai import  ChatGoogleGenerativeAI
-from langchain_chroma import Chroma
+# from langchain_chroma import Chroma
+from langchain_community.vectorstores import Chroma   ###  using for aws
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
