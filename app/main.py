@@ -1,28 +1,29 @@
-from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form,Body,Response,BackgroundTasks,Depends
-from fastapi.responses import HTMLResponse, FileResponse,StreamingResponse,JSONResponse,RedirectResponse
+from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form,Body,BackgroundTasks,Depends
+from fastapi.responses import HTMLResponse, StreamingResponse,JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import platform
 import subprocess
 import uuid
-import aiofiles
-import redis
 import os
 import boto3
 import io
+import fitz
 import logging
 import pdfplumber
-import tempfile
+
 import requests
-import psutil
+import traceback
+
+import redis
 import time
-import PyPDF2
+
 import re
 import pandas as pd
 import json
 import asyncio
 # Initialize colorama
-from pinecone import Pinecone, ServerlessSpec
+
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
 from botocore.exceptions import ClientError
@@ -35,24 +36,18 @@ import gc
 from typing import Any, Dict, List, Optional
 from pydantic import Field,BaseModel
 from langchain_core.retrievers import BaseRetriever
-from langchain_core.callbacks.manager import CallbackManagerForRetrieverRun
-from langchain_core.runnables.config import RunnableConfig
+
 from langchain_core.documents import Document
 from concurrent.futures import ThreadPoolExecutor
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+
 
 
 #langchain
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+# from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_community.vectorstores import Chroma
-
-# ✅ FIXED: Use langchain_community for chains
-
+from langchain_chroma import Chroma
 from langchain.chains.combine_documents import create_stuff_documents_chain
-
 from langchain_core.prompts import ChatPromptTemplate
 
 #### for openai
@@ -63,6 +58,12 @@ import numpy as np
 
 ###
 
+from app.pdf_operations import  (
+    encrypt_pdf,
+    remove_pdf_password,
+    remove_background_rembg
+    
+)
 
 
 
@@ -75,13 +76,6 @@ init()
 load_dotenv()
 
 
-from app.pdf_operations import  (
-    upload_to_s3, cleanup_s3_file,
-    merge_pdfs_pypdf2, merge_pdfs_ghostscript, safe_compress_pdf, encrypt_pdf,
-    convert_pdf_to_images, split_pdf, delete_pdf_pages,  convert_image_to_pdf, remove_pdf_password,reorder_pdf_pages,
-    add_page_numbers, add_signature,remove_background_rembg,convert_pdf_to_ppt,convert_pdf_to_editable_ppt,
-    estimate_compression_sizes,cleanup_local_files
-)
 
 
 
@@ -182,6 +176,7 @@ class HFEmbeddings:
 
 
 
+import sys
 
 os.makedirs("logs", exist_ok=True)
 logging.basicConfig(
@@ -190,7 +185,7 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
+logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
 
 # Mount static files
@@ -206,7 +201,6 @@ AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")  
 USE_S3 = all([BUCKET_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY])
 CORRECT_PASSWORD_HASH = os.getenv("CORRECT_PASSWORD_HASH")
@@ -1238,7 +1232,7 @@ def initialize_vectorstore():
         # Emergency fallback - return empty ChromaDB
         logger.info("🆘 Creating emergency fallback ChromaDB...")
         try:
-            embeddings = get_huggingface_embeddings()
+            embeddings = HFEmbeddings()
             
             vectorstore = Chroma(
                 collection_name="vishnu_ai_docs_fallback",
@@ -1260,292 +1254,6 @@ def initialize_vectorstore():
             raise
 
 
-def perform_quality_checks(index, original_docs):
-    """Perform quality checks on stored vectors"""
-    logger.info(f"\n🎯 PERFORMING QUALITY CHECKS ON STORED VECTORS")
-    
-    try:
-        # Get all documents for comprehensive check
-        dummy_vector = [0.1] * 384
-        all_stored = index.query(
-            vector=dummy_vector,
-            top_k=1000,
-            include_metadata=True,
-            namespace="vishnu_ai_docs"
-        )
-        
-        if not all_stored['matches']:
-            logger.warning("⚠️ No documents found in Pinecone for quality checks")
-            return {}
-        
-        # Analyze chunk sizes
-        chunk_sizes = [len(doc['metadata'].get('page_content', '')) for doc in all_stored['matches']]
-        
-        # Use basic Python statistics instead of numpy
-        size_stats = {
-            'total_chunks': len(chunk_sizes),
-            'avg_size': sum(chunk_sizes) / len(chunk_sizes) if chunk_sizes else 0,
-            'min_size': min(chunk_sizes) if chunk_sizes else 0,
-            'max_size': max(chunk_sizes) if chunk_sizes else 0,
-            'chunks_under_100': len([s for s in chunk_sizes if s < 100]),
-            'chunks_over_2000': len([s for s in chunk_sizes if s > 2000])
-        }
-        
-        logger.info(f"📊 CHUNK SIZE QUALITY REPORT:")
-        logger.info(f"  • Total chunks: {size_stats['total_chunks']}")
-        logger.info(f"  • Average size: {size_stats['avg_size']:.0f} chars")
-        logger.info(f"  • Range: {size_stats['min_size']} - {size_stats['max_size']} chars")
-        logger.info(f"  • Chunks under 100 chars: {size_stats['chunks_under_100']} (should be 0)")
-        logger.info(f"  • Chunks over 2000 chars: {size_stats['chunks_over_2000']}")
-        
-        # Check sequential chunk distribution
-        page_chunk_distribution = {}
-        for doc in all_stored['matches']:
-            source = doc['metadata'].get('source', 'unknown')
-            page_num = doc['metadata'].get('page_num')
-            if page_num and page_num != 'Unknown':
-                key = f"{source}-{page_num}"
-                page_chunk_distribution[key] = page_chunk_distribution.get(key, 0) + 1
-        
-        logger.info(f"📄 PAGE CHUNK DISTRIBUTION:")
-        for page_key, chunk_count in list(page_chunk_distribution.items())[:10]:  # Show first 10
-            logger.info(f"  • {page_key}: {chunk_count} chunks")
-        
-        # Check for optimal chunk distribution (2-4 chunks per page)
-        optimal_chunks = len([c for c in page_chunk_distribution.values() if 2 <= c <= 4])
-        total_pages = len(page_chunk_distribution)
-        logger.info(f"  • Pages with optimal chunks (2-4): {optimal_chunks}/{total_pages}")
-        
-        return size_stats
-        
-    except Exception as e:
-        logger.error(f"❌ Quality checks failed: {e}")
-        return {}
-
-def log_pinecone_contents(index, namespace="vishnu_ai_docs", sample_count=40, verify_against=None):
-    """Enhanced Pinecone logging with cross-validation"""
-    try:
-        logger.info(f"\n{'='*80}")
-        logger.info("🔍 QUERYING PINECONE FOR STORED DOCUMENTS - WITH CROSS-VALIDATION")
-        logger.info(f"{'='*80}")
-        
-        dummy_embedding  = [0.1] * 384
-        results = index.query(
-            vector=dummy_embedding,
-            top_k=sample_count if sample_count else 100,
-            include_metadata=True,
-            include_values=False,
-            namespace=namespace
-        )
-        
-        logger.info(f"📊 Found {len(results['matches'])} documents in Pinecone")
-
-        if not results['matches']:
-            logger.warning("⚠️ No documents found in Pinecone")
-            return 0
-
-        # Enhanced statistics
-        sources = {}
-        doc_types = {}
-        chunk_sizes = []
-        pages_coverage = set()
-        
-        for match in results['matches']:
-            source = match['metadata'].get('source', 'Unknown')
-            doc_type = match['metadata'].get('document_type', 'Unknown')
-            page_num = match['metadata'].get('page_num', 'Unknown')
-            content = match['metadata'].get('page_content', '')
-            
-            sources[source] = sources.get(source, 0) + 1
-            doc_types[doc_type] = doc_types.get(doc_type, 0) + 1
-            chunk_sizes.append(len(content))
-            if page_num != 'Unknown':
-                pages_coverage.add(f"{source}-{page_num}")
-
-        logger.info(f"📁 Documents by source: {sources}")
-        logger.info(f"📑 Documents by type: {doc_types}")
-        logger.info(f"📄 Pages covered: {len(pages_coverage)}")
-        
-        # Basic statistics without numpy
-        if chunk_sizes:
-            avg_size = sum(chunk_sizes) / len(chunk_sizes)
-            min_size = min(chunk_sizes)
-            max_size = max(chunk_sizes)
-            logger.info(f"📏 Chunk size stats - Avg: {avg_size:.0f}, Min: {min_size}, Max: {max_size}")
-        else:
-            logger.info(f"📏 Chunk size stats - No chunks found")
-        
-
-                # 🚨 ADD DEBUG HERE - RIGHT BEFORE CROSS-VALIDATION
-        if verify_against:
-            debug_cross_validation(results['matches'], verify_against)
-        # Cross-validation with original documents
-        if verify_against:
-            verify_stored_content(results['matches'], verify_against)
-        
-        # Log sample documents with enhanced info
-        for i, match in enumerate(results['matches'][:sample_count], 1):
-            content = match["metadata"].get("page_content", "")
-            char_count = len(content)
-            logger.info(f"\n📄 STORED DOCUMENT #{i}:")
-            logger.info(f"🆔 ID: {match['id']}")
-            logger.info(f"📊 Score: {match['score']:.4f}")
-            logger.info(f"📁 Source: {match['metadata'].get('source', 'Unknown')}")
-            logger.info(f"📏 Size: {char_count} characters")
-            
-            page_num = match['metadata'].get('page_num')
-            if page_num:
-                logger.info(f"📄 Page: {int(page_num)}")  # Force display as integer
-            else:
-                logger.info(f"📄 Page: N/A")
-
-            chunk_num = match['metadata'].get('chunk_num')
-            total_chunks = match['metadata'].get('total_chunks_page')
-            if chunk_num and total_chunks:
-                logger.info(f"🔢 Chunk: {int(chunk_num)}/{int(total_chunks)}")  # Force integers
-            else:
-                logger.info(f"🔢 Chunk: N/A")
-
-            # logger.info(f"🔢 Chunk: {match['metadata'].get('chunk_num', 'N/A')}/{match['metadata'].get('total_chunks_page', 'N/A')}")
-            
-            
-            logger.info(f"📄 Content Type: {match['metadata'].get('content_type', 'Unknown')}")
-            
-            content = match["metadata"].get("page_content", "")
-            logger.info(f"📋 STORED CONTENT ({len(content)} chars):")
-            logger.info(f"```{content}```")
-            logger.info(f"{'-'*60}")
-            
-        return len(results['matches'])
-        
-    except Exception as e:
-        logger.error(f"❌ Failed to query Pinecone: {e}")
-        return 0
-
-def verify_stored_content(stored_docs, original_docs):
-    """FIXED: Proper content verification with consistent comparison"""
-    logger.info(f"\n🔍 CROSS-VALIDATION RESULTS:")
-    
-    if not stored_docs or not original_docs:
-        logger.warning("⚠️ Cannot perform cross-validation: missing data")
-        return
-    
-    # Use consistent comparison method
-    stored_content_set = set()
-    original_content_set = set()
-    
-    # Method 1: Compare FULL content (most accurate)
-    for doc in stored_docs:
-        content = doc['metadata'].get('page_content', '').strip()
-        if content and len(content) > 10:
-            # Normalize for comparison
-            normalized = ' '.join(content.split())
-            stored_content_set.add(normalized)
-    
-    for doc in original_docs:
-        content = doc.page_content.strip()
-        if content and len(content) > 10:
-            normalized = ' '.join(content.split())
-            original_content_set.add(normalized)
-    
-    # Method 2: Compare prefixes (faster but less accurate)
-    # stored_content_set = set(content[:200] for content in stored_content_set)
-    # original_content_set = set(content[:200] for content in original_content_set)
-    
-    matches = stored_content_set.intersection(original_content_set)
-    logger.info(f"✅ Content matches: {len(matches)}/{len(original_content_set)}")
-    
-    # Detailed mismatch analysis
-    if len(matches) < len(original_content_set):
-        missing = original_content_set - stored_content_set
-        logger.warning(f"⚠️ Missing {len(missing)} documents in Pinecone!")
-        
-        # Log first few missing documents for debugging
-        for i, missing_content in enumerate(list(missing)[:3]):
-            logger.warning(f"   Missing doc {i+1}: {missing_content[:100]}...")
-    
-    if len(matches) < len(original_content_set) * 0.8:
-        logger.error("🚨 CRITICAL: Significant content mismatch - RAG will use wrong data!")
-    else:
-        logger.info("✅ Content cross-validation passed successfully")
-    
-    return len(matches)
-
-def debug_cross_validation(stored_docs, original_docs):
-    """Temporary debug function to identify the exact issue"""
-    logger.info("\n" + "🔧" * 50)
-    logger.info("🔧 DEBUG CROSS-VALIDATION - CONTENT COMPARISON")
-    logger.info("🔧" * 50)
-    
-    # Check if we're comparing the same number of documents
-    logger.info(f"📊 Document Counts - Stored: {len(stored_docs)}, Original: {len(original_docs)}")
-    
-    if not stored_docs or not original_docs:
-        logger.error("❌ Missing data for comparison!")
-        return
-    
-    # Sample comparison of first few documents
-    for i in range(min(3, len(stored_docs), len(original_docs))):
-        logger.info(f"\n📄 COMPARING DOCUMENT #{i+1}:")
-        
-        stored_content = stored_docs[i]['metadata'].get('page_content', '')
-        original_content = original_docs[i].page_content
-        
-        logger.info(f"📏 Stored length: {len(stored_content)} chars")
-        logger.info(f"📏 Original length: {len(original_content)} chars")
-        
-        # Show first 150 characters for comparison
-        logger.info("--- STORED (First 150 chars) ---")
-        logger.info(stored_content[:150] + "..." if len(stored_content) > 150 else stored_content)
-        logger.info("--- ORIGINAL (First 150 chars) ---")
-        logger.info(original_content[:150] + "..." if len(original_content) > 150 else original_content)
-        
-        # Check if they're exactly the same
-        if stored_content == original_content:
-            logger.info("✅ EXACT MATCH!")
-        else:
-            logger.warning("❌ CONTENT DIFFERS!")
-            
-            # Find where they start to differ
-            min_len = min(len(stored_content), len(original_content))
-            for j in range(min_len):
-                if stored_content[j] != original_content[j]:
-                    logger.info(f"🔍 First difference at position {j}:")
-                    logger.info(f"   Stored: '{stored_content[j-5:j+5]}'")
-                    logger.info(f"   Original: '{original_content[j-5:j+5]}'")
-                    break
-    
-    # Check content length distribution
-    stored_lengths = [len(d['metadata'].get('page_content', '')) for d in stored_docs]
-    original_lengths = [len(d.page_content) for d in original_docs]
-    
-    logger.info(f"\n📊 Length Summary:")
-    logger.info(f"   Stored: Avg {sum(stored_lengths)/len(stored_lengths):.0f} chars, Range {min(stored_lengths)}-{max(stored_lengths)}")
-    logger.info(f"   Original: Avg {sum(original_lengths)/len(original_lengths):.0f} chars, Range {min(original_lengths)}-{max(original_lengths)}")
-    
-    logger.info("🔧" * 50)
-
-
-
-def verify_metadata_types(vectors_batch):
-    """Verify all metadata has correct types before upserting"""
-    for vector in vectors_batch:
-        metadata = vector["metadata"]
-        
-        # Check integer fields
-        if "page_num" in metadata and not isinstance(metadata["page_num"], int):
-            logger.warning(f"⚠️ page_num is {type(metadata['page_num'])} not int: {metadata['page_num']}")
-            metadata["page_num"] = int(metadata["page_num"])
-        
-        if "chunk_num" in metadata and not isinstance(metadata["chunk_num"], int):
-            logger.warning(f"⚠️ chunk_num is {type(metadata['chunk_num'])} not int: {metadata['chunk_num']}")
-            metadata["chunk_num"] = int(metadata["chunk_num"])
-        
-        if "total_chunks_page" in metadata and not isinstance(metadata["total_chunks_page"], int):
-            logger.warning(f"⚠️ total_chunks_page is {type(metadata['total_chunks_page'])} not int: {metadata['total_chunks_page']}")
-            metadata["total_chunks_page"] = int(metadata["total_chunks_page"])
-    
-    logger.info("✅ Metadata types verified and corrected")
 
 
 
@@ -1564,71 +1272,8 @@ def verify_embeddings(embeddings_list):
     
     return True
 
-def verify_embeddings_quality(embeddings_list):
-    """Verify embeddings are valid and non-zero"""
-    logger.info("🔍 Verifying embedding quality...")
-    
-    for i, embedding in enumerate(embeddings_list):
-        # Check if embedding is all zeros
-        if all(v == 0 for v in embedding):
-            logger.error(f"🚨 CRITICAL: Embedding {i} is ALL ZEROS!")
-            return False
-        
-        # Check if embedding has reasonable values
-        avg_val = sum(abs(v) for v in embedding) / len(embedding)
-        if avg_val < 0.001:
-            logger.warning(f"⚠️ Embedding {i} has very small values (avg: {avg_val})")
-    
-    logger.info("✅ Embeddings quality verified")
-    return True
-
-def test_rag_retrieval():
-    """Test if RAG retrieval is working properly"""
-    logger.info("\n🧪 TESTING RAG RETRIEVAL...")
-    
-    test_queries = [
-        "What companies has Vishnu worked for?",
-        "Tell me about Vishnu's work experience",
-        "What projects did Vishnu work on at L&T?",
-        "How long did Vishnu work at KEI Industries?"
-    ]
-    
-    for query in test_queries:
-        logger.info(f"\n🔍 Testing query: '{query}'")
-        try:
-            docs = retriever.invoke(query)
-            if docs:
-                logger.info(f"✅ Retrieved {len(docs)} documents")
-                for i, doc in enumerate(docs[:3]):  # Show top 3
-                    score = doc.metadata.get('score', 0)
-                    source = doc.metadata.get('source', 'unknown')
-                    logger.info(f"   Doc {i+1}: Score={score:.4f}, Source={source.split('/')[-1]}")
-            else:
-                logger.warning("⚠️ No documents retrieved")
-        except Exception as e:
-            logger.error(f"❌ Retrieval failed: {e}")
 
 
-async def diagnose_retrieval_speed():
-    """Test retrieval performance with different queries"""
-    test_queries = [
-        "short test",
-        "what companies has vishnu worked for",
-        "tell me about work experience",
-        "tell about vishnu",
-        "when vishnu started working",
-        "when vishnu joined l&t"
-    ]
-    
-    for query in test_queries:
-        start = time.time()
-        docs = await asyncio.get_event_loop().run_in_executor(
-            thread_pool, 
-            lambda: retriever.invoke(query) if retriever else []
-        )
-        end = time.time()
-        logger.info(f"🔍 RETRIEVAL DIAGNOSTIC: '{query[:30]}...' → {len(docs)} docs in {end-start:.2f}s")
-###
 
 # Initialize LLM
 def get_llm():
@@ -1650,6 +1295,16 @@ thread_pool = ThreadPoolExecutor(max_workers=4)
 # ====================== Startup Event ======================
 @app.on_event("startup")
 async def startup_event():
+
+    logger.info("🚀 Startup initiated")
+    # Disable ChromaDB telemetry
+    # import os
+    # os.environ['ANONYMIZED_TELEMETRY'] = 'False'
+    #     # Disable pdfplumber warnings if needed
+    # import logging
+    # pdfplumber_logger = logging.getLogger('pdfplumber')
+    # pdfplumber_logger.setLevel(logging.ERROR)
+
     global retriever, llm, vectorstore
     logger.info("🚀 Starting AI services...")
     setup_directories()
@@ -1684,15 +1339,16 @@ async def startup_event():
                 logger.critical("💥 All startup attempts failed. Using fallback mode.")
                 # Ultimate fallback
                 class FallbackRetriever(BaseRetriever):
-                    def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
-                        return [Document(
-                            page_content="System is experiencing technical difficulties. Please try again later.",
-                            metadata={"source": "fallback", "error": True}
-                        )]
-                
+                            def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
+                                return [Document(
+                                    page_content="System is experiencing technical difficulties. Please try again later.",
+                                    metadata={"source": "fallback", "error": True}
+                                )]
+                        
                 retriever = FallbackRetriever()
                 llm = get_llm()
-
+                # Ensure vectorstore exists to prevent None errors
+                vectorstore = None
 
 
 
@@ -2257,81 +1913,8 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
         }
 
 
+##################################################################################################
 
-
-
-@app.post("/merge_pdf")
-async def merge_pdfs(files: List[UploadFile] = File(...), method: str = Form("PyPDF2"), file_order: Optional[str] = Form(None)):
-    logger.info(f"Received merge request with {len(files)} files, method: {method}, file_order: {file_order}")
-    if len(files) < 2:
-        raise HTTPException(status_code=400, detail="At least 2 PDF files required")
-    
-    total_size_mb = sum(file.size for file in files) / (1024 * 1024)
-    if method == "PyPDF2" and (len(files) > 51 or total_size_mb > 90):
-        raise HTTPException(status_code=400, detail="PyPDF2 limits: 51 files, 90MB total")
-    if method == "Ghostscript" and (len(files) > 30 or total_size_mb > 50):
-        raise HTTPException(status_code=400, detail="Ghostscript limits: 30 files, 50MB total")
-
-    # Reorder files based on file_order
-    if file_order:
-        try:
-            order = [int(i) for i in file_order.split(',')]
-            if len(order) != len(files) or not all(0 <= i < len(files) for i in order):
-                raise HTTPException(status_code=400, detail="Invalid file order")
-            files = [files[i] for i in order]
-            logger.info(f"Reordered files: {[file.filename for file in files]}")
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid file order format")
-
-    s3_keys = []
-    try:
-        file_contents = []
-        for file in files:
-            file_content = await file.read()
-            s3_key = upload_to_s3(file_content, file.filename)
-            s3_keys.append(s3_key)
-            file_contents.append(file_content)
-        
-        merged_pdf = None
-        if method == "PyPDF2":
-            logger.info("Merging with PyPDF2")
-            merged_pdf = merge_pdfs_pypdf2(file_contents)
-        else:
-            logger.info("Merging with Ghostscript")
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_output:
-                output_path = tmp_output.name
-            merged_pdf = merge_pdfs_ghostscript(file_contents, output_path)
-        
-        if not merged_pdf:
-            logger.error("Merge failed: No output produced")
-            raise HTTPException(status_code=500, detail="PDF merge failed")
-        
-        logger.info("Merge successful, returning response")
-        return StreamingResponse(
-            io.BytesIO(merged_pdf),
-            media_type="application/pdf",
-            headers={"Content-Disposition": 'attachment; filename="merged_output.pdf"'}
-        )
-    except Exception as e:
-        logger.error(f"Merge error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"PDF merge failed: {str(e)}")
-    # finally:
-    #     for s3_key in s3_keys:
-    #         cleanup_s3_file(s3_key)
-    #     gc.collect()
-    finally:
-        logger.info(f"S3 cleanup: {'Running' if s3_keys else 'Skipping (no S3 keys)'}")
-        for s3_key in s3_keys:
-            cleanup_s3_file(s3_key)
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
-        logger.info("Running garbage collection")
-        gc.collect()
-
-
-######################################################################################################################################
-######################################################################################################################################
 # Redis for progress tracking (fallback to in-memory if Redis not available)
 try:
     redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
@@ -2342,7 +1925,6 @@ except:
     USE_REDIS = False
     progress_store = {}
     logger.info("Using in-memory progress tracking")
-
 # Platform-specific Ghostscript binary
 gs_binary = "gswin64c" if platform.system() == "Windows" else "gs"
 
@@ -2432,6 +2014,7 @@ class ProgressTracker:
             asyncio.set_event_loop(loop)
             loop.run_until_complete(self.update_progress(task_id, progress, message, stage))
 
+
 # Initialize progress tracker
 progress_tracker = ProgressTracker()
 
@@ -2454,18 +2037,29 @@ def cleanup_local_files():
             except Exception as e:
                 logger.error(f"Failed to delete local file {file_path}: {str(e)}")
 
-def upload_to_s3(file_path: str, filename: str) -> str:
-    """Upload file to S3 from disk path without loading in RAM."""
-    s3_key = f"temp_uploads/{uuid.uuid4()}_{filename}"
-    logger.info(f"Uploading to S3: {s3_key}")
-    
+import os, hashlib, logging
+
+def upload_to_s3(file_content: bytes, filename: str) -> str:
+    """Upload file content to S3 and return the S3 key."""
+    if not isinstance(file_content, (bytes, bytearray)):
+        raise TypeError("file_content must be bytes")
+
+    safe_filename = os.path.basename(filename)
+    s3_key = f"temp_uploads/{hashlib.md5(file_content).hexdigest()}_{safe_filename}"
+
     try:
-        s3_client.upload_file(file_path, BUCKET_NAME, s3_key)
-        logger.info(f"Uploaded to S3: {s3_key}")
-        return s3_key
+        s3_client.put_object(
+            Bucket=BUCKET_NAME,
+            Key=s3_key,
+            Body=file_content
+        )
+        logger.info(f"✅ Uploaded to S3: {s3_key}")
     except Exception as e:
-        logger.error(f"Failed to upload to S3: {str(e)}")
+        logger.error(f"❌ Failed to upload to S3: {e}")
         raise
+
+    return s3_key
+
 
 def cleanup_s3_file(s3_key: str):
     """Delete file from S3."""
@@ -2965,6 +2559,8 @@ async def process_compression_disk_only(task_id: str, input_path: str, filename:
     #     cleanup_compression_estimation_files(task_id)
 
 
+
+
 @app.post("/start_compression")
 async def start_compression(
     background_tasks: BackgroundTasks,
@@ -3003,7 +2599,7 @@ async def start_compression(
         logger.error(f"❌ Failed to start compression: {str(e)}")
         await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
         raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
-
+    
 
 @app.get("/download_compressed/{task_id}")
 async def download_compressed(task_id: str):
@@ -3064,6 +2660,7 @@ async def download_compressed(task_id: str):
     #     # GUARANTEED cleanup for THIS operation
     #     cleanup_compression_estimation_files(task_id)
 
+
 @app.get("/progress/{task_id}")
 async def get_progress_status(task_id: str):
     """Get current progress for a task"""
@@ -3100,173 +2697,6 @@ async def stop_operations():
         return {"status": "error", "message": str(e)}
 
 
-#########################################################################################################################################################
-
-@app.post("/encrypt_pdf")
-async def encrypt_pdf_endpoint(file: UploadFile = File(...), password: str = Form(...)):
-    logger.info(f"Received encrypt request for {file.filename}")
-    if file.size / (1024 * 1024) > 50:
-        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
-    if not password:
-        raise HTTPException(status_code=400, detail="Password required")
-
-    s3_key = None
-    try:
-        file_content = await file.read()
-        if USE_S3:
-            s3_key = upload_to_s3(file_content, file.filename)
-        else:
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(file_content)
-        encrypted_pdf = encrypt_pdf(file_content, password)
-        if not encrypted_pdf:
-            raise HTTPException(status_code=500, detail="Encryption failed")
-
-        return StreamingResponse(
-            io.BytesIO(encrypted_pdf),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="encrypted_{file.filename}"'}
-        )
-    except Exception as e:
-        logger.error(f"Encryption error: {e}")
-        raise HTTPException(status_code=500, detail=f"PDF encryption failed: {str(e)}")
-    finally:
-        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
-        if s3_key:
-            cleanup_s3_file(s3_key)
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
-        logger.info("Running garbage collection")
-        gc.collect()
-
-@app.post("/convert_pdf_to_images")
-async def convert_pdf_to_images_endpoint(file: UploadFile = File(...)):
-    logger.info(f"Received convert to images request for {file.filename}")
-    if file.size / (1024 * 1024) > 50:
-        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
-
-    s3_key = None
-    try:
-        file_content = await file.read()
-        if USE_S3:
-            s3_key = upload_to_s3(file_content, file.filename)
-        else:
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(file_content)
-        zip_bytes = convert_pdf_to_images(file_content)
-        if not zip_bytes:
-            raise HTTPException(status_code=500, detail="Conversion failed")
-
-        return StreamingResponse(
-            io.BytesIO(zip_bytes),
-            media_type="application/zip",
-            headers={"Content-Disposition": 'attachment; filename="pdf_images.zip"'}
-        )
-    except Exception as e:
-        logger.error(f"PDF to images failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
-    finally:
-        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
-        if s3_key:
-            cleanup_s3_file(s3_key)
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
-        logger.info("Running garbage collection")
-        gc.collect()
-
-@app.post("/split_pdf")
-async def split_pdf_endpoint(file: UploadFile = File(...)):
-    logger.info(f"Received split request for {file.filename}")
-    if file.size / (1024 * 1024) > 100:
-        raise HTTPException(status_code=400, detail="File exceeds 100MB limit")
-
-    s3_key = None
-    try:
-        file_content = await file.read()
-        if USE_S3:
-            s3_key = upload_to_s3(file_content, file.filename)
-        else:
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(file_content)
-        zip_bytes, total_pages = split_pdf(file_content)
-        if not zip_bytes:
-            raise HTTPException(status_code=500, detail="Split failed")
-
-        return StreamingResponse(
-            io.BytesIO(zip_bytes),
-            media_type="application/zip",
-            headers={"Content-Disposition": 'attachment; filename="split_pages.zip"'}
-        )
-    except Exception as e:
-        logger.error(f"Split error: {e}")
-        raise HTTPException(status_code=500, detail=f"Split failed: {str(e)}")
-    finally:
-        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
-        if s3_key:
-            cleanup_s3_file(s3_key)
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
-        logger.info("Running garbage collection")
-        gc.collect()
-
-@app.post("/delete_pdf_pages")
-async def delete_pdf_pages_endpoint(file: UploadFile = File(...), pages: str = Form(...)):
-    logger.info(f"Received delete pages request for {file.filename}")
-    if file.size / (1024 * 1024) > 55:
-        raise HTTPException(status_code=400, detail="File exceeds 55MB limit")
-
-    try:
-        pages_to_delete = set(int(p) for p in pages.split(",") if p.strip().isdigit())
-        if not pages_to_delete:
-            raise HTTPException(status_code=400, detail="Invalid page numbers")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid page format. Use comma-separated numbers (e.g., 2,5,7)")
-
-    s3_key = None
-    try:
-        file_content = await file.read()
-        if USE_S3:
-            s3_key = upload_to_s3(file_content, file.filename)
-        else:
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(file_content)
-        modified_pdf = delete_pdf_pages(file_content, pages_to_delete)
-        if not modified_pdf:
-            raise HTTPException(status_code=500, detail="Page deletion failed")
-
-        return StreamingResponse(
-            io.BytesIO(modified_pdf),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="modified_{file.filename}"'}
-        )
-    except Exception as e:
-        logger.error(f"Delete pages error: {e}")
-        raise HTTPException(status_code=500, detail=f"Page deletion failed: {str(e)}")
-    finally:
-        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
-        if s3_key:
-            cleanup_s3_file(s3_key)
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
-        logger.info("Running garbage collection")
-        gc.collect()
-
-
-
-
-##########################################
 
 
 
@@ -3728,164 +3158,88 @@ async def convert_pdf_to_excel_endpoint(file: UploadFile = File(...)):
 
 ####################################################
 
-@app.post("/convert_pdf_to_ppt")
-async def convert_pdf_to_ppt_endpoint(
-    file: UploadFile = File(...),
-    conversion_type: str = Form("image")
-):
-    logger.info(f"Received convert to PPT request for {file.filename} (type: {conversion_type})")
-    if file.size / (1024 * 1024) > 50:
+@app.post("/encrypt_pdf")
+async def encrypt_pdf_endpoint(file: UploadFile = File(...), password: str = Form(...)):
+    logger.info(f"=== ENCRYPT ENDPOINT CALLED ===")
+    logger.info(f"File: {file.filename}, Size: {file.size} bytes")
+    logger.info(f"Password length: {len(password)}")
+    
+    if file.size and file.size / (1024 * 1024) > 50:
+        logger.error("File size exceeds 50MB limit")
         raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+    if not password:
+        logger.error("No password provided")
+        raise HTTPException(status_code=400, detail="Password required")
 
     s3_key = None
     try:
+        logger.debug("Reading file content...")
         file_content = await file.read()
+        logger.debug(f"File content read: {len(file_content)} bytes")
+        
+        if not file_content:
+            logger.error("Empty file content")
+            raise HTTPException(status_code=400, detail="Empty file uploaded")
+        
+        # Validate PDF
+        logger.debug("Validating PDF...")
+        try:
+            doc = fitz.open(stream=file_content, filetype="pdf")
+            logger.debug(f"PDF validation passed: {doc.page_count} pages")
+            doc.close()
+        except Exception as e:
+            logger.error(f"PDF validation failed: {e}")
+            raise HTTPException(status_code=400, detail="Invalid PDF file")
+        
+        # Store file
         if USE_S3:
+            logger.debug("Uploading to S3...")
             s3_key = upload_to_s3(file_content, file.filename)
         else:
+            logger.debug("Saving locally...")
             local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
             os.makedirs("input_pdfs", exist_ok=True)
             with open(local_path, "wb") as f:
                 f.write(file_content)
-        
-        if conversion_type == "editable":
-            ppt_bytes = convert_pdf_to_editable_ppt(file_content)
-            filename = "editable_output.pptx"
-        else:
-            ppt_bytes = convert_pdf_to_ppt(file_content)
-            filename = "image_based_output.pptx"
-        
-        if not ppt_bytes:
-            raise HTTPException(status_code=500, detail="Conversion failed")
 
+        logger.debug("Calling encrypt_pdf function...")
+        encrypted_pdf = encrypt_pdf(file_content, password)
+        
+        if not encrypted_pdf:
+            logger.error("encrypt_pdf returned None")
+            raise HTTPException(status_code=500, detail="Encryption failed")
+
+        logger.info("Encryption successful, returning response")
         return StreamingResponse(
-            io.BytesIO(ppt_bytes),
-            media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+            io.BytesIO(encrypted_pdf),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="encrypted_{file.filename}"'}
         )
+        
+    except HTTPException:
+        logger.error("HTTPException raised")
+        raise
     except Exception as e:
-        logger.error(f"PDF to PPT error ({conversion_type}): {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"{conversion_type.capitalize()} conversion failed: {str(e)}"
-        )
+        logger.error(f"Unexpected error in endpoint: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"PDF encryption failed: {str(e)}")
     finally:
-        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
+        logger.info("Cleaning up resources...")
         if s3_key:
             cleanup_s3_file(s3_key)
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
         if not USE_S3:
             cleanup_local_files()
-        logger.info("Running garbage collection")
         gc.collect()
+        logger.info("=== ENCRYPT ENDPOINT COMPLETED ===")
 
-
-
-
-@app.post("/convert_image_to_pdf")
-async def convert_image_to_pdf_endpoint(
-    file: UploadFile = File(...),
-    page_size: str = Form("A4"),
-    orientation: str = Form("Portrait"),
-    description: str = Form(""),
-    description_position: str = Form("bottom"),
-    description_font_size: int = Form(12),
-    custom_x: float = Form(None),
-    custom_y: float = Form(None),
-    font_color: str = Form("#000000"),  
-    font_family: str = Form("helv"),    
-    font_weight: str = Form("normal"),  
-):
-    # Input validation
-    if file.size / (1024 * 1024) > 50:
-        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
-    if page_size not in ["A4", "Letter"]:
-        raise HTTPException(status_code=400, detail="Invalid page size. Choose: A4, Letter")
-    if orientation not in ["Portrait", "Landscape"]:
-        raise HTTPException(status_code=400, detail="Invalid orientation. Choose: Portrait, Landscape")
-    if description_position not in ["top", "bottom", "top-center", "top-left", "top-right", 
-                                  "bottom-left", "bottom-center", "bottom-right", "custom"]:
-        raise HTTPException(status_code=400, detail="Invalid description position")
-    if description_position == "custom" and (custom_x is None or custom_y is None):
-        raise HTTPException(status_code=400, detail="Custom position requires both X and Y coordinates")
-
-    # Convert HEX color to RGB tuple (0-1 range)
-    try:
-        hex_color = font_color.lstrip('#')
-        if len(hex_color) == 3:  # Handle shorthand #RGB
-            hex_color = ''.join([c*2 for c in hex_color])
-        rgb_color = tuple(int(hex_color[i:i+2], 16)/255 for i in (0, 2, 4))
-    except Exception as e:
-        logger.warning(f"Invalid color {font_color}, defaulting to black. Error: {str(e)}")
-        rgb_color = (0, 0, 0)
-
-    # Terminal logging with colored output
-    print("\n" + "="*50)
-    print(f"{Fore.YELLOW}📝 PDF Conversion Parameters:{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}• Filename:{Style.RESET_ALL} {file.filename}")
-    print(f"{Fore.CYAN}• Page Size:{Style.RESET_ALL} {page_size}")
-    print(f"{Fore.CYAN}• Orientation:{Style.RESET_ALL} {orientation}")
-    print(f"{Fore.CYAN}• Description:{Style.RESET_ALL} '{description}'")
-    print(f"{Fore.CYAN}• Position:{Style.RESET_ALL} {description_position}")
-    print(f"{Fore.CYAN}• Font Size:{Style.RESET_ALL} {description_font_size}pt")
-    print(f"{Fore.CYAN}• Custom Coords:{Style.RESET_ALL} X={custom_x}, Y={custom_y}")
-    print(f"{Fore.CYAN}• Font Color:{Style.RESET_ALL} {font_color} (RGB: {rgb_color})")
-    print(f"{Fore.CYAN}• Font Family:{Style.RESET_ALL} {font_family}")
-    print(f"{Fore.CYAN}• Font Weight:{Style.RESET_ALL} {font_weight}")
-    print("="*50 + "\n")
-
-
-
-    s3_key = None
-    try:
-        file_content = await file.read()
-        
-        if USE_S3:
-            s3_key = upload_to_s3(file_content, file.filename)
-        else:
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(file_content)
-        
-        pdf_bytes = convert_image_to_pdf(
-            image_bytes=file_content,
-            page_size=page_size,
-            orientation=orientation,
-            description=description,
-            description_position=description_position.lower(),  # Ensure lowercase
-            description_font_size=description_font_size,
-            custom_x=custom_x,
-            custom_y=custom_y,
-            font_color=rgb_color,  # Pass the converted RGB
-            font_family=font_family,
-            font_weight=font_weight
-        )
-        
-        if not pdf_bytes:
-            raise HTTPException(status_code=500, detail="Conversion failed")
-
-        return StreamingResponse(
-            io.BytesIO(pdf_bytes),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{file.filename.split(".")[0]}.pdf"'}
-        )
-
-    except Exception as e:
-        logger.error(f"🚨 Conversion failed: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Conversion error: {str(e)}")
-    finally:
-        if USE_S3 and s3_key:
-            cleanup_s3_file(s3_key)
-        elif not USE_S3:
-            cleanup_local_files()
-        gc.collect()
 
 
 @app.post("/remove_pdf_password")
 async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: str = Form(...)):
     logger.info(f"Received remove password request for {file.filename}")
-    if file.size / (1024 * 1024) > 50:
+    
+    # Validate file size
+    if file.size and file.size / (1024 * 1024) > 50:
         logger.error(f"File {file.filename} exceeds 50MB limit")
         raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
     if not password:
@@ -3895,9 +3249,21 @@ async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: s
     s3_key = None
     try:
         file_content = await file.read()
+        
+        # Validate file content
         if not file_content:
             logger.error(f"Empty file uploaded: {file.filename}")
             raise HTTPException(status_code=400, detail="Empty file uploaded")
+        
+        # Validate it's a PDF
+        try:
+            doc = fitz.open(stream=file_content, filetype="pdf")
+            doc.close()
+        except Exception as e:
+            logger.error(f"Invalid PDF file: {file.filename}")
+            raise HTTPException(status_code=400, detail="Invalid PDF file")
+        
+        # Store file only after validation
         if USE_S3:
             s3_key = upload_to_s3(file_content, file.filename)
         else:
@@ -3905,10 +3271,20 @@ async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: s
             os.makedirs("input_pdfs", exist_ok=True)
             with open(local_path, "wb") as f:
                 f.write(file_content)
+        
+        # Process the PDF
         decrypted_pdf = remove_pdf_password(file_content, password)
         if decrypted_pdf is None:
             logger.error("remove_pdf_password returned None")
             raise HTTPException(status_code=500, detail="Password removal failed")
+
+        # Verify output is valid PDF
+        try:
+            test_doc = fitz.open(stream=decrypted_pdf, filetype="pdf")
+            test_doc.close()
+        except Exception as e:
+            logger.error(f"Output PDF validation failed: {e}")
+            raise HTTPException(status_code=500, detail="Output PDF is invalid")
 
         logger.info(f"Returning decrypted PDF for {file.filename}")
         return StreamingResponse(
@@ -3922,6 +3298,8 @@ async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: s
     except RuntimeError as e:
         logger.error(f"Password removal error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Unexpected error in endpoint: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Password removal failed: {str(e)}")
@@ -3935,179 +3313,38 @@ async def remove_pdf_password_endpoint(file: UploadFile = File(...), password: s
         logger.info("Running garbage collection")
         gc.collect()
 
-@app.post("/reorder_pages")
-async def reorder_pages(file: UploadFile = File(...), page_order: str = Form(...)):
-    logger.info(f"Received reorder pages request for {file.filename}, page_order: {page_order}")
-    try:
-        file_content = await file.read()
-        if not USE_S3:
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(file_content)
-        pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
-        num_pages = len(pdf_reader.pages)
-        
-        page_indices = [int(p) - 1 for p in page_order.split(",") if p.strip()]
-        if not page_indices or len(page_indices) != num_pages:
-            raise ValueError("Page order must include all pages exactly once")
-        if any(idx < 0 or idx >= num_pages for idx in page_indices):
-            raise ValueError("Invalid page numbers")
-        if len(set(page_indices)) != len(page_indices):
-            raise ValueError("Duplicate page numbers detected")
-        
-        pdf_writer = PyPDF2.PdfWriter()
-        for idx in page_indices:
-            pdf_writer.add_page(pdf_reader.pages[idx])
-        
-        output = io.BytesIO()
-        pdf_writer.write(output)
-        output.seek(0)
-        
-        def iterfile():
-            yield output.getvalue()
-            output.close()
-        
-        return StreamingResponse(
-            iterfile(),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename=reordered_{file.filename}"}
-        )
-    except Exception as e:
-        logger.error(f"Error processing PDF: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error processing PDF: {str(e)}")
-    finally:
-        logger.info("No S3 cleanup needed (in-memory processing)")
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
-        logger.info("Running garbage collection")
-        gc.collect()
-
-@app.post("/add_page_numbers")
-async def add_page_numbers_endpoint(
-    file: UploadFile = File(...),
-    position: str = Form("bottom"),
-    alignment: str = Form("center"),
-    format: str = Form("page_x")
-):
-    logger.info(f"Received add page numbers request for {file.filename}")
-    try:
-        file_content = await file.read()
-        if not USE_S3:
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(file_content)
-        result = add_page_numbers(file_content, position, alignment, format)
-        if result is None:
-            raise HTTPException(status_code=500, detail="Failed to add page numbers")
-        return StreamingResponse(
-            io.BytesIO(result),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename=numbered_{file.filename}"}
-        )
-    except Exception as e:
-        logger.error(f"Error adding page numbers: {e}")
-        raise HTTPException(status_code=500, detail=f"Error adding page numbers: {str(e)}")
-    finally:
-        logger.info("No S3 cleanup needed (in-memory processing)")
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
-        logger.info("Running garbage collection")
-        gc.collect()
-
-@app.post("/add_signature")
-async def add_signature_endpoint(
-    pdf_file: UploadFile = File(...),
-    signature_file: UploadFile = File(...),
-    specific_pages: str = Form(...),
-    size: str = Form(...),
-    position: str = Form(...),
-    alignment: str = Form(...),
-    remove_bg: bool = Form(False)
-):
-    logger.info(f"Received add signature request: pdf={pdf_file.filename}, signature={signature_file.filename}")
-    try:
-        pdf_bytes = await pdf_file.read()
-        signature_bytes = await signature_file.read()
-        if not USE_S3:
-            pdf_path = os.path.join("input_pdfs", f"{hashlib.md5(pdf_bytes).hexdigest()}_{pdf_file.filename}")
-            sig_path = os.path.join("input_pdfs", f"{hashlib.md5(signature_bytes).hexdigest()}_{signature_file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(pdf_path, "wb") as f:
-                f.write(pdf_bytes)
-            with open(sig_path, "wb") as f:
-                f.write(signature_bytes)
-
-        if not pdf_file.filename.lower().endswith('.pdf'):
-            logger.error("Invalid PDF file type")
-            raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files allowed.")
-        if not signature_file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
-            logger.error("Invalid signature file type")
-            raise HTTPException(status_code=400, detail="Invalid signature file type. Only PNG or JPEG allowed.")
-        if len(pdf_bytes) > 50 * 1024 * 1024:
-            logger.error("PDF file too large")
-            raise HTTPException(status_code=400, detail="PDF file size exceeds 50MB.")
-        if len(signature_bytes) > 10 * 1024 * 1024:
-            logger.error("Signature file too large")
-            raise HTTPException(status_code=400, detail="Signature file size exceeds 10MB.")
-
-        try:
-            pages = [int(p) for p in specific_pages.split(',')] if specific_pages else []
-            logger.info(f"Pages to sign: {pages}")
-        except ValueError:
-            logger.error("Invalid page numbers format")
-            raise HTTPException(status_code=400, detail="Invalid page numbers format.")
-
-        logger.info("Calling add_signature function")
-        result = add_signature(
-            pdf_bytes=pdf_bytes,
-            signature_bytes=signature_bytes,
-            pages=pages,
-            size=size,
-            position=position,
-            alignment=alignment,
-            remove_bg=remove_bg
-        )
-
-        if result is None:
-            logger.error("add_signature returned None")
-            raise HTTPException(status_code=500, detail="Failed to add signature")
-
-        return StreamingResponse(
-            io.BytesIO(result),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename=signed_{pdf_file.filename}"}
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Unexpected error in add_signature_endpoint: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-    finally:
-        logger.info("No S3 cleanup needed (in-memory processing)")
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
-        logger.info("Running garbage collection")
-        gc.collect()
-
 @app.post("/remove_background")
 async def remove_background_endpoint(file: UploadFile = File(...)):
     logger.info(f"Received remove background request for {file.filename}")
     
-    MAX_FILE_SIZE_MB = 20  # Add this line
-    if file.size / (1024 * 1024) > MAX_FILE_SIZE_MB:
+    MAX_FILE_SIZE_MB = 20
+    # Validate file size
+    if file.size and file.size / (1024 * 1024) > MAX_FILE_SIZE_MB:
         raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE_MB}MB limit")
 
     try:
-        if not file.content_type.startswith("image/"):
+        # Validate content type
+        if not file.content_type or not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="Uploaded file must be an image")
+        
         file_content = await file.read()
+        
+        # Validate file content
         if not file_content:
             raise HTTPException(status_code=400, detail="Empty image file")
+        
+        # Validate image format by trying to open it
+        try:
+            import PIL.Image
+            image = PIL.Image.open(io.BytesIO(file_content))
+            # Check image dimensions to prevent memory issues
+            if image.size[0] > 5000 or image.size[1] > 5000:
+                raise HTTPException(status_code=400, detail="Image dimensions too large (max 5000x5000 pixels)")
+            image.verify()  # Verify it's a valid image
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid image file: {str(e)}")
+        
+        # Store file only after validation
         if not USE_S3:
             local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
             os.makedirs("input_pdfs", exist_ok=True)
@@ -4116,14 +3353,26 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
 
         logger.info("Processing image for background removal")
         processed_image = remove_background_rembg(file_content)
-        if not processed_image.getvalue():
+        
+        # Validate output
+        if not processed_image or not processed_image.getvalue():
             raise HTTPException(status_code=500, detail="Failed to process image")
+        
+        # Verify output is valid image
+        try:
+            output_image = PIL.Image.open(processed_image)
+            output_image.verify()
+            processed_image.seek(0)  # Reset stream position
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Output image is invalid")
 
         return StreamingResponse(
             content=processed_image,
             media_type="image/png",
-            headers={"Content-Disposition": f"attachment; filename=processed_image.png"}
+            headers={"Content-Disposition": f"attachment; filename=processed_{os.path.splitext(file.filename)[0]}.png"}
         )
+    except HTTPException:
+        raise
     except ValueError as e:
         logger.error(f"Error processing image: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -4131,13 +3380,14 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
         logger.error(f"Unexpected error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
+        
         logger.info("No S3 cleanup needed (in-memory processing)")
         logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
         if not USE_S3:
             cleanup_local_files()
         logger.info("Running garbage collection")
         gc.collect()
-
+        
 @app.get("/videos")
 async def list_videos():
     try:

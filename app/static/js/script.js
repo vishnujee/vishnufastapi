@@ -2650,11 +2650,25 @@ async function validateForm(form, endpoint, resultDiv) {
         }
     }
 
-    if ((endpoint === 'encrypt_pdf' || endpoint === 'remove_pdf_password') && (!password || !password.value)) {
-        resultDiv.textContent = 'Please enter a password.';
-        resultDiv.classList.add('text-red-600');
-        return false;
+    if (endpoint === 'encrypt_pdf' || endpoint === 'remove_pdf_password') {
+        const file = files[0];
+        const sizeMB = file.size / (1024 * 1024);
+        if (sizeMB > 50) {
+            resultDiv.textContent = `File ${file.name} (${sizeMB.toFixed(2)}MB) exceeds 50MB limit.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
+        if (file.type !== 'application/pdf') {
+            resultDiv.textContent = `File ${file.name} must be a PDF.`;
+            resultDiv.classList.add('text-red-600');
+            return false;
+        }
     }
+     else if (endpoint === 'remove_background') {
+      
+
+    }
+
 
     return true;
 }
@@ -3040,6 +3054,22 @@ async function processImage(endpoint, formId) {
 
     if (!fileInput || !fileInput.files[0]) {
         resultDiv.textContent = 'Please select an image file.';
+        resultDiv.classList.add('text-red-600');
+        return;
+    }
+        //  20MB VALIDATION HERE
+    const file = fileInput.files[0];
+    const sizeMB = file.size / (1024 * 1024);
+    if (sizeMB > 10) {
+        resultDiv.textContent = `File ${file.name} (${sizeMB.toFixed(2)}MB) exceeds 20MB limit for background removal.`;
+        resultDiv.classList.add('text-red-600');
+        return;
+    }
+
+    // ✅ IMAGE TYPE VALIDATION
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+        resultDiv.textContent = `File ${file.name} must be PNG or JPEG image.`;
         resultDiv.classList.add('text-red-600');
         return;
     }
