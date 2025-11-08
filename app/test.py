@@ -1,0 +1,1 @@
+pip install google-generativeai==0.5.2 langchain-core==0.1.52 langchain==0.1.20 langchain-google-genai==0.0.8 langchain-community==0.0.37 langchain-text-splitters==0.0.1 langsmith==0.1.40
