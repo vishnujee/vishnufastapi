@@ -51,7 +51,7 @@ from langchain_community.vectorstores import Chroma
 
 # ✅ FIXED: Use langchain_community for chains
 
-from langchain_community.chains.combine_documents.stuff import create_stuff_documents_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
 
 from langchain_core.prompts import ChatPromptTemplate
 
