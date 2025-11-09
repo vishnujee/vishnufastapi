@@ -1279,15 +1279,15 @@ def verify_embeddings(embeddings_list):
 #         timeout=10,
 #     )
 
-def get_llm():
-    return ChatOpenAI(
-        model="accounts/fireworks/models/gpt-oss-20b",  # Direct Fireworks model
-        base_url="https://api.fireworks.ai/inference/v1",
-        api_key=os.getenv("FIREWORKS_API_KEY"),  # Use Fireworks key, not HF token
-        temperature=0.2,
-        max_tokens=2024,
-        timeout=10,
-    )
+# def get_llm():
+#     return ChatOpenAI(
+#         model="accounts/fireworks/models/gpt-oss-20b",  # Direct Fireworks model
+#         base_url="https://api.fireworks.ai/inference/v1",
+#         api_key=os.getenv("FIREWORKS_API_KEY"),  # Use Fireworks key, not HF token
+#         temperature=0.2,
+#         max_tokens=2024,
+#         timeout=10,
+#     )
 
 # def get_llm():
 #     return ChatOpenAI(
@@ -1301,15 +1301,15 @@ def get_llm():
 
 
 
-# def get_llm():
-#     return ChatGoogleGenerativeAI(
-#         model="gemini-2.0-flash",
-#        # model="gemini-2.5-pro",
-#         temperature=0.2,
-#         max_tokens=2024,
-#         timeout=None,
-#         api_key=GOOGLE_API_KEY
-#     )
+def get_llm():
+    return ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+       # model="gemini-2.5-pro",
+        temperature=0.2,
+        max_tokens=2024,
+        timeout=None,
+        api_key=GOOGLE_API_KEY
+    )
 
 # def get_llm():
 #     # Try Groq first (fastest), fallback to Gemini
