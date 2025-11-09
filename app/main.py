@@ -46,8 +46,11 @@ from concurrent.futures import ThreadPoolExecutor
 # from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
-from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain    #### for aws
+
+
 from langchain_core.prompts import ChatPromptTemplate
 
 #### for openai
@@ -200,8 +203,9 @@ BUCKET_NAME = os.getenv("BUCKET_NAME")
 AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")  
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")             
+GROQ_API_KEY= os.getenv("GROQ_API_KEY")             
+AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")   
 USE_S3 = all([BUCKET_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY])
 CORRECT_PASSWORD_HASH = os.getenv("CORRECT_PASSWORD_HASH")
 CLEANUP_DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
@@ -1276,20 +1280,70 @@ def verify_embeddings(embeddings_list):
 
 
 # Initialize LLM
+
+# def get_llm():
+#     """Fast Groq → Fallback Gemini Flash - WITHOUT unnecessary API calls"""
+#     try:
+#         # Groq first - just initialize, don't test
+#         llm = ChatGroq(
+#             # model="llama-3.1-8b-instant",
+#             model="openai/gpt-oss-20b",
+      
+#             temperature=0.2,
+#             max_tokens=2024,
+#             timeout=10,
+#             groq_api_key=os.getenv("GROQ_API_KEY")
+#         )
+#         print("✅✅✅ GROQ LLM- openai/gpt-oss-20b LOADED SUCCESSFULLY! ✅✅✅")
+#         return llm
+
+#     except Exception as e:
+#         print(f"⚠️ Groq failed: {e}")
+#         logger.warning(f"Groq failed: {e}")
+
+#         # Fallback: Gemini Flash
+#         try:
+#             llm = ChatGoogleGenerativeAI(
+#                 model="gemini-2.0-flash",
+#                 temperature=0.3,
+#                 max_output_tokens=6500,
+#                 google_api_key=os.getenv("GOOGLE_API_KEY")
+#             )
+#             print("✅✅✅ GEMINI LLM LOADED AS FALLBACK! ✅✅✅")
+#             return llm
+#         except Exception as e2:
+#             print(f"❌ Both LLMs failed: {e2}")
+#             logger.error(f"Both LLMs failed: {e2}")
+#             raise RuntimeError("No LLM available - check API keys and connectivity")
+
+
 def get_llm():
-    return ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-       # model="gemini-2.5-pro",
-        temperature=0.3,
-        max_tokens=6500,
-        timeout=None,
-        api_key=GOOGLE_API_KEY
+    # Try Groq first (fastest), fallback to Gemini
+    
+    return ChatGroq(
+        # model="llama-3.1-8b-instant",  # Fastest Groq model
+        model="openai/gpt-oss-20b",
+        temperature=0.1,
+        max_tokens=2024,
+        timeout=10,
+        groq_api_key=os.getenv("GROQ_API_KEY")  # Add to your .env
     )
+
+
+# def get_llm():
+#     return ChatGoogleGenerativeAI(
+#         model="gemini-2.0-flash",
+#        # model="gemini-2.5-pro",
+#         temperature=0.2,
+#         max_tokens=2024,
+#         timeout=None,
+#         api_key=GOOGLE_API_KEY
+#     )
 
 retriever = None
 llm = None
 thread_pool = ThreadPoolExecutor(max_workers=4)
-# chat_history = []
+
 
 
 # ====================== Startup Event ======================
@@ -1776,29 +1830,33 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             processed_docs = []
       
         else:
-            prompt = ChatPromptTemplate.from_messages([
+            # Build conversation history for document mode (last 2 messages)
+            conversation_history = []
+            if limited_history:
+                # Take last 2 exchanges (4 messages: user+assistant pairs)
+                recent_history = limited_history[-4:]
+                for msg in recent_history:
+                    if msg["role"] == "user":
+                        conversation_history.append(("human", msg["content"]))
+                    elif msg["role"] == "assistant":
+                        conversation_history.append(("ai", msg["content"]))
+            
+            # Create prompt with history
+            messages = [
                 ("system",
                 "You are Vishnu AI Assintant — a friendly but bit funny "
                 "Provide accurate, clear, human-like answers in a warm and professional tone. "
                 "Add light Indian humor naturally when it fits (for example, 'as easy as making Maggi'). "
                 "Keep humor after the main answer, on a new line, ending with a small emoji"
-                "If the user asks a general question, gently suggest they can change the tone using the 'tone selector'."),
-                
-                ("human",
-                "Context: {context}\n\nQuestion: {input}\n\nAnswer:")
-            ])
+                "If the user asks a general question, gently suggest they can change the tone using the 'tone selector'.")
+            ]
 
-            # question_answer_chain = create_stuff_documents_chain(llm, prompt)
-
-            # prompt = ChatPromptTemplate.from_messages([
-            #     ("system", "You are Vishnu, an Indian AI assistant — friendly, funny (with Indian-style humor), and accurate. Give clear & human-like answers."),
-            #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-            # ])
-
-            # prompt = ChatPromptTemplate.from_messages([
-            #     ("system", "You are Vishnu, an Indian AI assistant — friendly and accurate. Give clear & human-like answers."),
-            #     ("human", "Context: {context}\n\nQuestion: {input}\nAnswer:")
-            # ])
+            messages.extend(conversation_history)
+            
+            # Add current query with context
+            messages.append(("human", "Context: {context}\n\nQuestion: {input}\n\nAnswer:"))
+            
+            prompt = ChatPromptTemplate.from_messages(messages)
             
 
             question_answer_chain = create_stuff_documents_chain(llm, prompt)
@@ -1807,16 +1865,6 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             # 🚀 STEP 2: NOW start retrieval in parallel
             retrieval_start = time.time()
             try:
-                # 🚀 DIRECT ASYNC CALL - No ThreadPool overhead
-                # if hasattr(retriever, '_aget_relevant_documents'):
-                #     raw_docs = await retriever._aget_relevant_documents(query)
-                # else:
-                #     # Fallback to sync with shorter timeout
-                #     raw_docs = await asyncio.wait_for(
-                #         loop.run_in_executor(thread_pool, lambda: retriever.invoke(query)),
-                #         timeout=8.0
-                #     )
-                # ✅ Simple direct call (local embeddings are fast)
                 retrieval_start = time.time()
                 # raw_docs = retriever.invoke(query) if retriever else []
                 raw_docs = await async_retrieve_documents(query, retriever, max_timeout=6.0)
@@ -1854,6 +1902,8 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             logger.info(f"⏱️ Processing took {timings['processing_time']:.2f}s")
 
             # 🚀 GENERATION
+            # In your chat endpoint, replace the generation section with:
+
             generation_start = time.time()
             if not processed_docs:
                 answer = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
@@ -1867,7 +1917,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                                 "context": processed_docs
                             })
                         ),
-                        timeout=16.0
+                        timeout=15.0
                     )
                     answer = response.strip()
                 except asyncio.TimeoutError:
