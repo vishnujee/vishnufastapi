@@ -409,13 +409,13 @@
         <div class="header">
 
             <div class="flex items-center space-x-4 py-0 w-full">
-                <a href="/" 
-                   class="text-lg font-semibold px-16 py-3 rounded-lg transition-all duration-300 w-full max-w-xs" 
-                   style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: block; text-align: center; height: 29px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.3);"
-                   onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.3)'; this.style.borderColor='rgba(255,255,255,0.6)'"
-                   onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.2)'; this.style.borderColor='rgba(255,255,255,0.3)'"
-                   onclick="showTool('chat-section')">
-                   🏠 Homepage
+                <a href="/"
+                    class="text-lg font-semibold px-16 py-3 rounded-lg transition-all duration-300 w-full max-w-xs"
+                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: block; text-align: center; height: 29px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.3);"
+                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.3)'; this.style.borderColor='rgba(255,255,255,0.6)'"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.2)'; this.style.borderColor='rgba(255,255,255,0.3)'"
+                    onclick="showTool('chat-section')">
+                    🏠 Homepage
                 </a>
             </div>
             <h2>🧹 File Cleanup Manager</h2>
@@ -498,7 +498,7 @@
         <!-- Backend Logs Section -->
         <div class="cron-status">
             <div class="cron-header">
-                <h3>🔧 Backend Logs</h3>
+                <h3 onclick="viewCompleteBackendLog()" style="cursor: pointer; color: #007bff;">🔧 Backend Logs</h3>
                 <button class="btn btn-info" onclick="refreshBackendLogs()">
                     🔄 Refresh
                 </button>
@@ -507,7 +507,8 @@
             <div class="cron-stats">
                 <div class="cron-stat">
                     <div class="cron-label">Log File</div>
-                    <div class="cron-value">backend.log</div>
+                    <div class="cron-value" onclick="viewCompleteBackendLog()"
+                        style="cursor: pointer; text-decoration: underline;">backend.log</div>
                 </div>
                 <div class="cron-stat">
                     <div class="cron-label">Log Size</div>
@@ -658,7 +659,7 @@
             // Update basic stats
             document.getElementById('backendLogSize').textContent = data.file_size || '0 KB';
             document.getElementById('backendLogEntries').textContent = data.total_entries || '0';
-            
+
             if (data.last_updated) {
                 const lastUpdated = new Date(data.last_updated * 1000);
                 document.getElementById('backendLogUpdated').textContent = lastUpdated.toLocaleString();
@@ -670,11 +671,11 @@
             const recentLogs = data.recent_entries || [];
             const recentLogsHTML = recentLogs.map(log => {
                 let className = 'log-line';
-                if (log.includes('ERROR') || log.includes('❌') || log.includes('💥') || log.toLowerCase().includes('error')) 
+                if (log.includes('ERROR') || log.includes('❌') || log.includes('💥') || log.toLowerCase().includes('error'))
                     className += ' error';
-                else if (log.includes('SUCCESS') || log.includes('✅') || log.includes('🎯') || log.toLowerCase().includes('success')) 
+                else if (log.includes('SUCCESS') || log.includes('✅') || log.includes('🎯') || log.toLowerCase().includes('success'))
                     className += ' success';
-                else if (log.includes('WARNING') || log.includes('⚠️') || log.toLowerCase().includes('warning')) 
+                else if (log.includes('WARNING') || log.includes('⚠️') || log.toLowerCase().includes('warning'))
                     className += ' warning';
 
                 return `<div class="${className}">${log}</div>`;
@@ -740,7 +741,7 @@
             // Show recent logs with LATEST ON TOP (reverse the array)
             const recentLogs = data.recent_entries || [];
             const reversedLogs = [...recentLogs].reverse(); // This puts latest on top
-            
+
             const recentLogsHTML = reversedLogs.map(log => {
                 let className = 'log-line';
                 if (log.includes('ERROR') || log.includes('❌') || log.includes('💥')) className += ' error';
@@ -929,6 +930,42 @@
 
                 container.appendChild(directoryCard);
             });
+        }
+
+        // this function to view complete backend log
+        async function viewCompleteBackendLog() {
+            try {
+                const response = await fetch('/backend-log-full');
+                const data = await response.json();
+
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                // Create modal to show complete log
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.8); z-index: 10000; padding: 20px;
+                    overflow: auto;
+                `;
+
+                modal.innerHTML = `
+                    <div style="background: white; padding: 20px; border-radius: 10px; max-width: 90%; margin: 0 auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3>📋 Complete Backend Log (${data.total_lines} lines)</h3>
+                            <button onclick="this.closest('div').parentElement.remove()" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer;">Close</button>
+                        </div>
+                        <div style="background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 5px; font-family: 'Courier New', monospace; max-height: 80vh; overflow: auto; white-space: pre-wrap;">${data.log_content}</div>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+
+            } catch (error) {
+                alert('Error loading complete log: ' + error.message);
+            }
         }
 
         // Run cleanup using the actual API endpoint

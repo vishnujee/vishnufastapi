@@ -1623,16 +1623,38 @@ async def get_cleanup_logs_page():
     
     return HTMLResponse(content=html_content)
 
-@app.post("/clear-cleanup-logs")
-async def clear_cleanup_logs():
-    """Clear the cron cleanup logs"""
+@app.get("/cleanup-logs")
+async def get_cleanup_logs():
+    """Get cleanup cron logs with latest entries on top"""
     try:
         log_path = "/home/ubuntu/cron_cleanup.log"
-        if os.path.exists(log_path):
-            os.remove(log_path)
-        return {"message": "Logs cleared successfully"}
+        if not os.path.exists(log_path):
+            return {
+                "file_size": "0 KB",
+                "last_updated": None,
+                "total_runs": 0,
+                "recent_entries": ["No cleanup logs found"]
+            }
+        
+        stat = os.stat(log_path)
+        file_size_kb = stat.st_size / 1024
+        
+        with open(log_path, 'r') as f:
+            lines = f.readlines()
+        
+        # Get recent entries and REVERSE for latest first
+        recent_entries = lines[-20:] if len(lines) > 20 else lines
+        recent_entries = [line.strip() for line in recent_entries if line.strip()]
+        recent_entries.reverse()  # ADD THIS LINE - puts latest on top
+        
+        return {
+            "file_size": f"{file_size_kb:.1f} KB",
+            "last_updated": stat.st_mtime,
+            "total_runs": len([line for line in lines if "Starting scheduled cleanup" in line]),
+            "recent_entries": recent_entries  # Now with latest first
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error clearing logs: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error reading logs: {str(e)}")
 
 
 @app.post("/test-cleanup")
@@ -1655,21 +1677,61 @@ async def get_cleanup_status():
     """Get current cleanup status and file statistics"""
     try:
         current_time = time.time()
-        stats = {
-            "last_cleanup_time": _last_cleanup_time if '_last_cleanup_time' in globals() else 0,
-            "current_time": current_time,
-            "next_cleanup_in": max(0, (_last_cleanup_time + 900) - current_time) if '_last_cleanup_time' in globals() else 0,
-            "directories": {}
+        
+        # Define your actual directory paths
+        directories = {
+            'uploads': BASE_DIR / "app" / "temp_processing" / "uploads",
+            'output': BASE_DIR / "app" / "temp_processing" / "output", 
+            'estimation': BASE_DIR / "app" / "temp_processing" / "estimation",
+            'word': BASE_DIR / "app" / "temp_processing" / "word",
+            'temp_processing': BASE_DIR / "app" / "temp_processing"
         }
         
-        # Count files in each directory
-        for root_dir in [UPLOAD_DIR, OUTPUT_DIR, ESTIMATION_DIR, PDFTOWORD, TEMP_DIR]:
-            if root_dir.exists():
-                files = list(root_dir.iterdir())
-                stats["directories"][root_dir.name] = {
-                    "total_files": len([f for f in files if f.is_file()]),
-                    "total_dirs": len([f for f in files if f.is_dir()]),
-                    "old_files": len([f for f in files if f.is_file() and f.stat().st_mtime < (current_time - 900)])
+        stats = {
+            "last_cleanup_time": 0,
+            "current_time": current_time,
+            "next_cleanup_in": 900,
+            "directories": {},
+            "total_files": 0,
+            "old_files": 0,
+            "total_size": 0
+        }
+        
+        # Scan actual directories
+        for dir_name, dir_path in directories.items():
+            if dir_path.exists():
+                total_files = 0
+                old_files = 0
+                total_size = 0
+                
+                try:
+                    for file_path in dir_path.iterdir():
+                        if file_path.is_file():
+                            total_files += 1
+                            file_stat = file_path.stat()
+                            total_size += file_stat.st_size
+                            
+                            if file_stat.st_mtime < (current_time - 900):
+                                old_files += 1
+                except Exception as e:
+                    logger.error(f"Error scanning directory {dir_name}: {str(e)}")
+                
+                stats["directories"][dir_name] = {
+                    "total_files": total_files,
+                    "old_files": old_files,
+                    "total_size": total_size,
+                    "exists": True
+                }
+                
+                stats["total_files"] += total_files
+                stats["old_files"] += old_files
+                stats["total_size"] += total_size
+            else:
+                stats["directories"][dir_name] = {
+                    "total_files": 0,
+                    "old_files": 0,
+                    "total_size": 0,
+                    "exists": False
                 }
         
         return stats
@@ -1678,6 +1740,69 @@ async def get_cleanup_status():
         return {"error": str(e)}
 
 
+################### backend log
+
+@app.get("/backend-log-full")
+async def get_backend_log_full():
+    """Get complete backend.log file with latest entries on top"""
+    try:
+        if not BACKEND_LOG_PATH.exists():
+            return {"error": "backend.log file not found"}
+        
+        with open(BACKEND_LOG_PATH, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        
+        # Reverse ALL lines to show latest at top
+        lines.reverse()
+        
+        return {
+            "log_content": "".join(lines),
+            "total_lines": len(lines),
+            "file_size": f"{BACKEND_LOG_PATH.stat().st_size / 1024:.1f} KB"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading backend log: {str(e)}")
+
+BASE_DIR = Path("/home/ubuntu/vishnufastapi")
+BACKEND_LOG_PATH = BASE_DIR / "backend.log"
+
+
+@app.get("/backend-logs")
+async def get_backend_logs():
+    """Get backend.log file information and recent entries"""
+    try:
+        if not BACKEND_LOG_PATH.exists():
+            return {
+                "file_size": "0 KB",
+                "last_updated": None,
+                "total_entries": 0,
+                "recent_entries": ["No backend.log file found"]
+            }
+        
+        stat = BACKEND_LOG_PATH.stat()
+        file_size_kb = stat.st_size / 1024
+        
+        with open(BACKEND_LOG_PATH, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        
+        # Get last 50 lines and reverse to show latest first
+        recent_lines = lines[-50:] if len(lines) > 50 else lines
+        recent_lines = [line.strip() for line in recent_lines if line.strip()]
+        recent_lines.reverse()  # Latest entries on top
+        
+        return {
+            "file_size": f"{file_size_kb:.1f} KB",
+            "last_updated": stat.st_mtime,
+            "total_entries": len(lines),
+            "recent_entries": recent_lines[-20:]  # Show last 20 entries
+        }
+        
+    except Exception as e:
+        logger.error(f"Error reading backend logs: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error reading backend logs: {str(e)}")
+
+#####################
 async def async_retrieve_documents(query: str, retriever, max_timeout: float = 6.0):
     """Async wrapper for document retrieval with timeout"""
     try:
