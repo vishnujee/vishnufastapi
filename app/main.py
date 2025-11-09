@@ -44,7 +44,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 #langchain
 # from langchain_text_splitters import RecursiveCharacterTextSplitter
-
+# from fireworks.client import Fireworks
+from langchain_openai import ChatOpenAI  # For OpenAI-compatible LLM
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
@@ -68,20 +69,11 @@ from app.pdf_operations import  (
     
 )
 
-
-
-
-
 from rembg import remove
 from dotenv import load_dotenv
 from colorama import Fore, Style, init
 init() 
 load_dotenv()
-
-
-
-
-
 from fastapi.middleware.gzip import GZipMiddleware
 
 
@@ -205,6 +197,7 @@ AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")             
 GROQ_API_KEY= os.getenv("GROQ_API_KEY")             
+FIREWORKS_API_KEY= os.getenv("FIREWORKS_API_KEY")             
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")   
 USE_S3 = all([BUCKET_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY])
 CORRECT_PASSWORD_HASH = os.getenv("CORRECT_PASSWORD_HASH")
@@ -1276,9 +1269,47 @@ def verify_embeddings(embeddings_list):
     
     return True
 
+# def get_llm():
+#     return ChatOpenAI(
+#         model="accounts/fireworks/models/llama-v3p3-70b-instruct",  # Much faster 7B model
+#         base_url="https://api.fireworks.ai/inference/v1",
+#         api_key=os.getenv("FIREWORKS_API_KEY"),
+#         temperature=0.1,
+#         max_tokens=1256,  # Short responses for simple questions
+#         timeout=10,
+#     )
+
+def get_llm():
+    return ChatOpenAI(
+        model="accounts/fireworks/models/gpt-oss-20b",  # Direct Fireworks model
+        base_url="https://api.fireworks.ai/inference/v1",
+        api_key=os.getenv("FIREWORKS_API_KEY"),  # Use Fireworks key, not HF token
+        temperature=0.2,
+        max_tokens=2024,
+        timeout=10,
+    )
+
+# def get_llm():
+#     return ChatOpenAI(
+#         model="openai/gpt-oss-20b:fireworks-ai",  # Use :fireworks-ai for speed; alternatives: :cerebras
+#         base_url="https://router.huggingface.co/v1",
+#         api_key=os.getenv("HF_TOKEN"),
+#         temperature=0.1,
+#         max_tokens=2024,
+#         timeout=10,
+#     )
 
 
 
+# def get_llm():
+#     return ChatGoogleGenerativeAI(
+#         model="gemini-2.0-flash",
+#        # model="gemini-2.5-pro",
+#         temperature=0.2,
+#         max_tokens=2024,
+#         timeout=None,
+#         api_key=GOOGLE_API_KEY
+#     )
 
 # def get_llm():
 #     # Try Groq first (fastest), fallback to Gemini
@@ -1293,15 +1324,6 @@ def verify_embeddings(embeddings_list):
 #     )
 
 
-def get_llm():
-    return ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-       # model="gemini-2.5-pro",
-        temperature=0.2,
-        max_tokens=2024,
-        timeout=None,
-        api_key=GOOGLE_API_KEY
-    )
 
 retriever = None
 llm = None
