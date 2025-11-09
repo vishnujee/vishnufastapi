@@ -495,6 +495,39 @@
             </div>
         </div>
 
+        <!-- Backend Logs Section -->
+        <div class="cron-status">
+            <div class="cron-header">
+                <h3>🔧 Backend Logs</h3>
+                <button class="btn btn-info" onclick="refreshBackendLogs()">
+                    🔄 Refresh
+                </button>
+            </div>
+
+            <div class="cron-stats">
+                <div class="cron-stat">
+                    <div class="cron-label">Log File</div>
+                    <div class="cron-value">backend.log</div>
+                </div>
+                <div class="cron-stat">
+                    <div class="cron-label">Log Size</div>
+                    <div class="cron-value" id="backendLogSize">Loading...</div>
+                </div>
+                <div class="cron-stat">
+                    <div class="cron-label">Last Updated</div>
+                    <div class="cron-value" id="backendLogUpdated">Loading...</div>
+                </div>
+                <div class="cron-stat">
+                    <div class="cron-label">Total Entries</div>
+                    <div class="cron-value" id="backendLogEntries">Loading...</div>
+                </div>
+            </div>
+
+            <div class="recent-logs" id="backendLogs">
+                <div class="log-line">Loading backend logs...</div>
+            </div>
+        </div>
+
         <div class="directories" id="directoriesContainer">
             <!-- Directories will be populated by JavaScript -->
         </div>
@@ -598,6 +631,66 @@
             }
         }
 
+        // Get backend logs from API
+        async function getBackendLogs() {
+            try {
+                const response = await fetch('/backend-logs');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching backend logs:', error);
+                return null;
+            }
+        }
+
+        // Update backend logs UI
+        function updateBackendLogsUI(data) {
+            if (!data) {
+                document.getElementById('backendLogSize').textContent = 'No data';
+                document.getElementById('backendLogUpdated').textContent = 'Unknown';
+                document.getElementById('backendLogEntries').textContent = '0';
+                document.getElementById('backendLogs').innerHTML = '<div class="log-line">No logs available</div>';
+                return;
+            }
+
+            // Update basic stats
+            document.getElementById('backendLogSize').textContent = data.file_size || '0 KB';
+            document.getElementById('backendLogEntries').textContent = data.total_entries || '0';
+            
+            if (data.last_updated) {
+                const lastUpdated = new Date(data.last_updated * 1000);
+                document.getElementById('backendLogUpdated').textContent = lastUpdated.toLocaleString();
+            } else {
+                document.getElementById('backendLogUpdated').textContent = 'Never';
+            }
+
+            // Show recent logs with latest on top
+            const recentLogs = data.recent_entries || [];
+            const recentLogsHTML = recentLogs.map(log => {
+                let className = 'log-line';
+                if (log.includes('ERROR') || log.includes('❌') || log.includes('💥') || log.toLowerCase().includes('error')) 
+                    className += ' error';
+                else if (log.includes('SUCCESS') || log.includes('✅') || log.includes('🎯') || log.toLowerCase().includes('success')) 
+                    className += ' success';
+                else if (log.includes('WARNING') || log.includes('⚠️') || log.toLowerCase().includes('warning')) 
+                    className += ' warning';
+
+                return `<div class="${className}">${log}</div>`;
+            }).join('');
+
+            document.getElementById('backendLogs').innerHTML = recentLogsHTML || '<div class="log-line">No recent logs</div>';
+        }
+
+        // Refresh backend logs
+        async function refreshBackendLogs() {
+            addLog('Refreshing backend logs...', 'info');
+            const backendData = await getBackendLogs();
+            updateBackendLogsUI(backendData);
+            addLog('Backend logs refreshed', 'success');
+        }
+
         // Load cron status
         async function loadCronStatus() {
             try {
@@ -609,7 +702,7 @@
             }
         }
 
-        // Update cron status UI
+        // Update cron status UI with latest entries on top
         function updateCronUI(data) {
             if (!data) {
                 document.getElementById('lastCronRun').textContent = 'No data';
@@ -644,9 +737,11 @@
                 document.getElementById('lastCronRun').textContent = 'Never';
             }
 
-            // Show recent logs
+            // Show recent logs with LATEST ON TOP (reverse the array)
             const recentLogs = data.recent_entries || [];
-            const recentLogsHTML = recentLogs.map(log => {
+            const reversedLogs = [...recentLogs].reverse(); // This puts latest on top
+            
+            const recentLogsHTML = reversedLogs.map(log => {
                 let className = 'log-line';
                 if (log.includes('ERROR') || log.includes('❌') || log.includes('💥')) className += ' error';
                 else if (log.includes('SUCCESS') || log.includes('✅') || log.includes('🎯')) className += ' success';
@@ -667,9 +762,10 @@
             btn.disabled = true;
 
             try {
-                const [statusData, cronData] = await Promise.all([
+                const [statusData, cronData, backendData] = await Promise.all([
                     getCleanupStatus(),
-                    getCronLogs()
+                    getCronLogs(),
+                    getBackendLogs()
                 ]);
 
                 if (!statusData) {
@@ -722,8 +818,9 @@
                 updateStatistics(totalFiles, oldFiles, totalSizeBytes);
                 renderDirectories();
 
-                // Update cron status
+                // Update both cron and backend logs UI
                 updateCronUI(cronData);
+                updateBackendLogsUI(backendData);
 
                 showStatus(`Loaded ${totalFiles} files across ${Object.keys(statusData.directories || {}).length} directories`, 'success');
                 addLog(`File scan completed: ${totalFiles} files found, ${oldFiles} older than 15 minutes`, 'success');

@@ -1279,32 +1279,6 @@ def verify_embeddings(embeddings_list):
 
 
 
-def get_llm():
-    print("🔄 Trying Groq LLM...")
-    
-    try:
-        llm = ChatGroq(
-            model="openai/gpt-oss-20b",
-            temperature=0.1,
-            max_tokens=2024,
-            timeout=30,  # Increase timeout
-            groq_api_key=os.getenv("GROQ_API_KEY")
-        )
-        
-        print("✅ Groq LLM loaded successfully")
-        return llm
-
-    except Exception as e:
-        print(f"❌ Groq failed: {e}")
-        print("🔄 Falling back to Gemini...")
-        
-        return ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
-            temperature=0.2,
-            max_tokens=2024,
-            google_api_key=os.getenv("GOOGLE_API_KEY")
-        )
-
 
 # def get_llm():
 #     # Try Groq first (fastest), fallback to Gemini
@@ -1319,15 +1293,15 @@ def get_llm():
 #     )
 
 
-# def get_llm():
-#     return ChatGoogleGenerativeAI(
-#         model="gemini-2.0-flash",
-#        # model="gemini-2.5-pro",
-#         temperature=0.2,
-#         max_tokens=2024,
-#         timeout=None,
-#         api_key=GOOGLE_API_KEY
-#     )
+def get_llm():
+    return ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+       # model="gemini-2.5-pro",
+        temperature=0.2,
+        max_tokens=2024,
+        timeout=None,
+        api_key=GOOGLE_API_KEY
+    )
 
 retriever = None
 llm = None
@@ -1403,60 +1377,6 @@ async def serve_index():
         return HTMLResponse(content=f.read())
 
 
-
-@app.post("/test-groq")
-async def test_groq():
-    """Simple Groq test - no RAG, no processing"""
-    try:
-        start_time = time.time()
-        
-        # Direct Groq test
-        llm = ChatGroq(
-            model="openai/gpt-oss-20b",
-            temperature=0.1,
-            max_tokens=50,  # Very short response
-            timeout=15,
-            groq_api_key=os.getenv("GROQ_API_KEY")
-        )
-        
-        response = llm.invoke("Say 'hello world' only.")
-        duration = time.time() - start_time
-        
-        return {
-            "status": "success", 
-            "response": response.content,
-            "time_taken": f"{duration:.2f}s"
-        }
-        
-    except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e),
-            "error_type": type(e).__name__
-        }
-
-@app.get("/check-groq")
-async def check_groq():
-    """Check if we can reach Groq API"""
-    try:
-        import requests
-        
-        response = requests.get(
-            "https://api.groq.com/openai/v1/models",
-            headers={"Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"},
-            timeout=10
-        )
-        
-        return {
-            "api_status": response.status_code,
-            "can_connect": response.status_code == 200
-        }
-        
-    except Exception as e:
-        return {
-            "api_status": "failed",
-            "error": str(e)
-        }
 
 DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD",)
 
