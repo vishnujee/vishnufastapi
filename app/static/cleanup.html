@@ -371,7 +371,7 @@
             background: #f8f9fa;
             border-radius: 8px;
             padding: 15px;
-            max-height: 200px;
+            max-height: 650px;
             overflow-y: auto;
         }
 
@@ -464,12 +464,12 @@
 
         <!-- Cron Status Section -->
         <div class="cron-status">
-            <div class="cron-header">
-                <h3>🕒 Cron Job Status</h3>
-                <button class="btn btn-info" onclick="viewDetailedCronLogs()">
-                    📋 View Detailed Logs
-                </button>
-            </div>
+          <div class="cron-header">
+    <h3 onclick="viewCompleteBackendLog()" style="cursor: pointer; color: #007bff; user-select: none;">🔧 Backend Logs</h3>
+    <button class="btn btn-info" onclick="refreshBackendLogs()">
+        🔄 Refresh
+    </button>
+</div>
 
             <div class="cron-stats">
                 <div class="cron-stat">
@@ -505,11 +505,10 @@
             </div>
 
             <div class="cron-stats">
-                <div class="cron-stat">
-                    <div class="cron-label">Log File</div>
-                    <div class="cron-value" onclick="viewCompleteBackendLog()"
-                        style="cursor: pointer; text-decoration: underline;">backend.log</div>
-                </div>
+           <div class="cron-stat">
+    <div class="cron-label">Log File</div>
+    <div class="cron-value">backend.log</div>
+</div>
                 <div class="cron-stat">
                     <div class="cron-label">Log Size</div>
                     <div class="cron-value" id="backendLogSize">Loading...</div>
@@ -943,28 +942,72 @@
                     return;
                 }
 
+                // Remove any existing modal first
+                const existingModal = document.querySelector('.backend-log-modal');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+
                 // Create modal to show complete log
                 const modal = document.createElement('div');
+                modal.className = 'backend-log-modal';
                 modal.style.cssText = `
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(0,0,0,0.8); z-index: 10000; padding: 20px;
-                    overflow: auto;
-                `;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 10000; padding: 20px;
+            overflow: auto;
+        `;
 
                 modal.innerHTML = `
-                    <div style="background: white; padding: 20px; border-radius: 10px; max-width: 90%; margin: 0 auto;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3>📋 Complete Backend Log (${data.total_lines} lines)</h3>
-                            <button onclick="this.closest('div').parentElement.remove()" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer;">Close</button>
-                        </div>
-                        <div style="background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 5px; font-family: 'Courier New', monospace; max-height: 80vh; overflow: auto; white-space: pre-wrap;">${data.log_content}</div>
+            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 90%; margin: 0 auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>📋 Complete Backend Log (${data.total_lines} lines, ${data.file_size})</h3>
+                    <div>
+                        <button onclick="refreshCompleteBackendLog()" style="background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin-right: 10px;">🔄 Refresh</button>
+                        <button onclick="closeBackendLogModal()" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer;">Close</button>
                     </div>
-                `;
+                </div>
+                <div id="completeBackendLogContent" style="background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 5px; font-family: 'Courier New', monospace; max-height: 80vh; overflow: auto; white-space: pre-wrap;">${data.log_content}</div>
+                <div style="margin-top: 10px; text-align: center; color: #666;">
+                    Last updated: ${new Date().toLocaleString()}
+                </div>
+            </div>
+        `;
 
                 document.body.appendChild(modal);
 
             } catch (error) {
                 alert('Error loading complete log: ' + error.message);
+            }
+        }
+
+
+        async function refreshCompleteBackendLog() {
+            try {
+                const response = await fetch('/backend-log-full');
+                const data = await response.json();
+
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                const logContent = document.getElementById('completeBackendLogContent');
+                if (logContent) {
+                    logContent.textContent = data.log_content;
+                    // Update the header with new line count
+                    const header = document.querySelector('.backend-log-modal h3');
+                    if (header) {
+                        header.innerHTML = `📋 Complete Backend Log (${data.total_lines} lines, ${data.file_size})`;
+                    }
+                }
+            } catch (error) {
+                alert('Error refreshing log: ' + error.message);
+            }
+        }
+        function closeBackendLogModal() {
+            const modal = document.querySelector('.backend-log-modal');
+            if (modal) {
+                modal.remove();
             }
         }
 
@@ -1029,6 +1072,12 @@
             addLog('Connecting to backend API...', 'info');
             loadFiles(); // Load files automatically on page load
             startAutoRefresh(); // Start auto-refresh
+        });
+
+        document.addEventListener('click', function (event) {
+            if (event.target.classList.contains('backend-log-modal')) {
+                closeBackendLogModal();
+            }
         });
     </script>
 </body>

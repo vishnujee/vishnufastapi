@@ -1455,6 +1455,11 @@ async def get_cleanup_logs_page():
         with open(log_path, 'r') as f:
             log_content = f.read()
     
+
+    lines = log_content.strip().split('\n')
+    lines.reverse()  # This puts latest entries at top
+    log_content = '\n'.join(lines)
+    
     html_content = f"""
     <!DOCTYPE html>
     <html>
