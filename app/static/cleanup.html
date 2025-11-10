@@ -18,7 +18,7 @@
                 </a>
             </div>
             <h1>Admin Panel</h1>
-            <div class="subtitle">Monitor and clean up orphaned files across all directories</div>
+            <div class="subtitle">Monitor Backend Log and clean up Old files.</div>
 
             <div class="stats">
                 <div class="stat-card">
@@ -718,63 +718,64 @@
                 // Remove any existing modal first
                 closeBackendLogModal();
 
-                // Create modal to show complete log
+                // Use ALL logs, already reversed from server (newest first)
+                const logContent = data.all_logs ? data.all_logs.join('\n') : data.logs;
+                const formattedLogContent = formatLogContentWithColors(logContent);
+
+                // ✅ FIX: Define modal variable before using it
                 const modal = document.createElement('div');
                 modal.className = 'backend-log-modal';
 
-                // Format log content with color coding
-                const logContent = data.recent_entries ? data.recent_entries.join('\n') : data.logs || 'No log content available';
-                const formattedLogContent = formatLogContentWithColors(logContent);
                 modal.innerHTML = `
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>📋 Complete Backend Log</h3>
-            <div class="modal-controls">
-                <button class="modal-btn download" onclick="downloadBackendLog()" title="Download log file">
-                    📥 Download
-                </button>
-                <button class="modal-btn refresh" onclick="refreshCompleteBackendLog()" title="Refresh log content">
-                    🔄 Refresh
-                </button>
-                <button class="modal-btn close" onclick="closeBackendLogModal()" title="Close modal">
-                    ❌ Close
-                </button>
-            </div>
-        </div>
-        
-        <div class="modal-body">
-            <div class="modal-stats">
-                <div class="stat-card">
-                    <div class="stat-label">Total Lines</div>
-                    <div class="stat-value">${data.total_entries || data.line_count || 0}</div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>📋 Complete Backend Log</h3>
+                    <div class="modal-controls">
+                        <button class="modal-btn download" onclick="downloadBackendLog()" title="Download log file">
+                            📥 Download
+                        </button>
+                        <button class="modal-btn refresh" onclick="refreshCompleteBackendLog()" title="Refresh log content">
+                            🔄 Refresh
+                        </button>
+                        <button class="modal-btn close" onclick="closeBackendLogModal()" title="Close modal">
+                            ❌ Close
+                        </button>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">File Size</div>
-                    <div class="stat-value">${data.file_size || '0 KB'}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Last Updated</div>
-                    <div class="stat-value">${data.last_updated ? new Date(data.last_updated * 1000).toLocaleDateString() : 'Unknown'}</div>
-                </div>
-            </div>
+                
+                <div class="modal-body">
+                    <div class="modal-stats">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Lines</div>
+                            <div class="stat-value">${data.total_entries || data.line_count || 0}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">File Size</div>
+                            <div class="stat-value">${data.file_size || '0 KB'}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Last Updated</div>
+                            <div class="stat-value">${data.last_updated ? new Date(data.last_updated * 1000).toLocaleString() : 'Unknown'}</div>
+                        </div>
+                    </div>
 
-            <div id="completeBackendLogContent" class="complete-log-content">
-                ${formattedLogContent}
-            </div>
-        </div>
-        
-        <div class="modal-footer">
-            <div class="footer-info">
-                <div class="footer-tips">
-                    🎯 <strong>Tips:</strong> Scroll to navigate • ESC to close • Click outside to close
+                    <div id="completeBackendLogContent" class="complete-log-content">
+                        ${formattedLogContent}
+                    </div>
                 </div>
-                <div>
-                    Last refreshed: <strong>${new Date().toLocaleString()}</strong>
+                
+                <div class="modal-footer">
+                    <div class="footer-info">
+                        <div class="footer-tips">
+                            🎯 <strong>Showing ALL logs (${data.total_entries || 0} total) - Newest at top</strong>
+                        </div>
+                        <div>
+                            Last refreshed: <strong>${new Date().toLocaleString()}</strong>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-`;
+        `;
 
                 document.body.appendChild(modal);
                 addLog('Complete backend log modal opened', 'success');
@@ -793,7 +794,6 @@
                 alert('Error loading complete log: ' + error.message);
             }
         }
-
         function formatLogContentWithColors(logContent) {
             if (!logContent) return '<div class="log-line-modal">No log content available</div>';
 
@@ -836,55 +836,56 @@
             }
         }
 
-       async function refreshCompleteBackendLog() {
-    try {
-        const logContentElement = document.querySelector('.backend-log-modal .complete-log-content');
-        if (logContentElement) {
-            logContentElement.innerHTML = '<div class="loading-log">Refreshing log content...</div>';
-        }
-        
-        const response = await makeAuthenticatedRequest('/backend-logs');
-        const data = await response.json();
+        async function refreshCompleteBackendLog() {
+            try {
+                const logContentElement = document.querySelector('.backend-log-modal .complete-log-content');
+                if (logContentElement) {
+                    logContentElement.innerHTML = '<div class="loading-log">Refreshing all logs...</div>';
+                }
 
-        if (data.error) {
-            throw new Error(data.error);
-        }
+                const response = await makeAuthenticatedRequest('/backend-logs');
+                const data = await response.json();
 
-        const formattedLogContent = formatLogContentWithColors(data.recent_entries ? data.recent_entries.join('\n') : data.logs);
-        
-        if (logContentElement) {
-            logContentElement.innerHTML = formattedLogContent;
-            // Scroll to bottom to show latest logs
-            setTimeout(() => {
-                logContentElement.scrollTop = logContentElement.scrollHeight;
-            }, 100);
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Use ALL logs, newest first
+                const logContent = data.all_logs ? data.all_logs.join('\n') : data.logs;
+                const formattedLogContent = formatLogContentWithColors(logContent);
+
+                if (logContentElement) {
+                    logContentElement.innerHTML = formattedLogContent;
+                    // Scroll to TOP to show newest logs (since newest are first)
+                    setTimeout(() => {
+                        logContentElement.scrollTop = 0;
+                    }, 100);
+                }
+
+                // Update modal stats
+                const statCards = document.querySelectorAll('.backend-log-modal .stat-card');
+                if (statCards.length >= 3) {
+                    statCards[0].querySelector('.stat-value').textContent = data.total_entries || data.line_count || 0;
+                    statCards[1].querySelector('.stat-value').textContent = data.file_size || '0 KB';
+                    statCards[2].querySelector('.stat-value').textContent = data.last_updated ?
+                        new Date(data.last_updated * 1000).toLocaleString() : 'Unknown';
+                }
+
+                // Update footer message
+                const footerTips = document.querySelector('.backend-log-modal .footer-tips');
+                if (footerTips) {
+                    footerTips.innerHTML = `🎯 <strong>Showing ALL logs (${data.total_entries || 0} total) - Newest at top</strong>`;
+                }
+
+                addLog('Complete backend log refreshed', 'success');
+            } catch (error) {
+                addLog(`Error refreshing complete backend log: ${error.message}`, 'error');
+                const logContentElement = document.querySelector('.backend-log-modal .complete-log-content');
+                if (logContentElement) {
+                    logContentElement.innerHTML = `<div class="log-line-modal error">Error refreshing logs: ${error.message}</div>`;
+                }
+            }
         }
-        
-        // Update modal stats - only if they exist in backend modal
-        const statCards = document.querySelectorAll('.backend-log-modal .stat-card');
-        if (statCards.length >= 3) {
-            statCards[0].querySelector('.stat-value').textContent = data.total_entries || data.line_count || 0;
-            statCards[1].querySelector('.stat-value').textContent = data.file_size || '0 KB';
-            statCards[2].querySelector('.stat-value').textContent = data.last_updated ? 
-                new Date(data.last_updated * 1000).toLocaleDateString() : 'Unknown';
-        }
-        
-        // Update footer - only if it exists in backend modal
-        const footer = document.querySelector('.backend-log-modal .footer-info div:last-child');
-        if (footer) {
-            footer.innerHTML = `Last refreshed: <strong>${new Date().toLocaleString()}</strong>`;
-        }
-        
-        addLog('Complete backend log refreshed', 'success');
-    } catch (error) {
-        addLog(`Error refreshing complete backend log: ${error.message}`, 'error');
-        // Show error in modal
-        const logContentElement = document.querySelector('.backend-log-modal .complete-log-content');
-        if (logContentElement) {
-            logContentElement.innerHTML = `<div class="log-line-modal error">Error refreshing logs: ${error.message}</div>`;
-        }
-    }
-}
         function downloadBackendLog() {
             // Create a temporary link to download the log content
             const logContentElement = document.getElementById('completeBackendLogContent');

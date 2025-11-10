@@ -54,21 +54,21 @@ h1 {
 .cron-stat {
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
-    padding: 20px;
+    padding: 0px;
     border-radius: 10px;
     text-align: center;
 }
 
 .cron-stat {
     background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-    padding: 15px;
+    padding: 5px;
 }
 
 .stat-number,
 .cron-value {
-    font-size: 2em;
+    font-size: 25px;
     font-weight: bold;
-    margin-bottom: 5px;
+    margin-bottom: 0px;
 }
 
 .cron-value {
@@ -738,4 +738,45 @@ h1 {
     border: 1px solid #e0e0e0;
     animation: modalAppear 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     overflow: hidden;
+}
+/* Better mobile modal */
+@media (max-width: 768px) {
+    .backend-log-modal .modal-content {
+        height: 95vh;
+        margin: 0;
+        border-radius: 0;
+        width: 100%;
+    }
+    
+    .complete-log-content {
+        font-size: 12px;
+        padding: 15px;
+        line-height: 1.4;
+    }
+    
+    .log-line-modal {
+        padding: 6px 8px;
+        margin: 2px 0;
+        font-size: 11px;
+    }
+    .modal-stats {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        gap: 2px !important;
+    }
+    
+    .modal-stats .stat-card {
+        flex: 0 0 auto !important;
+        min-width: 85px !important;
+        padding: 5px 10px !important;
+    }
+    
+    .modal-stats .stat-value {
+        font-size: 1.1em !important;
+    }
+    
+    .modal-stats .stat-label {
+        font-size: 0.8em !important;
+    }
 }

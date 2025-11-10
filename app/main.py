@@ -1989,7 +1989,6 @@ async def login_page():
 
 BASE_DIR = Path("/home/ubuntu/vishnufastapi")
 BACKEND_LOG_PATH = BASE_DIR / "backend.log"
-
 @app.get("/backend-logs")
 async def get_backend_logs(request: Request):
     """Get complete backend.log file content"""
@@ -2002,7 +2001,8 @@ async def get_backend_logs(request: Request):
                 "last_updated": None,
                 "total_entries": 0,
                 "recent_entries": ["No backend.log file found"],
-                "logs": "No backend.log file found"
+                "logs": "No backend.log file found",
+                "all_logs": []  # Add this
             }
         
         stat = BACKEND_LOG_PATH.stat()
@@ -2017,12 +2017,16 @@ async def get_backend_logs(request: Request):
         # Get recent lines for dashboard view (last 20)
         recent_lines = all_lines[-20:] if len(all_lines) > 20 else all_lines
         
+        # Reverse all logs to show newest first
+        all_logs_reversed = list(reversed(all_lines))
+        
         return {
             "file_size": f"{file_size_kb:.1f} KB",
             "last_updated": stat.st_mtime,
             "total_entries": len(all_lines),
             "recent_entries": recent_lines,
-            "logs": "\n".join(all_lines)  # Complete log content for modal
+            "logs": "\n".join(all_logs_reversed),  # Newest first for modal
+            "all_logs": all_logs_reversed  # All logs, newest first
         }
         
     except Exception as e:
