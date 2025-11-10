@@ -156,6 +156,21 @@ async def security_middleware(request: Request, call_next):
                 content={"detail": "Access forbidden"}
             )
     return await call_next(request)
+@app.middleware("http")
+async def mobile_compatibility_middleware(request: Request, call_next):
+    """Add mobile compatibility headers"""
+    response = await call_next(request)
+    
+    # Check if mobile
+    user_agent = request.headers.get("user-agent", "").lower()
+    is_mobile = any(term in user_agent for term in ['mobile', 'android', 'iphone', 'ipad'])
+    
+    if is_mobile:
+        # Add mobile-specific headers
+        response.headers["X-Mobile-Compatible"] = "true"
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    
+    return response
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -167,13 +182,15 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
+# Replace your SessionMiddleware with this:
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET", secrets.token_urlsafe(32)),
-    session_cookie="session", 
-    max_age=3600,
-    same_site="lax",
-    https_only=False
+    session_cookie="session",
+    max_age=3600,  # 1 hour
+    same_site="none" if os.getenv("ENVIRONMENT") == "production" else "lax",  # ← CRITICAL FIX
+    https_only=False,  # Set to True if using HTTPS
+    domain=".recallmind.online"  # ← ADD THIS for cross-subdomain cookies
 )
 ##### ehuggingface
 
@@ -1845,39 +1862,43 @@ async def check_auth(request: Request):
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Not authenticated"
     )
+@app.get("/session-debug")
+async def session_debug(request: Request):
+    """Debug endpoint to check session status"""
+    return {
+        "session_exists": "authenticated" in request.session,
+        "session_data": dict(request.session) if request.session else {},
+        "user_agent": request.headers.get("user-agent"),
+        "cookies": request.headers.get("cookie", ""),
+        "is_mobile": "Mobile" in request.headers.get("user-agent", "")
+    }
 
 @app.post("/api/login")
-@limiter.limit("5/minute")
-async def api_login(request: Request, credentials: dict):
-    """Secure login endpoint with rate limiting"""
+async def api_login(request: Request, response: Response, credentials: dict):
+    """Login endpoint with mobile compatibility"""
     username = credentials.get("username", "").strip()
     password = credentials.get("password", "").strip()
     
-    # Input validation
-    if not username or not password:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username and password required"
-        )
-    
-    # Prevent username enumeration by using constant time comparison
-    correct_username = "admin"  # You should make this configurable
+    correct_username = "admin"
     correct_password = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
     
-    # Constant-time comparison to prevent timing attacks
-    username_valid = secrets.compare_digest(username, correct_username)
-    password_valid = secrets.compare_digest(password, correct_password)
-    
-    if username_valid and password_valid:
-        # Set secure session
+    if (secrets.compare_digest(username, correct_username) and 
+        secrets.compare_digest(password, correct_password)):
+        
+        # Set session data
         request.session["authenticated"] = True
         request.session["username"] = username
         request.session["login_time"] = time.time()
         request.session["user_agent"] = request.headers.get("user-agent", "")
         
-        return {"status": "success", "message": "Login successful"}
+        # Mobile-specific response
+        return {
+            "status": "success", 
+            "message": "Login successful",
+            "redirect": "/cleanup",
+            "mobile_compatible": True
+        }
     else:
-        # Generic error message to prevent username enumeration
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"

@@ -220,70 +220,45 @@
         }
 
         // Simple login using session-based authentication
-        async function login(username, password) {
-            // Check rate limiting
-            if (isRateLimited()) {
-                showStatus('❌ Too many failed attempts. Please try again in 15 minutes.', 'error');
-                return;
-            }
+        // Enhanced mobile login function
+async function login(username, password) {
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Logging in...';
 
-            loginBtn.disabled = true;
-            loginBtn.textContent = 'Logging in...';
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, password }),
+            credentials: 'include',  // Important for cookies
+            mode: 'cors'  // Explicit CORS mode
+        });
 
-            try {
-                // Sanitize inputs
-                const sanitizedUsername = sanitizeInput(username);
-                const sanitizedPassword = sanitizeInput(password);
-
-                if (!sanitizedUsername || !sanitizedPassword) {
-                    showStatus('❌ Please enter valid credentials', 'error');
-                    loginAttempts++;
-                    return;
-                }
-
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({ 
-                        username: sanitizedUsername, 
-                        password: sanitizedPassword 
-                    }),
-                    credentials: 'include'
-                });
-
-                lastAttemptTime = Date.now();
-
-                if (response.ok) {
-                    const data = await response.json();
-                    // Reset attempts on successful login
-                    loginAttempts = 0;
-                    showStatus('✅ Login successful! Redirecting...', 'success');
-                    
-                    // Wait a bit then redirect to cleanup page
-                    setTimeout(() => {
-                        window.location.href = '/cleanup';
-                    }, 1000);
-                    
-                } else {
-                    loginAttempts++;
-                    const errorData = await response.json();
-                    showStatus('❌ ' + (errorData.detail || 'Invalid username or password'), 'error');
-                }
-                
-            } catch (error) {
-                loginAttempts++;
-                // Don't reveal specific error details to prevent information leakage
-                showStatus('❌ Login failed. Please try again.', 'error');
-                console.error('Login error:', error); // Log for debugging
-            } finally {
-                loginBtn.disabled = false;
-                loginBtn.textContent = '🚀 Login';
-            }
+        if (response.ok) {
+            const data = await response.json();
+            showStatus('✅ Login successful! Redirecting...', 'success');
+            
+            // Mobile-specific redirect with delay
+            setTimeout(() => {
+                // Force hard redirect for mobile
+                window.location.href = '/cleanup?t=' + Date.now();
+            }, 1000);
+            
+        } else {
+            const errorData = await response.json();
+            showStatus('❌ ' + (errorData.detail || 'Invalid credentials'), 'error');
         }
-
+        
+    } catch (error) {
+        showStatus('❌ Login failed. Please try again.', 'error');
+        console.error('Login error:', error);
+    } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = '🚀 Login';
+    }
+}
         loginForm.addEventListener('submit', function (e) {
             e.preventDefault();
 
