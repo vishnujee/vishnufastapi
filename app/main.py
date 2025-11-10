@@ -79,8 +79,17 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from datetime import datetime
 
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 app = FastAPI()
-
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=[
+        "recallmind.online",
+        "www.recallmind.online",
+        "*.ap-south-1.compute.amazonaws.com",
+        "localhost"
+    ]
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
