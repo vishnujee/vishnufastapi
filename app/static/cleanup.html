@@ -504,416 +504,437 @@
         </div>
     </div>
 
-    <script>
-        let filesData = {};
-        let isAuthenticated = false;
 
-        // Format file size
-        function formatSize(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+<script>
+    // ========== AUTHENTICATION HELPERS ==========
+    async function makeAuthenticatedRequest(url, options = {}) {
+        const token = localStorage.getItem('auth_token');
+        
+        const defaultOptions = {
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` }),
+                ...options.headers
+            }
+        };
+        
+        const response = await fetch(url, { ...defaultOptions, ...options });
+        
+        if (response.status === 401) {
+            window.location.href = '/login';
+            throw new Error('Authentication required');
         }
+        
+        return response;
+    }
 
-        // Format time
-        function formatTime(seconds) {
-            if (seconds < 60) return Math.round(seconds) + 's';
-            if (seconds < 3600) return Math.round(seconds / 60) + 'm';
-            return Math.round(seconds / 3600) + 'h';
+    // ========== EXISTING VARIABLES ==========
+    let filesData = {};
+    let isAuthenticated = false;
+
+    // ========== EXISTING UTILITY FUNCTIONS ==========
+    // Format file size
+    function formatSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Format time
+    function formatTime(seconds) {
+        if (seconds < 60) return Math.round(seconds) + 's';
+        if (seconds < 3600) return Math.round(seconds / 60) + 'm';
+        return Math.round(seconds / 3600) + 'h';
+    }
+
+    // Add log entry
+    function addLog(message, type = 'info') {
+        const logContainer = document.getElementById('logContainer');
+        const entry = document.createElement('div');
+        entry.className = `log-entry log-${type}`;
+        entry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+        logContainer.appendChild(entry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    // Show status message
+    function showStatus(message, type = 'info') {
+        const status = document.getElementById('status');
+        status.textContent = message;
+        status.className = `status status-${type}`;
+        status.style.display = 'block';
+        setTimeout(() => {
+            status.style.display = 'none';
+        }, 5000);
+    }
+
+    // ========== UPDATED API CALLS ==========
+    // Get cleanup status from API
+    async function getCleanupStatus() {
+        try {
+            const response = await makeAuthenticatedRequest('/cleanup-status');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            addLog(`Error fetching cleanup status: ${error.message}`, 'error');
+            return null;
         }
+    }
 
-        // Add log entry
-        function addLog(message, type = 'info') {
-            const logContainer = document.getElementById('logContainer');
-            const entry = document.createElement('div');
-            entry.className = `log-entry log-${type}`;
-            entry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
-            logContainer.appendChild(entry);
+    // Get cron logs from API
+    async function getCronLogs() {
+        try {
+            const response = await makeAuthenticatedRequest('/cleanup-logs');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching cron logs:', error);
+            return null;
+        }
+    }
+
+    // Get backend logs from API
+    async function getBackendLogs() {
+        try {
+            const response = await makeAuthenticatedRequest('/backend-logs');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching backend logs:', error);
+            return null;
+        }
+    }
+
+    // ========== EXISTING UI FUNCTIONS ==========
+    // Toggle logs visibility
+    function toggleLogs() {
+        const logContainer = document.getElementById('logContainer');
+        const logsBtn = document.getElementById('logsBtn');
+
+        if (logContainer.style.display === 'block') {
+            logContainer.style.display = 'none';
+            logsBtn.textContent = '📋 Show Logs';
+        } else {
+            logContainer.style.display = 'block';
+            logsBtn.textContent = '📋 Hide Logs';
             logContainer.scrollTop = logContainer.scrollHeight;
         }
+    }
 
-        // Show status message
-        function showStatus(message, type = 'info') {
-            const status = document.getElementById('status');
-            status.textContent = message;
-            status.className = `status status-${type}`;
-            status.style.display = 'block';
-            setTimeout(() => {
-                status.style.display = 'none';
-            }, 5000);
+    // View detailed cron logs
+    function viewDetailedCronLogs() {
+        window.open('/cleanup-logs-page', '_blank');
+    }
+
+    // Update backend logs UI
+    function updateBackendLogsUI(data) {
+        if (!data) {
+            document.getElementById('backendLogSize').textContent = 'No data';
+            document.getElementById('backendLogUpdated').textContent = 'Unknown';
+            document.getElementById('backendLogEntries').textContent = '0';
+            document.getElementById('backendLogs').innerHTML = '<div class="log-line">No logs available</div>';
+            return;
         }
 
-        // Toggle logs visibility
-        function toggleLogs() {
-            const logContainer = document.getElementById('logContainer');
-            const logsBtn = document.getElementById('logsBtn');
+        document.getElementById('backendLogSize').textContent = data.file_size || '0 KB';
+        document.getElementById('backendLogEntries').textContent = data.total_entries || '0';
 
-            if (logContainer.style.display === 'block') {
-                logContainer.style.display = 'none';
-                logsBtn.textContent = '📋 Show Logs';
-            } else {
-                logContainer.style.display = 'block';
-                logsBtn.textContent = '📋 Hide Logs';
-                logContainer.scrollTop = logContainer.scrollHeight;
+        if (data.last_updated) {
+            const lastUpdated = new Date(data.last_updated * 1000);
+            document.getElementById('backendLogUpdated').textContent = lastUpdated.toLocaleString();
+        } else {
+            document.getElementById('backendLogUpdated').textContent = 'Never';
+        }
+
+        const recentLogs = data.recent_entries || [];
+        const recentLogsHTML = recentLogs.map(log => {
+            let className = 'log-line';
+            if (log.includes('ERROR') || log.includes('❌') || log.includes('💥') || log.toLowerCase().includes('error'))
+                className += ' error';
+            else if (log.includes('SUCCESS') || log.includes('✅') || log.includes('🎯') || log.toLowerCase().includes('success'))
+                className += ' success';
+            else if (log.includes('WARNING') || log.includes('⚠️') || log.toLowerCase().includes('warning'))
+                className += ' warning';
+
+            return `<div class="${className}">${log}</div>`;
+        }).join('');
+
+        document.getElementById('backendLogs').innerHTML = recentLogsHTML || '<div class="log-line">No recent logs</div>';
+    }
+
+    // Refresh backend logs
+    async function refreshBackendLogs() {
+        addLog('Refreshing backend logs...', 'info');
+        const backendData = await getBackendLogs();
+        updateBackendLogsUI(backendData);
+        addLog('Backend logs refreshed', 'success');
+    }
+
+    // Update cron status UI
+    function updateCronUI(data) {
+        if (!data) {
+            document.getElementById('lastCronRun').textContent = 'No data';
+            document.getElementById('nextCronRun').textContent = 'Unknown';
+            document.getElementById('logSize').textContent = '0 KB';
+            document.getElementById('totalRuns').textContent = '0';
+            document.getElementById('recentLogs').innerHTML = '<div class="log-line">No logs available</div>';
+            return;
+        }
+
+        document.getElementById('logSize').textContent = data.file_size || '0 KB';
+        document.getElementById('totalRuns').textContent = data.total_runs || '0';
+
+        // Calculate next run (every 15 minutes)
+        const now = new Date();
+        const currentMinute = now.getMinutes();
+        let minutesToNextRun;
+
+        if (currentMinute < 15) minutesToNextRun = 15 - currentMinute;
+        else if (currentMinute < 30) minutesToNextRun = 30 - currentMinute;
+        else if (currentMinute < 45) minutesToNextRun = 45 - currentMinute;
+        else minutesToNextRun = 60 - currentMinute + 15;
+
+        document.getElementById('nextCronRun').textContent = `${minutesToNextRun} min`;
+
+        if (data.last_updated) {
+            const lastRun = new Date(data.last_updated * 1000);
+            document.getElementById('lastCronRun').textContent = lastRun.toLocaleTimeString();
+        } else {
+            document.getElementById('lastCronRun').textContent = 'Never';
+        }
+
+        const recentLogs = data.recent_entries || [];
+        const reversedLogs = [...recentLogs].reverse();
+
+        const recentLogsHTML = reversedLogs.map(log => {
+            let className = 'log-line';
+            if (log.includes('ERROR') || log.includes('❌') || log.includes('💥')) className += ' error';
+            else if (log.includes('SUCCESS') || log.includes('✅') || log.includes('🎯')) className += ' success';
+            else if (log.includes('WARNING') || log.includes('⚠️')) className += ' warning';
+
+            return `<div class="${className}">${log}</div>`;
+        }).join('');
+
+        document.getElementById('recentLogs').innerHTML = recentLogsHTML || '<div class="log-line">No recent logs</div>';
+    }
+
+    // ========== FILE MANAGEMENT FUNCTIONS ==========
+    // Load files from all directories
+    async function loadFiles() {
+        addLog('Loading files from all directories...', 'info');
+        showStatus('Loading files...', 'loading');
+
+        const btn = document.getElementById('cleanupBtn');
+        btn.disabled = true;
+
+        try {
+            const [statusData, cronData, backendData] = await Promise.all([
+                getCleanupStatus(),
+                getCronLogs(),
+                getBackendLogs()
+            ]);
+
+            if (!statusData) {
+                throw new Error('Could not fetch file data from server');
             }
-        }
 
-        // View detailed cron logs
-        function viewDetailedCronLogs() {
-            window.open('/cleanup-logs-page', '_blank');
-        }
+            if (statusData.error) {
+                throw new Error(statusData.error);
+            }
 
-        // Get cleanup status from API
-        async function getCleanupStatus() {
-            try {
-                const response = await fetch('/cleanup-status', {
-                    credentials: 'include'
-                });
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+            let totalFiles = 0;
+            let oldFiles = 0;
+            let totalSizeBytes = 0;
+            filesData = {};
+
+            for (const [dirName, dirData] of Object.entries(statusData.directories || {})) {
+                filesData[dirName] = [];
+
+                const fileCount = dirData.total_files || 0;
+                const oldFileCount = dirData.old_files || 0;
+
+                totalFiles += fileCount;
+                oldFiles += oldFileCount;
+
+                for (let i = 0; i < fileCount; i++) {
+                    const isOld = i < oldFileCount;
+                    const fileSize = Math.random() * 1024 * 1024 * 5;
+                    const fileAge = isOld ? 900 + Math.random() * 3600 : Math.random() * 900;
+
+                    filesData[dirName].push({
+                        name: `file_${i + 1}${getFileExtension(dirName)}`,
+                        size: fileSize,
+                        age: fileAge,
+                        path: `${dirName}/file_${i + 1}`,
+                        modified: Date.now() / 1000 - fileAge
+                    });
+
+                    totalSizeBytes += fileSize;
                 }
-                return await response.json();
-            } catch (error) {
-                addLog(`Error fetching cleanup status: ${error.message}`, 'error');
-                return null;
-            }
-        }
 
-        // Get cron logs from API
-        async function getCronLogs() {
-            try {
-                const response = await fetch('/cleanup-logs', {
-                    credentials: 'include'
-                });
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return await response.json();
-            } catch (error) {
-                console.error('Error fetching cron logs:', error);
-                return null;
-            }
-        }
-
-        // Get backend logs from API
-        async function getBackendLogs() {
-            try {
-                const response = await fetch('/backend-logs', {
-                    credentials: 'include'
-                });
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return await response.json();
-            } catch (error) {
-                console.error('Error fetching backend logs:', error);
-                return null;
-            }
-        }
-
-        // Update backend logs UI
-        function updateBackendLogsUI(data) {
-            if (!data) {
-                document.getElementById('backendLogSize').textContent = 'No data';
-                document.getElementById('backendLogUpdated').textContent = 'Unknown';
-                document.getElementById('backendLogEntries').textContent = '0';
-                document.getElementById('backendLogs').innerHTML = '<div class="log-line">No logs available</div>';
-                return;
+                addLog(`Found ${fileCount} files in ${dirName} (${oldFileCount} old)`, 'info');
             }
 
-            document.getElementById('backendLogSize').textContent = data.file_size || '0 KB';
-            document.getElementById('backendLogEntries').textContent = data.total_entries || '0';
+            updateStatistics(totalFiles, oldFiles, totalSizeBytes);
+            renderDirectories();
 
-            if (data.last_updated) {
-                const lastUpdated = new Date(data.last_updated * 1000);
-                document.getElementById('backendLogUpdated').textContent = lastUpdated.toLocaleString();
-            } else {
-                document.getElementById('backendLogUpdated').textContent = 'Never';
-            }
-
-            const recentLogs = data.recent_entries || [];
-            const recentLogsHTML = recentLogs.map(log => {
-                let className = 'log-line';
-                if (log.includes('ERROR') || log.includes('❌') || log.includes('💥') || log.toLowerCase().includes('error'))
-                    className += ' error';
-                else if (log.includes('SUCCESS') || log.includes('✅') || log.includes('🎯') || log.toLowerCase().includes('success'))
-                    className += ' success';
-                else if (log.includes('WARNING') || log.includes('⚠️') || log.toLowerCase().includes('warning'))
-                    className += ' warning';
-
-                return `<div class="${className}">${log}</div>`;
-            }).join('');
-
-            document.getElementById('backendLogs').innerHTML = recentLogsHTML || '<div class="log-line">No recent logs</div>';
-        }
-
-        // Refresh backend logs
-        async function refreshBackendLogs() {
-            addLog('Refreshing backend logs...', 'info');
-            const backendData = await getBackendLogs();
+            updateCronUI(cronData);
             updateBackendLogsUI(backendData);
-            addLog('Backend logs refreshed', 'success');
+
+            showStatus(`Loaded ${totalFiles} files across ${Object.keys(statusData.directories || {}).length} directories`, 'success');
+            addLog(`File scan completed: ${totalFiles} files found, ${oldFiles} older than 15 minutes`, 'success');
+
+            document.getElementById('lastUpdated').textContent = `Last updated: ${new Date().toLocaleString()}`;
+
+        } catch (error) {
+            showStatus('Error loading files: ' + error.message, 'error');
+            addLog(`Error: ${error.message}`, 'error');
+            renderEmptyState();
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // Helper function to get file extensions
+    function getFileExtension(dirName) {
+        const extensions = {
+            'uploads': '.pdf',
+            'output': '.pdf',
+            'estimation': '.json',
+            'word': '.docx',
+            'temp_processing': '.tmp'
+        };
+        return extensions[dirName] || '.tmp';
+    }
+
+    // Update statistics
+    function updateStatistics(totalFiles, oldFiles, totalSizeBytes) {
+        document.getElementById('totalFiles').textContent = totalFiles;
+        document.getElementById('oldFiles').textContent = oldFiles;
+        document.getElementById('totalSize').textContent = formatSize(totalSizeBytes);
+        document.getElementById('directoriesCount').textContent = Object.keys(filesData).length;
+    }
+
+    // Render empty state
+    function renderEmptyState() {
+        const container = document.getElementById('directoriesContainer');
+        container.innerHTML = `
+            <div class="empty-state">
+                <div>📁</div>
+                <h3>No File Data Available</h3>
+                <p>Unable to fetch file information from the server.</p>
+            </div>
+        `;
+    }
+
+    // Render directories and files
+    function renderDirectories() {
+        const container = document.getElementById('directoriesContainer');
+
+        if (Object.keys(filesData).length === 0) {
+            renderEmptyState();
+            return;
         }
 
-        // Update cron status UI
-        function updateCronUI(data) {
-            if (!data) {
-                document.getElementById('lastCronRun').textContent = 'No data';
-                document.getElementById('nextCronRun').textContent = 'Unknown';
-                document.getElementById('logSize').textContent = '0 KB';
-                document.getElementById('totalRuns').textContent = '0';
-                document.getElementById('recentLogs').innerHTML = '<div class="log-line">No logs available</div>';
-                return;
-            }
+        container.innerHTML = '';
 
-            document.getElementById('logSize').textContent = data.file_size || '0 KB';
-            document.getElementById('totalRuns').textContent = data.total_runs || '0';
+        Object.entries(filesData).forEach(([dir, files]) => {
+            const oldFilesCount = files.filter(f => f.age > 900).length;
 
-            // Calculate next run (every 15 minutes)
-            const now = new Date();
-            const currentMinute = now.getMinutes();
-            let minutesToNextRun;
-
-            if (currentMinute < 15) minutesToNextRun = 15 - currentMinute;
-            else if (currentMinute < 30) minutesToNextRun = 30 - currentMinute;
-            else if (currentMinute < 45) minutesToNextRun = 45 - currentMinute;
-            else minutesToNextRun = 60 - currentMinute + 15;
-
-            document.getElementById('nextCronRun').textContent = `${minutesToNextRun} min`;
-
-            if (data.last_updated) {
-                const lastRun = new Date(data.last_updated * 1000);
-                document.getElementById('lastCronRun').textContent = lastRun.toLocaleTimeString();
-            } else {
-                document.getElementById('lastCronRun').textContent = 'Never';
-            }
-
-            const recentLogs = data.recent_entries || [];
-            const reversedLogs = [...recentLogs].reverse();
-
-            const recentLogsHTML = reversedLogs.map(log => {
-                let className = 'log-line';
-                if (log.includes('ERROR') || log.includes('❌') || log.includes('💥')) className += ' error';
-                else if (log.includes('SUCCESS') || log.includes('✅') || log.includes('🎯')) className += ' success';
-                else if (log.includes('WARNING') || log.includes('⚠️')) className += ' warning';
-
-                return `<div class="${className}">${log}</div>`;
-            }).join('');
-
-            document.getElementById('recentLogs').innerHTML = recentLogsHTML || '<div class="log-line">No recent logs</div>';
-        }
-
-        // Load files from all directories
-        async function loadFiles() {
-            addLog('Loading files from all directories...', 'info');
-            showStatus('Loading files...', 'loading');
-
-            const btn = document.getElementById('cleanupBtn');
-            btn.disabled = true;
-
-            try {
-                const [statusData, cronData, backendData] = await Promise.all([
-                    getCleanupStatus(),
-                    getCronLogs(),
-                    getBackendLogs()
-                ]);
-
-                if (!statusData) {
-                    throw new Error('Could not fetch file data from server');
-                }
-
-                if (statusData.error) {
-                    throw new Error(statusData.error);
-                }
-
-                let totalFiles = 0;
-                let oldFiles = 0;
-                let totalSizeBytes = 0;
-                filesData = {};
-
-                for (const [dirName, dirData] of Object.entries(statusData.directories || {})) {
-                    filesData[dirName] = [];
-
-                    const fileCount = dirData.total_files || 0;
-                    const oldFileCount = dirData.old_files || 0;
-
-                    totalFiles += fileCount;
-                    oldFiles += oldFileCount;
-
-                    for (let i = 0; i < fileCount; i++) {
-                        const isOld = i < oldFileCount;
-                        const fileSize = Math.random() * 1024 * 1024 * 5;
-                        const fileAge = isOld ? 900 + Math.random() * 3600 : Math.random() * 900;
-
-                        filesData[dirName].push({
-                            name: `file_${i + 1}${getFileExtension(dirName)}`,
-                            size: fileSize,
-                            age: fileAge,
-                            path: `${dirName}/file_${i + 1}`,
-                            modified: Date.now() / 1000 - fileAge
-                        });
-
-                        totalSizeBytes += fileSize;
-                    }
-
-                    addLog(`Found ${fileCount} files in ${dirName} (${oldFileCount} old)`, 'info');
-                }
-
-                updateStatistics(totalFiles, oldFiles, totalSizeBytes);
-                renderDirectories();
-
-                updateCronUI(cronData);
-                updateBackendLogsUI(backendData);
-
-                showStatus(`Loaded ${totalFiles} files across ${Object.keys(statusData.directories || {}).length} directories`, 'success');
-                addLog(`File scan completed: ${totalFiles} files found, ${oldFiles} older than 15 minutes`, 'success');
-
-                document.getElementById('lastUpdated').textContent = `Last updated: ${new Date().toLocaleString()}`;
-
-            } catch (error) {
-                showStatus('Error loading files: ' + error.message, 'error');
-                addLog(`Error: ${error.message}`, 'error');
-                renderEmptyState();
-            } finally {
-                btn.disabled = false;
-            }
-        }
-
-        // Helper function to get file extensions
-        function getFileExtension(dirName) {
-            const extensions = {
-                'uploads': '.pdf',
-                'output': '.pdf',
-                'estimation': '.json',
-                'word': '.docx',
-                'temp_processing': '.tmp'
-            };
-            return extensions[dirName] || '.tmp';
-        }
-
-        // Update statistics
-        function updateStatistics(totalFiles, oldFiles, totalSizeBytes) {
-            document.getElementById('totalFiles').textContent = totalFiles;
-            document.getElementById('oldFiles').textContent = oldFiles;
-            document.getElementById('totalSize').textContent = formatSize(totalSizeBytes);
-            document.getElementById('directoriesCount').textContent = Object.keys(filesData).length;
-        }
-
-        // Render empty state
-        function renderEmptyState() {
-            const container = document.getElementById('directoriesContainer');
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div>📁</div>
-                    <h3>No File Data Available</h3>
-                    <p>Unable to fetch file information from the server.</p>
+            const directoryCard = document.createElement('div');
+            directoryCard.className = 'directory-card';
+            directoryCard.innerHTML = `
+                <div class="directory-header">
+                    <div class="directory-name">📁 ${dir.toUpperCase()}</div>
+                    <div class="file-count">${files.length} files</div>
                 </div>
-            `;
-        }
-
-        // Render directories and files
-        function renderDirectories() {
-            const container = document.getElementById('directoriesContainer');
-
-            if (Object.keys(filesData).length === 0) {
-                renderEmptyState();
-                return;
-            }
-
-            container.innerHTML = '';
-
-            Object.entries(filesData).forEach(([dir, files]) => {
-                const oldFilesCount = files.filter(f => f.age > 900).length;
-
-                const directoryCard = document.createElement('div');
-                directoryCard.className = 'directory-card';
-                directoryCard.innerHTML = `
-                    <div class="directory-header">
-                        <div class="directory-name">📁 ${dir.toUpperCase()}</div>
-                        <div class="file-count">${files.length} files</div>
-                    </div>
-                    <div class="file-list">
-                        ${files.length === 0 ?
-                        '<div style="text-align: center; color: #666; padding: 20px;">No files</div>' :
-                        files.map(file => `
-                                <div class="file-item ${file.age > 900 ? 'old' : ''}">
-                                    <div class="file-info">
-                                        <div class="file-name">${file.name}</div>
-                                        <div class="file-details">
-                                            ${formatSize(file.size)} • 
-                                            Modified: ${new Date(file.modified * 1000).toLocaleString()}
-                                        </div>
-                                    </div>
-                                    <div class="file-age ${file.age > 900 ? 'age-old' : 'age-new'}">
-                                        ${formatTime(file.age)}
+                <div class="file-list">
+                    ${files.length === 0 ?
+                    '<div style="text-align: center; color: #666; padding: 20px;">No files</div>' :
+                    files.map(file => `
+                            <div class="file-item ${file.age > 900 ? 'old' : ''}">
+                                <div class="file-info">
+                                    <div class="file-name">${file.name}</div>
+                                    <div class="file-details">
+                                        ${formatSize(file.size)} • 
+                                        Modified: ${new Date(file.modified * 1000).toLocaleString()}
                                     </div>
                                 </div>
-                            `).join('')
-                    }
-                    </div>
-                    ${oldFilesCount > 0 ?
-                        `<div style="margin-top: 10px; color: #dc3545; font-size: 0.9em;">
-                            ⚠️ ${oldFilesCount} files older than 15 minutes
-                        </div>` : ''
-                    }
-                `;
-
-                container.appendChild(directoryCard);
-            });
-        }
-
-        // Run cleanup
-        async function runCleanup() {
-            const btn = document.getElementById('cleanupBtn');
-            btn.disabled = true;
-            btn.textContent = 'Cleaning...';
-
-            addLog('Starting cleanup process...', 'warning');
-            showStatus('Cleanup in progress...', 'loading');
-
-            try {
-                const response = await fetch('/test-cleanup', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    credentials: 'include'
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    addLog('✅ Cleanup started successfully', 'success');
-                    addLog(`🕒 Cleanup triggered at: ${new Date().toLocaleString()}`, 'info');
-
-                    showStatus('Cleanup completed! Refreshing file list...', 'success');
-
-                    setTimeout(() => {
-                        loadFiles();
-                        addLog('✅ File list refreshed after cleanup', 'success');
-                    }, 2000);
-
-                } else {
-                    throw new Error(data.detail || 'Cleanup failed');
+                                <div class="file-age ${file.age > 900 ? 'age-old' : 'age-new'}">
+                                    ${formatTime(file.age)}
+                                </div>
+                            </div>
+                        `).join('')
                 }
-            } catch (error) {
-                addLog(`❌ Cleanup error: ${error.message}`, 'error');
-                showStatus('Cleanup failed: ' + error.message, 'error');
-            } finally {
-                setTimeout(() => {
-                    btn.disabled = false;
-                    btn.textContent = '🗑️ Run Cleanup Now';
-                }, 3000);
-            }
-        }
+                </div>
+                ${oldFilesCount > 0 ?
+                    `<div style="margin-top: 10px; color: #dc3545; font-size: 0.9em;">
+                        ⚠️ ${oldFilesCount} files older than 15 minutes
+                    </div>` : ''
+                }
+            `;
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function () {
-            addLog('File Cleanup Manager initialized', 'info');
-            loadFiles(); // Load files automatically
+            container.appendChild(directoryCard);
         });
-    </script>
+    }
+
+    // Run cleanup
+    async function runCleanup() {
+        const btn = document.getElementById('cleanupBtn');
+        btn.disabled = true;
+        btn.textContent = 'Cleaning...';
+
+        addLog('Starting cleanup process...', 'warning');
+        showStatus('Cleanup in progress...', 'loading');
+
+        try {
+            const response = await makeAuthenticatedRequest('/test-cleanup', {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                addLog('✅ Cleanup started successfully', 'success');
+                addLog(`🕒 Cleanup triggered at: ${new Date().toLocaleString()}`, 'info');
+
+                showStatus('Cleanup completed! Refreshing file list...', 'success');
+
+                setTimeout(() => {
+                    loadFiles();
+                    addLog('✅ File list refreshed after cleanup', 'success');
+                }, 2000);
+
+            } else {
+                throw new Error(data.detail || 'Cleanup failed');
+            }
+        } catch (error) {
+            addLog(`❌ Cleanup error: ${error.message}`, 'error');
+            showStatus('Cleanup failed: ' + error.message, 'error');
+        } finally {
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.textContent = '🗑️ Run Cleanup Now';
+            }, 3000);
+        }
+    }
+
+    // ========== INITIALIZATION ==========
+    document.addEventListener('DOMContentLoaded', function () {
+        addLog('File Cleanup Manager initialized', 'info');
+        loadFiles(); // Load files automatically
+    });
+</script>
+
+
 </body>
 </html>

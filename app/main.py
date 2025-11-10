@@ -84,17 +84,18 @@ from datetime import datetime
 
 app = FastAPI()
 
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=[
-        "recallmind.online",
-        "www.recallmind.online",
-        "*.ap-south-1.compute.amazonaws.com", 
-        "localhost",
-        "127.0.0.1",
-        "::1"
-    ]
-)
+# app.add_middleware(
+#     TrustedHostMiddleware,
+#     allowed_hosts=[
+#         "recallmind.online",
+#         "www.recallmind.online",
+#         "*.ap-south-1.compute.amazonaws.com", 
+
+#         "localhost",
+#         "127.0.0.1",
+#         "::1"
+#     ]
+# )
 
 app.add_middleware(
     CORSMiddleware,
@@ -104,6 +105,7 @@ app.add_middleware(
         "https://d7ypf0jdu8oou.cloudfront.net",
         "http://localhost:3000",
         "http://localhost:8080",
+
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -182,17 +184,15 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
-# Replace your SessionMiddleware with this:
-# Replace your SessionMiddleware with this:
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=os.getenv("SESSION_SECRET", secrets.token_urlsafe(32)),
-    session_cookie="session",
-    max_age=3600,
-    same_site="none",  # ← CRITICAL: Allows cross-origin on mobile
-    https_only=False,   # ← Set to False for HTTP testing
-    domain="recallmind.online"  # ← Remove the dot for main domain
-)
+# app.add_middleware(
+#     SessionMiddleware,
+#     secret_key=os.getenv("SESSION_SECRET", secrets.token_urlsafe(32)),
+#     session_cookie="session",
+#     max_age=3600,
+#     same_site="none",  # ← CRITICAL: Allows cross-origin on mobile
+#     https_only=False,   # ← Set to False for HTTP testing
+#     domain="recallmind.online"  # ← Remove the dot for main domain
+# )
 ##### ehuggingface
 
 from sentence_transformers import SentenceTransformer
@@ -1471,101 +1471,124 @@ CLEANUP_DASHBOARD_PASSWORD= os.getenv("CLEANUP_DASHBOARD_PASSWORD")
 
 security = HTTPBasic()
 
+active_sessions = {}
 
-# Update the verify_dashboard_access to check session first
-def verify_dashboard_access(request: Request, credentials: Optional[HTTPBasicCredentials] = Depends(security)):
-    """Enhanced auth that checks session first"""
+def create_session_token(username: str) -> str:
+    """Create a secure session token"""
+    token_data = f"{username}{time.time()}{secrets.token_urlsafe(16)}"
+    return hashlib.sha256(token_data.encode()).hexdigest()
+
+def verify_session_token(token: str) -> bool:
+    """Verify if session token is valid"""
+    if token in active_sessions:
+        session_data = active_sessions[token]
+        # Check if session is not expired (1 hour)
+        if time.time() - session_data.get("login_time", 0) < 3600:
+            return True
+        else:
+            # Remove expired session
+            del active_sessions[token]
+    return False
+
+def check_auth(request: Request):
+    """Simple token-based authentication"""
+    # Try multiple ways to get the token
+    token = None
     
-    # First check session - this is the primary method
-    if request.session.get("authenticated"):
-        login_time = request.session.get("login_time")
-        if login_time and time.time() - login_time < 3600:
-            return True  # ✅ Return True for valid session
+    # 1. Check Authorization header
+    auth_header = request.headers.get("authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "")
     
-    # For API calls, return 401 without triggering browser auth
-    path = request.url.path
-    is_api_call = any(path.endswith(endpoint) for endpoint in [
-        '/cleanup-status', 
-        '/cleanup-logs', 
-        '/backend-logs',
-        '/test-cleanup'
-    ]) or '/api/' in path
+    # 2. Check query parameter
+    if not token:
+        token = request.query_params.get("token")
     
-    if is_api_call:
+    # 3. Check cookies as fallback
+    if not token:
+        token = request.cookies.get("session_token")
+    
+    if not token or not verify_session_token(token):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired or not authenticated"
+            status_code=401, 
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"}
         )
-    
-    # For page access (/cleanup), use basic auth
-    if credentials:
-        correct_username = "admin"
-        correct_password = CLEANUP_DASHBOARD_PASSWORD
-        
-        username_correct = secrets.compare_digest(credentials.username, correct_username)
-        password_correct = secrets.compare_digest(credentials.password, correct_password)
-        
-        if username_correct and password_correct:
-            # Set session for future requests
-            request.session["authenticated"] = True
-            request.session["username"] = credentials.username
-            request.session["login_time"] = time.time()
-            return True  # ✅ Return True for successful basic auth
-    
-    # If we reach here, authentication failed
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Authentication required",
-        headers={"WWW-Authenticate": "Basic"}
-    )
+    return True
 
+@app.post("/api/login")
+async def api_login(credentials: dict, response: Response):
+    username = credentials.get("username", "").strip()
+    password = credentials.get("password", "").strip()
+
+    if username == "admin" and password == os.getenv("CLEANUP_DASHBOARD_PASSWORD"):
+        # Create session token
+        session_token = create_session_token(username)
+        active_sessions[session_token] = {
+            "username": username,
+            "login_time": time.time(),
+            "authenticated": True
+        }
+        
+        # Return token in multiple ways for maximum compatibility
+        response_data = {
+            "status": "success", 
+            "token": session_token,
+            "message": "Login successful"
+        }
+        
+        response = JSONResponse(response_data)
+        
+        # Set cookie as backup (with mobile-friendly settings)
+        response.set_cookie(
+            key="session_token",
+            value=session_token,
+            max_age=3600,
+            httponly=False,  # Allow JavaScript access
+            samesite="none",  # Cross-site cookies
+            secure=False,     # Allow HTTP for testing
+            domain=None       # Don't restrict domain
+        )
+        
+        return response
+    else:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
 @app.get("/cleanup", response_class=HTMLResponse)
 async def cleanup_dashboard(request: Request):
-    """Cleanup dashboard with manual cookie checking"""
+    # Check authentication using our new method
+    check_auth(request)
     
-    # Method 1: Check session middleware
-    if request.session.get("authenticated"):
-        login_time = request.session.get("login_time")
-        if login_time and time.time() - login_time < 3600:
-            cleanup_path = os.path.join(static_dir, "cleanup.html")
-            with open(cleanup_path, "r", encoding="utf-8") as f:
-                return HTMLResponse(content=f.read())
-    
-    # Method 2: Check manual cookies (for mobile)
-    session_cookie = request.cookies.get("session")
-    if session_cookie:
-        try:
-            import json
-            session_data = json.loads(session_cookie)
-            if session_data.get("authenticated"):
-                login_time = session_data.get("login_time")
-                if login_time and time.time() - login_time < 3600:
-                    # Also set the session for future requests
-                    request.session.update(session_data)
-                    cleanup_path = os.path.join(static_dir, "cleanup.html")
-                    with open(cleanup_path, "r", encoding="utf-8") as f:
-                        return HTMLResponse(content=f.read())
-        except:
-            pass
-    
-    # If no valid session, redirect to login
-    from starlette.responses import RedirectResponse
-    return RedirectResponse(url="/login")
+    # Serve the cleanup page
+    cleanup_path = os.path.join(static_dir, "cleanup.html")
+    with open(cleanup_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 
+@app.get("/cookie-test")
+async def cookie_test(request: Request, response: Response):
+    """Test if cookies work on mobile"""
+    # Set a test cookie
+    response = JSONResponse({
+        "message": "Cookie test",
+        "cookies_received": request.cookies,
+        "headers": dict(request.headers)
+    })
+    
+    response.set_cookie(
+        key="test_cookie",
+        value="working_" + str(time.time()),
+        max_age=3600,
+        httponly=False,  # Make it accessible to JavaScript
+        samesite="none",
+        secure=False,
 
+    )
+    
+    return response
 @app.get("/cleanup-logs")
 async def get_cleanup_logs(request: Request):
-    if not check_mobile_auth(request):
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    """Get cleanup logs as JSON for the dashboard - session only"""
-    # Check session directly
-    if not request.session.get("authenticated"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired or not authenticated"
-        )
+    check_auth(request)
     
     try:
         log_path = "/home/ubuntu/cron_cleanup.log"
@@ -1785,13 +1808,7 @@ async def get_cleanup_logs_page():
 
 @app.post("/test-cleanup")
 async def test_cleanup(request: Request):
-    """Manual cleanup trigger for testing - session only"""
-    # Check session directly
-    if not request.session.get("authenticated"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired or not authenticated"
-        )
+    check_auth(request)  # ← Use the new auth
     
     try:
         logger.info("🧹 Manual cleanup triggered via /test-cleanup")
@@ -1804,43 +1821,28 @@ async def test_cleanup(request: Request):
     except Exception as e:
         logger.error(f"❌ Manual cleanup failed: {e}")
         raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
-
-def check_mobile_auth(request: Request):
-    """Check authentication for both session and manual cookies"""
-    # Check session middleware
-    if request.session.get("authenticated"):
-        login_time = request.session.get("login_time")
-        if login_time and time.time() - login_time < 3600:
-            return True
-    
-    # Check manual cookies (mobile fallback)
-    session_cookie = request.cookies.get("session")
-    if session_cookie:
+@app.get("/session-debug")
+async def session_debug(request: Request):
+    """Debug endpoint to check cookie status"""
+    cookie = request.cookies.get("session")
+    cookie_data = {}
+    if cookie:
         try:
-            import json
-            session_data = json.loads(session_cookie)
-            if session_data.get("authenticated"):
-                login_time = session_data.get("login_time")
-                if login_time and time.time() - login_time < 3600:
-                    # Sync with session
-                    request.session.update(session_data)
-                    return True
+            cookie_data = json.loads(cookie)
         except:
             pass
     
-    return False
+    return {
+        "cookie_exists": bool(cookie),
+        "cookie_data": cookie_data,
+        "all_cookies": request.cookies,
+        "user_agent": request.headers.get("user-agent"),
+        "is_mobile": "Mobile" in request.headers.get("user-agent", "")
+    }
 
 @app.get("/cleanup-status")
 async def get_cleanup_status(request: Request):
-    if not check_mobile_auth(request):
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    """Get current cleanup status and file statistics - session only"""
-    # Check session directly without triggering basic auth
-    if not request.session.get("authenticated"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired or not authenticated"
-        )
+    check_auth(request)
     
     try:
         current_time = time.time()
@@ -1902,89 +1904,26 @@ async def get_cleanup_status(request: Request):
         logger.error(f"Cleanup status check failed: {e}")
         return {"error": str(e)}
 
-@app.get("/check-auth")
-async def check_auth(request: Request):
-    """Simple endpoint to check authentication - session only"""
-    if request.session.get("authenticated"):
-        login_time = request.session.get("login_time")
-        if login_time and time.time() - login_time < 3600:
-            return {"status": "authenticated", "user": request.session.get("username")}
-    
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Not authenticated"
-    )
-@app.get("/session-debug")
-async def session_debug(request: Request):
-    """Debug endpoint to check session status"""
-    return {
-        "session_exists": "authenticated" in request.session,
-        "session_data": dict(request.session) if request.session else {},
-        "user_agent": request.headers.get("user-agent"),
-        "cookies": request.headers.get("cookie", ""),
-        "is_mobile": "Mobile" in request.headers.get("user-agent", "")
-    }
 
-@app.post("/api/login")
-async def api_login(request: Request, response: Response, credentials: dict):
-    """Login endpoint with manual cookie setting for mobile"""
-    username = credentials.get("username", "").strip()
-    password = credentials.get("password", "").strip()
-    
-    correct_username = "admin"
-    correct_password = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
-    
-    if (secrets.compare_digest(username, correct_username) and 
-        secrets.compare_digest(password, correct_password)):
-        
-        # Set session data
-        request.session["authenticated"] = True
-        request.session["username"] = username
-        request.session["login_time"] = time.time()
-        
-        # MANUAL COOKIE SETTING FOR MOBILE
-        from starlette.responses import JSONResponse
-        import json
-        
-        # Create session data manually
-        session_data = {
-            "authenticated": True,
-            "username": username,
-            "login_time": time.time()
-        }
-        
-        # Manual cookie setting (bypass middleware issues)
-        response = JSONResponse({
-            "status": "success", 
-            "message": "Login successful",
-            "redirect": "/cleanup"
-        })
-        
-        # Set cookie manually for mobile compatibility
-        response.set_cookie(
-            key="session",
-            value=json.dumps(session_data),
-            max_age=3600,
-            httponly=True,
-            samesite="none",  # Critical for mobile
-            secure=False,     # Set to True if using HTTPS
-            domain="recallmind.online"
-        )
-        
-        return response
-        
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
-        )
-# Logout endpoint
+
+
+
+
+
+
 @app.post("/api/logout")
-async def api_logout(request: Request):
-    """Logout endpoint that clears session"""
-    request.session.clear()
-    return {"status": "success", "message": "Logged out"}
-
+async def api_logout(request: Request, response: Response):
+    token = request.cookies.get("session_token") or request.headers.get("authorization", "").replace("Bearer ", "")
+    
+    if token in active_sessions:
+        del active_sessions[token]
+    
+    # Clear cookie
+    response = JSONResponse({"status": "success", "message": "Logged out"})
+    response.delete_cookie("session_token")
+    
+    # Also clear localStorage on client side
+    return response
 
 
 
@@ -2004,13 +1943,8 @@ BACKEND_LOG_PATH = BASE_DIR / "backend.log"
 
 @app.get("/backend-logs")
 async def get_backend_logs(request: Request):
-    """Get backend.log file information and recent entries - session only"""
-    # Check session directly
-    if not request.session.get("authenticated"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired or not authenticated"
-        )
+    """Get backend.log file information and recent entries"""
+    check_auth(request)  # ← USE THE NEW AUTH
     
     try:
         if not BACKEND_LOG_PATH.exists():
@@ -2042,7 +1976,6 @@ async def get_backend_logs(request: Request):
     except Exception as e:
         logger.error(f"Error reading backend logs: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error reading backend logs: {str(e)}")
-
 
 async def async_retrieve_documents(query: str, retriever, max_timeout: float = 6.0):
     """Async wrapper for document retrieval with timeout"""

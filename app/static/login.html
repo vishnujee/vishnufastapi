@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - File Cleanup Manager</title>
     <!-- Security Headers -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <style>
         * {
@@ -141,6 +143,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="login-container">
         <h1>🔐 Login</h1>
@@ -150,14 +153,14 @@
             <!-- CSRF Protection would go here in a production app -->
             <div class="form-group">
                 <label for="username">Username:</label>
-                <input type="text" id="username" name="username" placeholder="Enter username" required 
-                       maxlength="50" pattern="[a-zA-Z0-9_]+" title="Only letters, numbers and underscore allowed">
+                <input type="text" id="username" name="username" placeholder="Enter username" required maxlength="50"
+                    pattern="[a-zA-Z0-9_]+" title="Only letters, numbers and underscore allowed">
             </div>
 
             <div class="form-group">
                 <label for="password">Password:</label>
-                <input type="password" id="password" name="password" placeholder="Enter your password" required 
-                       minlength="1" maxlength="100">
+                <input type="password" id="password" name="password" placeholder="Enter your password" required
+                    minlength="1" maxlength="100">
             </div>
 
             <button type="submit" class="login-btn" id="loginBtn">
@@ -220,51 +223,55 @@
         }
 
         // Simple login using session-based authentication
-        // Enhanced mobile login function
-// Enhanced mobile login with cookie detection
-async function login(username, password) {
-    loginBtn.disabled = true;
-    loginBtn.textContent = 'Logging in...';
 
-    try {
-        const response = await fetch('/api/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ username, password }),
-            credentials: 'include',  // Critical for cookies
-            mode: 'cors'
-        });
+        // Updated login function with better error handling
+        async function login(username, password) {
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Logging in...';
 
-        if (response.ok) {
-            const data = await response.json();
-            showStatus('✅ Login successful! Redirecting...', 'success');
-            
-            // Force redirect with cache busting for mobile
-            setTimeout(() => {
-                // Check if cookies are set
-                if (document.cookie.includes('session')) {
-                    window.location.href = '/cleanup';
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password }),
+                    credentials: 'include' // Important for cookies
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('✅ Login successful! Redirecting...', 'success');
+
+                    // Store token in localStorage as backup
+                    if (data.token) {
+                        localStorage.setItem('auth_token', data.token);
+                    }
+
+                    // Redirect with token in URL as additional backup
+                    const redirectUrl = data.token ?
+                        `/cleanup?token=${encodeURIComponent(data.token)}` :
+                        '/cleanup';
+
+                    setTimeout(() => {
+                        window.location.href = redirectUrl;
+                    }, 1000);
+
                 } else {
-                    // Fallback: redirect with force refresh
-                    window.location.href = '/cleanup?mobile=' + Date.now();
+                    showStatus('❌ ' + (data.detail || 'Invalid credentials'), 'error');
                 }
-            }, 1500);
-            
-        } else {
-            const errorData = await response.json();
-            showStatus('❌ ' + (errorData.detail || 'Invalid credentials'), 'error');
+
+            } catch (error) {
+                showStatus('❌ Login failed. Please try again.', 'error');
+                console.error('Login error:', error);
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = '🚀 Login';
+            }
         }
-        
-    } catch (error) {
-        showStatus('❌ Login failed. Please try again.', 'error');
-        console.error('Login error:', error);
-    } finally {
-        loginBtn.disabled = false;
-        loginBtn.textContent = '🚀 Login';
-    }
-}
+
+
         loginForm.addEventListener('submit', function (e) {
             e.preventDefault();
 
@@ -288,4 +295,5 @@ async function login(username, password) {
         }
     </script>
 </body>
+
 </html>
