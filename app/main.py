@@ -183,14 +183,15 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 # Replace your SessionMiddleware with this:
+# Replace your SessionMiddleware with this:
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET", secrets.token_urlsafe(32)),
     session_cookie="session",
-    max_age=3600,  # 1 hour
-    same_site="none" if os.getenv("ENVIRONMENT") == "production" else "lax",  # ← CRITICAL FIX
-    https_only=False,  # Set to True if using HTTPS
-    domain=".recallmind.online"  # ← ADD THIS for cross-subdomain cookies
+    max_age=3600,
+    same_site="none",  # ← CRITICAL: Allows cross-origin on mobile
+    https_only=False,   # ← Set to False for HTTP testing
+    domain="recallmind.online"  # ← Remove the dot for main domain
 )
 ##### ehuggingface
 
@@ -1517,23 +1518,47 @@ def verify_dashboard_access(request: Request, credentials: Optional[HTTPBasicCre
         detail="Authentication required",
         headers={"WWW-Authenticate": "Basic"}
     )
+
+
 @app.get("/cleanup", response_class=HTMLResponse)
 async def cleanup_dashboard(request: Request):
-    """Cleanup dashboard - session only"""
-    # Check if user has valid session
+    """Cleanup dashboard with manual cookie checking"""
+    
+    # Method 1: Check session middleware
     if request.session.get("authenticated"):
         login_time = request.session.get("login_time")
         if login_time and time.time() - login_time < 3600:
-            # User has valid session, serve the page
             cleanup_path = os.path.join(static_dir, "cleanup.html")
             with open(cleanup_path, "r", encoding="utf-8") as f:
                 return HTMLResponse(content=f.read())
     
-    # If no valid session, redirect to login page
+    # Method 2: Check manual cookies (for mobile)
+    session_cookie = request.cookies.get("session")
+    if session_cookie:
+        try:
+            import json
+            session_data = json.loads(session_cookie)
+            if session_data.get("authenticated"):
+                login_time = session_data.get("login_time")
+                if login_time and time.time() - login_time < 3600:
+                    # Also set the session for future requests
+                    request.session.update(session_data)
+                    cleanup_path = os.path.join(static_dir, "cleanup.html")
+                    with open(cleanup_path, "r", encoding="utf-8") as f:
+                        return HTMLResponse(content=f.read())
+        except:
+            pass
+    
+    # If no valid session, redirect to login
+    from starlette.responses import RedirectResponse
     return RedirectResponse(url="/login")
+
+
 
 @app.get("/cleanup-logs")
 async def get_cleanup_logs(request: Request):
+    if not check_mobile_auth(request):
+        raise HTTPException(status_code=401, detail="Not authenticated")
     """Get cleanup logs as JSON for the dashboard - session only"""
     # Check session directly
     if not request.session.get("authenticated"):
@@ -1780,8 +1805,35 @@ async def test_cleanup(request: Request):
         logger.error(f"❌ Manual cleanup failed: {e}")
         raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
 
+def check_mobile_auth(request: Request):
+    """Check authentication for both session and manual cookies"""
+    # Check session middleware
+    if request.session.get("authenticated"):
+        login_time = request.session.get("login_time")
+        if login_time and time.time() - login_time < 3600:
+            return True
+    
+    # Check manual cookies (mobile fallback)
+    session_cookie = request.cookies.get("session")
+    if session_cookie:
+        try:
+            import json
+            session_data = json.loads(session_cookie)
+            if session_data.get("authenticated"):
+                login_time = session_data.get("login_time")
+                if login_time and time.time() - login_time < 3600:
+                    # Sync with session
+                    request.session.update(session_data)
+                    return True
+        except:
+            pass
+    
+    return False
+
 @app.get("/cleanup-status")
 async def get_cleanup_status(request: Request):
+    if not check_mobile_auth(request):
+        raise HTTPException(status_code=401, detail="Not authenticated")
     """Get current cleanup status and file statistics - session only"""
     # Check session directly without triggering basic auth
     if not request.session.get("authenticated"):
@@ -1875,7 +1927,7 @@ async def session_debug(request: Request):
 
 @app.post("/api/login")
 async def api_login(request: Request, response: Response, credentials: dict):
-    """Login endpoint with mobile compatibility"""
+    """Login endpoint with manual cookie setting for mobile"""
     username = credentials.get("username", "").strip()
     password = credentials.get("password", "").strip()
     
@@ -1889,21 +1941,43 @@ async def api_login(request: Request, response: Response, credentials: dict):
         request.session["authenticated"] = True
         request.session["username"] = username
         request.session["login_time"] = time.time()
-        request.session["user_agent"] = request.headers.get("user-agent", "")
         
-        # Mobile-specific response
-        return {
+        # MANUAL COOKIE SETTING FOR MOBILE
+        from starlette.responses import JSONResponse
+        import json
+        
+        # Create session data manually
+        session_data = {
+            "authenticated": True,
+            "username": username,
+            "login_time": time.time()
+        }
+        
+        # Manual cookie setting (bypass middleware issues)
+        response = JSONResponse({
             "status": "success", 
             "message": "Login successful",
-            "redirect": "/cleanup",
-            "mobile_compatible": True
-        }
+            "redirect": "/cleanup"
+        })
+        
+        # Set cookie manually for mobile compatibility
+        response.set_cookie(
+            key="session",
+            value=json.dumps(session_data),
+            max_age=3600,
+            httponly=True,
+            samesite="none",  # Critical for mobile
+            secure=False,     # Set to True if using HTTPS
+            domain="recallmind.online"
+        )
+        
+        return response
+        
     else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
         )
-
 # Logout endpoint
 @app.post("/api/logout")
 async def api_logout(request: Request):

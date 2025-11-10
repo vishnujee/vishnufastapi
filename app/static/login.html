@@ -221,6 +221,7 @@
 
         // Simple login using session-based authentication
         // Enhanced mobile login function
+// Enhanced mobile login with cookie detection
 async function login(username, password) {
     loginBtn.disabled = true;
     loginBtn.textContent = 'Logging in...';
@@ -232,19 +233,24 @@ async function login(username, password) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ username, password }),
-            credentials: 'include',  // Important for cookies
-            mode: 'cors'  // Explicit CORS mode
+            credentials: 'include',  // Critical for cookies
+            mode: 'cors'
         });
 
         if (response.ok) {
             const data = await response.json();
             showStatus('✅ Login successful! Redirecting...', 'success');
             
-            // Mobile-specific redirect with delay
+            // Force redirect with cache busting for mobile
             setTimeout(() => {
-                // Force hard redirect for mobile
-                window.location.href = '/cleanup?t=' + Date.now();
-            }, 1000);
+                // Check if cookies are set
+                if (document.cookie.includes('session')) {
+                    window.location.href = '/cleanup';
+                } else {
+                    // Fallback: redirect with force refresh
+                    window.location.href = '/cleanup?mobile=' + Date.now();
+                }
+            }, 1500);
             
         } else {
             const errorData = await response.json();
