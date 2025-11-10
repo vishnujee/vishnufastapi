@@ -85,18 +85,22 @@ app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=[
         "recallmind.online",
-        "www.recallmind.online",
+        "www.recallmind.online", 
         "*.ap-south-1.compute.amazonaws.com",
-        "localhost"
+        "localhost",
+        "127.0.0.1",
+        "::1"  # IPv6 localhost
     ]
 )
+# Make sure your CORS middleware looks like this:
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, specify your domains
     allow_credentials=True,
-    allow_methods=["*"], 
-    allow_headers=["*"],
-    expose_headers=["*"]
+    allow_methods=["*"],
+    allow_headers=["*", "Authorization", "X-Auth-Retry", "Cache-Control"],
+    expose_headers=["*", "X-Auth-Error"],
+    max_age=600,
 )
 
 # GZIP Compression - CRITICAL for Jio
@@ -1408,6 +1412,129 @@ async def serve_index():
         return HTMLResponse(content=f.read())
 
 
+#######################################   login
+
+# Add these endpoints to your existing main.py file
+
+@app.get("/auth-test")
+async def auth_test_endpoint(auth: bool = Depends(verify_dashboard_access)):
+    """Simple endpoint to test authentication - for mobile debugging"""
+    return {
+        "status": "authenticated", 
+        "message": "Auth successful",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+@app.get("/mobile-auth-help")
+async def mobile_auth_help():
+    """Mobile-friendly auth instructions page"""
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Mobile Login Help</title>
+        <style>
+            body { 
+                font-family: Arial, sans-serif; 
+                padding: 20px; 
+                max-width: 500px; 
+                margin: 0 auto;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+            }
+            .container {
+                background: white;
+                padding: 25px;
+                border-radius: 15px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            }
+            .step { 
+                background: #f8f9fa; 
+                padding: 15px; 
+                margin: 10px 0; 
+                border-radius: 8px; 
+            }
+            code { 
+                background: #e9ecef; 
+                padding: 2px 6px; 
+                border-radius: 4px; 
+                font-family: monospace;
+            }
+            .btn {
+                padding: 12px 24px;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                cursor: pointer;
+                margin: 5px;
+            }
+            .btn-primary {
+                background: #007bff;
+                color: white;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>📱 Mobile Login Help</h2>
+            
+            <div class="step">
+                <h3>1. Wait for Login Popup</h3>
+                <p>Your browser should show a native login dialog automatically.</p>
+            </div>
+            
+            <div class="step">
+                <h3>2. If No Popup Appears</h3>
+                <p>Try these steps:</p>
+                <ul>
+                    <li><strong>Refresh the page</strong> - this often triggers the login prompt</li>
+                    <li>Close and reopen your browser</li>
+                    <li>Try in incognito/private mode</li>
+                    <li>Clear browser cache and cookies</li>
+                </ul>
+            </div>
+            
+            <div class="step">
+                <h3>3. Login Credentials</h3>
+                <p>Username: <code>admin</code></p>
+                <p>Password: <em>Your dashboard password</em></p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="window.location.href='/cleanup'">
+                    🔄 Try Cleanup Page Again
+                </button>
+                <button class="btn" onclick="window.location.href='/'" 
+                        style="background: #6c757d; color: white;">
+                    🏠 Back to Homepage
+                </button>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
+
+@app.get("/mobile-debug")
+async def mobile_debug_info(request: Request):
+    """Debug endpoint to see mobile request details"""
+    user_agent = request.headers.get("user-agent", "Unknown")
+    client_ip = request.client.host
+    auth_header = request.headers.get("authorization")
+    
+    is_mobile = any(device in user_agent.lower() for device in 
+                   ['mobile', 'android', 'iphone', 'ipad', 'ipod'])
+    
+    return {
+        "is_mobile": is_mobile,
+        "user_agent": user_agent,
+        "client_ip": client_ip,
+        "auth_header_present": auth_header is not None,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
 
 # Load from .env
 DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
@@ -1416,26 +1543,88 @@ if not DASHBOARD_PASSWORD:
 
 security = HTTPBasic()
 
+
 def verify_dashboard_access(credentials: HTTPBasicCredentials = Depends(security)):
     correct_username = "admin"
     correct_password = DASHBOARD_PASSWORD
     
-    if not (
-        secrets.compare_digest(credentials.username, correct_username) and
-        secrets.compare_digest(credentials.password, correct_password)
-    ):
+    # Enhanced mobile-friendly authentication
+    if not credentials:
         raise HTTPException(
-            status_code=401,
-            detail="Incorrect credentials",
-            headers={"WWW-Authenticate": "Basic"},
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={
+                "WWW-Authenticate": "Basic realm=\"Cleanup Dashboard\"",
+                "X-Auth-Error": "no-credentials"
+            },
         )
+    
+    # Use constant-time comparison
+    username_correct = secrets.compare_digest(credentials.username, correct_username)
+    password_correct = secrets.compare_digest(credentials.password, correct_password)
+    
+    if not (username_correct and password_correct):
+        # Provide better error information for mobile debugging
+        error_detail = "Invalid credentials"
+        if not username_correct:
+            error_detail = "Invalid username"
+        elif not password_correct:
+            error_detail = "Invalid password"
+            
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=error_detail,
+            headers={
+                "WWW-Authenticate": "Basic realm=\"Cleanup Dashboard\"",
+                "X-Auth-Error": "invalid-credentials"
+            },
+        )
+    
     return True
 
+
+
 @app.get("/cleanup", response_class=HTMLResponse)
-async def cleanup_dashboard(auth: bool = Depends(verify_dashboard_access)):
+async def cleanup_dashboard(request: Request, auth: bool = Depends(verify_dashboard_access)):
+    """Enhanced cleanup dashboard with mobile support"""
+    
+    # Log mobile access for debugging
+    user_agent = request.headers.get("user-agent", "")
+    client_ip = request.client.host
+    is_mobile = any(device in user_agent.lower() for device in 
+                   ['mobile', 'android', 'iphone', 'ipad'])
+    
+    if is_mobile:
+        logger.info(f"📱 Mobile access to cleanup - IP: {client_ip}")
+    else:
+        logger.info(f"🖥️ Desktop access to cleanup - IP: {client_ip}")
+    
     cleanup_path = os.path.join(static_dir, "cleanup.html")
     with open(cleanup_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+        content = f.read()
+    
+    # Add mobile detection script to the HTML
+    mobile_script = """
+    <script>
+        // Enhanced mobile detection
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+        
+        // Log mobile status for debugging
+        if (isMobileDevice()) {
+            console.log('📱 Mobile device detected - user agent:', navigator.userAgent);
+            // Send mobile detection to backend for logging
+            fetch('/mobile-debug', { credentials: 'include' })
+                .then(r => r.json())
+                .then(data => console.log('Mobile debug info:', data))
+                .catch(e => console.log('Mobile debug failed:', e));
+        }
+    </script>
+    """
+    
+    content = content.replace('</body>', mobile_script + '</body>')
+    return HTMLResponse(content=content)
 
 
 @app.get("/cleanup-logs")
