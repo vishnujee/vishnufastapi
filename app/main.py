@@ -1432,7 +1432,50 @@ async def serve_index():
 
 #######################################   login
 
-# Add these endpoints to your existing main.py file
+DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
+if not DASHBOARD_PASSWORD:
+    raise RuntimeError("CLEANUP_DASHBOARD_PASSWORD is required in .env")
+
+security = HTTPBasic()
+
+
+def verify_dashboard_access(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = "admin"
+    correct_password = DASHBOARD_PASSWORD
+    
+    # Enhanced mobile-friendly authentication
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={
+                "WWW-Authenticate": "Basic realm=\"Cleanup Dashboard\"",
+                "X-Auth-Error": "no-credentials"
+            },
+        )
+    
+    # Use constant-time comparison
+    username_correct = secrets.compare_digest(credentials.username, correct_username)
+    password_correct = secrets.compare_digest(credentials.password, correct_password)
+    
+    if not (username_correct and password_correct):
+        # Provide better error information for mobile debugging
+        error_detail = "Invalid credentials"
+        if not username_correct:
+            error_detail = "Invalid username"
+        elif not password_correct:
+            error_detail = "Invalid password"
+            
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=error_detail,
+            headers={
+                "WWW-Authenticate": "Basic realm=\"Cleanup Dashboard\"",
+                "X-Auth-Error": "invalid-credentials"
+            },
+        )
+    
+    return True
 
 @app.get("/auth-test")
 async def auth_test_endpoint(auth: bool = Depends(verify_dashboard_access)):
@@ -1555,50 +1598,7 @@ async def mobile_debug_info(request: Request):
 
 
 # Load from .env
-DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
-if not DASHBOARD_PASSWORD:
-    raise RuntimeError("CLEANUP_DASHBOARD_PASSWORD is required in .env")
 
-security = HTTPBasic()
-
-
-def verify_dashboard_access(credentials: HTTPBasicCredentials = Depends(security)):
-    correct_username = "admin"
-    correct_password = DASHBOARD_PASSWORD
-    
-    # Enhanced mobile-friendly authentication
-    if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-            headers={
-                "WWW-Authenticate": "Basic realm=\"Cleanup Dashboard\"",
-                "X-Auth-Error": "no-credentials"
-            },
-        )
-    
-    # Use constant-time comparison
-    username_correct = secrets.compare_digest(credentials.username, correct_username)
-    password_correct = secrets.compare_digest(credentials.password, correct_password)
-    
-    if not (username_correct and password_correct):
-        # Provide better error information for mobile debugging
-        error_detail = "Invalid credentials"
-        if not username_correct:
-            error_detail = "Invalid username"
-        elif not password_correct:
-            error_detail = "Invalid password"
-            
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=error_detail,
-            headers={
-                "WWW-Authenticate": "Basic realm=\"Cleanup Dashboard\"",
-                "X-Auth-Error": "invalid-credentials"
-            },
-        )
-    
-    return True
 
 
 
