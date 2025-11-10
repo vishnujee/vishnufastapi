@@ -450,12 +450,15 @@
                 <button class="btn btn-success" onclick="toggleLogs()" id="logsBtn">
                     📋 Show Logs
                 </button>
-                <button class="btn btn-info" onclick="viewCronLogs()">
+                <!-- <button class="btn btn-info" onclick="viewCronLogs()">
                     🕒 Cron Logs
-                </button>
+                </button> -->
+            </div>
+            <div class="log-container" id="logContainer" style="text-align: left;">
+                <div class="log-entry log-info" style="text-align: left;">Logs will appear here...</div>
             </div>
 
-            <div class="status" id="status"></div>
+            <div class="status" id="status" ></div>
         </div>
 
         <div class="last-updated" id="lastUpdated">
@@ -464,12 +467,12 @@
 
         <!-- Cron Status Section -->
         <div class="cron-status">
-          <div class="cron-header">
-    <h3 onclick="viewCompleteBackendLog()" style="cursor: pointer; color: #007bff; user-select: none;">🔧 Backend Logs</h3>
-    <button class="btn btn-info" onclick="refreshBackendLogs()">
-        🔄 Refresh
-    </button>
-</div>
+            <div class="cron-header">
+                <h3>🕒 Cron Job Status</h3>
+                <button class="btn btn-info" onclick="viewDetailedCronLogs()">
+                    📋 View Cron Logs
+                </button>
+            </div>
 
             <div class="cron-stats">
                 <div class="cron-stat">
@@ -505,10 +508,10 @@
             </div>
 
             <div class="cron-stats">
-           <div class="cron-stat">
-    <div class="cron-label">Log File</div>
-    <div class="cron-value">backend.log</div>
-</div>
+                <div class="cron-stat">
+                    <div class="cron-label">Log File</div>
+                    <div class="cron-value">backend.log</div>
+                </div>
                 <div class="cron-stat">
                     <div class="cron-label">Log Size</div>
                     <div class="cron-value" id="backendLogSize">Loading...</div>
@@ -532,9 +535,7 @@
             <!-- Directories will be populated by JavaScript -->
         </div>
 
-        <div class="log-container" id="logContainer">
-            <div class="log-entry log-info">Logs will appear here...</div>
-        </div>
+
     </div>
 
     <script>
