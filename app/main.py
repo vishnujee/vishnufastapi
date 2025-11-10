@@ -1982,7 +1982,14 @@ async def get_cleanup_status():
 
 
 ################### backend log
-
+@app.get("/debug-headers")
+async def debug_headers(request: Request):
+    return {
+        "authorization_header": "PRESENT" if request.headers.get("authorization") else "MISSING",
+        "client_ip": request.client.host,
+        "is_cloudfront": "130.176" in str(request.client.host),
+        "user_agent": request.headers.get("user-agent")
+    }
 @app.get("/backend-log-full")
 async def get_backend_log_full():
     """Get complete backend.log file with latest entries on top"""

@@ -1,0 +1,198 @@
+#  MODIIEDS FIRST SERVER BLOCK -FOR  Add file upload limits here
+server {
+    listen 80;
+    server_name ec2-13-200-162-52.ap-south-1.compute.amazonaws.com;
+    
+    # E FILE UPLOAD SETTINGS FOR CLOUDFRONT
+    client_max_body_size 100M;
+    client_body_buffer_size 128k;
+    client_body_timeout 300s;
+    client_header_timeout 60s;
+
+    # Proxy Settings
+    proxy_read_timeout 300s;
+    proxy_connect_timeout 75s;
+    proxy_send_timeout 300s;
+    proxy_buffer_size 128k;
+    proxy_buffers 4 256k;
+    proxy_busy_buffers_size 256k;
+    proxy_request_buffering off;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       # proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        
+        # WebSocket support
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+#D (it's just for redirects)
+server {
+    listen 80;
+    server_name recallmind.online www.recallmind.online;
+    return 301 https://$host$request_uri;
+}
+
+#D (it already has file limits)
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name recallmind.online www.recallmind.online;
+
+    # SSL Configuration
+    ssl_certificate /etc/letsencrypt/live/recallmind.online/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/recallmind.online/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # File Upload Settings
+    client_max_body_size 100M;
+    client_body_buffer_size 128k;
+    client_body_timeout 300s;
+    client_header_timeout 60s;
+
+    # Proxy Settings
+    proxy_read_timeout 300s;
+    proxy_connect_timeout 75s;
+    proxy_send_timeout 300s;
+    proxy_buffer_size 128k;
+    proxy_buffers 4 256k;
+    proxy_busy_buffers_size 256k;
+    proxy_request_buffering off;
+
+    # Static files configuration
+    location /static/ {
+        alias /home/ubuntu/vishnufastapi/app/static/;
+        expires 24h;
+        access_log off;
+        add_header Cache-Control "public";
+        add_header Vary "User-Agent";
+    }
+
+    # Proxy to FastAPI
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        #proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        
+        # WebSocket support
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+
+
+// //  NEW
+
+
+# MODIFIED FIRST SERVER BLOCK
+server {
+    listen 80;
+    server_name ec2-13-200-162-52.ap-south-1.compute.amazonaws.com;
+    
+    # FILE UPLOAD SETTINGS FOR CLOUDFRONT
+    client_max_body_size 100M;
+    client_body_buffer_size 128k;
+    client_body_timeout 300s;
+    client_header_timeout 60s;
+
+    # Proxy Settings
+    proxy_read_timeout 300s;
+    proxy_connect_timeout 75s;
+    proxy_send_timeout 300s;
+    proxy_buffer_size 128k;
+    proxy_buffers 4 256k;
+    proxy_busy_buffers_size 256k;
+    proxy_request_buffering off;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        
+        # ADDED: Forward Authorization header for Basic Auth
+        proxy_set_header Authorization $http_authorization;
+        proxy_pass_request_headers on;
+        
+        # WebSocket support
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+# MODIFIED SECOND SERVER BLOCK
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name recallmind.online www.recallmind.online;
+
+    # SSL Configuration
+    ssl_certificate /etc/letsencrypt/live/recallmind.online/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/recallmind.online/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # File Upload Settings
+    client_max_body_size 100M;
+    client_body_buffer_size 128k;
+    client_body_timeout 300s;
+    client_header_timeout 60s;
+
+    # Proxy Settings
+    proxy_read_timeout 300s;
+    proxy_connect_timeout 75s;
+    proxy_send_timeout 300s;
+    proxy_buffer_size 128k;
+    proxy_buffers 4 256k;
+    proxy_busy_buffers_size 256k;
+    proxy_request_buffering off;
+
+    # Static files configuration
+    location /static/ {
+        alias /home/ubuntu/vishnufastapi/app/static/;
+        expires 24h;
+        access_log off;
+        add_header Cache-Control "public";
+        add_header Vary "User-Agent";
+    }
+
+    # Proxy to FastAPI
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        
+        # ADDED: Forward Authorization header for Basic Auth
+        proxy_set_header Authorization $http_authorization;
+        proxy_pass_request_headers on;
+        
+        # WebSocket support
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+# KEEP THE REDIRECT SERVER BLOCK AS IS
+server {
+    listen 80;
+    server_name recallmind.online www.recallmind.online;
+    return 301 https://$host$request_uri;
+}
