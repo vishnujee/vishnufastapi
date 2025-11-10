@@ -1992,8 +1992,8 @@ BACKEND_LOG_PATH = BASE_DIR / "backend.log"
 
 @app.get("/backend-logs")
 async def get_backend_logs(request: Request):
-    """Get backend.log file information and recent entries"""
-    check_auth(request)  # ← USE THE NEW AUTH
+    """Get complete backend.log file content"""
+    check_auth(request)
     
     try:
         if not BACKEND_LOG_PATH.exists():
@@ -2001,7 +2001,8 @@ async def get_backend_logs(request: Request):
                 "file_size": "0 KB",
                 "last_updated": None,
                 "total_entries": 0,
-                "recent_entries": ["No backend.log file found"]
+                "recent_entries": ["No backend.log file found"],
+                "logs": "No backend.log file found"
             }
         
         stat = BACKEND_LOG_PATH.stat()
@@ -2010,16 +2011,18 @@ async def get_backend_logs(request: Request):
         with open(BACKEND_LOG_PATH, 'r', encoding='utf-8') as f:
             lines = f.readlines()
         
-        # Get last 50 lines and reverse to show latest first
-        recent_lines = lines[-50:] if len(lines) > 50 else lines
-        recent_lines = [line.strip() for line in recent_lines if line.strip()]
-        recent_lines.reverse()  # Latest entries on top
+        # Get all lines for complete log view
+        all_lines = [line.strip() for line in lines if line.strip()]
+        
+        # Get recent lines for dashboard view (last 20)
+        recent_lines = all_lines[-20:] if len(all_lines) > 20 else all_lines
         
         return {
             "file_size": f"{file_size_kb:.1f} KB",
             "last_updated": stat.st_mtime,
-            "total_entries": len(lines),
-            "recent_entries": recent_lines[-20:]  # Show last 20 entries
+            "total_entries": len(all_lines),
+            "recent_entries": recent_lines,
+            "logs": "\n".join(all_lines)  # Complete log content for modal
         }
         
     except Exception as e:
