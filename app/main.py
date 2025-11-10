@@ -1,4 +1,4 @@
-from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form,Body,BackgroundTasks,Depends,status
+from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form,Body,BackgroundTasks,Depends,status,Response
 from fastapi.responses import HTMLResponse, StreamingResponse,JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,6 +25,8 @@ import asyncio
 # Initialize colorama
 
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from starlette.middleware.sessions import SessionMiddleware
+
 import secrets
 from botocore.exceptions import ClientError
 import pathlib
@@ -1432,222 +1434,114 @@ async def serve_index():
 
 #######################################   login
 
-DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
-if not DASHBOARD_PASSWORD:
-    raise RuntimeError("CLEANUP_DASHBOARD_PASSWORD is required in .env")
+CLEANUP_DASHBOARD_PASSWORD= os.getenv("CLEANUP_DASHBOARD_PASSWORD")
+# if not CLEANUP_DASHBOARD_PASSWORD:
+#     raise RuntimeError("CLEANUP_DASHBOARD_PASSWORD is required in .env")
 
 security = HTTPBasic()
 
-
-def verify_dashboard_access(credentials: HTTPBasicCredentials = Depends(security)):
-    correct_username = "admin"
-    correct_password = DASHBOARD_PASSWORD
+app.add_middleware(SessionMiddleware, secret_key=secrets.token_urlsafe(32))
+# Update the verify_dashboard_access to check session first
+def verify_dashboard_access(request: Request, credentials: Optional[HTTPBasicCredentials] = Depends(security)):
+    """Enhanced auth that checks session first, NEVER falls back to basic auth for API calls"""
     
-    # Enhanced mobile-friendly authentication
-    if not credentials:
+    # First check session - this is the primary method
+    if request.session.get("authenticated"):
+        login_time = request.session.get("login_time")
+        if login_time and time.time() - login_time < 3600:  # 1 hour session
+            return True
+    
+    # For API endpoints, don't trigger browser auth - just return 401
+    # Check if this is an API call by looking at the path or headers
+    path = request.url.path
+    is_api_call = any(path.endswith(endpoint) for endpoint in [
+        '/cleanup-status', 
+        '/cleanup-logs', 
+        '/backend-logs',
+        '/test-cleanup'
+    ]) or '/api/' in path
+    
+    if is_api_call:
+        # For API calls, return 401 without WWW-Authenticate header
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-            headers={
-                "WWW-Authenticate": "Basic realm=\"Cleanup Dashboard\"",
-                "X-Auth-Error": "no-credentials"
-            },
+            detail="Session expired or not authenticated"
         )
     
-    # Use constant-time comparison
-    username_correct = secrets.compare_digest(credentials.username, correct_username)
-    password_correct = secrets.compare_digest(credentials.password, correct_password)
+    # Only for direct browser access to /cleanup page, use basic auth as fallback
+    if credentials:
+        correct_username = "admin"
+        correct_password = CLEANUP_DASHBOARD_PASSWORD
+        
+        username_correct = secrets.compare_digest(credentials.username, correct_username)
+        password_correct = secrets.compare_digest(credentials.password, correct_password)
+        
+        if username_correct and password_correct:
+            # Set session for future requests
+            request.session["authenticated"] = True
+            request.session["username"] = credentials.username
+            request.session["login_time"] = time.time()
+            return True
     
-    if not (username_correct and password_correct):
-        # Provide better error information for mobile debugging
-        error_detail = "Invalid credentials"
-        if not username_correct:
-            error_detail = "Invalid username"
-        elif not password_correct:
-            error_detail = "Invalid password"
-            
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=error_detail,
-            headers={
-                "WWW-Authenticate": "Basic realm=\"Cleanup Dashboard\"",
-                "X-Auth-Error": "invalid-credentials"
-            },
-        )
-    
-    return True
-
-@app.get("/auth-test")
-async def auth_test_endpoint(auth: bool = Depends(verify_dashboard_access)):
-    """Simple endpoint to test authentication - for mobile debugging"""
-    return {
-        "status": "authenticated", 
-        "message": "Auth successful",
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-@app.get("/mobile-auth-help")
-async def mobile_auth_help():
-    """Mobile-friendly auth instructions page"""
-    html_content = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Mobile Login Help</title>
-        <style>
-            body { 
-                font-family: Arial, sans-serif; 
-                padding: 20px; 
-                max-width: 500px; 
-                margin: 0 auto;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
-            }
-            .container {
-                background: white;
-                padding: 25px;
-                border-radius: 15px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            }
-            .step { 
-                background: #f8f9fa; 
-                padding: 15px; 
-                margin: 10px 0; 
-                border-radius: 8px; 
-            }
-            code { 
-                background: #e9ecef; 
-                padding: 2px 6px; 
-                border-radius: 4px; 
-                font-family: monospace;
-            }
-            .btn {
-                padding: 12px 24px;
-                border: none;
-                border-radius: 8px;
-                font-size: 16px;
-                cursor: pointer;
-                margin: 5px;
-            }
-            .btn-primary {
-                background: #007bff;
-                color: white;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h2>📱 Mobile Login Help</h2>
-            
-            <div class="step">
-                <h3>1. Wait for Login Popup</h3>
-                <p>Your browser should show a native login dialog automatically.</p>
-            </div>
-            
-            <div class="step">
-                <h3>2. If No Popup Appears</h3>
-                <p>Try these steps:</p>
-                <ul>
-                    <li><strong>Refresh the page</strong> - this often triggers the login prompt</li>
-                    <li>Close and reopen your browser</li>
-                    <li>Try in incognito/private mode</li>
-                    <li>Clear browser cache and cookies</li>
-                </ul>
-            </div>
-            
-            <div class="step">
-                <h3>3. Login Credentials</h3>
-                <p>Username: <code>admin</code></p>
-                <p>Password: <em>Your dashboard password</em></p>
-            </div>
-            
-            <div style="text-align: center; margin-top: 20px;">
-                <button class="btn btn-primary" onclick="window.location.href='/cleanup'">
-                    🔄 Try Cleanup Page Again
-                </button>
-                <button class="btn" onclick="window.location.href='/'" 
-                        style="background: #6c757d; color: white;">
-                    🏠 Back to Homepage
-                </button>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
-
-@app.get("/mobile-debug")
-async def mobile_debug_info(request: Request):
-    """Debug endpoint to see mobile request details"""
-    user_agent = request.headers.get("user-agent", "Unknown")
-    client_ip = request.client.host
-    auth_header = request.headers.get("authorization")
-    
-    is_mobile = any(device in user_agent.lower() for device in 
-                   ['mobile', 'android', 'iphone', 'ipad', 'ipod'])
-    
-    return {
-        "is_mobile": is_mobile,
-        "user_agent": user_agent,
-        "client_ip": client_ip,
-        "auth_header_present": auth_header is not None,
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-
-
-# Load from .env
-
-
-
+    # If we reach here, authentication failed
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required",
+        headers={"WWW-Authenticate": "Basic"}  # Only for direct page access
+    )
 
 @app.get("/cleanup", response_class=HTMLResponse)
-async def cleanup_dashboard(request: Request, auth: bool = Depends(verify_dashboard_access)):
-    """Enhanced cleanup dashboard with mobile support"""
+async def cleanup_dashboard(request: Request):
+    """Cleanup dashboard - uses session OR basic auth"""
+    # Check if user has valid session
+    if request.session.get("authenticated"):
+        login_time = request.session.get("login_time")
+        if login_time and time.time() - login_time < 3600:
+            # User has valid session, serve the page
+            cleanup_path = os.path.join(static_dir, "cleanup.html")
+            with open(cleanup_path, "r", encoding="utf-8") as f:
+                return HTMLResponse(content=f.read())
     
-    # Log mobile access for debugging
-    user_agent = request.headers.get("user-agent", "")
-    client_ip = request.client.host
-    is_mobile = any(device in user_agent.lower() for device in 
-                   ['mobile', 'android', 'iphone', 'ipad'])
+    # If no valid session, let the basic auth dependency handle it
+    # This will trigger browser auth ONLY for the HTML page, not for API calls
+    correct_username = "admin"
+    correct_password = CLEANUP_DASHBOARD_PASSWORD
     
-    if is_mobile:
-        logger.info(f"📱 Mobile access to cleanup - IP: {client_ip}")
-    else:
-        logger.info(f"🖥️ Desktop access to cleanup - IP: {client_ip}")
+    def basic_auth(credentials: HTTPBasicCredentials = Depends(security)):
+        username_correct = secrets.compare_digest(credentials.username, correct_username)
+        password_correct = secrets.compare_digest(credentials.password, correct_password)
+        
+        if not (username_correct and password_correct):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials",
+                headers={"WWW-Authenticate": "Basic"}
+            )
+        
+        # Set session for future requests
+        request.session["authenticated"] = True
+        request.session["username"] = credentials.username
+        request.session["login_time"] = time.time()
+        
+        return True
     
+    # This will trigger browser auth for the HTML page
+    await basic_auth()
+    
+    # If we get here, authentication was successful
     cleanup_path = os.path.join(static_dir, "cleanup.html")
     with open(cleanup_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    
-    # Add mobile detection script to the HTML
-    mobile_script = """
-    <script>
-        // Enhanced mobile detection
-        function isMobileDevice() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        }
-        
-        // Log mobile status for debugging
-        if (isMobileDevice()) {
-            console.log('📱 Mobile device detected - user agent:', navigator.userAgent);
-            // Send mobile detection to backend for logging
-            fetch('/mobile-debug', { credentials: 'include' })
-                .then(r => r.json())
-                .then(data => console.log('Mobile debug info:', data))
-                .catch(e => console.log('Mobile debug failed:', e));
-        }
-    </script>
-    """
-    
-    content = content.replace('</body>', mobile_script + '</body>')
-    return HTMLResponse(content=content)
-
-
+        return HTMLResponse(content=f.read())
 @app.get("/cleanup-logs")
-async def get_cleanup_logs():
-    """Get cleanup logs as JSON for the dashboard"""
+async def get_cleanup_logs(request: Request):
+    """Get cleanup logs as JSON for the dashboard - session only"""
+    # Check session directly
+    if not request.session.get("authenticated"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or not authenticated"
+        )
+    
     try:
         log_path = "/home/ubuntu/cron_cleanup.log"
         if not os.path.exists(log_path):
@@ -1864,43 +1758,16 @@ async def get_cleanup_logs_page():
     
     return HTMLResponse(content=html_content)
 
-@app.get("/cleanup-logs")
-async def get_cleanup_logs():
-    """Get cleanup cron logs with latest entries on top"""
-    try:
-        log_path = "/home/ubuntu/cron_cleanup.log"
-        if not os.path.exists(log_path):
-            return {
-                "file_size": "0 KB",
-                "last_updated": None,
-                "total_runs": 0,
-                "recent_entries": ["No cleanup logs found"]
-            }
-        
-        stat = os.stat(log_path)
-        file_size_kb = stat.st_size / 1024
-        
-        with open(log_path, 'r') as f:
-            lines = f.readlines()
-        
-        # Get recent entries and REVERSE for latest first
-        recent_entries = lines[-20:] if len(lines) > 20 else lines
-        recent_entries = [line.strip() for line in recent_entries if line.strip()]
-        recent_entries.reverse()  # ADD THIS LINE - puts latest on top
-        
-        return {
-            "file_size": f"{file_size_kb:.1f} KB",
-            "last_updated": stat.st_mtime,
-            "total_runs": len([line for line in lines if "Starting scheduled cleanup" in line]),
-            "recent_entries": recent_entries  # Now with latest first
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading logs: {str(e)}")
-
-
 @app.post("/test-cleanup")
-async def test_cleanup():
-    """Manual cleanup trigger for testing"""
+async def test_cleanup(request: Request):
+    """Manual cleanup trigger for testing - session only"""
+    # Check session directly
+    if not request.session.get("authenticated"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or not authenticated"
+        )
+    
     try:
         logger.info("🧹 Manual cleanup triggered via /test-cleanup")
         cleanup_orphaned_files()
@@ -1914,12 +1781,17 @@ async def test_cleanup():
         raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
 
 @app.get("/cleanup-status")
-async def get_cleanup_status():
-    """Get current cleanup status and file statistics"""
+async def get_cleanup_status(request: Request):
+    """Get current cleanup status and file statistics - session only"""
+    # Check session directly without triggering basic auth
+    if not request.session.get("authenticated"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or not authenticated"
+        )
+    
     try:
         current_time = time.time()
-        
-        # Define your actual directory paths
         directories = {
             'uploads': BASE_DIR / "app" / "temp_processing" / "uploads",
             'output': BASE_DIR / "app" / "temp_processing" / "output", 
@@ -1938,7 +1810,6 @@ async def get_cleanup_status():
             "total_size": 0
         }
         
-        # Scan actual directories
         for dir_name, dir_path in directories.items():
             if dir_path.exists():
                 total_files = 0
@@ -1951,7 +1822,6 @@ async def get_cleanup_status():
                             total_files += 1
                             file_stat = file_path.stat()
                             total_size += file_stat.st_size
-                            
                             if file_stat.st_mtime < (current_time - 900):
                                 old_files += 1
                 except Exception as e:
@@ -1977,48 +1847,111 @@ async def get_cleanup_status():
         
         return stats
     except Exception as e:
-        logger.error(f"❌ Cleanup status check failed: {e}")
+        logger.error(f"Cleanup status check failed: {e}")
         return {"error": str(e)}
 
+@app.get("/check-auth")
+async def check_auth(request: Request):
+    """Simple endpoint to check authentication - session only"""
+    if request.session.get("authenticated"):
+        login_time = request.session.get("login_time")
+        if login_time and time.time() - login_time < 3600:
+            return {"status": "authenticated", "user": request.session.get("username")}
+    
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated"
+    )
+
+@app.post("/api/login")
+async def api_login(request: Request, credentials: dict):
+    """API login endpoint that sets session"""
+    username = credentials.get("username")
+    password = credentials.get("password")
+    
+    correct_username = "admin"
+    correct_password = CLEANUP_DASHBOARD_PASSWORD
+    
+    if (secrets.compare_digest(username, correct_username) and 
+        secrets.compare_digest(password, correct_password)):
+        
+        # Set session data
+        request.session["authenticated"] = True
+        request.session["username"] = username
+        request.session["login_time"] = time.time()
+        
+        return {"status": "success", "message": "Login successful"}
+    else:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+@app.post("/api/logout")
+async def api_logout(request: Request):
+    """Logout endpoint that clears session"""
+    request.session.clear()
+    return {"status": "success", "message": "Logged out"}
+
+session_store = {}
+
+class SessionMiddleware:
+    def __init__(self, app):
+        self.app = app
+    
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            # Extract session token from cookies
+            headers = dict(scope["headers"])
+            cookie_header = headers.get(b"cookie", b"").decode()
+            session_token = None
+            
+            if cookie_header:
+                cookies = cookie_header.split(";")
+                for cookie in cookies:
+                    if "session_token" in cookie:
+                        session_token = cookie.split("=")[1].strip()
+                        break
+            
+            scope["session_token"] = session_token
+        
+        return await self.app(scope, receive, send)
+app.add_middleware(SessionMiddleware)
+@app.post("/test-cleanup")
+async def test_cleanup(auth: bool = Depends(verify_dashboard_access)):
+    """Manual cleanup trigger"""
+    try:
+        logger.info("Manual cleanup triggered")
+        cleanup_orphaned_files()
+        return {
+            "message": "Cleanup completed successfully", 
+            "timestamp": time.time(),
+            "status": "success"
+        }
+    except Exception as e:
+        logger.error(f"Manual cleanup failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
 
 ################### backend log
-@app.get("/debug-headers")
-async def debug_headers(request: Request):
-    return {
-        "authorization_header": "PRESENT" if request.headers.get("authorization") else "MISSING",
-        "client_ip": request.client.host,
-        "is_cloudfront": "130.176" in str(request.client.host),
-        "user_agent": request.headers.get("user-agent")
-    }
-@app.get("/backend-log-full")
-async def get_backend_log_full():
-    """Get complete backend.log file with latest entries on top"""
-    try:
-        if not BACKEND_LOG_PATH.exists():
-            return {"error": "backend.log file not found"}
-        
-        with open(BACKEND_LOG_PATH, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-        
-        # Reverse ALL lines to show latest at top
-        lines.reverse()
-        
-        return {
-            "log_content": "".join(lines),
-            "total_lines": len(lines),
-            "file_size": f"{BACKEND_LOG_PATH.stat().st_size / 1024:.1f} KB"
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading backend log: {str(e)}")
+@app.get("/login", response_class=HTMLResponse)
+async def login_page():
+    """Login page for mobile devices"""
+    login_path = os.path.join(static_dir, "login.html")
+    with open(login_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
+
 
 BASE_DIR = Path("/home/ubuntu/vishnufastapi")
 BACKEND_LOG_PATH = BASE_DIR / "backend.log"
 
-
 @app.get("/backend-logs")
-async def get_backend_logs():
-    """Get backend.log file information and recent entries"""
+async def get_backend_logs(request: Request):
+    """Get backend.log file information and recent entries - session only"""
+    # Check session directly
+    if not request.session.get("authenticated"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or not authenticated"
+        )
+    
     try:
         if not BACKEND_LOG_PATH.exists():
             return {
@@ -2050,7 +1983,7 @@ async def get_backend_logs():
         logger.error(f"Error reading backend logs: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error reading backend logs: {str(e)}")
 
-#####################
+
 async def async_retrieve_documents(query: str, retriever, max_timeout: float = 6.0):
     """Async wrapper for document retrieval with timeout"""
     try:
