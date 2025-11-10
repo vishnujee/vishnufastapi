@@ -81,30 +81,48 @@ from datetime import datetime
 
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 app = FastAPI()
+
+
+
+
+# Security & CORS Configuration
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=[
         "recallmind.online",
-        "www.recallmind.online", 
-        "*.ap-south-1.compute.amazonaws.com",
+        "www.recallmind.online",
+        "*.ap-south-1.compute.amazonaws.com", 
         "localhost",
         "127.0.0.1",
-        "::1"  # IPv6 localhost
+        "::1"
     ]
 )
-# Make sure your CORS middleware looks like this:
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your domains
+    allow_origins=[
+        "https://recallmind.online",
+        "https://www.recallmind.online",
+        "https://d7ypf0jdu8oou.cloudfront.net",
+        "http://localhost:3000",
+        "http://localhost:8080",
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*", "Authorization", "X-Auth-Retry", "Cache-Control"],
-    expose_headers=["*", "X-Auth-Error"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type", 
+        "X-Requested-With",
+        "X-Auth-Retry",
+        "Cache-Control",
+        "Pragma"
+    ],
+    expose_headers=["X-Auth-Error", "WWW-Authenticate"],
     max_age=600,
 )
 
-# GZIP Compression - CRITICAL for Jio
-app.add_middleware(GZipMiddleware, minimum_size=500)  # Even smaller files
+# Other middleware
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 
 BLOCKED_PATTERNS = [
