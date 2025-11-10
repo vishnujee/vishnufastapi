@@ -1656,12 +1656,15 @@ async def get_cleanup_logs(request: Request):
         stat = os.stat(log_path)
         last_updated = stat.st_mtime
         
-        # Get recent entries (last 10 lines)
+        # Get all lines and reverse to show newest first
         lines = log_content.strip().split('\n')
-        recent_entries = lines[-10:] if lines else []
+        lines_reversed = list(reversed(lines))  # ✅ NEWEST AT TOP
+        
+        # Get recent entries (first 10 lines after reversal - which are the newest)
+        recent_entries = lines_reversed[:10] if lines_reversed else []
         
         return {
-            "logs": log_content,
+            "logs": "\n".join(lines_reversed),  # ✅ NEWEST FIRST
             "last_updated": last_updated,
             "file_size": f"{stat.st_size / 1024:.2f} KB",
             "line_count": len(lines),
@@ -1670,7 +1673,6 @@ async def get_cleanup_logs(request: Request):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading logs: {str(e)}")
-
 @app.get("/cleanup-logs-page")
 async def get_cleanup_logs_page():
     """Serve a dedicated page for viewing cleanup logs"""
@@ -2012,6 +2014,7 @@ async def get_backend_logs(request: Request):
             lines = f.readlines()
         
         # Get all lines for complete log view
+
         all_lines = [line.strip() for line in lines if line.strip()]
         
         # Get recent lines for dashboard view (last 20)
