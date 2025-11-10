@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - File Cleanup Manager</title>
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <style>
-        /* Keep all your existing CSS styles */
         * {
             margin: 0;
             padding: 0;
@@ -142,17 +144,20 @@
 <body>
     <div class="login-container">
         <h1>🔐 Login</h1>
-        <div class="subtitle">File Cleanup Manager</div>
+        <div class="subtitle">Admin Panel</div>
 
         <form class="login-form" id="loginForm">
+            <!-- CSRF Protection would go here in a production app -->
             <div class="form-group">
                 <label for="username">Username:</label>
-                <input type="text" id="username" name="username" value="" required readonly placeholder="Enter username" required>
+                <input type="text" id="username" name="username" placeholder="Enter username" required 
+                       maxlength="50" pattern="[a-zA-Z0-9_]+" title="Only letters, numbers and underscore allowed">
             </div>
 
             <div class="form-group">
                 <label for="password">Password:</label>
-                <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                <input type="password" id="password" name="password" placeholder="Enter your password" required 
+                       minlength="1" maxlength="100">
             </div>
 
             <button type="submit" class="login-btn" id="loginBtn">
@@ -170,6 +175,12 @@
     </div>
 
     <script>
+        // Rate limiting variables
+        let loginAttempts = 0;
+        let lastAttemptTime = 0;
+        const MAX_ATTEMPTS = 5;
+        const LOCKOUT_TIME = 15 * 60 * 1000; // 15 minutes
+
         const loginForm = document.getElementById('loginForm');
         const loginBtn = document.getElementById('loginBtn');
         const statusDiv = document.getElementById('status');
@@ -189,23 +200,66 @@
             }, 5000);
         }
 
+        // Input sanitization
+        function sanitizeInput(input) {
+            return input.trim().replace(/[<>]/g, '');
+        }
+
+        // Check if user is rate limited
+        function isRateLimited() {
+            const now = Date.now();
+            if (loginAttempts >= MAX_ATTEMPTS) {
+                if (now - lastAttemptTime < LOCKOUT_TIME) {
+                    return true;
+                } else {
+                    // Reset attempts after lockout period
+                    loginAttempts = 0;
+                }
+            }
+            return false;
+        }
+
         // Simple login using session-based authentication
         async function login(username, password) {
+            // Check rate limiting
+            if (isRateLimited()) {
+                showStatus('❌ Too many failed attempts. Please try again in 15 minutes.', 'error');
+                return;
+            }
+
             loginBtn.disabled = true;
             loginBtn.textContent = 'Logging in...';
 
             try {
+                // Sanitize inputs
+                const sanitizedUsername = sanitizeInput(username);
+                const sanitizedPassword = sanitizeInput(password);
+
+                if (!sanitizedUsername || !sanitizedPassword) {
+                    showStatus('❌ Please enter valid credentials', 'error');
+                    loginAttempts++;
+                    return;
+                }
+
                 const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: JSON.stringify({ username, password }),
-                    credentials: 'include'  // Important for cookies
+                    body: JSON.stringify({ 
+                        username: sanitizedUsername, 
+                        password: sanitizedPassword 
+                    }),
+                    credentials: 'include'
                 });
+
+                lastAttemptTime = Date.now();
 
                 if (response.ok) {
                     const data = await response.json();
+                    // Reset attempts on successful login
+                    loginAttempts = 0;
                     showStatus('✅ Login successful! Redirecting...', 'success');
                     
                     // Wait a bit then redirect to cleanup page
@@ -214,12 +268,16 @@
                     }, 1000);
                     
                 } else {
+                    loginAttempts++;
                     const errorData = await response.json();
                     showStatus('❌ ' + (errorData.detail || 'Invalid username or password'), 'error');
                 }
                 
             } catch (error) {
-                showStatus('❌ Login failed: ' + error.message, 'error');
+                loginAttempts++;
+                // Don't reveal specific error details to prevent information leakage
+                showStatus('❌ Login failed. Please try again.', 'error');
+                console.error('Login error:', error); // Log for debugging
             } finally {
                 loginBtn.disabled = false;
                 loginBtn.textContent = '🚀 Login';
@@ -240,9 +298,12 @@
             login(username, password);
         });
 
-        // Auto-focus password field on mobile
-        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-            document.getElementById('password').focus();
+        // Auto-focus username field
+        document.getElementById('username').focus();
+
+        // Prevent form resubmission on page refresh
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
         }
     </script>
 </body>

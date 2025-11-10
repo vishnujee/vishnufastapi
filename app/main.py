@@ -11,23 +11,18 @@ import io
 import fitz
 import logging
 import pdfplumber
-
 import requests
 import traceback
-
 import redis
 import time
-
 import re
 import pandas as pd
 import json
 import asyncio
 # Initialize colorama
-
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from starlette.middleware.sessions import SessionMiddleware
 
-import secrets
 from botocore.exceptions import ClientError
 import pathlib
 import shutil
@@ -63,6 +58,12 @@ import hashlib
 import numpy as np  
 
 ###
+import secrets
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 
 from app.pdf_operations import  (
     encrypt_pdf,
@@ -81,13 +82,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from datetime import datetime
 
-from starlette.middleware.trustedhost import TrustedHostMiddleware
 app = FastAPI()
 
-
-
-
-# Security & CORS Configuration
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=[
@@ -126,6 +122,11 @@ app.add_middleware(
 # Other middleware
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 BLOCKED_PATTERNS = [
     re.compile(r'wp-admin', re.IGNORECASE),
@@ -137,7 +138,6 @@ BLOCKED_PATTERNS = [
     re.compile(r'\.env', re.IGNORECASE),
     re.compile(r'config\.json', re.IGNORECASE),
     re.compile(r'backup', re.IGNORECASE),
-    # Bonus: Block common sensitive file extensions & paths
     re.compile(r'\.git', re.IGNORECASE),
     re.compile(r'\.svn', re.IGNORECASE),
     re.compile(r'\.bak$', re.IGNORECASE),
@@ -149,19 +149,32 @@ BLOCKED_PATTERNS = [
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
     path = request.url.path
-    
-    # Fast pattern matching
     for pattern in BLOCKED_PATTERNS:
         if pattern.search(path):
             return JSONResponse(
                 status_code=403,
                 content={"detail": "Access forbidden"}
             )
-    
     return await call_next(request)
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
-
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET", secrets.token_urlsafe(32)),
+    session_cookie="session", 
+    max_age=3600,
+    same_site="lax",
+    https_only=False
+)
 ##### ehuggingface
 
 from sentence_transformers import SentenceTransformer
@@ -1440,19 +1453,18 @@ CLEANUP_DASHBOARD_PASSWORD= os.getenv("CLEANUP_DASHBOARD_PASSWORD")
 
 security = HTTPBasic()
 
-app.add_middleware(SessionMiddleware, secret_key=secrets.token_urlsafe(32))
+
 # Update the verify_dashboard_access to check session first
 def verify_dashboard_access(request: Request, credentials: Optional[HTTPBasicCredentials] = Depends(security)):
-    """Enhanced auth that checks session first, NEVER falls back to basic auth for API calls"""
+    """Enhanced auth that checks session first"""
     
     # First check session - this is the primary method
     if request.session.get("authenticated"):
         login_time = request.session.get("login_time")
-        if login_time and time.time() - login_time < 3600:  # 1 hour session
-            return True
+        if login_time and time.time() - login_time < 3600:
+            return True  # ✅ Return True for valid session
     
-    # For API endpoints, don't trigger browser auth - just return 401
-    # Check if this is an API call by looking at the path or headers
+    # For API calls, return 401 without triggering browser auth
     path = request.url.path
     is_api_call = any(path.endswith(endpoint) for endpoint in [
         '/cleanup-status', 
@@ -1462,13 +1474,12 @@ def verify_dashboard_access(request: Request, credentials: Optional[HTTPBasicCre
     ]) or '/api/' in path
     
     if is_api_call:
-        # For API calls, return 401 without WWW-Authenticate header
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired or not authenticated"
         )
     
-    # Only for direct browser access to /cleanup page, use basic auth as fallback
+    # For page access (/cleanup), use basic auth
     if credentials:
         correct_username = "admin"
         correct_password = CLEANUP_DASHBOARD_PASSWORD
@@ -1481,18 +1492,17 @@ def verify_dashboard_access(request: Request, credentials: Optional[HTTPBasicCre
             request.session["authenticated"] = True
             request.session["username"] = credentials.username
             request.session["login_time"] = time.time()
-            return True
+            return True  # ✅ Return True for successful basic auth
     
     # If we reach here, authentication failed
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authentication required",
-        headers={"WWW-Authenticate": "Basic"}  # Only for direct page access
+        headers={"WWW-Authenticate": "Basic"}
     )
-
 @app.get("/cleanup", response_class=HTMLResponse)
 async def cleanup_dashboard(request: Request):
-    """Cleanup dashboard - uses session OR basic auth"""
+    """Cleanup dashboard - session only"""
     # Check if user has valid session
     if request.session.get("authenticated"):
         login_time = request.session.get("login_time")
@@ -1502,36 +1512,9 @@ async def cleanup_dashboard(request: Request):
             with open(cleanup_path, "r", encoding="utf-8") as f:
                 return HTMLResponse(content=f.read())
     
-    # If no valid session, let the basic auth dependency handle it
-    # This will trigger browser auth ONLY for the HTML page, not for API calls
-    correct_username = "admin"
-    correct_password = CLEANUP_DASHBOARD_PASSWORD
-    
-    def basic_auth(credentials: HTTPBasicCredentials = Depends(security)):
-        username_correct = secrets.compare_digest(credentials.username, correct_username)
-        password_correct = secrets.compare_digest(credentials.password, correct_password)
-        
-        if not (username_correct and password_correct):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid credentials",
-                headers={"WWW-Authenticate": "Basic"}
-            )
-        
-        # Set session for future requests
-        request.session["authenticated"] = True
-        request.session["username"] = credentials.username
-        request.session["login_time"] = time.time()
-        
-        return True
-    
-    # This will trigger browser auth for the HTML page
-    await basic_auth()
-    
-    # If we get here, authentication was successful
-    cleanup_path = os.path.join(static_dir, "cleanup.html")
-    with open(cleanup_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    # If no valid session, redirect to login page
+    return RedirectResponse(url="/login")
+
 @app.get("/cleanup-logs")
 async def get_cleanup_logs(request: Request):
     """Get cleanup logs as JSON for the dashboard - session only"""
@@ -1864,69 +1847,51 @@ async def check_auth(request: Request):
     )
 
 @app.post("/api/login")
+@limiter.limit("5/minute")
 async def api_login(request: Request, credentials: dict):
-    """API login endpoint that sets session"""
-    username = credentials.get("username")
-    password = credentials.get("password")
+    """Secure login endpoint with rate limiting"""
+    username = credentials.get("username", "").strip()
+    password = credentials.get("password", "").strip()
     
-    correct_username = "admin"
-    correct_password = CLEANUP_DASHBOARD_PASSWORD
+    # Input validation
+    if not username or not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username and password required"
+        )
     
-    if (secrets.compare_digest(username, correct_username) and 
-        secrets.compare_digest(password, correct_password)):
-        
-        # Set session data
+    # Prevent username enumeration by using constant time comparison
+    correct_username = "admin"  # You should make this configurable
+    correct_password = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
+    
+    # Constant-time comparison to prevent timing attacks
+    username_valid = secrets.compare_digest(username, correct_username)
+    password_valid = secrets.compare_digest(password, correct_password)
+    
+    if username_valid and password_valid:
+        # Set secure session
         request.session["authenticated"] = True
         request.session["username"] = username
         request.session["login_time"] = time.time()
+        request.session["user_agent"] = request.headers.get("user-agent", "")
         
         return {"status": "success", "message": "Login successful"}
     else:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        # Generic error message to prevent username enumeration
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+
+# Logout endpoint
 @app.post("/api/logout")
 async def api_logout(request: Request):
     """Logout endpoint that clears session"""
     request.session.clear()
     return {"status": "success", "message": "Logged out"}
 
-session_store = {}
 
-class SessionMiddleware:
-    def __init__(self, app):
-        self.app = app
-    
-    async def __call__(self, scope, receive, send):
-        if scope["type"] == "http":
-            # Extract session token from cookies
-            headers = dict(scope["headers"])
-            cookie_header = headers.get(b"cookie", b"").decode()
-            session_token = None
-            
-            if cookie_header:
-                cookies = cookie_header.split(";")
-                for cookie in cookies:
-                    if "session_token" in cookie:
-                        session_token = cookie.split("=")[1].strip()
-                        break
-            
-            scope["session_token"] = session_token
-        
-        return await self.app(scope, receive, send)
-app.add_middleware(SessionMiddleware)
-@app.post("/test-cleanup")
-async def test_cleanup(auth: bool = Depends(verify_dashboard_access)):
-    """Manual cleanup trigger"""
-    try:
-        logger.info("Manual cleanup triggered")
-        cleanup_orphaned_files()
-        return {
-            "message": "Cleanup completed successfully", 
-            "timestamp": time.time(),
-            "status": "success"
-        }
-    except Exception as e:
-        logger.error(f"Manual cleanup failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+
 
 ################### backend log
 @app.get("/login", response_class=HTMLResponse)
