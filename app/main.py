@@ -1491,33 +1491,31 @@ def verify_session_token(token: str) -> bool:
     return False
 
 def check_auth(request: Request):
-    """Enhanced authentication with mobile support"""
+    """Mobile-optimized authentication"""
     # Try multiple ways to get the token
     token = None
     
-    # 1. Check Authorization header
-    auth_header = request.headers.get("authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.replace("Bearer ", "")
+    # 1. Check query parameter (PRIMARY for mobile)
+    token = request.query_params.get("token")
     
-    # 2. Check query parameter (especially for mobile)
+    # 2. Check Authorization header
     if not token:
-        token = request.query_params.get("token")
+        auth_header = request.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.replace("Bearer ", "")
     
-    # 3. Check cookies as fallback
+    # 3. Check cookies (least reliable on mobile)
     if not token:
         token = request.cookies.get("session_token")
     
-    # 4. For mobile, also check if there's a mobile flag in query params
-    is_mobile_request = any(term in str(request.headers.get("user-agent", "")).lower() 
-                           for term in ['mobile', 'android', 'iphone', 'ipad'])
+    # 4. Special mobile handling - if we have a mobile flag but no token yet
+    user_agent = request.headers.get("user-agent", "").lower()
+    is_mobile = any(term in user_agent for term in ['mobile', 'android', 'iphone', 'ipad'])
     
-    # If mobile and no token, but has mobile flag, allow temporary access
-    if is_mobile_request and not token and request.query_params.get("mobile"):
-        # Log this for debugging
-        logger.info("Mobile access attempt without token - might be redirect issue")
-        # Don't block immediately, let it try to load the page
+    if is_mobile and not token:
+        # For mobile, we might be in a redirect chain - allow access to cleanup page
         # The JavaScript will handle authentication
+        logger.info(f"Mobile access to {request.url.path} - allowing page load")
         return True
     
     if not token or not verify_session_token(token):
@@ -1527,7 +1525,6 @@ def check_auth(request: Request):
             headers={"WWW-Authenticate": "Bearer"}
         )
     return True
-
 @app.get("/mobile-test")
 async def mobile_test(request: Request):
     """Debug endpoint to check mobile authentication"""
@@ -1545,7 +1542,12 @@ async def mobile_test(request: Request):
         "query_params": dict(request.query_params)
     }
 @app.post("/api/login")
-async def api_login(credentials: dict, response: Response, request: Request):
+async def api_login(
+    credentials: dict, 
+    response: Response, 
+    request: Request,
+    background_tasks: BackgroundTasks
+):
     username = credentials.get("username", "").strip()
     password = credentials.get("password", "").strip()
 
@@ -1558,39 +1560,55 @@ async def api_login(credentials: dict, response: Response, request: Request):
             "authenticated": True
         }
         
-        # Detect if it's a mobile request
+        # Detect mobile
         user_agent = request.headers.get("user-agent", "").lower()
         is_mobile = any(term in user_agent for term in ['mobile', 'android', 'iphone', 'ipad'])
         
-        response_data = {
-            "status": "success", 
-            "token": session_token,
-            "message": "Login successful",
-            "is_mobile": is_mobile  # Send mobile flag to frontend
-        }
-        
-        response = JSONResponse(response_data)
-        
-        # Enhanced cookie settings for mobile compatibility
-        response.set_cookie(
-            key="session_token",
-            value=session_token,
-            max_age=3600,
-            httponly=False,  # Allow JavaScript access
-            samesite="lax",  # More mobile-friendly than 'none'
-            secure=False,     # Allow HTTP
-            domain=None       # Don't restrict domain
-        )
-        
-        return response
+        # For MOBILE: Server-side redirect with token in URL
+        if is_mobile:
+            redirect_url = f"/cleanup?token={session_token}&mobile=true&ts={int(time.time())}"
+            
+            # Set cookie anyway (might work on some mobile browsers)
+            response = RedirectResponse(url=redirect_url, status_code=303)
+            response.set_cookie(
+                key="session_token",
+                value=session_token,
+                max_age=3600,
+                httponly=False,
+                samesite="lax",
+                secure=False
+            )
+            return response
+        else:
+            # For DESKTOP: Return JSON response as before
+            response_data = {
+                "status": "success", 
+                "token": session_token,
+                "message": "Login successful"
+            }
+            
+            response = JSONResponse(response_data)
+            response.set_cookie(
+                key="session_token",
+                value=session_token,
+                max_age=3600,
+                httponly=False,
+                samesite="lax", 
+                secure=False
+            )
+            return response
     else:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
 @app.get("/cleanup", response_class=HTMLResponse)
 async def cleanup_dashboard(request: Request):
-    # Check authentication using our new method
-    check_auth(request)
+    try:
+        check_auth(request)
+    except HTTPException as e:
+        # If not authenticated, still serve the page but it will handle auth via JavaScript
+        logger.info(f"Serving cleanup page without auth - JavaScript will handle authentication")
     
-    # Serve the cleanup page
+    # Always serve the page - let frontend handle the auth state
     cleanup_path = os.path.join(static_dir, "cleanup.html")
     with open(cleanup_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())

@@ -506,6 +506,45 @@
 
 
 <script>
+    function handleMobileAuthentication() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    const isMobile = urlParams.get('mobile');
+    
+    console.log('Mobile auth check:', { urlToken, isMobile });
+    
+    if (urlToken) {
+        // We have a token from mobile redirect - store it everywhere
+        localStorage.setItem('auth_token', urlToken);
+        sessionStorage.setItem('auth_token', urlToken);
+        
+        // Also set as cookie for future requests
+        document.cookie = `session_token=${urlToken}; max-age=3600; path=/; samesite=lax`;
+        
+        // Clean up URL for security
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        
+        addLog('✅ Mobile authentication successful! Token stored.', 'success');
+        return true;
+    }
+    
+    // Check if we have token from other sources
+    const storedToken = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+    if (storedToken) {
+        addLog('✅ Using stored authentication token', 'success');
+        return true;
+    }
+    
+    // No token found
+    if (isMobile) {
+        addLog('⚠️ Mobile device detected but no authentication token found', 'warning');
+        addLog('🔐 Please ensure you are logged in', 'info');
+    }
+    
+    return false;
+}
+
     // ========== AUTHENTICATION HELPERS ==========
     async function makeAuthenticatedRequest(url, options = {}) {
         const token = localStorage.getItem('auth_token');
@@ -959,10 +998,20 @@
     }
 
     // ========== INITIALIZATION ==========
- document.addEventListener('DOMContentLoaded', function() {
-    attemptMobileAuthRecovery();
+document.addEventListener('DOMContentLoaded', function() {
     addLog('File Cleanup Manager initialized', 'info');
-    loadFiles();
+    
+    // Handle mobile authentication first
+    const isAuthenticated = handleMobileAuthentication();
+    
+    if (isAuthenticated) {
+        loadFiles();
+    } else {
+        addLog('❌ Not authenticated. Redirecting to login...', 'error');
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+    }
 });
 </script>
 
