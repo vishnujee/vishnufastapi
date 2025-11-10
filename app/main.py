@@ -1409,19 +1409,21 @@ async def serve_index():
 
 
 
-DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD",)
+# Load from .env
+DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
+if not DASHBOARD_PASSWORD:
+    raise RuntimeError("CLEANUP_DASHBOARD_PASSWORD is required in .env")
 
 security = HTTPBasic()
 
 def verify_dashboard_access(credentials: HTTPBasicCredentials = Depends(security)):
-    """Verify dashboard access with password from .env"""
-    correct_username = "admin"  # You can make this configurable too
+    correct_username = "admin"
     correct_password = DASHBOARD_PASSWORD
     
-    is_correct_username = secrets.compare_digest(credentials.username, correct_username)
-    is_correct_password = secrets.compare_digest(credentials.password, correct_password)
-    
-    if not (is_correct_username and is_correct_password):
+    if not (
+        secrets.compare_digest(credentials.username, correct_username) and
+        secrets.compare_digest(credentials.password, correct_password)
+    ):
         raise HTTPException(
             status_code=401,
             detail="Incorrect credentials",
@@ -1431,13 +1433,9 @@ def verify_dashboard_access(credentials: HTTPBasicCredentials = Depends(security
 
 @app.get("/cleanup", response_class=HTMLResponse)
 async def cleanup_dashboard(auth: bool = Depends(verify_dashboard_access)):
-    """Serve the comprehensive cleanup dashboard - PASSWORD PROTECTED"""
     cleanup_path = os.path.join(static_dir, "cleanup.html")
     with open(cleanup_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
-
-
-
 
 
 @app.get("/cleanup-logs")
