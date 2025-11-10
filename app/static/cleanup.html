@@ -607,14 +607,34 @@
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
             if (isMobile) {
-                console.log('📱 Mobile device detected, optimizing authentication...');
+                console.log('📱 Mobile device detected - triggering authentication...');
 
-                // Method 1: Pre-emptive authentication check
-                checkAuthStatus();
+                // Method 1: Force browser to show auth dialog
+                triggerBrowserAuthDialog();
 
-                // Method 2: Add retry button for failed auth
-                addMobileAuthRetry();
+                // Method 2: Add mobile help button after 3 seconds if still not authenticated
+                setTimeout(() => {
+                    if (document.querySelectorAll('.file-item').length === 0) {
+                        // No files loaded = likely not authenticated
+                        addMobileAuthRetry();
+                    }
+                }, 3000);
             }
+        }
+        function triggerBrowserAuthDialog() {
+            // This should trigger the browser's HTTP Basic Auth dialog
+            fetch('/cleanup-status', {
+                credentials: 'include'
+            }).then(response => {
+                if (response.status === 401) {
+                    console.log('🔄 Authentication required - browser should show dialog');
+                    // The 401 response with WWW-Authenticate header should trigger browser dialog
+                } else if (response.ok) {
+                    console.log('✅ Already authenticated');
+                }
+            }).catch(error => {
+                console.log('⚠️ Auth check failed:', error);
+            });
         }
 
         function checkAuthStatus() {
@@ -693,29 +713,10 @@
             document.body.appendChild(modal);
         }
 
-        function retryMobileAuth() {
-            // Clear any cached credentials and retry
-            fetch('/cleanup-status', {
-                credentials: 'include',
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                }
-            })
-                .then(response => {
-                    if (response.status === 401) {
-                        // Force auth dialog by accessing with wrong credentials first
-                        fetch('/cleanup-status', {
-                            headers: {
-                                'Authorization': 'Basic ' + btoa('wrong:wrong')
-                            }
-                        }).then(() => {
-                            // Now try with correct (browser will prompt)
-                            window.location.reload();
-                        });
-                    }
-                });
-        }
+function retryMobileAuth() {
+    console.log('🔄 Retrying mobile authentication...');
+    forceMobileLogin();
+}
 
         function refreshForAuth() {
             // Add cache-busting parameters
@@ -1011,16 +1012,69 @@
                 }
 
             } catch (error) {
-                showStatus('Error loading files: ' + error.message, 'error');
-                addLog(`Error: ${error.message}`, 'error');
+                if (error.message.includes('401') || error.status === 401) {
+                    // Authentication required
+                    showStatus('Authentication required - please login', 'error');
+                    addLog('🔐 Authentication required - mobile users should see login dialog', 'warning');
 
-                // Fallback: show empty state
-                renderEmptyState();
+                    // On mobile, show help if auth dialog didn't appear
+                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                    if (isMobile) {
+                        setTimeout(() => {
+                            if (document.querySelectorAll('.file-item').length === 0) {
+                                showMobileAuthModal();
+                            }
+                        }, 2000);
+                    }
+                } else {
+                    showStatus('Error loading files: ' + error.message, 'error');
+                    addLog(`Error: ${error.message}`, 'error');
+                    renderEmptyState();
+                }
             } finally {
                 btn.disabled = false;
             }
         }
 
+        // Add this new function
+function forceMobileLogin() {
+    console.log('🔄 Triggering mobile authentication...');
+    
+    // Method 1: Trigger browser's native HTTP Basic Auth
+    fetch('/cleanup-status', {
+        credentials: 'include'
+    }).then(response => {
+        if (response.status === 401) {
+            console.log('🔄 Browser auth dialog should appear...');
+        }
+    }).catch(error => {
+        console.log('✅ Auth dialog triggered (expected to fail):', error);
+    });
+
+    // Method 2: XMLHttpRequest to trigger auth
+    setTimeout(() => {
+        try {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '/cleanup-status', true);
+            xhr.withCredentials = true;
+            xhr.onerror = function() {
+                console.log('✅ XHR auth trigger working as expected');
+            };
+            xhr.send();
+        } catch (error) {
+            console.log('✅ XHR auth trigger working:', error);
+        }
+    }, 1000);
+
+    // Method 3: Show help modal as fallback after 3 seconds
+    setTimeout(() => {
+        // Check if we're still not authenticated (no files loaded)
+        if (document.querySelectorAll('.file-item').length === 0) {
+            console.log('📱 Showing mobile auth help modal');
+            showMobileAuthModal();
+        }
+    }, 3000);
+}
         // Helper function to get file extensions based on directory
         function getFileExtension(dirName) {
             const extensions = {
