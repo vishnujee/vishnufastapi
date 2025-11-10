@@ -225,51 +225,69 @@
         // Simple login using session-based authentication
 
         // Updated login function with better error handling
-        async function login(username, password) {
-            loginBtn.disabled = true;
-            loginBtn.textContent = 'Logging in...';
+       // Enhanced login function with mobile support
+async function login(username, password) {
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Logging in...';
 
-            try {
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ username, password }),
-                    credentials: 'include' // Important for cookies
-                });
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, password }),
+            credentials: 'include'
+        });
 
-                const data = await response.json();
+        const data = await response.json();
 
-                if (response.ok) {
-                    showStatus('✅ Login successful! Redirecting...', 'success');
-
-                    // Store token in localStorage as backup
-                    if (data.token) {
-                        localStorage.setItem('auth_token', data.token);
-                    }
-
-                    // Redirect with token in URL as additional backup
-                    const redirectUrl = data.token ?
-                        `/cleanup?token=${encodeURIComponent(data.token)}` :
-                        '/cleanup';
-
-                    setTimeout(() => {
-                        window.location.href = redirectUrl;
-                    }, 1000);
-
-                } else {
-                    showStatus('❌ ' + (data.detail || 'Invalid credentials'), 'error');
-                }
-
-            } catch (error) {
-                showStatus('❌ Login failed. Please try again.', 'error');
-                console.error('Login error:', error);
-            } finally {
-                loginBtn.disabled = false;
-                loginBtn.textContent = '🚀 Login';
+        if (response.ok) {
+            showStatus('✅ Login successful! Redirecting...', 'success');
+            
+            // Store token in multiple places for maximum compatibility
+            if (data.token) {
+                localStorage.setItem('auth_token', data.token);
+                sessionStorage.setItem('auth_token', data.token);
             }
+            
+            // Enhanced redirect logic for mobile
+            let redirectUrl;
+            
+            // Check if we're on mobile or if the API detected mobile
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || data.is_mobile;
+            
+            if (isMobile) {
+                // MOBILE: Use window.location.replace for better redirect behavior
+                redirectUrl = data.token ? 
+                    `/cleanup?token=${encodeURIComponent(data.token)}&mobile=true&ts=${Date.now()}` : 
+                    '/cleanup';
+                
+                // Force redirect without history entry (better for mobile)
+                window.location.replace(redirectUrl);
+            } else {
+                // DESKTOP: Normal redirect
+                redirectUrl = data.token ? 
+                    `/cleanup?token=${encodeURIComponent(data.token)}` : 
+                    '/cleanup';
+                
+                setTimeout(() => {
+                    window.location.href = redirectUrl;
+                }, 800);
+            }
+
+        } else {
+            showStatus('❌ ' + (data.detail || 'Invalid credentials'), 'error');
         }
+
+    } catch (error) {
+        showStatus('❌ Login failed. Please try again.', 'error');
+        console.error('Login error:', error);
+    } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = '🚀 Login';
+    }
+}
 
 
         loginForm.addEventListener('submit', function (e) {

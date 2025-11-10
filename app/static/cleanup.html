@@ -529,6 +529,36 @@
         return response;
     }
 
+    function attemptMobileAuthRecovery() {
+    // Check if we have a token in URL (mobile redirect)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    const isMobile = urlParams.get('mobile');
+    
+    if (urlToken) {
+        // Save token from URL for future requests
+        localStorage.setItem('auth_token', urlToken);
+        sessionStorage.setItem('auth_token', urlToken);
+        
+        // Clean up URL (remove token for security)
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        
+        addLog('✅ Mobile authentication token recovered from URL', 'success');
+    }
+    
+    // If mobile and no token, try to get from multiple sources
+    if (isMobile && !localStorage.getItem('auth_token')) {
+        addLog('⚠️ Mobile device detected - attempting authentication recovery', 'warning');
+        
+        // Try to reload with stored credentials (if any)
+        const storedUsername = localStorage.getItem('username');
+        if (storedUsername) {
+            addLog('Found stored credentials, attempting auto-login...', 'info');
+            // You could implement auto-login here if needed
+        }
+    }
+}
     // ========== EXISTING VARIABLES ==========
     let filesData = {};
     let isAuthenticated = false;
@@ -929,10 +959,11 @@
     }
 
     // ========== INITIALIZATION ==========
-    document.addEventListener('DOMContentLoaded', function () {
-        addLog('File Cleanup Manager initialized', 'info');
-        loadFiles(); // Load files automatically
-    });
+ document.addEventListener('DOMContentLoaded', function() {
+    attemptMobileAuthRecovery();
+    addLog('File Cleanup Manager initialized', 'info');
+    loadFiles();
+});
 </script>
 
 

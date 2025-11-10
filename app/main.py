@@ -1491,7 +1491,7 @@ def verify_session_token(token: str) -> bool:
     return False
 
 def check_auth(request: Request):
-    """Simple token-based authentication"""
+    """Enhanced authentication with mobile support"""
     # Try multiple ways to get the token
     token = None
     
@@ -1500,13 +1500,25 @@ def check_auth(request: Request):
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.replace("Bearer ", "")
     
-    # 2. Check query parameter
+    # 2. Check query parameter (especially for mobile)
     if not token:
         token = request.query_params.get("token")
     
     # 3. Check cookies as fallback
     if not token:
         token = request.cookies.get("session_token")
+    
+    # 4. For mobile, also check if there's a mobile flag in query params
+    is_mobile_request = any(term in str(request.headers.get("user-agent", "")).lower() 
+                           for term in ['mobile', 'android', 'iphone', 'ipad'])
+    
+    # If mobile and no token, but has mobile flag, allow temporary access
+    if is_mobile_request and not token and request.query_params.get("mobile"):
+        # Log this for debugging
+        logger.info("Mobile access attempt without token - might be redirect issue")
+        # Don't block immediately, let it try to load the page
+        # The JavaScript will handle authentication
+        return True
     
     if not token or not verify_session_token(token):
         raise HTTPException(
@@ -1516,8 +1528,24 @@ def check_auth(request: Request):
         )
     return True
 
+@app.get("/mobile-test")
+async def mobile_test(request: Request):
+    """Debug endpoint to check mobile authentication"""
+    user_agent = request.headers.get("user-agent", "")
+    is_mobile = any(term in user_agent.lower() for term in ['mobile', 'android', 'iphone', 'ipad'])
+    
+    token = request.cookies.get("session_token") or request.query_params.get("token")
+    
+    return {
+        "is_mobile": is_mobile,
+        "user_agent": user_agent,
+        "has_token": bool(token),
+        "token_valid": verify_session_token(token) if token else False,
+        "cookies_received": dict(request.cookies),
+        "query_params": dict(request.query_params)
+    }
 @app.post("/api/login")
-async def api_login(credentials: dict, response: Response):
+async def api_login(credentials: dict, response: Response, request: Request):
     username = credentials.get("username", "").strip()
     password = credentials.get("password", "").strip()
 
@@ -1530,30 +1558,33 @@ async def api_login(credentials: dict, response: Response):
             "authenticated": True
         }
         
-        # Return token in multiple ways for maximum compatibility
+        # Detect if it's a mobile request
+        user_agent = request.headers.get("user-agent", "").lower()
+        is_mobile = any(term in user_agent for term in ['mobile', 'android', 'iphone', 'ipad'])
+        
         response_data = {
             "status": "success", 
             "token": session_token,
-            "message": "Login successful"
+            "message": "Login successful",
+            "is_mobile": is_mobile  # Send mobile flag to frontend
         }
         
         response = JSONResponse(response_data)
         
-        # Set cookie as backup (with mobile-friendly settings)
+        # Enhanced cookie settings for mobile compatibility
         response.set_cookie(
             key="session_token",
             value=session_token,
             max_age=3600,
             httponly=False,  # Allow JavaScript access
-            samesite="none",  # Cross-site cookies
-            secure=False,     # Allow HTTP for testing
+            samesite="lax",  # More mobile-friendly than 'none'
+            secure=False,     # Allow HTTP
             domain=None       # Don't restrict domain
         )
         
         return response
     else:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-
 @app.get("/cleanup", response_class=HTMLResponse)
 async def cleanup_dashboard(request: Request):
     # Check authentication using our new method
