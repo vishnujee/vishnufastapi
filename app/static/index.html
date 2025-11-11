@@ -258,6 +258,10 @@
         background-position: 200% 0;
       }
     }
+
+
+
+    /* new */
   </style>
 </head>
 
@@ -268,7 +272,7 @@
       <div class="flex justify-between items-center py-4" style="padding-top: 5px; ">
         <div class="flex items-center space-x-4 py-0">
           <!-- <a href="/" class="text-2xl font-bold text-blue-600 hover:text-green-600"> VishnuDesk </a> -->
-           <!--  homepage enpoint -->
+          <!--  homepage enpoint -->
           <a href="/" class="text-2xl font-bold text-blue-600 hover:text-green-600" style="margin-top: 0px;"
             onclick="showTool('chat-section')">Homepage</a>
         </div>
@@ -328,13 +332,13 @@
                 onclick="showTool('encrypt-section')">Add Password to PDF</a>
               <a href="#remove-password" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('removePassword-section')">Remove Password</a>
-              
+
 
 
               <a href="#remove-background" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('removeBackground-section')">Remove Image Background</a>
 
-               
+
 
             </div>
           </div>
@@ -342,7 +346,7 @@
                         onclick="showTool('videos-section')">Videos</a> -->
           <a href="#" class="nav-link text-xl text-gray-700 hover:text-green-600"
             onclick="window.location.href='/static/videos.html'"> Videos </a>
-            <a href="/login" class="nav-link text-xl text-gray-700 hover:text-green-600"
+          <a href="/login" class="nav-link text-xl text-gray-700 hover:text-green-600"
             onclick="window.location.href='/static/videos.html'"> Login</a>
         </div>
         <!-- Larger version -->
@@ -406,7 +410,7 @@
 
             <a href="#remove-background" class="block py-1 text-gray-700 hover:text-green-600"
               onclick="showTool('removeBackground-section')">Remove Image Background</a>
-    
+
 
           </div>
         </div>
@@ -414,16 +418,17 @@
                     onclick="showTool('videos-section')">Videos</a> -->
         <a href="#" class="nav-link text-xl text-gray-700 hover:text-green-600"
           onclick="window.location.href='/static/videos.html'"> Videos </a>
-          <br>   <div style="margin-top: 5px;"></div>
-          
-           <a href="/login" class="nav-link text-xl text-gray-700 hover:text-green-600"
-            onclick="window.location.href='/static/videos.html'" > Login</a>
+        <br>
+        <div style="margin-top: 5px;"></div>
+
+        <a href="/login" class="nav-link text-xl text-gray-700 hover:text-green-600"
+          onclick="window.location.href='/static/videos.html'"> Login</a>
       </div>
       <div class="grid grid-cols-1 gap-8">
 
       </div>
   </nav>
-  <div class="container mx-auto px-4 py-8 max-w-6xl">
+  <div class="container mx-auto px-1 py-8 max-w-6xl">
     <!-- Hero Section -->
     <div class="text-center mb-0">
       <!-- <h1 class="text-4xl font-bold text-gray-800 mb-4">Vishnu AI & PDF Tools</h1> -->
@@ -494,16 +499,11 @@
     </div>
     <!-- <h1>System Memory Usage</h1><div class="memory-container"><div class="memory-card"><h2>RAM Usage</h2><div class="progress-container"><div class="progress-bar" id="ram-bar"></div></div><div class="memory-stats" id="ram-stats"></div></div><div class="memory-card"><h2>ROM (Swap) Usage</h2><div class="progress-container"><div class="progress-bar" id="rom-bar"></div></div><div class="memory-stats" id="rom-stats"></div></div></div> -->
     <!-- Chat Section -->
-    <div id="chat-section" class="tool-section mb-12">
-      <div class="bg-white p-6 rounded-xl shadow-md tool-card">
-        <!-- <div class="flex items-center mb-4">
-          <div class="bg-green-100 p-2 rounded-full mr-3">
-            <i class="fas fa-robot text-green-600 text-xl"></i>
-          </div>
-          <h2 class="text-2xl font-semibold text-gray-800">Vishnu AI Assistant</h2>
-        </div> -->
+    <div id="chat-section" class="tool-section">
+      <div class="bg-white rounded-xl tool-card" style="margin: 0; padding: 0;">
 
-        <div class="flex justify-between items-center mb-4">
+
+        <div class="flex justify-between items-center mb-4 px-4">
           <div class="flex items-center">
             <div class="bg-green-100 p-2 rounded-full mr-3">
               <i class="fas fa-robot text-green-600 text-xl"></i>
@@ -548,25 +548,31 @@
         </div>
 
         <!-- Hidden Text that appears on click -->
-        <div id="expandableText" style="
-              display: none;
-              text-align: left;
-              margin-top: 10px;
-              padding: 15px;
-              background: rgba(255, 255, 255, 0.1);
-              border-radius: 10px;
-              border: 1px solid rgba(0, 247, 255, 0.3);
-              color: rgb(8, 8, 8);
-              font-size: 0.9rem;
-              animation: fadeIn 0.5s ease-in-out;
-            ">
-          <p>🚀 Chat response time improved for Vishnu mode— <br> </p>
-          <p style="margin-left: 25px;">previously it was 8 seconds, and now it's reduced to just 2-3 seconds</p>
-          <p>💡 Ask more details about Vishnu</p>
-          <p>✨ New Feature: Added Tone Selector with multiple unique modes, something even ChatGPT
-            doesn’t have!</p>
-          <!-- <p>🔒 chats and Files are never stored on servers.</p> -->
-        </div>
+  <div id="expandableText" style="
+    display: none;
+    text-align: left;
+    margin-top: 10px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    border: 1px solid rgba(0, 247, 255, 0.3);
+    color: rgb(8, 8, 8);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    animation: fadeIn 0.5s ease-in-out;
+">
+  <p>✨ <b>New Feature:</b> Added <b>Tone Selector</b> with multiple unique modes — something even ChatGPT doesn’t have!</p>
+  
+  <p>🚀 <b>Chat response time improved for Vishnu mode:</b></p>
+  <div style="margin-left: 25px;">
+    July 2024 → 8 seconds<br>
+    Sept 2025 → 3 seconds<br>
+    Now → 1 – 2 seconds ⚡
+  </div>
+
+  <p>💡 <b>PDFs:</b> Super Fast PDF editing!</p>
+</div>
+
 
         <style>
           /* Simple Glow Animations */
@@ -685,7 +691,7 @@
         </script>
 
 
-        <div id="tone-selector-section" class="flex items-center mb-4">
+        <div id="tone-selector-section" class="flex items-center mb-4 px-4">
           <label class="inline-flex items-center cursor-pointer mr-4">
             <input type="checkbox" id="mode-toggle" class="sr-only peer">
             <div
@@ -711,28 +717,14 @@
 
 
         <div class="space-y-4">
-          <div class="flex flex-col space-y-2"> <!-- Changed to column layout -->
-            <textarea id="chatInput" 
-            placeholder="Ask me anything about Vishnu... (Press Enter to send, Shift+Enter for new line)" 
-            maxlength="25000" 
-            rows="5"
-            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-y min-h-[120px] max-h-[300px]"
-            style="font-family: inherit; font-size: inherit;"></textarea>
+          <div class="flex flex-col space-y-2 px-2"> <!-- Changed to column layout -->
+            <textarea id="chatInput"
+              placeholder="Ask me anything about Vishnu... (Press Enter to send, Shift+Enter for new line)"
+              maxlength="25000" rows="5"
+              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-y min-h-[120px] max-h-[300px]"
+              style="font-family: inherit; font-size: inherit;"></textarea>
 
-            <!-- <textarea 
-    id="chatInput" 
-    placeholder="Ask me anything about Vishnu... (Press Enter to send)" 
-    maxlength="25000" 
-    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
-    wrap="off"
-    style="font-family: inherit; font-size: inherit; height: 50px;"
-></textarea> -->
-            <!-- <input 
-              type="text" 
-              id="chatInput" 
-              placeholder="Ask me anything about Vishnu... (Press Enter to send)" 
-              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          > -->
+
 
             <div class="flex justify-between items-center">
               <!-- <span id="charCount" class="text-sm text-gray-500">0/2500 characters</span> -->
@@ -753,7 +745,7 @@
           <div class="progress-text" id="progress-text-chat"
             style="font-family: sans-serif; font-size: 18px; font-weight: bold;"></div>
 
-          <div id="chatOutput" class="text-gray-700 bg-gray-50 p-4 rounded-lg min-h-32"></div>
+          <div id="chatOutput" class="text-gray-700 bg-gray-50 px-1 rounded-3xl min-h-32"></div>
         </div>
 
 
@@ -976,7 +968,8 @@
             </div>
 
             <!-- Detailed Progress Text -->
-            <div class="progress-text text-xs text-gray-600" id="progress-text-compressForm" style="margin-top: -26px;text-align: center;">
+            <div class="progress-text text-xs text-gray-600" id="progress-text-compressForm"
+              style="margin-top: -26px;text-align: center;">
               Initializing Uploading process...
             </div>
 

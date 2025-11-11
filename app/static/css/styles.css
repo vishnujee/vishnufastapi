@@ -16,6 +16,57 @@
     }
 }
 
+
+/*  chat */
+
+/* Mobile Table Solution - Only for tables that overflow */
+@media (max-width: 768px) {
+    /* Default table styling - stays normal if it fits */
+    .ai-response table {
+        width: 100%;
+        background: white;
+        border: 1px solid #e5e7eb;
+    }
+    
+    /* Only apply scroll styles to tables that actually overflow */
+    .ai-response table.overflow-table {
+        min-width: 600px; /* Force horizontal scroll only when needed */
+    }
+    
+    .ai-response.overflow-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        background: 
+            linear-gradient(to right, white 0%, white 80%, white 100%),
+            linear-gradient(to right, #f9fafb 0%, #f9fafb 100%);
+        background-attachment: local, scroll;
+        margin: 0 -1rem;
+        padding: 0 1rem;
+        border-left: 1rem solid white;
+        border-right: 1rem solid white;
+        position: relative;
+    }
+    
+    /* Visual scroll indicator only for overflow containers */
+    .ai-response.overflow-container::after {
+        content: '→';
+        position: absolute;
+        right: 0.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6b7280;
+        font-size: 1.2rem;
+        opacity: 0.7;
+        pointer-events: none;
+    }
+    
+    .ai-response.overflow-container.scrolling::after {
+        display: none;
+    }
+}
+
+/* Mobile Chat Output - Maximum Space Utilization */
+
 .ai-response table {
     width: 100%;
     margin: 1rem 0;
@@ -923,3 +974,6 @@ progress::-moz-progress-bar {
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
+.bg-white.rounded-xl.tool-card {
+    padding: 0 !important;
+}

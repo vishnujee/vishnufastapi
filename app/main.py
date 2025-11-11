@@ -20,37 +20,33 @@ import pandas as pd
 import json
 import asyncio
 # Initialize colorama
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from starlette.middleware.sessions import SessionMiddleware
-
 from botocore.exceptions import ClientError
 import pathlib
 import shutil
 
 from pypdf import PdfReader
 import gc
-
 from typing import Any, Dict, List, Optional
-from pydantic import Field,BaseModel
+from pydantic import Field
 from langchain_core.retrievers import BaseRetriever
 
 from langchain_core.documents import Document
 from concurrent.futures import ThreadPoolExecutor
 
-
-
 #langchain
 # from langchain_text_splitters import RecursiveCharacterTextSplitter
 # from fireworks.client import Fireworks
-from langchain_openai import ChatOpenAI  # For OpenAI-compatible LLM
+# from langchain_openai import ChatOpenAI  # For OpenAI-compatible LLM
+import google.generativeai as genai
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_groq import ChatGroq
+# from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
 from langchain.chains.combine_documents import create_stuff_documents_chain    #### for aws
 
-
 from langchain_core.prompts import ChatPromptTemplate
 
+from sentence_transformers import SentenceTransformer
+import threading
 #### for openai
 # from langchain_openai import OpenAIEmbeddings
 from pathlib import Path
@@ -59,7 +55,6 @@ import numpy as np
 
 ###
 import secrets
-from starlette.middleware.trustedhost import TrustedHostMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -122,7 +117,18 @@ app.add_middleware(
 )
 
 # Other middleware
-app.add_middleware(GZipMiddleware, minimum_size=500)
+# app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# @app.middleware("http")
+# async def bypass_gzip_for_streaming(request: Request, call_next):
+#     response = await call_next(request)
+    
+#     # Don't compress streaming responses
+#     if (isinstance(response, StreamingResponse) or 
+#         request.url.path in ['/chat-stream']):
+#         response.headers["Content-Encoding"] = "identity"
+    
+#     return response
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -184,19 +190,9 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
-# app.add_middleware(
-#     SessionMiddleware,
-#     secret_key=os.getenv("SESSION_SECRET", secrets.token_urlsafe(32)),
-#     session_cookie="session",
-#     max_age=3600,
-#     same_site="none",  # ← CRITICAL: Allows cross-origin on mobile
-#     https_only=False,   # ← Set to False for HTTP testing
-#     domain="recallmind.online"  # ← Remove the dot for main domain
-# )
 ##### ehuggingface
 
-from sentence_transformers import SentenceTransformer
-import threading
+
 
 
 # ------------------------------------------------------------------
@@ -233,8 +229,6 @@ class HFEmbeddings:
     
 ##############################
 
-
-
 import sys
 
 os.makedirs("logs", exist_ok=True)
@@ -267,10 +261,6 @@ USE_S3 = all([BUCKET_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY])
 CORRECT_PASSWORD_HASH = os.getenv("CORRECT_PASSWORD_HASH")
 CLEANUP_DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
 
-
-
-
-
 s3_client = boto3.client(
     "s3",
     aws_access_key_id=AWS_ACCESS_KEY,
@@ -300,24 +290,17 @@ else:
     os.makedirs("output_pdfs", exist_ok=True)
     s3_client = None
 
-
-
 # PDF_S3_KEY = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"  # Ensure case consistency
 # PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"
 PDF_URL_TABULAR = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/3.pdf"  # Your main PDF with tables
 PDF_URL_NONTABULAR_1= "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/1.pdf"
 PDF_URL_NONTABULAR_2 = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/2.pdf"
-
-           
-
-            # List of all non-tabular PDFs
+# List of all non-tabular PDFs
 NONTABULAR_PDFS = [PDF_URL_NONTABULAR_1, PDF_URL_NONTABULAR_2]
 # NONTABULAR_PDFS = [PDF_URL_NONTABULAR_1]
 
 
 S3_PREFIX = "Amazingvideo/"
-
-
 
 # ========== CENTRALIZED DIRECTORY CONFIGURATION ==========
 BASE_DIR = Path(__file__).parent
@@ -331,10 +314,6 @@ PDFTOWORD = TEMP_DIR / "word"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 MAX_PAGES = 5
 orphan_age_seconds = 600  # 10 minutes
-
-# Add these 2 lines with your other global variables
-# current_ghostscript_process = None
-# current_task_id = None
 
 def setup_directories():
     """Create necessary directories on startup - EC2 COMPATIBLE"""
@@ -351,10 +330,6 @@ def setup_directories():
             logger.error(f"❌ Failed to create directory {directory}: {e}")
             # ✅ Critical - fail fast if directories can't be created
             raise
-
-
-
-
 
 def download_from_url(url):
     try:
@@ -393,9 +368,7 @@ def download_from_url(url):
     except Exception as e:
         logger.error(f"❌ Failed to download PDF from {url}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to download PDF: {str(e)}")
-######################################################### NEW IMPLEMENTATION FOR RAG #########################################################
-
-
+################# NEW IMPLEMENTATION FOR RAG ####
 # Configurable lists for table detection
 HEADER_KEYWORDS = [
     "Company", "Duration", 
@@ -405,9 +378,6 @@ TITLE_KEYWORDS = [
     "Work Experience", "Project or Work Experience"
 ]
 
-
-
-
 def is_raw_table_text(text):
     """Detect table data rows - LESS AGGRESSIVE VERSION"""
     line = text.strip()
@@ -416,29 +386,16 @@ def is_raw_table_text(text):
 
     # Split into words
     words = line.split()
-    
-    # REMOVED: starts_with_number check (too restrictive)
-    # starts_with_number = bool(re.match(r'^\d+[\s\.]', line))  # REMOVE THIS
-    
-    # Count numbers (integers or decimals)
+
     number_count = len(re.findall(r'\b\d+\b|\d+\.\d+', line))
-    
-    # Check for tabular structure (4 or more words - increased from 3)
+
     has_tabular = len(words) >= 4  # Increased threshold
-    
     # Exclude header-like keywords
     has_header_keywords = any(h.lower() in line.lower() for h in HEADER_KEYWORDS)
-    
-    # Check for table-specific patterns
-    # has_table_patterns = bool(re.search(r'\b(NO\.|KM|NOS|Mtr)\b|\d{6,}', line))
-
-    # MORE RELAXED table detection
     return (
         (number_count >= 3 and has_tabular and not has_header_keywords) or  # Increased to 2 numbers
         (has_tabular and not has_header_keywords)
     )
-
-
 
 def is_table_title(line, title_keywords=TITLE_KEYWORDS):
     """Detect if a line is a potential table title."""
@@ -460,9 +417,6 @@ def is_header_row(row_str, header_keywords=HEADER_KEYWORDS, min_matches=1):
         return True
     return matches >= min_matches
 
-
-
-
 def normalize_text(text):
     """Normalize text by removing extra spaces and standardizing."""
     return ' '.join(text.strip().split())
@@ -478,7 +432,6 @@ def is_substring_match(line, table_content_set):
             if norm_line.lower() in table_content.lower():
                 return True
     return False
-
 
 def extract_text_with_tables(pdf_bytes):
     """Enhanced PDF extraction with robust table detection"""
@@ -598,10 +551,7 @@ def extract_text_with_tables(pdf_bytes):
     except Exception as e:
         raise Exception(f"Error processing PDF: {e}")
 
-
 # ====================== Enhanced Logging Functions ======================
-
-
 def log_embedding_process(documents: List[Document], source: str):
     """Log the embedding process with chunk statistics"""
     logger.info(f"\n{'='*80}")
@@ -632,10 +582,6 @@ def log_embedding_process(documents: List[Document], source: str):
         logger.info(f"🏷️ Metadata: {doc.metadata}")
         logger.info(f"{'-'*60}")
 
-
-
-
-
 # ====================== Enhanced Document Processing ======================
 def post_process_retrieved_docs(docs, query):
     """Enhanced post-processing for work experience tables"""
@@ -643,8 +589,6 @@ def post_process_retrieved_docs(docs, query):
     table_headers = ["Project Name", "Duration", "Company", "Project Description"]
     
     query_lower = query.lower().strip()
-
-
     for doc in docs:
         content = doc.page_content
         source = doc.metadata.get("source", "unknown")
@@ -659,7 +603,6 @@ def post_process_retrieved_docs(docs, query):
             content.count("|") > 3 and 
             any(header in content for header in table_headers)
         )
-
         if is_work_table:
             # ENHANCE the table content for better LLM understanding
             doc.metadata["content_type"] = "work_experience_table"
@@ -680,13 +623,153 @@ def post_process_retrieved_docs(docs, query):
     return processed
 
 
+# def ensure_tabular_inclusion(docs, query, min_tabular=2):
+#     """ENHANCED VERSION - Reduce token volume with truncation logging"""
 
+#     MAX_CONTEXT_TOKENS = 1200  # ~4,800 characters
+#     current_tokens = 0
+#     final_docs = []
+
+#     query_lower = query.lower()
+
+#     # Priority 1: Work experience tables for work-related queries
+#     is_work_query = any(keyword in query_lower for keyword in [
+#         'company', 'work', 'experience', 'job', 'project', 'started working',
+#         'career', 'professional', 'employment', 'when did', 'start date',
+#         'kei', 'larsen', 'toubro', 'vindhya', 'punj', 'gng', 'l&t'
+#     ])
+
+#     if is_work_query:
+#         # Get tabular docs but TRUNCATE content
+#         tabular_docs = [d for d in docs if "3.pdf" in d.metadata.get("source", "")]
+#         for doc in tabular_docs:
+#             # 🆕 Log before truncation
+#             orig_len = len(doc.page_content)
+            
+#             # 🆕 TRUNCATE long table content
+#             truncated_content = smart_truncate(doc.page_content, 1500)  # ~375 tokens
+#             doc.page_content = truncated_content
+
+#             # 🆕 Log after truncation
+#             new_len = len(truncated_content)
+#             logger.info(
+#                 f"📏 Work doc truncation: {orig_len//4} → {new_len//4} tokens for {doc.metadata.get('source','')}"
+#             )
+
+#             doc_tokens = len(truncated_content) // 4
+
+#             if current_tokens + doc_tokens <= MAX_CONTEXT_TOKENS:
+#                 final_docs.append(doc)
+#                 current_tokens += doc_tokens
+#             else:
+#                 break
+
+#         logger.info(f"📊 Work query: Added {len(final_docs)} tabular docs, ~{current_tokens} tokens")
+
+#     # Priority 2: Add other relevant docs with token limits
+#     other_docs = [d for d in docs if d not in final_docs]
+
+#     for doc in other_docs:
+#         orig_len = len(doc.page_content)
+
+#         # 🆕 SMART TRUNCATION based on content type
+#         if len(doc.page_content) > 1000:  # ~250 tokens
+#             truncated_content = smart_truncate(doc.page_content, 800)  # ~200 tokens
+#             doc.page_content = truncated_content
+
+#             new_len = len(truncated_content)
+#             logger.info(
+#                 f"📏 Other doc truncation: {orig_len//4} → {new_len//4} tokens for {doc.metadata.get('source','')}"
+#             )
+
+#         else:
+#             new_len = orig_len  # no truncation
+
+#         doc_tokens = len(doc.page_content) // 4
+
+#         if current_tokens + doc_tokens <= MAX_CONTEXT_TOKENS and len(final_docs) < 5:
+#             final_docs.append(doc)
+#             current_tokens += doc_tokens
+#         else:
+#             break
+
+#     logger.info(f"🎯 Final context: {len(final_docs)} docs, ~{current_tokens} tokens")
+#     return final_docs
+
+# def ensure_tabular_inclusion(docs, query, min_tabular=2):
+#     """ENHANCED VERSION - Reduce token volume"""
+    
+#     # 🆕 ADD TOKEN LIMIT LOGIC
+#     MAX_CONTEXT_TOKENS = 1200  # ~4,800 characters
+#     current_tokens = 0
+#     final_docs = []
+    
+#     query_lower = query.lower()
+    
+#     # Priority 1: Work experience tables for work-related queries
+#     is_work_query = any(keyword in query_lower for keyword in [
+#         'company', 'work', 'experience', 'job', 'project', 'started working',
+#         'career', 'professional', 'employment', 'when did', 'start date',
+#         'kei', 'larsen', 'toubro', 'vindhya', 'punj', 'gng', 'l&t'
+#     ])
+    
+#     if is_work_query:
+#         # Get tabular docs but TRUNCATE content
+#         tabular_docs = [d for d in docs if "3.pdf" in d.metadata.get("source", "")]
+#         for doc in tabular_docs:
+#             # 🆕 TRUNCATE long table content
+#             truncated_content = smart_truncate(doc.page_content, 1500)  # ~375 tokens
+#             doc.page_content = truncated_content
+#             doc_tokens = len(truncated_content) // 4
+            
+#             if current_tokens + doc_tokens <= MAX_CONTEXT_TOKENS:
+#                 final_docs.append(doc)
+#                 current_tokens += doc_tokens
+#             else:
+#                 break
+                
+#         logger.info(f"📊 Work query: Added {len(final_docs)} tabular docs, ~{current_tokens} tokens")
+    
+#     # Priority 2: Add other relevant docs with token limits
+#     other_docs = [d for d in docs if d not in final_docs]
+    
+#     for doc in other_docs:
+#         # 🆕 SMART TRUNCATION based on content type
+#         if len(doc.page_content) > 1000:  # ~250 tokens
+#             truncated_content = smart_truncate(doc.page_content, 800)  # ~200 tokens
+#             doc.page_content = truncated_content
+        
+#         doc_tokens = len(doc.page_content) // 4
+        
+#         if current_tokens + doc_tokens <= MAX_CONTEXT_TOKENS and len(final_docs) < 5:
+#             final_docs.append(doc)
+#             current_tokens += doc_tokens
+#         else:
+#             break
+    
+#     logger.info(f"🎯 Final context: {len(final_docs)} docs, ~{current_tokens} tokens")
+#     return final_docs
+
+# def smart_truncate(text, max_chars):
+#     """Truncate text intelligently at sentence boundaries"""
+#     if len(text) <= max_chars:
+#         return text
+    
+#     # Try to truncate at sentence end
+#     truncated = text[:max_chars]
+#     last_period = truncated.rfind('.')
+#     last_newline = truncated.rfind('\n')
+    
+#     cutoff = max(last_period, last_newline)
+#     if cutoff > max_chars * 0.7:  # Only if we have reasonable content
+#         return truncated[:cutoff + 1]
+    
+#     return truncated + "..."
 
 def ensure_tabular_inclusion(docs, query, min_tabular=2):
     """Ensure relevant content is included based on query type"""
 
     query_lower = query.lower()
-    
     # Check if query is about work/companies/experience
     is_work_query = any(keyword in query_lower for keyword in [
         'company', 'work', 'experience', 'job', 'project', 'started working',
@@ -735,9 +818,6 @@ def ensure_tabular_inclusion(docs, query, min_tabular=2):
             final_docs[-1] = tabular_in_top_10[0]
         
         return final_docs
-
-
-
 
 ##### chromadb
 class ChromaDBRetriever(BaseRetriever):
@@ -1314,10 +1394,6 @@ def initialize_vectorstore():
             logger.critical(f"💥 Even fallback failed: {fallback_error}")
             raise
 
-
-
-
-
 def verify_embeddings(embeddings_list):
     """Verify embeddings are valid"""
     if not embeddings_list:
@@ -1365,16 +1441,6 @@ def verify_embeddings(embeddings_list):
 
 
 
-def get_llm():
-    return ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-       # model="gemini-2.5-pro",
-        temperature=0.2,
-        max_tokens=2024,
-        timeout=None,
-        api_key=GOOGLE_API_KEY
-    )
-
 # def get_llm():
 #     # Try Groq first (fastest), fallback to Gemini
     
@@ -1389,10 +1455,30 @@ def get_llm():
 
 
 
+def get_llm():
+    return ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        temperature=0.1,  # Lower for consistency
+        max_tokens=768,   # Reduced from 2024
+        timeout=8,        # Add timeout
+        api_key=GOOGLE_API_KEY
+    )
+# def get_llm():
+#     return ChatGoogleGenerativeAI(
+#         model="gemini-2.0-flash",
+#        # model="gemini-2.5-pro",
+#         temperature=0.2,
+#         max_tokens=2024,
+#         timeout=None,
+#         api_key=GOOGLE_API_KEY
+#     )
+
+
+
+
 retriever = None
 llm = None
 thread_pool = ThreadPoolExecutor(max_workers=4)
-
 
 
 # ====================== Startup Event ======================
@@ -1400,6 +1486,10 @@ thread_pool = ThreadPoolExecutor(max_workers=4)
 async def startup_event():
 
     logger.info("🚀 Startup initiated")
+    # await check_google_api_latency()
+    global gemini_model
+    genai.configure(api_key=GOOGLE_API_KEY)
+    gemini_model = genai.GenerativeModel('gemini-2.0-flash')
     # Disable ChromaDB telemetry
     # import os
     # os.environ['ANONYMIZED_TELEMETRY'] = 'False'
@@ -1428,7 +1518,7 @@ async def startup_event():
             test_start = time.time()
             test_docs = retriever.invoke("test")
             test_time = time.time() - test_start
-            
+            # run_comprehensive_content_audit()
             logger.info(f"✅ AI services initialized successfully! Test retrieval: {test_time:.3f}s")
             break  # Success, exit retry loop
             
@@ -1469,7 +1559,7 @@ CLEANUP_DASHBOARD_PASSWORD= os.getenv("CLEANUP_DASHBOARD_PASSWORD")
 # if not CLEANUP_DASHBOARD_PASSWORD:
 #     raise RuntimeError("CLEANUP_DASHBOARD_PASSWORD is required in .env")
 
-security = HTTPBasic()
+# security = HTTPBasic()
 
 active_sessions = {}
 
@@ -1956,12 +2046,6 @@ async def get_cleanup_status(request: Request):
         return {"error": str(e)}
 
 
-
-
-
-
-
-
 @app.post("/api/logout")
 async def api_logout(request: Request, response: Response):
     token = request.cookies.get("session_token") or request.headers.get("authorization", "").replace("Bearer ", "")
@@ -1976,8 +2060,6 @@ async def api_logout(request: Request, response: Response):
     # Also clear localStorage on client side
     return response
 
-
-
 ################### backend log
 @app.get("/login", response_class=HTMLResponse)
 async def login_page():
@@ -1987,10 +2069,9 @@ async def login_page():
         return HTMLResponse(content=f.read())
 
 
-
-
 BASE_DIR = Path("/home/ubuntu/vishnufastapi")
 BACKEND_LOG_PATH = BASE_DIR / "backend.log"
+
 @app.get("/backend-logs")
 async def get_backend_logs(request: Request):
     """Get complete backend.log file content"""
@@ -2093,11 +2174,13 @@ CHAT_MODES = {
 
 }
 
-    # Add more modes as needed
 
-
+##########################################################
 @app.post("/chat")
 async def chat(query: str = Form(...), mode: str = Form(None), history: str = Form(None)):
+    """
+    Optimized streaming version with better logging and fast typing
+    """
     if not query.strip() or len(query) > 10000:
         raise HTTPException(status_code=400, detail="Invalid query length")
     
@@ -2110,181 +2193,265 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
         except Exception:
             limited_history = []
     
-    start_time = time.time()
-    timings = {}
+    async def generate_stream():
+        start_time = time.time()
+        timings = {}
+        logger.info(f"🎯 CHAT STARTED - Query: '{query[:100]}...' | Mode: {mode} | History entries: {len(limited_history)}")
 
-    try:
-        loop = asyncio.get_event_loop()
-
-        if mode and mode in CHAT_MODES:
-            # Mode-specific fast path (already fast)
-            system_prompt = CHAT_MODES[mode]["prompt"]
-            messages = [("system", system_prompt)]
-            
-            if limited_history:
-                for msg in limited_history:
-                    if msg["role"] == "user":
-                        messages.append(("human", msg["content"]))
-                    elif msg["role"] == "assistant":
-                        messages.append(("ai", msg["content"]))
-            
-            messages.append(("human", query))
-            
-            generation_start = time.time()
-            try:
-                response = await asyncio.wait_for(
-                    loop.run_in_executor(
-                        thread_pool,
-                        lambda: llm.invoke(messages)
-                    ),
-                    timeout=25.0  # Reduced from 25s
-                )
-                answer = response.content if hasattr(response, 'content') else str(response)
-            except asyncio.TimeoutError:
-                answer = "I'm thinking... please try again in a moment!"
-            
-            generation_end = time.time()
-            timings["generation_time"] = generation_end - generation_start
-            timings["retrieval_time"] = 0.0
-            timings["processing_time"] = 0.0
-            raw_docs = []
-            processed_docs = []
-      
-        else:
-            # Build conversation history for document mode (last 2 messages)
-            conversation_history = []
-            if limited_history:
-                # Take last 2 exchanges (4 messages: user+assistant pairs)
-                recent_history = limited_history[-4:]
-                for msg in recent_history:
-                    if msg["role"] == "user":
-                        conversation_history.append(("human", msg["content"]))
-                    elif msg["role"] == "assistant":
-                        conversation_history.append(("ai", msg["content"]))
-            
-            # Create prompt with history
-            messages = [
-                ("system",
-                "You are Vishnu AI Assintant — a friendly but bit funny "
-                "Provide accurate, clear, human-like answers in a warm and professional tone. "
-                "Add light Indian humor naturally when it fits (for example, 'as easy as making Maggi'). "
-                "Keep humor after the main answer, on a new line, ending with a small emoji"
-                "If the user asks a general question, gently suggest they can change the tone using the 'tone selector'.")
-            ]
-
-            messages.extend(conversation_history)
-            
-            # Add current query with context
-            messages.append(("human", "Context: {context}\n\nQuestion: {input}\n\nAnswer:"))
-            
-            prompt = ChatPromptTemplate.from_messages(messages)
-            
-
-            question_answer_chain = create_stuff_documents_chain(llm, prompt)
-            
-
-            # 🚀 STEP 2: NOW start retrieval in parallel
-            retrieval_start = time.time()
-            try:
-                retrieval_start = time.time()
-                # raw_docs = retriever.invoke(query) if retriever else []
-                raw_docs = await async_retrieve_documents(query, retriever, max_timeout=6.0)
-                retrieval_end = time.time()
-                timings["retrieval_time"] = retrieval_end - retrieval_start
-            except asyncio.TimeoutError:
-                raw_docs = []
-            except Exception as e:
-                logger.error(f"Retrieval error: {e}")
-                raw_docs = []
-
-            retrieval_end = time.time()
-            timings["retrieval_time"] = retrieval_end - retrieval_start
-
-            logger.info(f"⏱️ Retrieval took {timings['retrieval_time']:.2f}s")
-
-            # 🚀 FAST Document Processing
-            processing_start = time.time()
-            final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
-            processed_docs = post_process_retrieved_docs(final_docs, query)
-            # logger.info(f"\n🎯 PROCESSED DOCUMENTS AFTER FILTERING:")
-            # logger.info(f"📊 Final documents sent to LLM: {len(processed_docs)}")
-            # for i, doc in enumerate(processed_docs, 1):
-            #     logger.info(f"\n📄 FINAL DOC #{i}:")
-            #     logger.info(f"📁 Source: {doc.metadata.get('source', 'Unknown')}")
-            #     logger.info(f"📄 Page: {doc.metadata.get('page', 'N/A')}")
-            #     logger.info(f"🔢 Chunk: {doc.metadata.get('chunk_num', 'N/A')}/{doc.metadata.get('total_chunks_page', 'N/A')}")
-            #     logger.info(f"📊 Score: {doc.metadata.get('score', 'N/A')}")
-            #     logger.info(f"📄 Content Type: {doc.metadata.get('content_type', 'unknown')}")
-            #     logger.info(f"📏 Doc Size: {len(doc.page_content)} characters")
-            #     logger.info(f"📝 Content Preview: {doc.page_content}...")
-            
-            processing_end = time.time()
-            timings["processing_time"] = processing_end - processing_start
-            logger.info(f"⏱️ Processing took {timings['processing_time']:.2f}s")
-
-            # 🚀 GENERATION
-            # In your chat endpoint, replace the generation section with:
-
-            generation_start = time.time()
-            if not processed_docs:
-                answer = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
+        try:
+            if mode and mode in CHAT_MODES:
+                # Mode-specific streaming
+                logger.info("🔄 MODE-SPECIFIC PATH")
+                system_prompt = CHAT_MODES[mode]["prompt"]
+                messages = [{"role": "user", "parts": [system_prompt]}]
+                
+                if limited_history:
+                    for msg in limited_history:
+                        if msg["role"] == "user":
+                            messages.append({"role": "user", "parts": [msg["content"]]})
+                        elif msg["role"] == "assistant":
+                            messages.append({"role": "model", "parts": [msg["content"]]})
+                
+                messages.append({"role": "user", "parts": [query]})
+                
+                # Stream response using Gemini
+                genai.configure(api_key=GOOGLE_API_KEY)
+                model = genai.GenerativeModel('gemini-2.0-flash')
+                
+                logger.info("🚀 Starting Gemini stream for mode-specific response...")
+                generation_start = time.time()
+                response = model.generate_content(messages, stream=True)
+                
+                full_response = ""
+                chunk_count = 0
+                for chunk in response:
+                    if chunk.text:
+                        chunk_text = chunk.text
+                        full_response += chunk_text
+                        chunk_count += 1
+                        
+                        # ✅ FAST STREAMING: Send larger chunks for faster display
+                        # Instead of word-by-word, send sentence-by-sentence or larger chunks
+                        sentences = chunk_text.split('. ')
+                        for sentence in sentences:
+                            if sentence.strip():
+                                data = json.dumps({'chunk': sentence + '. ', 'done': False})
+                                yield f"data: {data}\n\n"
+                                # ✅ VERY FAST: Minimal delay for instant typing
+                                await asyncio.sleep(0.01)  # Almost instant
+                
+                generation_end = time.time()
+                timings["generation_time"] = generation_end - generation_start
+                logger.info(f"✅ MODE-SPECIFIC COMPLETE - Chunks: {chunk_count} | Time: {timings['generation_time']:.2f}s | Chars: {len(full_response)}")
+                
+                # Send completion with metadata
+                completion_data = json.dumps({
+                    'chunk': '', 
+                    'done': True, 
+                    'full_response': full_response,
+                    'mode': 'direct',
+                    'timings': timings
+                })
+                yield f"data: {completion_data}\n\n"
+                
             else:
+                # RAG-based streaming
+                logger.info("🔄 RAG PATH")
+                def build_optimized_prompt(query, processed_docs, conversation_history):
+                    prompt_parts = [
+                        "SYSTEM: You are Vishnu AI Assintant — a friendly but bit funny. "
+                        "Provide accurate, clear, human-like answers in a warm and professional tone."
+                        "Add light Indian humor naturally when it fits (for example, 'as easy as making Maggi'). "
+                        "Keep humor after the main answer, on a new line, ending with a emoji"
+                        "If the user asks a general question, gently suggest they can change the tone using the 'tone selector\n\n"
+                        
+                        
+                        "📋 **STRICT TABLE FORMATTING RULES:**\n"
+                        "1. Create a table **only when the data is naturally tabular** (e.g., work experience, educational information, comparisons, or other structured data).\n"
+                        "2. ALWAYS use proper Markdown table syntax with pipes | and dashes ---\n"
+                        "3. Table headers MUST be in this exact format: | Column1 | Column2 | Column3 | Column4 |\n"
+                        "4. Header separator MUST be: | --- | --- | --- | --- |\n"
+                        "5. Keep tables simple - MAX 4 columns\n"
+                        "6. Wrap long text in table cells (don't let it overflow)\n"
+                        "7. Align columns properly\n\n"
+                    ]
+                                        
+                    for role, content in conversation_history:
+                        if role == "human":
+                            prompt_parts.append(f"USER: {content}")
+                        else:
+                            prompt_parts.append(f"ASSISTANT: {content}")
+                    
+                    if processed_docs:
+                        prompt_parts.append("\nCONTEXT:")
+                        for i, doc in enumerate(processed_docs, 1):
+                            prompt_parts.append(f"DOC_{i}: {doc.page_content}")
+                    
+                    prompt_parts.append(f"\nQUESTION: {query}")
+                    prompt_parts.append("\nANSWER:")
+                    
+                    return "\n".join(prompt_parts)
+
+                # Build conversation history
+                conversation_history = []
+                if limited_history:
+                    recent_history = limited_history[-2:]
+                    for msg in recent_history:
+                        if msg["role"] == "user":
+                            user_content = msg["content"][:100] + "..." if len(msg["content"]) > 100 else msg["content"]
+                            conversation_history.append(("human", user_content))
+                        elif msg["role"] == "assistant":
+                            assistant_content = msg["content"][:150] + "..." if len(msg["content"]) > 150 else msg["content"]
+                            conversation_history.append(("ai", assistant_content))
+
+                # 🚀 STEP 1: Document retrieval with detailed logging
+                logger.info("📥 STARTING DOCUMENT RETRIEVAL")
+                retrieval_start = time.time()
                 try:
-                    response = await asyncio.wait_for(
-                        loop.run_in_executor(
-                            thread_pool,
-                            lambda: question_answer_chain.invoke({
-                                "input": query,
-                                "context": processed_docs
-                            })
-                        ),
-                        timeout=15.0
-                    )
-                    answer = response.strip()
-                except asyncio.TimeoutError:
-                    answer = "I'm taking too long to generate a perfect response. Here's what I found quickly!"
+                    raw_docs = await async_retrieve_documents(query, retriever, max_timeout=6.0)
+                    retrieval_end = time.time()
+                    timings["retrieval_time"] = retrieval_end - retrieval_start
+                    logger.info(f"✅ RETRIEVAL COMPLETE - Documents: {len(raw_docs)} | Time: {timings['retrieval_time']:.2f}s")
+                except Exception as e:
+                    logger.error(f"❌ RETRIEVAL FAILED: {e}")
+                    raw_docs = []
 
-            generation_end = time.time()
-            timings["generation_time"] = generation_end - generation_start
-            logger.info(f"⏱️ Generation took {timings['generation_time']:.2f}s")
+                # 🚀 STEP 2: Document processing with logging
+                logger.info("⚙️ STARTING DOCUMENT PROCESSING")
+                processing_start = time.time()
+                final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
+                processed_docs = post_process_retrieved_docs(final_docs, query)[:3]
+                processing_end = time.time()
+                timings["processing_time"] = processing_end - processing_start
+                logger.info(f"✅ PROCESSING COMPLETE - Final docs: {len(processed_docs)} | Time: {timings['processing_time']:.2f}s")
+
+                if not processed_docs:
+                    # No docs found
+                    logger.warning("⚠️ NO DOCUMENTS FOUND - Using fallback response")
+                    fallback_msg = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
+                    # ✅ FAST: Send entire message at once
+                    data = json.dumps({'chunk': fallback_msg, 'done': False})
+                    yield f"data: {data}\n\n"
+                    await asyncio.sleep(0.02)
+                    
+                    yield f"data: {json.dumps({'chunk': '', 'done': True, 'mode': 'fallback'})}\n\n"
+                    
+                else:
+                    # Build prompt and stream response
+                    optimized_prompt = build_optimized_prompt(query, processed_docs, conversation_history)
+                    logger.info(f"📝 PROMPT BUILT - Length: {len(optimized_prompt)} chars | Docs used: {len(processed_docs)}")
+                    
+                    generation_start = time.time()
+                    
+                    try:
+                        # Stream with Gemini
+                        genai.configure(api_key=GOOGLE_API_KEY)
+                        model = genai.GenerativeModel('gemini-2.0-flash')
+                        
+                        logger.info("🚀 STARTING GEMINI STREAM GENERATION")
+                        # response = model.generate_content(optimized_prompt, stream=True)
+                        response = model.generate_content(
+                            optimized_prompt, 
+                            stream=True,
+                            generation_config=genai.types.GenerationConfig(
+                                max_output_tokens=2500,
+                                temperature=0.4,
+                            )
+                        )
+
+                        
+                        full_response = ""
+                        chunk_count = 0
+                        total_chars = 0
+                        
+                        for chunk in response:
+                            if chunk.text:
+                                chunk_text = chunk.text
+                                full_response += chunk_text
+                                chunk_count += 1
+                                total_chars += len(chunk_text)
+                                
+                                # ✅ OPTIMIZED STREAMING: Balance between speed and UX
+                                # For short responses, send quickly; for long ones, chunk appropriately
+                                if len(chunk_text) < 50:
+                                    # Short chunk - send immediately
+                                    data = json.dumps({'chunk': chunk_text, 'done': False})
+                                    yield f"data: {data}\n\n"
+                                    await asyncio.sleep(0.005)  # Almost instant
+                                else:
+                                    # Longer chunk - split into sentences for better UX
+                                    sentences = re.split(r'[.!?]+', chunk_text)
+                                    for sentence in sentences:
+                                        if len(sentence.strip()) > 5:  # Only meaningful sentences
+                                            data = json.dumps({'chunk': sentence.strip() + '. ', 'done': False})
+                                            yield f"data: {data}\n\n"
+                                            await asyncio.sleep(0.008)  # Very fast
+                        
+                        generation_end = time.time()
+                        timings["generation_time"] = generation_end - generation_start
+                        timings["total_chars"] = total_chars
+                        timings["chunk_count"] = chunk_count
+                        
+                        logger.info(f"✅ GENERATION COMPLETE - Chunks: {chunk_count} | Chars: {total_chars} | Time: {timings['generation_time']:.2f}s | Speed: {total_chars/timings['generation_time']:.1f} chars/sec")
+                        
+                        # Send completion with all metadata
+                        completion_data = json.dumps({
+                            'chunk': '', 
+                            'done': True, 
+                            'full_response': full_response,
+                            'mode': 'rag',
+                            'timings': timings,
+                            'retrieved_docs_count': len(raw_docs),
+                            'processed_docs_count': len(processed_docs)
+                        })
+                        yield f"data: {completion_data}\n\n"
+                        
+                    except asyncio.TimeoutError:
+                        logger.error("⏰ GENERATION TIMEOUT")
+                        error_msg = "I'm taking too long to generate a response. Please try again!"
+                        # ✅ FAST: Send error immediately
+                        data = json.dumps({'chunk': error_msg, 'done': False})
+                        yield f"data: {data}\n\n"
+                        await asyncio.sleep(0.02)
+                        
+                        yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': 'timeout'})}\n\n"
+                        
+                    except Exception as e:
+                        logger.error(f"❌ GENERATION FAILED: {e}")
+                        error_msg = "I'm experiencing technical issues. Please try again."
+                        data = json.dumps({'chunk': error_msg, 'done': False})
+                        yield f"data: {data}\n\n"
+                        await asyncio.sleep(0.02)
+                        
+                        yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': str(e)})}\n\n"
+
+        except Exception as e:
+            logger.error(f"💥 STREAM ERROR: {e}")
+            error_msg = f"An unexpected error occurred: {str(e)}"
+            data = json.dumps({'chunk': error_msg, 'done': False})
+            yield f"data: {data}\n\n"
+            await asyncio.sleep(0.02)
             
-            
-        # Response formatting
-        chat_history = []
-        chat_entry = f"You: {query}\nAI: {answer}"
-        chat_history.insert(0, chat_entry)
-        if len(chat_history) > 3:
-            chat_history.pop()
+            yield f"data: {json.dumps({'chunk': '', 'done': True, 'error': 'unexpected'})}\n\n"
+        
+        finally:
+            total_time = time.time() - start_time
+            logger.info(f"🏁 CHAT COMPLETED - Total time: {total_time:.2f}s | Final timings: {timings}")
 
-        total_end = time.time()
-        timings["total_time"] = total_end - start_time
-
-        logger.info("#" * 100)
-        logger.info(f"⏱️ Retrieval took {timings['retrieval_time']:.2f}s")
-        logger.info(f"⏱️ Processing took {timings['processing_time']:.2f}s")
-        logger.info(f"⏱️ Generation took {timings['generation_time']:.2f}s")
-        logger.info(f"🧮 TOTAL chat request took {timings['total_time']:.2f}s")
-        logger.info("#" * 100)
-
-
-        return {
-            "answer": answer,
-            "history": "\n\n".join(chat_history),
-            "timings": {k: f"{v:.2f}s" for k, v in timings.items()},
-            "retrieved_docs_count": len(raw_docs),
-            "processed_docs_count": len(processed_docs) if 'processed_docs' in locals() else 0
+    # Return streaming response
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+            'Transfer-Encoding': 'chunked',
         }
-
-    except Exception as e:
-        logger.error(f"❌ Chat error: {e}", exc_info=True)
-        return {
-            "answer": "I'm experiencing technical issues. Please try again in a moment.",
-            "history": "",
-            "error": True
-        }
+    )
 
 
-##################################################################################################
+
 
 # Redis for progress tracking (fallback to in-memory if Redis not available)
 try:

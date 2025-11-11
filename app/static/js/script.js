@@ -24,8 +24,8 @@ async function computeAllCompressionSizes() {
     try {
         if (compressionType && compressionType.value === 'server') {
 
-            
-        
+
+
             await computeServerCompressionSizesTwoStep();
         } else {
             await computeClientCompressionSizes();
@@ -150,7 +150,7 @@ function getProgressStage(stage) {
 
 async function computeServerCompressionSizesTwoStep() {
 
-    
+
     console.log('Computing server-side compression sizes using two-step method...');
 
     const form = document.getElementById('compressForm');
@@ -181,16 +181,16 @@ async function computeServerCompressionSizesTwoStep() {
     const file = fileInput.files[0];
     const originalSizeMB = (file.size / (1024 * 1024)).toFixed(2);
     console.log(`Checking size: ${originalSizeMB} MB`);
-    
+
     if (originalSizeMB > 50) {
-      resultDiv.textContent = 'Size exceeds 50MB';
-      return
+        resultDiv.textContent = 'Size exceeds 50MB';
+        return
     } else {
-      resultDiv.textContent = `File size is ${originalSizeMB} MB`;
-      
+        resultDiv.textContent = `File size is ${originalSizeMB} MB`;
+
     }
-    
-        // Disable button during computation
+
+    // Disable button during computation
     if (computeButton) {
         computeButton.disabled = true;
 
@@ -426,7 +426,7 @@ async function compressPDFClientSide() {
     const computeButton = document.getElementById('estimate-sizes-btn');
     const progressrid = document.getElementById('progress-status-compressForm');
     const progressridother = document.getElementById('progress-percent-compressForm');
-   
+
 
     const msg = document.getElementById('operation-msg');
     msg.classList.remove('hidden'); // show the message
@@ -796,13 +796,13 @@ async function computeClientCompressionSizes() {
 
     console.log('Computing all compression sizes with accurate predictions...');
     const proceed = confirm("Exact Size estimation may take 1 - 2 min depending on PDF size.\n\nContinue ??");
-    
+
     if (!proceed) return;
 
     // Disable button during computation
     if (computeButton) {
         computeButton.disabled = true;
-        compButton.disabled=true;
+        compButton.disabled = true;
         computeButton.innerHTML = '<i class="fas fa-calculator mr-2"></i> Computing...';
     }
 
@@ -985,7 +985,7 @@ async function computeClientCompressionSizes() {
         // Re-enable button
         if (computeButton) {
             computeButton.disabled = false;
-            compButton.disabled=false;
+            compButton.disabled = false;
             computeButton.innerHTML = '<i class="fas fa-calculator mr-2"></i> Compute All Compression';
         }
     }
@@ -1718,7 +1718,7 @@ function setupCompressionType() {
 
     function updateOptions() {
         if (serverRadio.checked) {
-            estimatesizebuttonforhideing.style.display= 'none'  // this is hiding estimate size in server option
+            estimatesizebuttonforhideing.style.display = 'none'  // this is hiding estimate size in server option
             serverOptions.classList.remove('hidden');
             clientOptions.classList.add('hidden');
             serverlabel.style.backgroundColor = '#d1e7dd'; // light green
@@ -1727,7 +1727,7 @@ function setupCompressionType() {
 
             clientlabel.style.backgroundColor = ''; // reset
         } else {
-            estimatesizebuttonforhideing.style.display= 'flex'
+            estimatesizebuttonforhideing.style.display = 'flex'
             serverOptions.classList.add('hidden');
             clientOptions.classList.remove('hidden');
             clientlabel.style.backgroundColor = '#cff4fc'; // light blue
@@ -1833,9 +1833,9 @@ async function processServerCompressionTwoStep(form, resultDiv, progressDiv, pro
         submitButton.disabled = false;
         submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Compress PDF';
         computeButton.disabled = false;
-        completepog.style.display='none'
-        
-    
+        completepog.style.display = 'none'
+
+
 
     }
 }
@@ -1934,7 +1934,7 @@ async function processPDF(endpoint, formId) {
     const computeButton = document.getElementById('estimate-sizes-btn');
     const pdftoexcelbutton = document.getElementById('pdftoexcelbutton');
     const pdftowordbutton = document.getElementById('pdftowordbutton');
-    
+
 
     if (!form) {
         console.error(`Form with ID ${formId} not found`);
@@ -2305,7 +2305,7 @@ async function validateForm(form, endpoint, resultDiv) {
 
     if (endpoint === 'convert_pdf_to_word' || endpoint === 'convert_pdf_to_excel') {
         const file = files[0];
-    
+
         // Check file size
         if (file.size > MAX_FILE_SIZE_PDFWORDEXCEL) {
             const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
@@ -2313,23 +2313,23 @@ async function validateForm(form, endpoint, resultDiv) {
             resultDiv.classList.add('text-red-600');
             return false;
         }
-    
+
         // Check file type
         if (file.type !== 'application/pdf') {
             resultDiv.textContent = `File ${file.name} must be a PDF.`;
             resultDiv.classList.add('text-red-600');
             return false;
         }
-    
+
         // Check page count - FIXED CODE
         try {
             const arrayBuffer = await file.arrayBuffer();
             const [pdfjs] = await pdfLibraryManager.loadLibraries(['pdfjs']);
-            
+
             // ✅ CORRECT: Load the PDF document first
             const pdfDoc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
             const totalPages = pdfDoc.numPages; // ✅ Get pages from the loaded document
-    
+
             if (totalPages > PDFWORDEXCEL_MAX_PAGES) {
                 resultDiv.textContent = `File ${file.name} has ${totalPages} pages. Maximum ${PDFWORDEXCEL_MAX_PAGES} pages allowed for conversion.`;
                 resultDiv.classList.add('text-red-600');
@@ -2523,10 +2523,10 @@ async function validateForm(form, endpoint, resultDiv) {
     } else if (endpoint === 'compress_pdf') {
         const file = files[0];
         const sizeMB = file.size / (1024 * 1024);
-        
+
         // Check compression type for different size limits
         const compressionType = document.querySelector('input[name="compression_type"]:checked');
-        
+
         if (compressionType && compressionType.value === 'server') {
             // Server-side: 50MB limit
             if (sizeMB > 50) {
@@ -2534,7 +2534,7 @@ async function validateForm(form, endpoint, resultDiv) {
                 resultDiv.classList.add('text-red-600');
                 return false;
             }
-            
+
             // Server-side preset validation
             const preset = document.getElementById('server-preset')?.value;
             if (!preset || !['prepress', 'printer', 'ebook', 'screen'].includes(preset)) {
@@ -2549,18 +2549,18 @@ async function validateForm(form, endpoint, resultDiv) {
                 resultDiv.classList.add('text-red-600');
                 return false;
             }
-            
+
             // Client-side doesn't need preset validation
             console.log('Client-side compression - using intelligent analysis');
         }
-        
+
         // Common validation for both
         if (file.type !== 'application/pdf') {
             resultDiv.textContent = `File ${file.name} must be a PDF.`;
             resultDiv.classList.add('text-red-600');
             return false;
         }
-        
+
         return true;
     }
 
@@ -2664,8 +2664,8 @@ async function validateForm(form, endpoint, resultDiv) {
             return false;
         }
     }
-     else if (endpoint === 'remove_background') {
-      
+    else if (endpoint === 'remove_background') {
+
 
     }
 
@@ -2784,6 +2784,7 @@ function getRandomLoadingMessage() {
 
 // Update your sendChat function
 
+
 async function sendChat() {
     const chatInput = document.getElementById('chatInput');
     const chatOutput = document.getElementById('chatOutput');
@@ -2798,14 +2799,14 @@ async function sendChat() {
     }
 
     const userMessage = chatInput.value.trim();
-    
-    // Show funny loading message
+
+    // Show loading message
     if (progressText) {
         progressText.textContent = getRandomLoadingMessage();
         progressText.style.display = 'block';
     }
 
-    // Add user message with fun styling
+    // Add user message
     const userMessageDiv = document.createElement('div');
     userMessageDiv.className = 'mb-4 text-right';
     userMessageDiv.innerHTML = `
@@ -2819,7 +2820,32 @@ async function sendChat() {
     // Clear input
     chatInput.value = '';
 
-    let responseData; 
+    // Create AI response container
+    const aiResponseDiv = document.createElement('div');
+    aiResponseDiv.className = 'mb-4';
+    aiResponseDiv.innerHTML = `
+        <div class="flex flex-col items-start space-y-2">
+            <div class="bg-green-50 rounded-lg p-3 flex-1 w-full">
+                <div class="flex justify-start w-full">
+                    <span class="inline-flex flex-col p-2 items-center justify-center w-16 h-16 text-red-600 text-sm font-semibold border-2 border-red-600 rounded-full">
+                        🤖
+                        <span>AI</span>
+                    </span>
+                </div>
+                <div class="ai-response streaming-response" style="min-height: 20px; white-space: pre-wrap;"></div>
+                <div class="text-xs text-gray-500 mt-1 flex items-center">
+                    <span>AI</span>
+                    <span class="mx-2">•</span>
+                    <span class="text-green-600 streaming-status">✨ Streaming...</span>
+                </div>
+            </div>
+        </div>
+    `;
+
+    chatOutput.insertBefore(aiResponseDiv, chatOutput.firstChild);
+
+    const responseElement = aiResponseDiv.querySelector('.streaming-response');
+    const statusElement = aiResponseDiv.querySelector('.streaming-status');
 
     try {
         // Get the selected mode
@@ -2839,85 +2865,175 @@ async function sendChat() {
             history: JSON.stringify(recentHistory)
         });
 
+        console.log('🚀 Starting stream request to /chat endpoint...');
+
+        // Use the regular chat endpoint (now with streaming)
         const response = await fetch('/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'text/event-stream'
+            },
             body: body
         });
 
+        console.log('📡 Response status:', response.status);
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Chat error');
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        responseData = await response.json(); // ✅ Store response data
-
-        // Add to chat history
-        chatHistory.push({ role: "user", content: userMessage });
-        chatHistory.push({ role: "assistant", content: responseData.answer });
-
-        // Add AI response with fun styling
-        const aiResponseDiv = document.createElement('div');
-        aiResponseDiv.className = 'mb-4';
-        
-        aiResponseDiv.innerHTML = `
-        <div class="flex flex-col items-start space-y-2">
-        
-            <div class="bg-green-50 rounded-lg p-3 flex-1 w-full">
-                <div class="flex justify-start w-full">
-                <span class="inline-flex flex-col p-2 items-center justify-center w-16 h-16 text-red-600 text-sm font-semibold border-2 border-red-600 rounded-full">
-                    🤖
-                    <span>AI</span>
-                </span>
-            </div>
-                <div class="ai-response"></div>
-                <div class="text-xs text-gray-500 mt-1 flex items-center">
-                    <span>AI</span>
-                    <span class="mx-2">•</span>
-                    <span class="text-green-600">✨ Powered by Vishnu Magic</span>
-                </div>
-            </div>
-        </div>
-    `;
-        
-        chatOutput.insertBefore(aiResponseDiv, chatOutput.firstChild);
-        
-        // Format the response with markdown
-        const aiResponseContent = aiResponseDiv.querySelector('.ai-response');
-        if (typeof marked !== 'undefined') {
-            aiResponseContent.innerHTML = marked.parse(responseData.answer); // ✅ Use responseData
-        } else {
-            aiResponseContent.textContent = responseData.answer; // ✅ Use responseData
+        if (!response.body) {
+            throw new Error('No response body available for streaming');
         }
 
-        // Add occasional fun reactions
-        addFunReactions(responseData.answer); // ✅ Use responseData
+        console.log('✅ Stream started successfully');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullResponse = '';
+        // In your sendChat() function, replace the chunk processing part:
+
+        while (true) {
+            const { value, done } = await reader.read();
+            
+            if (done) {
+                console.log('🏁 Stream completed');
+                statusElement.textContent = '✨ Response complete';
+                statusElement.className = 'text-xs text-gray-500 mt-1 flex items-center text-green-600';
+                
+                // Add to chat history
+                chatHistory.push({ role: "user", content: userMessage });
+                chatHistory.push({ role: "assistant", content: fullResponse });
+                break;
+            }
+
+            // Decode and process chunks
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            
+            // Keep the last incomplete line in buffer
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        console.log('📦 Received chunk:', data);
+
+                        if (data.chunk && data.chunk !== '') {
+                            fullResponse += data.chunk;
+                            
+                            // ✅ CRITICAL FIX: Use marked.parse() to render Markdown
+                            if (typeof marked !== 'undefined') {
+                                responseElement.innerHTML = marked.parse(fullResponse);
+                            } else {
+                                // Fallback: Basic table formatting
+                                responseElement.textContent = fullResponse;
+                            }
+                            
+                            // Scroll to show latest content
+                            responseElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+
+                        if (data.done) {
+                            console.log('🎯 Stream marked as done');
+                            if (data.full_response) {
+                                fullResponse = data.full_response;
+                                // ✅ Final render with Markdown
+                                if (typeof marked !== 'undefined') {
+                                    responseElement.innerHTML = marked.parse(fullResponse);
+                                } else {
+                                    responseElement.textContent = fullResponse;
+                                }
+                            }
+                            
+                            // Show timings if available
+                            if (data.timings) {
+                                statusElement.textContent = `✨ Complete • ${data.timings.generation_time || 'streamed'}`;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('❌ Parse error:', e, 'for line:', line);
+                    }
+                }
+            }
+        }
+
+        // while (true) {
+        //     const { value, done } = await reader.read();
+
+        //     if (done) {
+        //         console.log('🏁 Stream completed');
+        //         statusElement.textContent = '✨ Response complete';
+        //         statusElement.className = 'text-xs text-gray-500 mt-1 flex items-center text-green-600';
+
+        //         // Add to chat history
+        //         chatHistory.push({ role: "user", content: userMessage });
+        //         chatHistory.push({ role: "assistant", content: fullResponse });
+        //         break;
+        //     }
+
+        //     // Decode and process chunks
+        //     buffer += decoder.decode(value, { stream: true });
+        //     const lines = buffer.split('\n');
+
+        //     // Keep the last incomplete line in buffer
+        //     buffer = lines.pop() || '';
+
+        //     for (const line of lines) {
+        //         if (line.startsWith('data: ')) {
+        //             try {
+        //                 const data = JSON.parse(line.slice(6));
+        //                 console.log('📦 Received chunk:', data);
+
+        //                 if (data.chunk && data.chunk !== '') {
+        //                     fullResponse += data.chunk;
+        //                     responseElement.textContent = fullResponse;
+
+        //                     // Scroll to show latest content
+        //                     responseElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        //                 }
+
+        //                 if (data.done) {
+        //                     console.log('🎯 Stream marked as done');
+        //                     if (data.full_response) {
+        //                         fullResponse = data.full_response;
+        //                         responseElement.textContent = fullResponse;
+        //                     }
+
+        //                     // Show timings if available
+        //                     if (data.timings) {
+        //                         statusElement.textContent = `✨ Complete • ${data.timings.generation_time || 'streamed'}`;
+        //                     }
+        //                 }
+        //             } catch (e) {
+        //                 console.error('❌ Parse error:', e, 'for line:', line);
+        //             }
+        //         }
+        //     }
+        // }
 
     } catch (error) {
-        console.error("Chat error:", error);
-        
-        // Fun error message
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'mb-4';
-        errorDiv.innerHTML = `
-            <div class="flex items-start space-x-2">
-                <div class="flex-shrink-0 w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                    <span class="text-red-600 text-sm">😵</span>
-                </div>
-                <div class="bg-red-50 rounded-lg p-3 flex-1">
-                    <p class="text-red-800">
-                        <strong>Whoops! Brain freeze! 🧊</strong><br>
-                        <small>Error: ${error.message}. Let's try that again!</small>
-                    </p>
-                </div>
+        console.error("💥 Chat streaming error:", error);
+
+        // Show error message
+        responseElement.innerHTML = `
+            <div class="text-red-600">
+                <strong>Streaming Error! 🚨</strong><br>
+                <small>${error.message}</small>
             </div>
         `;
-        chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
+
+        statusElement.textContent = '❌ Streaming failed';
+        statusElement.className = 'text-xs text-gray-500 mt-1 flex items-center text-red-600';
+
     } finally {
         if (progressText) {
             progressText.style.display = 'none';
         }
-        
+
         // Keep full history for UI (limit to prevent memory issues)
         if (chatHistory.length > 100) {
             chatHistory = chatHistory.slice(-100);
@@ -2927,11 +3043,231 @@ async function sendChat() {
 
 
 
+
+// Fallback function if streaming fails
+async function fallbackToRegularChat(userMessage, selectedMode, recentHistory, aiResponseDiv) {
+    try {
+        const body = new URLSearchParams({
+            query: userMessage,
+            mode: selectedMode || '',
+            history: JSON.stringify(recentHistory)
+        });
+
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Control': 'application/x-www-form-urlencoded' },
+            body: body
+        });
+
+        if (!response.ok) throw new Error('Fallback failed');
+
+        const data = await response.json();
+        const responseElement = aiResponseDiv.querySelector('.streaming-response');
+        const statusElement = aiResponseDiv.querySelector('.streaming-status');
+
+        if (typeof marked !== 'undefined') {
+            responseElement.innerHTML = marked.parse(data.answer);
+        } else {
+            responseElement.textContent = data.answer;
+        }
+
+        statusElement.textContent = '✨ Regular response';
+        statusElement.className = 'text-xs text-gray-500 mt-1 flex items-center text-yellow-600';
+
+        // Add to history
+        chatHistory.push({ role: "user", content: userMessage });
+        chatHistory.push({ role: "assistant", content: data.answer });
+
+    } catch (fallbackError) {
+        console.error("Fallback also failed:", fallbackError);
+        const responseElement = aiResponseDiv.querySelector('.streaming-response');
+        responseElement.innerHTML = `
+            <div class="text-red-600">
+                <strong>Complete Failure! 😵</strong><br>
+                <small>Both streaming and regular chat failed. Please try again.</small>
+            </div>
+        `;
+    }
+}
+
+// Add typing indicator CSS
+const streamingStyles = `
+    .streaming-response {
+        transition: all 0.3s ease;
+    }
+    
+    .typing-cursor::after {
+        content: '|';
+        animation: blink 1s infinite;
+        color: #4ade80;
+        font-weight: bold;
+    }
+    
+    @keyframes blink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0; }
+    }
+`;
+
+if (!document.querySelector('#streaming-styles')) {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'streaming-styles';
+    styleEl.textContent = streamingStyles;
+    document.head.appendChild(styleEl);
+}
+
+
+
+///////////////////////
+
+// async function sendChat() {
+//     const chatInput = document.getElementById('chatInput');
+//     const chatOutput = document.getElementById('chatOutput');
+//     const progressText = document.getElementById('progress-text-chat');
+
+//     if (!chatInput || !chatInput.value.trim()) {
+//         const errorDiv = document.createElement('div');
+//         errorDiv.className = 'text-yellow-600 mb-4 text-center';
+//         errorDiv.innerHTML = `<p>🤖 <i>"Even AI needs something to work with!"</i></p>`;
+//         chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
+//         return;
+//     }
+
+//     const userMessage = chatInput.value.trim();
+
+//     // Show funny loading message
+//     if (progressText) {
+//         progressText.textContent = getRandomLoadingMessage();
+//         progressText.style.display = 'block';
+//     }
+
+//     // Add user message with fun styling
+//     const userMessageDiv = document.createElement('div');
+//     userMessageDiv.className = 'mb-4 text-right';
+//     userMessageDiv.innerHTML = `
+//         <div class="inline-block bg-blue-100 rounded-lg p-3 max-w-xs lg:max-w-md">
+//             <p class="text-gray-800">${userMessage}</p>
+//             <div class="text-xs text-gray-500 mt-1">👤 You</div>
+//         </div>
+//     `;
+//     chatOutput.insertBefore(userMessageDiv, chatOutput.firstChild);
+
+//     // Clear input
+//     chatInput.value = '';
+
+//     let responseData; 
+
+//     try {
+//         // Get the selected mode
+//         let selectedMode = null;
+//         const modeToggle = document.getElementById('mode-toggle');
+//         const modeSelect = document.getElementById('mode-select');
+//         if (modeToggle && modeToggle.checked && modeSelect && modeSelect.value) {
+//             selectedMode = modeSelect.value;
+//         }
+
+//         // Send only LAST 4 conversations (8 messages) to LLM
+//         const recentHistory = chatHistory.slice(-8);
+
+//         const body = new URLSearchParams({
+//             query: userMessage,
+//             mode: selectedMode || '',
+//             history: JSON.stringify(recentHistory)
+//         });
+
+//         const response = await fetch('/chat', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+//             body: body
+//         });
+
+//         if (!response.ok) {
+//             const errorData = await response.json();
+//             throw new Error(errorData.detail || 'Chat error');
+//         }
+
+//         responseData = await response.json(); // ✅ Store response data
+
+//         // Add to chat history
+//         chatHistory.push({ role: "user", content: userMessage });
+//         chatHistory.push({ role: "assistant", content: responseData.answer });
+
+//         // Add AI response with fun styling
+//         const aiResponseDiv = document.createElement('div');
+//         aiResponseDiv.className = 'mb-4';
+
+//         aiResponseDiv.innerHTML = `
+//         <div class="flex flex-col items-start space-y-2">
+
+//             <div class="bg-green-50 rounded-lg p-3 flex-1 w-full">
+//                 <div class="flex justify-start w-full">
+//                 <span class="inline-flex flex-col p-2 items-center justify-center w-16 h-16 text-red-600 text-sm font-semibold border-2 border-red-600 rounded-full">
+//                     🤖
+//                     <span>AI</span>
+//                 </span>
+//             </div>
+//                 <div class="ai-response"></div>
+//                 <div class="text-xs text-gray-500 mt-1 flex items-center">
+//                     <span>AI</span>
+//                     <span class="mx-2">•</span>
+//                     <span class="text-green-600">✨ Powered by Vishnu Magic</span>
+//                 </div>
+//             </div>
+//         </div>
+//     `;
+
+//         chatOutput.insertBefore(aiResponseDiv, chatOutput.firstChild);
+
+//         // Format the response with markdown
+//         const aiResponseContent = aiResponseDiv.querySelector('.ai-response');
+//         if (typeof marked !== 'undefined') {
+//             aiResponseContent.innerHTML = marked.parse(responseData.answer); // ✅ Use responseData
+//         } else {
+//             aiResponseContent.textContent = responseData.answer; // ✅ Use responseData
+//         }
+
+//         // Add occasional fun reactions
+//         addFunReactions(responseData.answer); // ✅ Use responseData
+
+//     } catch (error) {
+//         console.error("Chat error:", error);
+
+//         // Fun error message
+//         const errorDiv = document.createElement('div');
+//         errorDiv.className = 'mb-4';
+//         errorDiv.innerHTML = `
+//             <div class="flex items-start space-x-2">
+//                 <div class="flex-shrink-0 w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+//                     <span class="text-red-600 text-sm">😵</span>
+//                 </div>
+//                 <div class="bg-red-50 rounded-lg p-3 flex-1">
+//                     <p class="text-red-800">
+//                         <strong>Whoops! Brain freeze! 🧊</strong><br>
+//                         <small>Error: ${error.message}. Let's try that again!</small>
+//                     </p>
+//                 </div>
+//             </div>
+//         `;
+//         chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
+//     } finally {
+//         if (progressText) {
+//             progressText.style.display = 'none';
+//         }
+
+//         // Keep full history for UI (limit to prevent memory issues)
+//         if (chatHistory.length > 100) {
+//             chatHistory = chatHistory.slice(-100);
+//         }
+//     }
+// }
+
+
+
 // Add fun reactions based on content
 function addFunReactions(responseText) {
     const reactions = {
         'thank': '🎉',
-        'welcome': '😊', 
+        'welcome': '😊',
         'sorry': '🤗',
         'funny': '😂',
         'interesting': '🤔',
@@ -2939,7 +3275,7 @@ function addFunReactions(responseText) {
         'problem': '🔧',
         'question': '❓'
     };
-    
+
     // You can add this to show reactions in the UI
     setTimeout(() => {
         // Optional: Add floating emoji reactions
@@ -3057,7 +3393,7 @@ async function processImage(endpoint, formId) {
         resultDiv.classList.add('text-red-600');
         return;
     }
-        //  20MB VALIDATION HERE
+    //  20MB VALIDATION HERE
     const file = fileInput.files[0];
     const sizeMB = file.size / (1024 * 1024);
     if (sizeMB > 10) {
@@ -3338,10 +3674,10 @@ function clearAllForms() {
 
 function stopAllOperations() {
     console.log('🛑 STOPPING ALL OPERATIONS');
-    
+
     // For client-side: refresh page (kills everything)
     window.location.reload();
-    
+
     // For server-side: call stop endpoint
     fetch('/stop_operations', { method: 'POST' })
         .then(() => console.log('Server operations stopped'))
@@ -3351,11 +3687,11 @@ function stopAllOperations() {
 
 
 // // SIMPLE SOLUTION - press enter to submit repsone
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const chatInput = document.getElementById('chatInput');
-    
+
     if (chatInput) {
-        chatInput.addEventListener('keydown', function(e) {
+        chatInput.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendChat();
@@ -3364,3 +3700,64 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+///////////////////////////////////chat outpurt///////////////////////////////////////
+
+
+
+function detectAndStyleOverflowingTables() {
+    const aiResponses = document.querySelectorAll('.ai-response');
+    
+    aiResponses.forEach(container => {
+        const tables = container.querySelectorAll('table');
+        
+        tables.forEach(table => {
+            // Reset previous classes
+            table.classList.remove('overflow-table');
+            container.classList.remove('overflow-container');
+            
+            // Check if table overflows its container
+            if (table.scrollWidth > container.clientWidth) {
+                table.classList.add('overflow-table');
+                container.classList.add('overflow-container');
+                
+                console.log('📊 Overflow table detected:', {
+                    tableWidth: table.scrollWidth,
+                    containerWidth: container.clientWidth,
+                    overflows: table.scrollWidth > container.clientWidth
+                });
+            }
+        });
+    });
+}
+
+// Run on page load, chat updates, and window resize
+window.addEventListener('load', detectAndStyleOverflowingTables);
+window.addEventListener('resize', detectAndStyleOverflowingTables);
+
+// Also run when new chat messages are added (MutationObserver)
+const chatObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.addedNodes.length) {
+            setTimeout(detectAndStyleOverflowingTables, 100);
+        }
+    });
+});
+
+const chatOutput = document.getElementById('chatOutput');
+if (chatOutput) {
+    chatObserver.observe(chatOutput, { childList: true, subtree: true });
+}
+
+// Add scroll detection only for overflow containers
+if (chatOutput) {
+    chatOutput.addEventListener('scroll', function() {
+        const overflowContainers = this.querySelectorAll('.ai-response.overflow-container');
+        overflowContainers.forEach(container => {
+            if (container.scrollLeft > 10) {
+                container.classList.add('scrolling');
+            } else {
+                container.classList.remove('scrolling');
+            }
+        });
+    }, { passive: true });
+}

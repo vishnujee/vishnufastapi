@@ -1,32 +1,17 @@
-# verify_installation.py
-import importlib
+import google.generativeai as genai
+import time
+import os
+from dotenv import load_dotenv
+ 
+load_dotenv()
 
-required_modules = [
-    'langchain',
-    'langchain.chains',
-    'langchain.chains.combine_documents',
-    'langchain.chains.combine_documents.stuff',
-    'langchain.chains.retrieval',
-    'langchain_community',
-    'langchain_core',
-    'langchain_text_splitters',
-    'langchain_chroma'
-]
 
-print("🔍 Verifying LangChain Installation...")
-print("=" * 50)
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+genai.configure(api_key=GOOGLE_API_KEY)
+model = genai.GenerativeModel('gemini-2.0-flash')
 
-all_success = True
-for module in required_modules:
-    try:
-        importlib.import_module(module)
-        print(f"✅ {module}")
-    except ImportError as e:
-        print(f"❌ {module} - MISSING: {e}")
-        all_success = False
+start = time.time()
+response = model.generate_content("What is 2+2?")
+end = time.time()
 
-print("=" * 50)
-if all_success:
-    print("🎉 All modules installed successfully!")
-else:
-    print("⚠️ Some modules are missing. Run the complete installation command.")
+print(f"Direct API call: {end-start:.2f}s")
