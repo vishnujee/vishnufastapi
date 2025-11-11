@@ -2349,15 +2349,15 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                         model = genai.GenerativeModel('gemini-2.0-flash')
                         
                         logger.info("🚀 STARTING GEMINI STREAM GENERATION")
-                        # response = model.generate_content(optimized_prompt, stream=True)
-                        response = model.generate_content(
-                            optimized_prompt, 
-                            stream=True,
-                            generation_config=genai.types.GenerationConfig(
-                                max_output_tokens=2500,
-                                temperature=0.4,
-                            )
-                        )
+                        response = model.generate_content(optimized_prompt, stream=True)
+                        # response = model.generate_content(
+                        #     optimized_prompt, 
+                        #     stream=True,
+                        #     generation_config=genai.types.GenerationConfig(
+                        #         max_output_tokens=2500,
+                        #         temperature=0.4,
+                        #     )
+                        # )
 
                         
                         full_response = ""
