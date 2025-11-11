@@ -2259,9 +2259,9 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 logger.info("🔄 RAG PATH")
                 def build_optimized_prompt(query, processed_docs, conversation_history):
                     prompt_parts = [
-                        "SYSTEM: You are Vishnu AI Assintant — a friendly but bit funny. "
+                        "SYSTEM: You are Vishnu AI Assintant — a friendly but bit funny."
                         "Provide accurate, clear, human-like answers in a warm and professional tone."
-                        "Add light Indian humor naturally when it fits (for example, 'as easy as making Maggi'). "
+                        "Add light Indian humor naturally when it fits (for example, 'as easy as making Maggi')."
                         "Keep humor after the main answer, on a new line, ending with a emoji"
                         "If the user asks a general question, gently suggest they can change the tone using the 'tone selector\n\n"
                         
