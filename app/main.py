@@ -623,148 +623,7 @@ def post_process_retrieved_docs(docs, query):
     return processed
 
 
-# def ensure_tabular_inclusion(docs, query, min_tabular=2):
-#     """ENHANCED VERSION - Reduce token volume with truncation logging"""
 
-#     MAX_CONTEXT_TOKENS = 1200  # ~4,800 characters
-#     current_tokens = 0
-#     final_docs = []
-
-#     query_lower = query.lower()
-
-#     # Priority 1: Work experience tables for work-related queries
-#     is_work_query = any(keyword in query_lower for keyword in [
-#         'company', 'work', 'experience', 'job', 'project', 'started working',
-#         'career', 'professional', 'employment', 'when did', 'start date',
-#         'kei', 'larsen', 'toubro', 'vindhya', 'punj', 'gng', 'l&t'
-#     ])
-
-#     if is_work_query:
-#         # Get tabular docs but TRUNCATE content
-#         tabular_docs = [d for d in docs if "3.pdf" in d.metadata.get("source", "")]
-#         for doc in tabular_docs:
-#             # 🆕 Log before truncation
-#             orig_len = len(doc.page_content)
-            
-#             # 🆕 TRUNCATE long table content
-#             truncated_content = smart_truncate(doc.page_content, 1500)  # ~375 tokens
-#             doc.page_content = truncated_content
-
-#             # 🆕 Log after truncation
-#             new_len = len(truncated_content)
-#             logger.info(
-#                 f"📏 Work doc truncation: {orig_len//4} → {new_len//4} tokens for {doc.metadata.get('source','')}"
-#             )
-
-#             doc_tokens = len(truncated_content) // 4
-
-#             if current_tokens + doc_tokens <= MAX_CONTEXT_TOKENS:
-#                 final_docs.append(doc)
-#                 current_tokens += doc_tokens
-#             else:
-#                 break
-
-#         logger.info(f"📊 Work query: Added {len(final_docs)} tabular docs, ~{current_tokens} tokens")
-
-#     # Priority 2: Add other relevant docs with token limits
-#     other_docs = [d for d in docs if d not in final_docs]
-
-#     for doc in other_docs:
-#         orig_len = len(doc.page_content)
-
-#         # 🆕 SMART TRUNCATION based on content type
-#         if len(doc.page_content) > 1000:  # ~250 tokens
-#             truncated_content = smart_truncate(doc.page_content, 800)  # ~200 tokens
-#             doc.page_content = truncated_content
-
-#             new_len = len(truncated_content)
-#             logger.info(
-#                 f"📏 Other doc truncation: {orig_len//4} → {new_len//4} tokens for {doc.metadata.get('source','')}"
-#             )
-
-#         else:
-#             new_len = orig_len  # no truncation
-
-#         doc_tokens = len(doc.page_content) // 4
-
-#         if current_tokens + doc_tokens <= MAX_CONTEXT_TOKENS and len(final_docs) < 5:
-#             final_docs.append(doc)
-#             current_tokens += doc_tokens
-#         else:
-#             break
-
-#     logger.info(f"🎯 Final context: {len(final_docs)} docs, ~{current_tokens} tokens")
-#     return final_docs
-
-# def ensure_tabular_inclusion(docs, query, min_tabular=2):
-#     """ENHANCED VERSION - Reduce token volume"""
-    
-#     # 🆕 ADD TOKEN LIMIT LOGIC
-#     MAX_CONTEXT_TOKENS = 1200  # ~4,800 characters
-#     current_tokens = 0
-#     final_docs = []
-    
-#     query_lower = query.lower()
-    
-#     # Priority 1: Work experience tables for work-related queries
-#     is_work_query = any(keyword in query_lower for keyword in [
-#         'company', 'work', 'experience', 'job', 'project', 'started working',
-#         'career', 'professional', 'employment', 'when did', 'start date',
-#         'kei', 'larsen', 'toubro', 'vindhya', 'punj', 'gng', 'l&t'
-#     ])
-    
-#     if is_work_query:
-#         # Get tabular docs but TRUNCATE content
-#         tabular_docs = [d for d in docs if "3.pdf" in d.metadata.get("source", "")]
-#         for doc in tabular_docs:
-#             # 🆕 TRUNCATE long table content
-#             truncated_content = smart_truncate(doc.page_content, 1500)  # ~375 tokens
-#             doc.page_content = truncated_content
-#             doc_tokens = len(truncated_content) // 4
-            
-#             if current_tokens + doc_tokens <= MAX_CONTEXT_TOKENS:
-#                 final_docs.append(doc)
-#                 current_tokens += doc_tokens
-#             else:
-#                 break
-                
-#         logger.info(f"📊 Work query: Added {len(final_docs)} tabular docs, ~{current_tokens} tokens")
-    
-#     # Priority 2: Add other relevant docs with token limits
-#     other_docs = [d for d in docs if d not in final_docs]
-    
-#     for doc in other_docs:
-#         # 🆕 SMART TRUNCATION based on content type
-#         if len(doc.page_content) > 1000:  # ~250 tokens
-#             truncated_content = smart_truncate(doc.page_content, 800)  # ~200 tokens
-#             doc.page_content = truncated_content
-        
-#         doc_tokens = len(doc.page_content) // 4
-        
-#         if current_tokens + doc_tokens <= MAX_CONTEXT_TOKENS and len(final_docs) < 5:
-#             final_docs.append(doc)
-#             current_tokens += doc_tokens
-#         else:
-#             break
-    
-#     logger.info(f"🎯 Final context: {len(final_docs)} docs, ~{current_tokens} tokens")
-#     return final_docs
-
-# def smart_truncate(text, max_chars):
-#     """Truncate text intelligently at sentence boundaries"""
-#     if len(text) <= max_chars:
-#         return text
-    
-#     # Try to truncate at sentence end
-#     truncated = text[:max_chars]
-#     last_period = truncated.rfind('.')
-#     last_newline = truncated.rfind('\n')
-    
-#     cutoff = max(last_period, last_newline)
-#     if cutoff > max_chars * 0.7:  # Only if we have reasonable content
-#         return truncated[:cutoff + 1]
-    
-#     return truncated + "..."
 
 def ensure_tabular_inclusion(docs, query, min_tabular=2):
     """Ensure relevant content is included based on query type"""
@@ -774,7 +633,7 @@ def ensure_tabular_inclusion(docs, query, min_tabular=2):
     is_work_query = any(keyword in query_lower for keyword in [
         'company', 'work', 'experience', 'job', 'project', 'started working',
         'career', 'professional', 'employment', 'when did', 'start date',
-        'kei', 'larsen', 'toubro', 'vindhya', 'punj', 'gng', 'l&t'
+        'kei', 'larsen', 'toubro', 'vindhya', 'punj', 'gng', 'l&t','vtl','l&t'
     ])
     
     if is_work_query:
@@ -2198,6 +2057,8 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
         timings = {}
         logger.info(f"🎯 CHAT STARTED - Query: '{query[:100]}...' | Mode: {mode} | History entries: {len(limited_history)}")
 
+
+
         try:
             if mode and mode in CHAT_MODES:
                 # Mode-specific streaming
@@ -2216,9 +2077,64 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 
                 # Stream response using Gemini
                 genai.configure(api_key=GOOGLE_API_KEY)
-                model = genai.GenerativeModel('gemini-2.0-flash')
                 
-                logger.info("🚀 Starting Gemini stream for mode-specific response...")
+                # MODE-SPECIFIC CONFIGURATIONS
+                if mode == "general":
+                    generation_config = genai.types.GenerationConfig(
+                        max_output_tokens=1500,
+                        temperature=0.8,  # Engaging and balanced
+                        top_p=0.95
+                    )
+                elif mode == "encyclopedia":
+                    generation_config = genai.types.GenerationConfig(
+                        max_output_tokens=2000,  # Longer factual responses
+                        temperature=0.4,         # More factual
+                        top_p=0.8
+                    )
+                elif mode == "creative":
+                    generation_config = genai.types.GenerationConfig(
+                        max_output_tokens=1800,
+                        temperature=1.0,         # Highly creative
+                        top_p=0.98
+                    )
+                elif mode == "debate":
+                    generation_config = genai.types.GenerationConfig(
+                        max_output_tokens=2000,
+                        temperature=0.6,         # Balanced viewpoints
+                        top_p=0.9
+                    )
+                elif mode == "funny":
+                    generation_config = genai.types.GenerationConfig(
+                        max_output_tokens=1200,
+                        temperature=0.9,         # Creative and humorous
+                        top_p=0.95
+                    )
+                elif mode == "baby":
+                    generation_config = genai.types.GenerationConfig(
+                        max_output_tokens=1000,   # Short and simple
+                        temperature=0.7,          # Friendly but clear
+                        top_p=0.9
+                    )
+                elif mode == "gate_coach":
+                    generation_config = genai.types.GenerationConfig(
+                        max_output_tokens=2500,   # Detailed explanations
+                        temperature=0.3,          # Highly factual
+                        top_p=0.8
+                    )
+                else:
+                    # Default for any other modes
+                    generation_config = genai.types.GenerationConfig(
+                        max_output_tokens=1500,
+                        temperature=0.7,
+                        top_p=0.9
+                    )
+                
+                model = genai.GenerativeModel(
+                    'gemini-2.0-flash',
+                    generation_config=generation_config
+                )
+                
+                logger.info(f"🚀 Starting Gemini stream for {mode} mode...")
                 generation_start = time.time()
                 response = model.generate_content(messages, stream=True)
                 
@@ -2230,29 +2146,83 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                         full_response += chunk_text
                         chunk_count += 1
                         
-                        # ✅ FAST STREAMING: Send larger chunks for faster display
-                        # Instead of word-by-word, send sentence-by-sentence or larger chunks
+                        # ✅ FAST STREAMING
                         sentences = chunk_text.split('. ')
                         for sentence in sentences:
                             if sentence.strip():
                                 data = json.dumps({'chunk': sentence + '. ', 'done': False})
                                 yield f"data: {data}\n\n"
-                                # ✅ VERY FAST: Minimal delay for instant typing
-                                await asyncio.sleep(0.01)  # Almost instant
+                                await asyncio.sleep(0.01)
                 
                 generation_end = time.time()
                 timings["generation_time"] = generation_end - generation_start
-                logger.info(f"✅ MODE-SPECIFIC COMPLETE - Chunks: {chunk_count} | Time: {timings['generation_time']:.2f}s | Chars: {len(full_response)}")
+                logger.info(f"✅ {mode.upper()} MODE COMPLETE - Chunks: {chunk_count} | Time: {timings['generation_time']:.2f}s | Chars: {len(full_response)}")
                 
                 # Send completion with metadata
                 completion_data = json.dumps({
                     'chunk': '', 
                     'done': True, 
                     'full_response': full_response,
-                    'mode': 'direct',
+                    'mode': mode,  # Include actual mode name
                     'timings': timings
                 })
                 yield f"data: {completion_data}\n\n"
+        # try:
+        #     if mode and mode in CHAT_MODES:
+        #         # Mode-specific streaming
+        #         logger.info("🔄 MODE-SPECIFIC PATH")
+        #         system_prompt = CHAT_MODES[mode]["prompt"]
+        #         messages = [{"role": "user", "parts": [system_prompt]}]
+                
+        #         if limited_history:
+        #             for msg in limited_history:
+        #                 if msg["role"] == "user":
+        #                     messages.append({"role": "user", "parts": [msg["content"]]})
+        #                 elif msg["role"] == "assistant":
+        #                     messages.append({"role": "model", "parts": [msg["content"]]})
+                
+        #         messages.append({"role": "user", "parts": [query]})
+                
+        #         # Stream response using Gemini
+        #         genai.configure(api_key=GOOGLE_API_KEY)
+        #         model = genai.GenerativeModel('gemini-2.0-flash')
+                
+        #         logger.info("🚀 Starting Gemini stream for mode-specific response...")
+        #         generation_start = time.time()
+        #         response = model.generate_content(messages, stream=True)
+          
+                                
+        #         full_response = ""
+        #         chunk_count = 0
+        #         for chunk in response:
+        #             if chunk.text:
+        #                 chunk_text = chunk.text
+        #                 full_response += chunk_text
+        #                 chunk_count += 1
+                        
+        #                 # ✅ FAST STREAMING: Send larger chunks for faster display
+        #                 # Instead of word-by-word, send sentence-by-sentence or larger chunks
+        #                 sentences = chunk_text.split('. ')
+        #                 for sentence in sentences:
+        #                     if sentence.strip():
+        #                         data = json.dumps({'chunk': sentence + '. ', 'done': False})
+        #                         yield f"data: {data}\n\n"
+        #                         # ✅ VERY FAST: Minimal delay for instant typing
+        #                         await asyncio.sleep(0.01)  # Almost instant
+                
+        #         generation_end = time.time()
+        #         timings["generation_time"] = generation_end - generation_start
+        #         logger.info(f"✅ MODE-SPECIFIC COMPLETE - Chunks: {chunk_count} | Time: {timings['generation_time']:.2f}s | Chars: {len(full_response)}")
+                
+        #         # Send completion with metadata
+        #         completion_data = json.dumps({
+        #             'chunk': '', 
+        #             'done': True, 
+        #             'full_response': full_response,
+        #             'mode': 'direct',
+        #             'timings': timings
+        #         })
+        #         yield f"data: {completion_data}\n\n"
                 
             else:
                 # RAG-based streaming
@@ -2264,8 +2234,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                         "Add light Indian humor naturally when it fits (for example, 'as easy as making Maggi')."
                         "Keep humor after the main answer, on a new line, ending with a emoji"
                         "If the user asks a general question, gently suggest they can change the tone using the 'tone selector\n\n"
-                        
-                        
+
                         "📋 **STRICT TABLE FORMATTING RULES:**\n"
                         "1. Create a table **only when the data is naturally tabular** (e.g., work experience, educational information, comparisons, or other structured data).\n"
                         "2. ALWAYS use proper Markdown table syntax with pipes | and dashes ---\n"
@@ -2274,6 +2243,9 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                         "5. Keep tables simple - MAX 4 columns\n"
                         "6. Wrap long text in table cells (don't let it overflow)\n"
                         "7. Align columns properly\n\n"
+                        
+                        
+                  
                     ]
                                         
                     for role, content in conversation_history:
@@ -2349,15 +2321,22 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                         model = genai.GenerativeModel('gemini-2.0-flash')
                         
                         logger.info("🚀 STARTING GEMINI STREAM GENERATION")
-                        response = model.generate_content(optimized_prompt, stream=True)
-                        # response = model.generate_content(
-                        #     optimized_prompt, 
-                        #     stream=True,
-                        #     generation_config=genai.types.GenerationConfig(
-                        #         max_output_tokens=2500,
-                        #         temperature=0.4,
-                        #     )
-                        # )
+                        # response = model.generate_content(optimized_prompt, stream=True)
+
+                        generation_config = genai.types.GenerationConfig(
+                            max_output_tokens=1500,  # Adjust as needed
+                            temperature=0.7,         # Adjust as needed (0.0-2.0)
+                            top_p=0.95,            # Optional
+                            # top_k=40,              # Optional
+                        )
+
+                        response = model.generate_content(
+                            optimized_prompt, 
+                            stream=True,
+                            generation_config=generation_config,
+                            request_options={'timeout': 10}  # Timeout in seconds
+                        )
+                                
 
                         
                         full_response = ""
