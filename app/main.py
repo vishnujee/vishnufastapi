@@ -1360,7 +1360,7 @@ def initialize_global_gemini_model():
     return _GEMINI_MODEL
 
 # Initialize immediately when module loads
-GEMINI_MODEL = initialize_global_gemini_model()
+
 
 
 retriever = None
@@ -1373,6 +1373,8 @@ thread_pool = ThreadPoolExecutor(max_workers=4)
 async def startup_event():
 
     logger.info("🚀 Startup initiated")
+    global GEMINI_MODEL
+    GEMINI_MODEL = initialize_global_gemini_model()
 
     global retriever, llm, vectorstore
     logger.info("🚀 Starting AI services...")
@@ -2053,6 +2055,8 @@ CHAT_MODES = {
 ##################################### Streamed response #####################
 @app.post("/chat")
 async def chat(query: str = Form(...), mode: str = Form(None), history: str = Form(None)):
+    
+ 
     """
     Optimized streaming version with better logging and fast typing
     """
@@ -2245,7 +2249,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     logger.info(f"✅ RETRIEVAL COMPLETE - Documents: {len(raw_docs)} | Time: {timings['retrieval_time']:.2f}s")
                     
                     # 🚀 STREAM PROGRESS UPDATE
-                    yield f"data: {json.dumps({'chunk': f'📚 Found {len(raw_docs)} relevant documents...', 'status': 'processing'})}\n\n"
+                    # yield f"data: {json.dumps({'chunk': f'📚 Found {len(raw_docs)} relevant documents...', 'status': 'processing'})}\n\n"
                     
                 except Exception as e:
                     logger.error(f"❌ RETRIEVAL FAILED: {e}")

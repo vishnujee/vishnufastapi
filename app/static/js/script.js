@@ -2786,7 +2786,6 @@ function getRandomLoadingMessage() {
 
 // send chat streming
 
-
 async function sendChat() {
     const chatInput = document.getElementById('chatInput');
     const chatOutput = document.getElementById('chatOutput');
@@ -2869,207 +2868,261 @@ async function sendChat() {
 
         console.log('🚀 Starting stream request to /chat endpoint...');
 
-        // Use the regular chat endpoint (now with streaming)
-        const response = await fetch('/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'text/event-stream'
-            },
-            body: body
-        });
+        // 🚀 SIMPLE RETRY LOGIC - 2 ATTEMPTS
+        let lastError = null;
+        let success = false;
 
-        console.log('📡 Response status:', response.status);
+        console.log('🎯 STARTING RETRY LOOP - Max attempts: 3');
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        for (let attempt = 1; attempt <= 3 && !success; attempt++) {
+            let currentAbortController = new AbortController();
+            let currentReader = null;
+            let timeoutId = null;
 
-        if (!response.body) {
-            throw new Error('No response body available for streaming');
-        }
+            console.log(`🔄 ATTEMPT ${attempt} STARTING...`);
 
-        console.log('✅ Stream started successfully');
+            try {
+                console.log(`🔄 Attempt ${attempt}/2 - Making fetch request...`);
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let fullResponse = '';
+                // Update status for retry attempts - MORE VISIBLE
+                if (attempt > 1) {
+                    console.log(`🔄 RETRY ATTEMPT ${attempt} - Updating UI`);
+                    statusElement.textContent = `🔄 Retrying... (${attempt}/3)`;
+                    statusElement.className = 'text-xs text-orange-500 mt-1 flex items-center';
+                    statusElement.style.fontWeight = 'bold';
 
+                    // Force UI update
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
 
-        while (true) {
-            const { value, done } = await reader.read();
+                // PROPER TIMEOUT CLEANUP
+                timeoutId = setTimeout(() => {
+                    console.log(`⏰ Attempt ${attempt} - TIMEOUT TRIGGERED`);
+                    if (currentAbortController && !currentAbortController.signal.aborted) {
+                        console.log(`⏰ Attempt ${attempt} - Aborting due to timeout`);
+                        currentAbortController.abort();
+                    }
+                }, 10000);
 
-            if (done) {
-                console.log('🏁 Stream completed');
-                statusElement.textContent = '✨ Response complete';
-                statusElement.className = 'text-xs text-gray-500 mt-1 flex items-center text-green-600';
+                console.log(`🔄 Attempt ${attempt} - Calling fetch('/chat')...`);
 
-                // Add to chat history
-                chatHistory.push({ role: "user", content: userMessage });
-                chatHistory.push({ role: "assistant", content: fullResponse });
-                break;
-            }
+                // Use the regular chat endpoint
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Accept': 'text/event-stream'
+                    },
+                    body: body,
+                    signal: currentAbortController.signal
+                });
 
-            // Decode and process chunks
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
+                // CLEAR TIMEOUT IMMEDIATELY AFTER FETCH
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
 
-            // Keep the last incomplete line in buffer
-            buffer = lines.pop() || '';
+                console.log(`✅ Attempt ${attempt} - Fetch completed, status: ${response.status}`);
 
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    try {
-                        const data = JSON.parse(line.slice(6));
-                        console.log('📦 Received data:', data);
+                if (!response.ok) {
+                    console.log(`❌ Attempt ${attempt} - HTTP error: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
-                        // 🚀 HANDLE STATUS MESSAGES IMMEDIATELY
-                        // Replace the status handling section with this enhanced version:
+                if (!response.body) {
+                    console.log(`❌ Attempt ${attempt} - No response body`);
+                    throw new Error('No response body available for streaming');
+                }
 
-                   // Replace the status handling with this:
-if (data.status) {
-    switch(data.status) {
-        case 'thinking':
-        case 'searching':
-        case 'processing':
-        case 'generating':
-        case 'fallback':
-            // 🚀 SIMPLE BIG TEXT - No containers
-            if (data.prominent) {
-                statusElement.innerHTML = `
-                    <div class="text-center py-2">
-                        <span class="text-base font-bold text-blue-600">${data.chunk}</span>
-                    </div>
-                `;
-                statusElement.className = 'my-2 prominent-text-only';
-            } else {
-                // Regular status messages
-                statusElement.textContent = data.chunk;
-                statusElement.className = 'text-xs text-blue-500 mt-1 flex items-center';
-            }
-            continue;
-    }
-}
+                console.log(`✅ Attempt ${attempt} - Stream started successfully`);
 
-                        // 🚀 HANDLE ACTUAL CONTENT
-                        if (data.chunk && data.chunk !== '') {
-                            fullResponse += data.chunk;
+                currentReader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullResponse = '';
 
-                            // ✅ CRITICAL: Render immediately with Markdown
-                            if (typeof marked !== 'undefined') {
-                                responseElement.innerHTML = marked.parse(fullResponse);
-                            } else {
-                                responseElement.textContent = fullResponse;
-                            }
+                // ✅ KEEP YOUR ORIGINAL STREAM PROCESSING LOGIC EXACTLY
+                while (true) {
+                    const { value, done } = await currentReader.read();
 
-                            // Scroll to show latest content
-                            responseElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                        }
+                    if (done) {
+                        console.log('🏁 Stream completed');
+                        statusElement.textContent = '✨ Response complete';
+                        statusElement.className = 'text-xs text-gray-500 mt-1 flex items-center text-green-600';
 
-                        if (data.done) {
-                            console.log('🎯 Stream marked as done');
-                            if (data.full_response) {
-                                fullResponse = data.full_response;
-                                // ✅ Final render with Markdown
-                                if (typeof marked !== 'undefined') {
-                                    responseElement.innerHTML = marked.parse(fullResponse);
-                                } else {
-                                    responseElement.textContent = fullResponse;
+                        // Add to chat history
+                        chatHistory.push({ role: "user", content: userMessage });
+                        chatHistory.push({ role: "assistant", content: fullResponse });
+
+                        success = true;
+                        break;
+                    }
+
+                    // Decode and process chunks - YOUR ORIGINAL LOGIC
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+
+                    // Keep the last incomplete line in buffer
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                console.log('📦 Received data:', data);
+
+                                // 🚀 HANDLE STATUS MESSAGES IMMEDIATELY
+                                if (data.status) {
+                                    switch (data.status) {
+                                        case 'thinking':
+                                        case 'searching':
+                                        case 'processing':
+                                        case 'generating':
+                                        case 'fallback':
+                                            // 🚀 SIMPLE BIG TEXT - No containers
+                                            if (data.prominent) {
+                                                statusElement.innerHTML = `
+                                                    <div class="text-center py-2">
+                                                        <span class="text-base font-bold text-blue-600">${data.chunk}</span>
+                                                    </div>
+                                                `;
+                                                statusElement.className = 'my-2 prominent-text-only';
+                                            } else {
+                                                // Regular status messages
+                                                statusElement.textContent = data.chunk;
+                                                statusElement.className = 'text-xs text-blue-500 mt-1 flex items-center';
+                                            }
+                                            continue;
+                                    }
                                 }
-                            }
 
-                            // Show timings if available
-                            if (data.timings) {
-                                statusElement.textContent = `✨ Complete • ${data.timings.generation_time?.toFixed(2) || 'streamed'}s`;
+                                // 🚀 HANDLE ACTUAL CONTENT
+                                if (data.chunk && data.chunk !== '') {
+                                    fullResponse += data.chunk;
+
+                                    // ✅ CRITICAL: Render immediately with Markdown
+                                    if (typeof marked !== 'undefined') {
+                                        responseElement.innerHTML = marked.parse(fullResponse);
+                                    } else {
+                                        responseElement.textContent = fullResponse;
+                                    }
+
+                                    // Scroll to show latest content
+                                    responseElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }
+
+                                if (data.done) {
+                                    console.log('🎯 Stream marked as done');
+                                    if (data.full_response) {
+                                        fullResponse = data.full_response;
+                                        // ✅ Final render with Markdown
+                                        if (typeof marked !== 'undefined') {
+                                            responseElement.innerHTML = marked.parse(fullResponse);
+                                        } else {
+                                            responseElement.textContent = fullResponse;
+                                        }
+                                    }
+
+                                    // Show timings if available
+                                    if (data.timings) {
+                                        statusElement.textContent = `✨ Complete • ${data.timings.generation_time?.toFixed(2) || 'streamed'}s`;
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('❌ Parse error:', e, 'for line:', line);
                             }
                         }
-                    } catch (e) {
-                        console.error('❌ Parse error:', e, 'for line:', line);
                     }
                 }
+
+            } catch (error) {
+                console.log(`💥 ATTEMPT ${attempt} CAUGHT ERROR:`, error);
+
+                // CLEANUP: Always clear timeout on error
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+
+                // CLEANUP: Release reader if it exists
+                if (currentReader) {
+                    console.log(`🧹 Attempt ${attempt} - Releasing reader`);
+                    currentReader.releaseLock();
+                    currentReader = null;
+                }
+
+                // CLEANUP: Abort controller
+                if (currentAbortController) {
+                    console.log(`🧹 Attempt ${attempt} - Aborting controller`);
+                    currentAbortController.abort();
+                    currentAbortController = null;
+                }
+
+                lastError = error;
+                console.error(`💥 Attempt ${attempt} failed:`, error);
+
+                // Check if retryable
+                const isRetryable =
+                    error.name === 'AbortError' ||
+                    error.name === 'TypeError' ||
+                    error.message?.includes('Failed to fetch') ||
+                    error.message?.includes('Network') ||
+                    error.message?.includes('timeout');
+
+                console.log(`🔍 Attempt ${attempt} - Is retryable: ${isRetryable}`);
+                console.log(`🔍 Attempt ${attempt} - Remaining attempts: ${3 - attempt}`);
+
+                // 🚀 RETRY LOGIC
+                if (attempt < 3 && isRetryable) {
+                    console.log(`⏳ Waiting 2 seconds before retry ${attempt + 1}...`);
+
+                    // UPDATE UI DURING WAIT
+                    statusElement.textContent = `⏳ Retrying in 2.5s... (${attempt}/3)`;
+                    statusElement.className = 'text-xs text-orange-500 mt-1 flex items-center';
+                    statusElement.style.fontWeight = 'bold';
+
+                    await new Promise(resolve => {
+                        console.log(`⏳ Starting ${attempt} delay...`);
+                        setTimeout(() => {
+                            console.log(`⏳ Delay ${attempt} completed, starting next attempt`);
+                            resolve();
+                        }, 2500);
+                    });
+                    console.log(`🔄 Proceeding to attempt ${attempt + 1}`);
+                } else {
+                    console.log(`🚫 No more retries - throwing error`);
+                    throw error;
+                }
+            } finally {
+                // EXTRA SAFETY: Cleanup in finally block too
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
             }
+
         }
-
-        // while (true) {
-        //     const { value, done } = await reader.read();
-
-        //     if (done) {
-        //         console.log('🏁 Stream completed');
-        //         statusElement.textContent = '✨ Response complete';
-        //         statusElement.className = 'text-xs text-gray-500 mt-1 flex items-center text-green-600';
-
-        //         // Add to chat history
-        //         chatHistory.push({ role: "user", content: userMessage });
-        //         chatHistory.push({ role: "assistant", content: fullResponse });
-        //         break;
-        //     }
-
-        //     // Decode and process chunks
-        //     buffer += decoder.decode(value, { stream: true });
-        //     const lines = buffer.split('\n');
-
-        //     // Keep the last incomplete line in buffer
-        //     buffer = lines.pop() || '';
-
-        //     for (const line of lines) {
-        //         if (line.startsWith('data: ')) {
-        //             try {
-        //                 const data = JSON.parse(line.slice(6));
-        //                 console.log('📦 Received chunk:', data);
-
-        //                 if (data.chunk && data.chunk !== '') {
-        //                     fullResponse += data.chunk;
-
-        //                     // ✅ CRITICAL FIX: Use marked.parse() to render Markdown
-        //                     if (typeof marked !== 'undefined') {
-        //                         responseElement.innerHTML = marked.parse(fullResponse);
-        //                     } else {
-        //                         // Fallback: Basic table formatting
-        //                         responseElement.textContent = fullResponse;
-        //                     }
-
-        //                     // Scroll to show latest content
-        //                     responseElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        //                 }
-
-        //                 if (data.done) {
-        //                     console.log('🎯 Stream marked as done');
-        //                     if (data.full_response) {
-        //                         fullResponse = data.full_response;
-        //                         // ✅ Final render with Markdown
-        //                         if (typeof marked !== 'undefined') {
-        //                             responseElement.innerHTML = marked.parse(fullResponse);
-        //                         } else {
-        //                             responseElement.textContent = fullResponse;
-        //                         }
-        //                     }
-
-        //                     // Show timings if available
-        //                     if (data.timings) {
-        //                         statusElement.textContent = `✨ Complete • ${data.timings.generation_time || 'streamed'}`;
-        //                     }
-        //                 }
-        //             } catch (e) {
-        //                 console.error('❌ Parse error:', e, 'for line:', line);
-        //             }
-        //         }
-        //     }
-        // }
-
 
     } catch (error) {
         console.error("💥 Chat streaming error:", error);
 
-        // Show error message
-        responseElement.innerHTML = `
-            <div class="text-red-600">
-                <strong>Streaming Error! 🚨</strong><br>
-                <small>${error.message}</small>
-            </div>
-        `;
+        // Show final error message after all retries failed
+//         responseElement.innerHTML = `
+// <div class="fixed inset-0 flex items-center justify-center">
+//     <div class="text-red-600 bg-red-50 rounded-md shadow p-2 text-xs">
+//         <div style="line-height: 1; margin: 0; padding: 0; text-align: left; padding-left: 0px;margin-left:-23px;margin-top:1px;margin-bottom:1px">
+//             ⏳🌐⚠️ <strong>Server Busy/Network Issue</strong>
+//         </div> 
+//         <div style="line-height: 1; margin: 0; padding: 0; text-align: left; padding-left: 0px;margin-left:-34px;margin-top:1px;margin-bottom:1px">
+//              <strong>Please Reload and Try again</strong>
+//         </div>
+//     </div>
+// </div>
 
-        statusElement.textContent = '❌ Streaming failed';
+//         `;
+
+        statusElement.innerHTML = 'Retries failed.Server load or Network Issue. Try again.';
+
         statusElement.className = 'text-xs text-gray-500 mt-1 flex items-center text-red-600';
 
     } finally {
@@ -3083,7 +3136,6 @@ if (data.status) {
         }
     }
 }
-
 
 
 
@@ -3613,3 +3665,8 @@ if (chatOutput) {
         });
     }, { passive: true });
 }
+
+
+
+// // // / // /// / / / //  retry test
+
