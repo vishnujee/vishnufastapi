@@ -38,7 +38,7 @@ from concurrent.futures import ThreadPoolExecutor
 # from fireworks.client import Fireworks
 # from langchain_openai import ChatOpenAI  # For OpenAI-compatible LLM
 import google.generativeai as genai
-from langchain_google_genai import ChatGoogleGenerativeAI
+# from langchain_google_genai import ChatGoogleGenerativeAI
 # from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
 from langchain.chains.combine_documents import create_stuff_documents_chain    #### for aws
@@ -1314,21 +1314,12 @@ def verify_embeddings(embeddings_list):
 
 
 
-def get_llm():
-    return ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-        temperature=0.1,  # Lower for consistency
-        max_tokens=768,   # Reduced from 2024
-        timeout=8,        # Add timeout
-        api_key=GOOGLE_API_KEY
-    )
 # def get_llm():
 #     return ChatGoogleGenerativeAI(
 #         model="gemini-2.0-flash",
-#        # model="gemini-2.5-pro",
-#         temperature=0.2,
-#         max_tokens=2024,
-#         timeout=None,
+#         temperature=0.1,  # Lower for consistency
+#         max_tokens=768,   # Reduced from 2024
+#         timeout=8,        # Add timeout
 #         api_key=GOOGLE_API_KEY
 #     )
 
@@ -1371,7 +1362,7 @@ async def startup_event():
                 search_kwargs={"k": 10}
             )
             
-            llm = get_llm()
+            # llm = get_llm()
             
             # Test retrieval
             test_start = time.time()
@@ -1398,7 +1389,7 @@ async def startup_event():
                                 )]
                         
                 retriever = FallbackRetriever()
-                llm = get_llm()
+                # llm = get_llm()
                 # Ensure vectorstore exists to prevent None errors
                 vectorstore = None
 
@@ -2059,6 +2050,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
 
 
 
+
         try:
             if mode and mode in CHAT_MODES:
                 # Mode-specific streaming
@@ -2077,67 +2069,21 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 
                 # Stream response using Gemini
                 genai.configure(api_key=GOOGLE_API_KEY)
+                # model = genai.GenerativeModel('gemini-2.0-flash')
                 
-                # MODE-SPECIFIC CONFIGURATIONS
-                if mode == "general":
-                    generation_config = genai.types.GenerationConfig(
-                        max_output_tokens=1500,
-                        temperature=0.8,  # Engaging and balanced
-                        top_p=0.95
-                    )
-                elif mode == "encyclopedia":
-                    generation_config = genai.types.GenerationConfig(
-                        max_output_tokens=2000,  # Longer factual responses
-                        temperature=0.4,         # More factual
-                        top_p=0.8
-                    )
-                elif mode == "creative":
-                    generation_config = genai.types.GenerationConfig(
-                        max_output_tokens=1800,
-                        temperature=1.0,         # Highly creative
-                        top_p=0.98
-                    )
-                elif mode == "debate":
-                    generation_config = genai.types.GenerationConfig(
-                        max_output_tokens=2000,
-                        temperature=0.6,         # Balanced viewpoints
-                        top_p=0.9
-                    )
-                elif mode == "funny":
-                    generation_config = genai.types.GenerationConfig(
-                        max_output_tokens=1200,
-                        temperature=0.9,         # Creative and humorous
-                        top_p=0.95
-                    )
-                elif mode == "baby":
-                    generation_config = genai.types.GenerationConfig(
-                        max_output_tokens=1000,   # Short and simple
-                        temperature=0.7,          # Friendly but clear
-                        top_p=0.9
-                    )
-                elif mode == "gate_coach":
-                    generation_config = genai.types.GenerationConfig(
-                        max_output_tokens=2500,   # Detailed explanations
-                        temperature=0.3,          # Highly factual
-                        top_p=0.8
-                    )
-                else:
-                    # Default for any other modes
-                    generation_config = genai.types.GenerationConfig(
-                        max_output_tokens=1500,
-                        temperature=0.7,
-                        top_p=0.9
-                    )
-                
+                logger.info("🚀 Starting Gemini stream for mode-specific response...")
+                generation_start = time.time()
+        
+                generation_config = genai.types.GenerationConfig(
+                    max_output_tokens=1500  # Shorter responses, faster
+                )
+
                 model = genai.GenerativeModel(
                     'gemini-2.0-flash',
                     generation_config=generation_config
                 )
-                
-                logger.info(f"🚀 Starting Gemini stream for {mode} mode...")
-                generation_start = time.time()
-                response = model.generate_content(messages, stream=True)
-                
+                response = model.generate_content(messages, stream=True,request_options={'timeout': 15})
+                                
                 full_response = ""
                 chunk_count = 0
                 for chunk in response:
@@ -2146,83 +2092,29 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                         full_response += chunk_text
                         chunk_count += 1
                         
-                        # ✅ FAST STREAMING
+                        # ✅ FAST STREAMING: Send larger chunks for faster display
+                        # Instead of word-by-word, send sentence-by-sentence or larger chunks
                         sentences = chunk_text.split('. ')
                         for sentence in sentences:
                             if sentence.strip():
                                 data = json.dumps({'chunk': sentence + '. ', 'done': False})
                                 yield f"data: {data}\n\n"
-                                await asyncio.sleep(0.01)
+                                # ✅ VERY FAST: Minimal delay for instant typing
+                                await asyncio.sleep(0.01)  # Almost instant
                 
                 generation_end = time.time()
                 timings["generation_time"] = generation_end - generation_start
-                logger.info(f"✅ {mode.upper()} MODE COMPLETE - Chunks: {chunk_count} | Time: {timings['generation_time']:.2f}s | Chars: {len(full_response)}")
+                logger.info(f"✅ MODE-SPECIFIC COMPLETE - Chunks: {chunk_count} | Time: {timings['generation_time']:.2f}s | Chars: {len(full_response)}")
                 
                 # Send completion with metadata
                 completion_data = json.dumps({
                     'chunk': '', 
                     'done': True, 
                     'full_response': full_response,
-                    'mode': mode,  # Include actual mode name
+                    'mode': 'direct',
                     'timings': timings
                 })
                 yield f"data: {completion_data}\n\n"
-        # try:
-        #     if mode and mode in CHAT_MODES:
-        #         # Mode-specific streaming
-        #         logger.info("🔄 MODE-SPECIFIC PATH")
-        #         system_prompt = CHAT_MODES[mode]["prompt"]
-        #         messages = [{"role": "user", "parts": [system_prompt]}]
-                
-        #         if limited_history:
-        #             for msg in limited_history:
-        #                 if msg["role"] == "user":
-        #                     messages.append({"role": "user", "parts": [msg["content"]]})
-        #                 elif msg["role"] == "assistant":
-        #                     messages.append({"role": "model", "parts": [msg["content"]]})
-                
-        #         messages.append({"role": "user", "parts": [query]})
-                
-        #         # Stream response using Gemini
-        #         genai.configure(api_key=GOOGLE_API_KEY)
-        #         model = genai.GenerativeModel('gemini-2.0-flash')
-                
-        #         logger.info("🚀 Starting Gemini stream for mode-specific response...")
-        #         generation_start = time.time()
-        #         response = model.generate_content(messages, stream=True)
-          
-                                
-        #         full_response = ""
-        #         chunk_count = 0
-        #         for chunk in response:
-        #             if chunk.text:
-        #                 chunk_text = chunk.text
-        #                 full_response += chunk_text
-        #                 chunk_count += 1
-                        
-        #                 # ✅ FAST STREAMING: Send larger chunks for faster display
-        #                 # Instead of word-by-word, send sentence-by-sentence or larger chunks
-        #                 sentences = chunk_text.split('. ')
-        #                 for sentence in sentences:
-        #                     if sentence.strip():
-        #                         data = json.dumps({'chunk': sentence + '. ', 'done': False})
-        #                         yield f"data: {data}\n\n"
-        #                         # ✅ VERY FAST: Minimal delay for instant typing
-        #                         await asyncio.sleep(0.01)  # Almost instant
-                
-        #         generation_end = time.time()
-        #         timings["generation_time"] = generation_end - generation_start
-        #         logger.info(f"✅ MODE-SPECIFIC COMPLETE - Chunks: {chunk_count} | Time: {timings['generation_time']:.2f}s | Chars: {len(full_response)}")
-                
-        #         # Send completion with metadata
-        #         completion_data = json.dumps({
-        #             'chunk': '', 
-        #             'done': True, 
-        #             'full_response': full_response,
-        #             'mode': 'direct',
-        #             'timings': timings
-        #         })
-        #         yield f"data: {completion_data}\n\n"
                 
             else:
                 # RAG-based streaming
@@ -2313,28 +2205,30 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     optimized_prompt = build_optimized_prompt(query, processed_docs, conversation_history)
                     logger.info(f"📝 PROMPT BUILT - Length: {len(optimized_prompt)} chars | Docs used: {len(processed_docs)}")
                     
-                    generation_start = time.time()
+                    
                     
                     try:
                         # Stream with Gemini
                         genai.configure(api_key=GOOGLE_API_KEY)
-                        model = genai.GenerativeModel('gemini-2.0-flash')
-                        
                         logger.info("🚀 STARTING GEMINI STREAM GENERATION")
-                        # response = model.generate_content(optimized_prompt, stream=True)
-
+                        generation_start = time.time()
                         generation_config = genai.types.GenerationConfig(
-                            max_output_tokens=1500,  # Adjust as needed
-                            temperature=0.7,         # Adjust as needed (0.0-2.0)
-                            top_p=0.95,            # Optional
+                            max_output_tokens=2000,  # Adjust as needed
+                            # temperature=0.7,         # Adjust as needed (0.0-2.0)
+                            # top_p=0.95,            # Optional
                             # top_k=40,              # Optional
                         )
 
+                        model = genai.GenerativeModel(
+                            'gemini-2.0-flash',
+                            generation_config=generation_config  # ✅ Config passed HERE
+                        )
+                                                
+                        # response = model.generate_content(optimized_prompt, stream=True)
                         response = model.generate_content(
                             optimized_prompt, 
                             stream=True,
-                            generation_config=generation_config,
-                            request_options={'timeout': 10}  # Timeout in seconds
+                            request_options={'timeout': 15}  # ✅ No generation_config here
                         )
                                 
 
