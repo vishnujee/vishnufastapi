@@ -1326,6 +1326,43 @@ def verify_embeddings(embeddings_list):
 
 
 
+
+# ====================== GLOBAL MODEL SETUP ======================
+
+
+# Global pre-warmed model instance
+_GEMINI_MODEL = None
+_MODEL_LOCK = threading.Lock()
+
+def initialize_global_gemini_model():
+    """Initialize model once at module level"""
+    global _GEMINI_MODEL
+    if _GEMINI_MODEL is None:
+        with _MODEL_LOCK:
+            if _GEMINI_MODEL is None:
+                print("🚀 PRE-LOADING Gemini model globally...")
+                start = time.time()
+                
+                genai.configure(api_key=GOOGLE_API_KEY)
+                _GEMINI_MODEL = genai.GenerativeModel('gemini-2.0-flash')
+                
+                # Warm-up call
+                try:
+                    _GEMINI_MODEL.generate_content(
+                        "ping", 
+                        generation_config=genai.types.GenerationConfig(max_output_tokens=1)
+                    )
+                except Exception as e:
+                    print(f"⚠️ Warm-up call completed: {e}")
+                
+                print(f"✅ Global Gemini model ready in {time.time() - start:.2f}s")
+    
+    return _GEMINI_MODEL
+
+# Initialize immediately when module loads
+GEMINI_MODEL = initialize_global_gemini_model()
+
+
 retriever = None
 llm = None
 thread_pool = ThreadPoolExecutor(max_workers=4)
@@ -1336,17 +1373,6 @@ thread_pool = ThreadPoolExecutor(max_workers=4)
 async def startup_event():
 
     logger.info("🚀 Startup initiated")
-    # await check_google_api_latency()
-    global gemini_model
-    genai.configure(api_key=GOOGLE_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-2.0-flash')
-    # Disable ChromaDB telemetry
-    # import os
-    # os.environ['ANONYMIZED_TELEMETRY'] = 'False'
-    #     # Disable pdfplumber warnings if needed
-    # import logging
-    # pdfplumber_logger = logging.getLogger('pdfplumber')
-    # pdfplumber_logger.setLevel(logging.ERROR)
 
     global retriever, llm, vectorstore
     logger.info("🚀 Starting AI services...")
@@ -2024,8 +2050,7 @@ CHAT_MODES = {
 
 }
 
-
-##########################################################
+##################################### Streamed response #####################
 @app.post("/chat")
 async def chat(query: str = Form(...), mode: str = Form(None), history: str = Form(None)):
     """
@@ -2048,13 +2073,18 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
         timings = {}
         logger.info(f"🎯 CHAT STARTED - Query: '{query[:100]}...' | Mode: {mode} | History entries: {len(limited_history)}")
 
-
-
-
         try:
+            # 🚀 IMMEDIATE STREAMING START
+            yield f"data: {json.dumps({'chunk': '🧠 GENERATING RESPONSE...', 'status': 'generating', 'prominent': True})}\n\n"
+            await asyncio.sleep(0.01)
+
             if mode and mode in CHAT_MODES:
                 # Mode-specific streaming
                 logger.info("🔄 MODE-SPECIFIC PATH")
+                
+                # Show thinking status
+                # yield f"data: {json.dumps({'chunk': '🎭 Switching to ' + CHAT_MODES[mode]['label'] + ' mode...', 'status': 'thinking'})}\n\n"
+                
                 system_prompt = CHAT_MODES[mode]["prompt"]
                 messages = [{"role": "user", "parts": [system_prompt]}]
                 
@@ -2069,38 +2099,74 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 
                 # Stream response using Gemini
                 genai.configure(api_key=GOOGLE_API_KEY)
-                # model = genai.GenerativeModel('gemini-2.0-flash')
                 
                 logger.info("🚀 Starting Gemini stream for mode-specific response...")
                 generation_start = time.time()
-        
-                generation_config = genai.types.GenerationConfig(
-                    max_output_tokens=1500  # Shorter responses, faster
-                )
 
-                model = genai.GenerativeModel(
-                    'gemini-2.0-flash',
-                    generation_config=generation_config
+                generation_config = genai.types.GenerationConfig(
+                    max_output_tokens=3000,
                 )
-                response = model.generate_content(messages, stream=True,request_options={'timeout': 15})
-                                
+                
+                connection_start = time.time()                  
+                response = GEMINI_MODEL.generate_content(
+                    messages, 
+                    stream=True,
+                    generation_config=generation_config,
+                    request_options={'timeout': 15}
+                )
+                connection_time = time.time() - connection_start
+            
                 full_response = ""
                 chunk_count = 0
+                total_chars = 0
+
+                chunk_buffer = []
+                buffer_size = 0
+                MAX_BUFFER_SIZE = 100  # Reduced for faster first token
+                MAX_BUFFER_TIME = 0.02
+                actual_generation_start = time.time()
+                last_flush_time = time.time()       
+                
                 for chunk in response:
                     if chunk.text:
                         chunk_text = chunk.text
                         full_response += chunk_text
                         chunk_count += 1
+                        total_chars += len(chunk_text)
                         
-                        # ✅ FAST STREAMING: Send larger chunks for faster display
-                        # Instead of word-by-word, send sentence-by-sentence or larger chunks
-                        sentences = chunk_text.split('. ')
-                        for sentence in sentences:
-                            if sentence.strip():
-                                data = json.dumps({'chunk': sentence + '. ', 'done': False})
+                        # ✅ OPTIMIZED BUFFERING - Send first token immediately
+                        if chunk_count == 1:  # First chunk - send immediately
+                            data = json.dumps({'chunk': chunk_text, 'done': False})
+                            yield f"data: {data}\n\n"
+                            continue
+                        
+                        chunk_buffer.append(chunk_text)
+                        buffer_size += len(chunk_text)
+                        
+                        current_time = time.time()
+                        if (buffer_size >= MAX_BUFFER_SIZE or 
+                            (current_time - last_flush_time) >= MAX_BUFFER_TIME):
+                            
+                            if chunk_buffer:
+                                combined_text = ''.join(chunk_buffer)
+                                data = json.dumps({'chunk': combined_text, 'done': False})
                                 yield f"data: {data}\n\n"
-                                # ✅ VERY FAST: Minimal delay for instant typing
-                                await asyncio.sleep(0.01)  # Almost instant
+                                
+                                chunk_buffer = []
+                                buffer_size = 0
+                                last_flush_time = current_time
+
+                # 🚀 CRITICAL FIX: Force immediate flush of remaining chunks
+                if chunk_buffer:
+                    combined_text = ''.join(chunk_buffer)
+                    data = json.dumps({'chunk': combined_text, 'done': False})
+                    yield f"data: {data}\n\n"
+                    # Clear buffer immediately
+                    chunk_buffer = []
+                    buffer_size = 0
+                
+                actual_generation_time = time.time() - actual_generation_start
+                logger.info(f"Mode-Specific - Connection: {connection_time:.2f}s, Generation: {actual_generation_time:.2f}s")
                 
                 generation_end = time.time()
                 timings["generation_time"] = generation_end - generation_start
@@ -2115,10 +2181,11 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     'timings': timings
                 })
                 yield f"data: {completion_data}\n\n"
-                
             else:
                 # RAG-based streaming
                 logger.info("🔄 RAG PATH")
+                # yield f"data: {json.dumps({'chunk': '🔍 Searching knowledge base...', 'status': 'searching'})}\n\n"
+                yield f"data: {json.dumps({'chunk': '🧠 GENERATING RESPONSE...', 'status': 'generating', 'prominent': True})}\n\n"
                 def build_optimized_prompt(query, processed_docs, conversation_history):
                     prompt_parts = [
                         "SYSTEM: You are Vishnu AI Assintant — a friendly but bit funny."
@@ -2133,11 +2200,10 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                         "3. Table headers MUST be in this exact format: | Column1 | Column2 | Column3 | Column4 |\n"
                         "4. Header separator MUST be: | --- | --- | --- | --- |\n"
                         "5. Keep tables simple - MAX 4 columns\n"
-                        "6. Wrap long text in table cells (don't let it overflow)\n"
-                        "7. Align columns properly\n\n"
+                        "6. Wrap long text in table cells (don't let it overflow)\n",
+                        "8. Align columns properly\n"
+                        "7. If the user says 'no table' or 'point-wise', override all table rules and respond in bullet or numbered list format.\n\n" 
                         
-                        
-                  
                     ]
                                         
                     for role, content in conversation_history:
@@ -2157,6 +2223,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     return "\n".join(prompt_parts)
 
                 # Build conversation history
+                      
                 conversation_history = []
                 if limited_history:
                     recent_history = limited_history[-2:]
@@ -2168,7 +2235,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                             assistant_content = msg["content"][:150] + "..." if len(msg["content"]) > 150 else msg["content"]
                             conversation_history.append(("ai", assistant_content))
 
-                # 🚀 STEP 1: Document retrieval with detailed logging
+                # 🚀 STEP 1: Document retrieval with streaming feedback
                 logger.info("📥 STARTING DOCUMENT RETRIEVAL")
                 retrieval_start = time.time()
                 try:
@@ -2176,11 +2243,16 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     retrieval_end = time.time()
                     timings["retrieval_time"] = retrieval_end - retrieval_start
                     logger.info(f"✅ RETRIEVAL COMPLETE - Documents: {len(raw_docs)} | Time: {timings['retrieval_time']:.2f}s")
+                    
+                    # 🚀 STREAM PROGRESS UPDATE
+                    yield f"data: {json.dumps({'chunk': f'📚 Found {len(raw_docs)} relevant documents...', 'status': 'processing'})}\n\n"
+                    
                 except Exception as e:
                     logger.error(f"❌ RETRIEVAL FAILED: {e}")
                     raw_docs = []
+                    yield f"data: {json.dumps({'chunk': '⚠️ Using general knowledge...', 'status': 'fallback'})}\n\n"
 
-                # 🚀 STEP 2: Document processing with logging
+                # 🚀 STEP 2: Document processing with streaming feedback
                 logger.info("⚙️ STARTING DOCUMENT PROCESSING")
                 processing_start = time.time()
                 final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
@@ -2190,10 +2262,11 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 logger.info(f"✅ PROCESSING COMPLETE - Final docs: {len(processed_docs)} | Time: {timings['processing_time']:.2f}s")
 
                 if not processed_docs:
-                    # No docs found
+                    # No docs found - immediate response
                     logger.warning("⚠️ NO DOCUMENTS FOUND - Using fallback response")
                     fallback_msg = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
-                    # ✅ FAST: Send entire message at once
+                    
+                    # ✅ IMMEDIATE FALLBACK RESPONSE
                     data = json.dumps({'chunk': fallback_msg, 'done': False})
                     yield f"data: {data}\n\n"
                     await asyncio.sleep(0.02)
@@ -2201,42 +2274,39 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     yield f"data: {json.dumps({'chunk': '', 'done': True, 'mode': 'fallback'})}\n\n"
                     
                 else:
+                    # 🚀 STREAM PROCESSING STATUS
+                    # yield f"data: {json.dumps({'chunk': '🧠 Generating response...', 'status': 'generating'})}\n\n"
+                    
                     # Build prompt and stream response
                     optimized_prompt = build_optimized_prompt(query, processed_docs, conversation_history)
                     logger.info(f"📝 PROMPT BUILT - Length: {len(optimized_prompt)} chars | Docs used: {len(processed_docs)}")
-                    
-                    
-                    
+                            
                     try:
-                        # Stream with Gemini
-                        genai.configure(api_key=GOOGLE_API_KEY)
-                        logger.info("🚀 STARTING GEMINI STREAM GENERATION")
                         generation_start = time.time()
-                        generation_config = genai.types.GenerationConfig(
-                            max_output_tokens=2000,  # Adjust as needed
-                            # temperature=0.7,         # Adjust as needed (0.0-2.0)
-                            # top_p=0.95,            # Optional
-                            # top_k=40,              # Optional
-                        )
+                        connection_start = time.time()  
 
-                        model = genai.GenerativeModel(
-                            'gemini-2.0-flash',
-                            generation_config=generation_config  # ✅ Config passed HERE
-                        )
-                                                
-                        # response = model.generate_content(optimized_prompt, stream=True)
-                        response = model.generate_content(
+                        generation_config=genai.types.GenerationConfig(
+                                max_output_tokens=2500
+                            )
+                        response = GEMINI_MODEL.generate_content(
                             optimized_prompt, 
                             stream=True,
-                            request_options={'timeout': 15}  # ✅ No generation_config here
+                            generation_config=generation_config,
+                            request_options={'timeout': 15}
                         )
-                                
+                        connection_time = time.time() - connection_start    
 
-                        
                         full_response = ""
                         chunk_count = 0
                         total_chars = 0
-                        
+
+                        chunk_buffer = []
+                        buffer_size = 0
+                        MAX_BUFFER_SIZE = 100
+                        MAX_BUFFER_TIME = 0.02
+                        actual_generation_start = time.time()
+                        last_flush_time = time.time()
+
                         for chunk in response:
                             if chunk.text:
                                 chunk_text = chunk.text
@@ -2244,28 +2314,48 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                                 chunk_count += 1
                                 total_chars += len(chunk_text)
                                 
-                                # ✅ OPTIMIZED STREAMING: Balance between speed and UX
-                                # For short responses, send quickly; for long ones, chunk appropriately
-                                if len(chunk_text) < 50:
-                                    # Short chunk - send immediately
+                                # FIRST CHUNK: Send immediately
+                                if chunk_count == 1:
                                     data = json.dumps({'chunk': chunk_text, 'done': False})
                                     yield f"data: {data}\n\n"
-                                    await asyncio.sleep(0.005)  # Almost instant
-                                else:
-                                    # Longer chunk - split into sentences for better UX
-                                    sentences = re.split(r'[.!?]+', chunk_text)
-                                    for sentence in sentences:
-                                        if len(sentence.strip()) > 5:  # Only meaningful sentences
-                                            data = json.dumps({'chunk': sentence.strip() + '. ', 'done': False})
-                                            yield f"data: {data}\n\n"
-                                            await asyncio.sleep(0.008)  # Very fast
+                                    continue
+                                
+                                # SUBSEQUENT CHUNKS: Buffer normally
+                                chunk_buffer.append(chunk_text)
+                                buffer_size += len(chunk_text)
+                                
+                                current_time = time.time()
+                                if (buffer_size >= MAX_BUFFER_SIZE or 
+                                    (current_time - last_flush_time) >= MAX_BUFFER_TIME):
+                                    
+                                    if chunk_buffer:
+                                        combined_text = ''.join(chunk_buffer)
+                                        data = json.dumps({'chunk': combined_text, 'done': False})
+                                        yield f"data: {data}\n\n"
+                                        
+                                        chunk_buffer = []
+                                        buffer_size = 0
+                                        last_flush_time = current_time
+
+                        # 🚀 CRITICAL FIX: Force immediate flush of remaining chunks
+                        # Don't wait for any conditions - send everything immediately
+                        if chunk_buffer:
+                            combined_text = ''.join(chunk_buffer)
+                            data = json.dumps({'chunk': combined_text, 'done': False})
+                            yield f"data: {data}\n\n"
+                            # Clear buffer immediately after sending
+                            chunk_buffer = []
+                            buffer_size = 0
+
+                        actual_generation_time = time.time() - actual_generation_start
+                        logger.info(f"Connection: {connection_time:.2f}s, Generation: {actual_generation_time:.2f}s")
                         
                         generation_end = time.time()
                         timings["generation_time"] = generation_end - generation_start
                         timings["total_chars"] = total_chars
                         timings["chunk_count"] = chunk_count
                         
-                        logger.info(f"✅ GENERATION COMPLETE - Chunks: {chunk_count} | Chars: {total_chars} | Time: {timings['generation_time']:.2f}s | Speed: {total_chars/timings['generation_time']:.1f} chars/sec")
+                        logger.info(f"✅ GENERATION COMPLETE - Chunks: {chunk_count} | Ouput Chars: {total_chars} | Total Generation Time: {timings['generation_time']:.2f}s | Speed: {total_chars/timings['generation_time']:.1f} chars/sec")
                         
                         # Send completion with all metadata
                         completion_data = json.dumps({
@@ -2282,7 +2372,6 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     except asyncio.TimeoutError:
                         logger.error("⏰ GENERATION TIMEOUT")
                         error_msg = "I'm taking too long to generate a response. Please try again!"
-                        # ✅ FAST: Send error immediately
                         data = json.dumps({'chunk': error_msg, 'done': False})
                         yield f"data: {data}\n\n"
                         await asyncio.sleep(0.02)

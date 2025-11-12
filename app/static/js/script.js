@@ -2782,7 +2782,9 @@ function getRandomLoadingMessage() {
     return messages[Math.floor(Math.random() * messages.length)];
 }
 
-// Update your sendChat function
+// send chat direct
+
+// send chat streming
 
 
 async function sendChat() {
@@ -2893,16 +2895,16 @@ async function sendChat() {
         const decoder = new TextDecoder();
         let buffer = '';
         let fullResponse = '';
-        // In your sendChat() function, replace the chunk processing part:
+
 
         while (true) {
             const { value, done } = await reader.read();
-            
+
             if (done) {
                 console.log('🏁 Stream completed');
                 statusElement.textContent = '✨ Response complete';
                 statusElement.className = 'text-xs text-gray-500 mt-1 flex items-center text-green-600';
-                
+
                 // Add to chat history
                 chatHistory.push({ role: "user", content: userMessage });
                 chatHistory.push({ role: "assistant", content: fullResponse });
@@ -2912,7 +2914,7 @@ async function sendChat() {
             // Decode and process chunks
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
-            
+
             // Keep the last incomplete line in buffer
             buffer = lines.pop() || '';
 
@@ -2920,19 +2922,47 @@ async function sendChat() {
                 if (line.startsWith('data: ')) {
                     try {
                         const data = JSON.parse(line.slice(6));
-                        console.log('📦 Received chunk:', data);
+                        console.log('📦 Received data:', data);
 
+                        // 🚀 HANDLE STATUS MESSAGES IMMEDIATELY
+                        // Replace the status handling section with this enhanced version:
+
+                   // Replace the status handling with this:
+if (data.status) {
+    switch(data.status) {
+        case 'thinking':
+        case 'searching':
+        case 'processing':
+        case 'generating':
+        case 'fallback':
+            // 🚀 SIMPLE BIG TEXT - No containers
+            if (data.prominent) {
+                statusElement.innerHTML = `
+                    <div class="text-center py-2">
+                        <span class="text-base font-bold text-blue-600">${data.chunk}</span>
+                    </div>
+                `;
+                statusElement.className = 'my-2 prominent-text-only';
+            } else {
+                // Regular status messages
+                statusElement.textContent = data.chunk;
+                statusElement.className = 'text-xs text-blue-500 mt-1 flex items-center';
+            }
+            continue;
+    }
+}
+
+                        // 🚀 HANDLE ACTUAL CONTENT
                         if (data.chunk && data.chunk !== '') {
                             fullResponse += data.chunk;
-                            
-                            // ✅ CRITICAL FIX: Use marked.parse() to render Markdown
+
+                            // ✅ CRITICAL: Render immediately with Markdown
                             if (typeof marked !== 'undefined') {
                                 responseElement.innerHTML = marked.parse(fullResponse);
                             } else {
-                                // Fallback: Basic table formatting
                                 responseElement.textContent = fullResponse;
                             }
-                            
+
                             // Scroll to show latest content
                             responseElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                         }
@@ -2948,10 +2978,10 @@ async function sendChat() {
                                     responseElement.textContent = fullResponse;
                                 }
                             }
-                            
+
                             // Show timings if available
                             if (data.timings) {
-                                statusElement.textContent = `✨ Complete • ${data.timings.generation_time || 'streamed'}`;
+                                statusElement.textContent = `✨ Complete • ${data.timings.generation_time?.toFixed(2) || 'streamed'}s`;
                             }
                         }
                     } catch (e) {
@@ -2990,7 +3020,14 @@ async function sendChat() {
 
         //                 if (data.chunk && data.chunk !== '') {
         //                     fullResponse += data.chunk;
-        //                     responseElement.textContent = fullResponse;
+
+        //                     // ✅ CRITICAL FIX: Use marked.parse() to render Markdown
+        //                     if (typeof marked !== 'undefined') {
+        //                         responseElement.innerHTML = marked.parse(fullResponse);
+        //                     } else {
+        //                         // Fallback: Basic table formatting
+        //                         responseElement.textContent = fullResponse;
+        //                     }
 
         //                     // Scroll to show latest content
         //                     responseElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -3000,7 +3037,12 @@ async function sendChat() {
         //                     console.log('🎯 Stream marked as done');
         //                     if (data.full_response) {
         //                         fullResponse = data.full_response;
-        //                         responseElement.textContent = fullResponse;
+        //                         // ✅ Final render with Markdown
+        //                         if (typeof marked !== 'undefined') {
+        //                             responseElement.innerHTML = marked.parse(fullResponse);
+        //                         } else {
+        //                             responseElement.textContent = fullResponse;
+        //                         }
         //                     }
 
         //                     // Show timings if available
@@ -3014,6 +3056,7 @@ async function sendChat() {
         //         }
         //     }
         // }
+
 
     } catch (error) {
         console.error("💥 Chat streaming error:", error);
@@ -3044,52 +3087,6 @@ async function sendChat() {
 
 
 
-// Fallback function if streaming fails
-async function fallbackToRegularChat(userMessage, selectedMode, recentHistory, aiResponseDiv) {
-    try {
-        const body = new URLSearchParams({
-            query: userMessage,
-            mode: selectedMode || '',
-            history: JSON.stringify(recentHistory)
-        });
-
-        const response = await fetch('/chat', {
-            method: 'POST',
-            headers: { 'Content-Control': 'application/x-www-form-urlencoded' },
-            body: body
-        });
-
-        if (!response.ok) throw new Error('Fallback failed');
-
-        const data = await response.json();
-        const responseElement = aiResponseDiv.querySelector('.streaming-response');
-        const statusElement = aiResponseDiv.querySelector('.streaming-status');
-
-        if (typeof marked !== 'undefined') {
-            responseElement.innerHTML = marked.parse(data.answer);
-        } else {
-            responseElement.textContent = data.answer;
-        }
-
-        statusElement.textContent = '✨ Regular response';
-        statusElement.className = 'text-xs text-gray-500 mt-1 flex items-center text-yellow-600';
-
-        // Add to history
-        chatHistory.push({ role: "user", content: userMessage });
-        chatHistory.push({ role: "assistant", content: data.answer });
-
-    } catch (fallbackError) {
-        console.error("Fallback also failed:", fallbackError);
-        const responseElement = aiResponseDiv.querySelector('.streaming-response');
-        responseElement.innerHTML = `
-            <div class="text-red-600">
-                <strong>Complete Failure! 😵</strong><br>
-                <small>Both streaming and regular chat failed. Please try again.</small>
-            </div>
-        `;
-    }
-}
-
 // Add typing indicator CSS
 const streamingStyles = `
     .streaming-response {
@@ -3115,151 +3112,6 @@ if (!document.querySelector('#streaming-styles')) {
     styleEl.textContent = streamingStyles;
     document.head.appendChild(styleEl);
 }
-
-
-
-///////////////////////
-
-// async function sendChat() {
-//     const chatInput = document.getElementById('chatInput');
-//     const chatOutput = document.getElementById('chatOutput');
-//     const progressText = document.getElementById('progress-text-chat');
-
-//     if (!chatInput || !chatInput.value.trim()) {
-//         const errorDiv = document.createElement('div');
-//         errorDiv.className = 'text-yellow-600 mb-4 text-center';
-//         errorDiv.innerHTML = `<p>🤖 <i>"Even AI needs something to work with!"</i></p>`;
-//         chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
-//         return;
-//     }
-
-//     const userMessage = chatInput.value.trim();
-
-//     // Show funny loading message
-//     if (progressText) {
-//         progressText.textContent = getRandomLoadingMessage();
-//         progressText.style.display = 'block';
-//     }
-
-//     // Add user message with fun styling
-//     const userMessageDiv = document.createElement('div');
-//     userMessageDiv.className = 'mb-4 text-right';
-//     userMessageDiv.innerHTML = `
-//         <div class="inline-block bg-blue-100 rounded-lg p-3 max-w-xs lg:max-w-md">
-//             <p class="text-gray-800">${userMessage}</p>
-//             <div class="text-xs text-gray-500 mt-1">👤 You</div>
-//         </div>
-//     `;
-//     chatOutput.insertBefore(userMessageDiv, chatOutput.firstChild);
-
-//     // Clear input
-//     chatInput.value = '';
-
-//     let responseData; 
-
-//     try {
-//         // Get the selected mode
-//         let selectedMode = null;
-//         const modeToggle = document.getElementById('mode-toggle');
-//         const modeSelect = document.getElementById('mode-select');
-//         if (modeToggle && modeToggle.checked && modeSelect && modeSelect.value) {
-//             selectedMode = modeSelect.value;
-//         }
-
-//         // Send only LAST 4 conversations (8 messages) to LLM
-//         const recentHistory = chatHistory.slice(-8);
-
-//         const body = new URLSearchParams({
-//             query: userMessage,
-//             mode: selectedMode || '',
-//             history: JSON.stringify(recentHistory)
-//         });
-
-//         const response = await fetch('/chat', {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-//             body: body
-//         });
-
-//         if (!response.ok) {
-//             const errorData = await response.json();
-//             throw new Error(errorData.detail || 'Chat error');
-//         }
-
-//         responseData = await response.json(); // ✅ Store response data
-
-//         // Add to chat history
-//         chatHistory.push({ role: "user", content: userMessage });
-//         chatHistory.push({ role: "assistant", content: responseData.answer });
-
-//         // Add AI response with fun styling
-//         const aiResponseDiv = document.createElement('div');
-//         aiResponseDiv.className = 'mb-4';
-
-//         aiResponseDiv.innerHTML = `
-//         <div class="flex flex-col items-start space-y-2">
-
-//             <div class="bg-green-50 rounded-lg p-3 flex-1 w-full">
-//                 <div class="flex justify-start w-full">
-//                 <span class="inline-flex flex-col p-2 items-center justify-center w-16 h-16 text-red-600 text-sm font-semibold border-2 border-red-600 rounded-full">
-//                     🤖
-//                     <span>AI</span>
-//                 </span>
-//             </div>
-//                 <div class="ai-response"></div>
-//                 <div class="text-xs text-gray-500 mt-1 flex items-center">
-//                     <span>AI</span>
-//                     <span class="mx-2">•</span>
-//                     <span class="text-green-600">✨ Powered by Vishnu Magic</span>
-//                 </div>
-//             </div>
-//         </div>
-//     `;
-
-//         chatOutput.insertBefore(aiResponseDiv, chatOutput.firstChild);
-
-//         // Format the response with markdown
-//         const aiResponseContent = aiResponseDiv.querySelector('.ai-response');
-//         if (typeof marked !== 'undefined') {
-//             aiResponseContent.innerHTML = marked.parse(responseData.answer); // ✅ Use responseData
-//         } else {
-//             aiResponseContent.textContent = responseData.answer; // ✅ Use responseData
-//         }
-
-//         // Add occasional fun reactions
-//         addFunReactions(responseData.answer); // ✅ Use responseData
-
-//     } catch (error) {
-//         console.error("Chat error:", error);
-
-//         // Fun error message
-//         const errorDiv = document.createElement('div');
-//         errorDiv.className = 'mb-4';
-//         errorDiv.innerHTML = `
-//             <div class="flex items-start space-x-2">
-//                 <div class="flex-shrink-0 w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-//                     <span class="text-red-600 text-sm">😵</span>
-//                 </div>
-//                 <div class="bg-red-50 rounded-lg p-3 flex-1">
-//                     <p class="text-red-800">
-//                         <strong>Whoops! Brain freeze! 🧊</strong><br>
-//                         <small>Error: ${error.message}. Let's try that again!</small>
-//                     </p>
-//                 </div>
-//             </div>
-//         `;
-//         chatOutput.insertBefore(errorDiv, chatOutput.firstChild);
-//     } finally {
-//         if (progressText) {
-//             progressText.style.display = 'none';
-//         }
-
-//         // Keep full history for UI (limit to prevent memory issues)
-//         if (chatHistory.length > 100) {
-//             chatHistory = chatHistory.slice(-100);
-//         }
-//     }
-// }
 
 
 
@@ -3706,20 +3558,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function detectAndStyleOverflowingTables() {
     const aiResponses = document.querySelectorAll('.ai-response');
-    
+
     aiResponses.forEach(container => {
         const tables = container.querySelectorAll('table');
-        
+
         tables.forEach(table => {
             // Reset previous classes
             table.classList.remove('overflow-table');
             container.classList.remove('overflow-container');
-            
+
             // Check if table overflows its container
             if (table.scrollWidth > container.clientWidth) {
                 table.classList.add('overflow-table');
                 container.classList.add('overflow-container');
-                
+
                 console.log('📊 Overflow table detected:', {
                     tableWidth: table.scrollWidth,
                     containerWidth: container.clientWidth,
@@ -3750,7 +3602,7 @@ if (chatOutput) {
 
 // Add scroll detection only for overflow containers
 if (chatOutput) {
-    chatOutput.addEventListener('scroll', function() {
+    chatOutput.addEventListener('scroll', function () {
         const overflowContainers = this.querySelectorAll('.ai-response.overflow-container');
         overflowContainers.forEach(container => {
             if (container.scrollLeft > 10) {
