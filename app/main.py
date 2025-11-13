@@ -2066,9 +2066,10 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
     # Parse and limit history
     limited_history = []
     if history:
+        # logger.info(f'history message ${history}')
         try:
             history_data = json.loads(history)
-            limited_history = history_data[-6:]
+            limited_history = history_data[-4:]
         except Exception:
             limited_history = []
     
@@ -2090,14 +2091,14 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 # yield f"data: {json.dumps({'chunk': '🎭 Switching to ' + CHAT_MODES[mode]['label'] + ' mode...', 'status': 'thinking'})}\n\n"
                 
                 system_prompt = CHAT_MODES[mode]["prompt"]
-                messages = [{"role": "user", "parts": [system_prompt]}]
-                
+                messages = [{"role": "system", "parts": [system_prompt]}]  # Proper system role
+
                 if limited_history:
                     for msg in limited_history:
                         if msg["role"] == "user":
                             messages.append({"role": "user", "parts": [msg["content"]]})
                         elif msg["role"] == "assistant":
-                            messages.append({"role": "model", "parts": [msg["content"]]})
+                            messages.append({"role": "assistant", "parts": [msg["content"]]})  # Consistent
                 
                 messages.append({"role": "user", "parts": [query]})
                 
@@ -2211,9 +2212,9 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     ]
                                         
                     for role, content in conversation_history:
-                        if role == "human":
+                        if role == "user":
                             prompt_parts.append(f"USER: {content}")
-                        else:
+                        else:  # assistant
                             prompt_parts.append(f"ASSISTANT: {content}")
                     
                     if processed_docs:
@@ -2225,19 +2226,23 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     prompt_parts.append("\nANSWER:")
                     
                     return "\n".join(prompt_parts)
+                     
 
-                # Build conversation history
-                      
+                  # Build conversation history without truncation
+
+
                 conversation_history = []
                 if limited_history:
-                    recent_history = limited_history[-2:]
+                    # Keep 2 complete conversations for context
+                    recent_history = limited_history[-4:]  # 2 user + 2 AI
+                    logger.info(f'RAG history: {len(recent_history)} messages')
+                    
                     for msg in recent_history:
                         if msg["role"] == "user":
-                            user_content = msg["content"][:100] + "..." if len(msg["content"]) > 100 else msg["content"]
-                            conversation_history.append(("human", user_content))
+                            conversation_history.append(("user", msg["content"]))  # Use "user" consistently
                         elif msg["role"] == "assistant":
-                            assistant_content = msg["content"][:150] + "..." if len(msg["content"]) > 150 else msg["content"]
-                            conversation_history.append(("ai", assistant_content))
+                            conversation_history.append(("assistant", msg["content"]))  # Use "assistant"
+
 
                 # 🚀 STEP 1: Document retrieval with streaming feedback
                 logger.info("📥 STARTING DOCUMENT RETRIEVAL")

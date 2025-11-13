@@ -2858,7 +2858,7 @@ async function sendChat() {
         }
 
         // Send only LAST 4 conversations (8 messages) to LLM
-        const recentHistory = chatHistory.slice(-8);
+        const recentHistory = chatHistory.slice(-4);
 
         const body = new URLSearchParams({
             query: userMessage,
@@ -3106,20 +3106,7 @@ async function sendChat() {
     } catch (error) {
         console.error("💥 Chat streaming error:", error);
 
-        // Show final error message after all retries failed
-//         responseElement.innerHTML = `
-// <div class="fixed inset-0 flex items-center justify-center">
-//     <div class="text-red-600 bg-red-50 rounded-md shadow p-2 text-xs">
-//         <div style="line-height: 1; margin: 0; padding: 0; text-align: left; padding-left: 0px;margin-left:-23px;margin-top:1px;margin-bottom:1px">
-//             ⏳🌐⚠️ <strong>Server Busy/Network Issue</strong>
-//         </div> 
-//         <div style="line-height: 1; margin: 0; padding: 0; text-align: left; padding-left: 0px;margin-left:-34px;margin-top:1px;margin-bottom:1px">
-//              <strong>Please Reload and Try again</strong>
-//         </div>
-//     </div>
-// </div>
 
-//         `;
 
         statusElement.innerHTML = 'Retries failed.Server load or Network Issue. Try again.';
 
@@ -3131,8 +3118,8 @@ async function sendChat() {
         }
 
         // Keep full history for UI (limit to prevent memory issues)
-        if (chatHistory.length > 100) {
-            chatHistory = chatHistory.slice(-100);
+        if (chatHistory.length > 50) {
+            chatHistory = chatHistory.slice(-50);
         }
     }
 }
