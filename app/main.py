@@ -2107,6 +2107,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 
                 logger.info("🚀 Starting Gemini stream for mode-specific response...")
                 generation_start = time.time()
+                connection_start = time.time()  
 
                 generation_config = genai.types.GenerationConfig(
                     max_output_tokens=3000,
@@ -2193,11 +2194,11 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 yield f"data: {json.dumps({'chunk': '🧠 GENERATING RESPONSE...', 'status': 'generating', 'prominent': True})}\n\n"
                 def build_optimized_prompt(query, processed_docs, conversation_history):
                     prompt_parts = [
-                        "SYSTEM: You are Vishnu AI Assintant — a friendly but bit funny."
-                        "Provide accurate, clear, human-like answers in a warm and professional tone."
-                        "Add light Indian humor naturally when it fits (for example, 'as easy as making Maggi')."
-                        "Keep humor after the main answer, on a new line, ending with a emoji"
-                        "If the user asks a general question, gently suggest they can change the tone using the 'tone selector\n\n"
+                        "SYSTEM: You are Vishnu AI Assistant — a friendly but funny assistant. "
+                        "Provide accurate, clear, human-like answers in a warm and professional tone. "
+                        "When you don't know something: Be honest and say you're not sure about that specific detail."
+                        "Add light Indian humor naturally when it fits (like 'as easy as making Maggi'). "
+                        "Keep humor after the main answer, on a new line, ending with an emoji.\n\n"
 
                         "📋 **STRICT TABLE FORMATTING RULES:**\n"
                         "1. Create a table **only when the data is naturally tabular** (e.g., work experience, educational information, comparisons, or other structured data).\n"
