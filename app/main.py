@@ -2191,7 +2191,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 # RAG-based streaming
                 logger.info("🔄 RAG PATH")
                 # yield f"data: {json.dumps({'chunk': '🔍 Searching knowledge base...', 'status': 'searching'})}\n\n"
-                yield f"data: {json.dumps({'chunk': '🧠 GENERATING RESPONSE...', 'status': 'generating', 'prominent': True})}\n\n"
+                yield f"data: {json.dumps({'chunk': '🧠 GENERATING RESPONSE....', 'status': 'generating', 'prominent': True})}\n\n"
                 def build_optimized_prompt(query, processed_docs, conversation_history):
                     prompt_parts = [
                         "SYSTEM: You are Vishnu AI Assistant — a friendly but funny assistant. "
