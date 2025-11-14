@@ -2084,23 +2084,27 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
             await asyncio.sleep(0.01)
 
             if mode and mode in CHAT_MODES:
-                # Mode-specific streaming
                 logger.info("🔄 MODE-SPECIFIC PATH")
                 
                 # Show thinking status
-                # yield f"data: {json.dumps({'chunk': '🎭 Switching to ' + CHAT_MODES[mode]['label'] + ' mode...', 'status': 'thinking'})}\n\n"
+                yield f"data: {json.dumps({'chunk': '🎭 Switching to ' + CHAT_MODES[mode]['label'] + ' mode...', 'status': 'thinking'})}\n\n"
                 
                 system_prompt = CHAT_MODES[mode]["prompt"]
-                messages = [{"role": "system", "parts": [system_prompt]}]  # Proper system role
-
+                
+                # ✅ FIX: Build messages without system role for Gemini
+                messages = []
+                
+                # Add history as user/model messages (Gemini uses "model" not "assistant")
                 if limited_history:
                     for msg in limited_history:
                         if msg["role"] == "user":
                             messages.append({"role": "user", "parts": [msg["content"]]})
-                        elif msg["role"] == "assistant":
-                            messages.append({"role": "assistant", "parts": [msg["content"]]})  # Consistent
+                        elif msg["role"] == "assistant":  # Convert "assistant" to "model"
+                            messages.append({"role": "model", "parts": [msg["content"]]})
                 
-                messages.append({"role": "user", "parts": [query]})
+                # ✅ FIX: Combine system prompt with user query
+                combined_query = f"SYSTEM INSTRUCTIONS: {system_prompt}\n\nUSER QUESTION: {query}"
+                messages.append({"role": "user", "parts": [combined_query]})
                 
                 # Stream response using Gemini
                 genai.configure(api_key=GOOGLE_API_KEY)
