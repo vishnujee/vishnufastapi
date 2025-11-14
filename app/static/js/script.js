@@ -2902,7 +2902,7 @@ async function sendChat() {
                         console.log(`⏰ Attempt ${attempt} - Aborting due to timeout`);
                         currentAbortController.abort();
                     }
-                }, 10000);
+                }, 3000);
 
                 console.log(`🔄 Attempt ${attempt} - Calling fetch('/chat')...`);
 
@@ -3077,18 +3077,49 @@ async function sendChat() {
                 if (attempt < 3 && isRetryable) {
                     console.log(`⏳ Waiting 2 seconds before retry ${attempt + 1}...`);
 
-                    // UPDATE UI DURING WAIT
-                    statusElement.textContent = `⏳ Retrying in 2.5s... (${attempt}/3)`;
+                    // UPDATE UI DURING WAIT  fixed time dealy of 2.5 sec
+                    // statusElement.textContent = `⏳ Retrying in 2.5s... (${attempt}/3)`;
+                    // statusElement.className = 'text-xs text-orange-500 mt-1 flex items-center';
+                    // statusElement.style.fontWeight = 'bold';
+
+                    // await new Promise(resolve => {
+                    //     console.log(`⏳ Starting ${attempt} delay...`);
+                    //     setTimeout(() => {
+                    //         console.log(`⏳ Delay ${attempt} completed, starting next attempt`);
+                    //         resolve();
+                    //     }, 2500);
+                    // });
+
+                    // exponenitial backoff jitter delay
+
+                    // 🚀 EXPONENTIAL BACKOFF WITH JITTER
+                    function calculateBackoff(attempt, baseDelay = 2000, maxDelay = 8000) {
+                        const exponential = Math.pow(2, attempt - 1) * baseDelay;
+                        const withJitter = exponential * (0.7 + Math.random() * 0.6); // 0.7 to 1.3 random factor
+                        return Math.min(withJitter, maxDelay);
+                    }
+
+                    const backoffDelay = calculateBackoff(attempt, 2000, 8000);
+                    const delaySeconds = Math.ceil(backoffDelay / 1000);
+
+                    // UPDATE UI WITH DYNAMIC TIMER
+                    statusElement.textContent = `⏳ Retrying in ${delaySeconds}s... (${attempt}/3)`;
                     statusElement.className = 'text-xs text-orange-500 mt-1 flex items-center';
                     statusElement.style.fontWeight = 'bold';
 
+                    // Force UI update
+                    await new Promise(resolve => setTimeout(resolve, 10));
+
+                    console.log(`⏳ Attempt ${attempt} - Exponential backoff: ${backoffDelay}ms`);
+
                     await new Promise(resolve => {
-                        console.log(`⏳ Starting ${attempt} delay...`);
                         setTimeout(() => {
-                            console.log(`⏳ Delay ${attempt} completed, starting next attempt`);
+                            console.log(`⏳ Backoff delay completed, starting attempt ${attempt + 1}`);
                             resolve();
-                        }, 2500);
+                        }, backoffDelay);
                     });
+
+
                     console.log(`🔄 Proceeding to attempt ${attempt + 1}`);
                 } else {
                     console.log(`🚫 No more retries - throwing error`);
