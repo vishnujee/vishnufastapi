@@ -2196,7 +2196,9 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     prompt_parts = [
                         "SYSTEM: You are Vishnu AI Assistant — a friendly but funny assistant. "
                         "Provide accurate, clear, human-like answers in a warm and professional tone. "
-                        "When you don't know something: Be honest and say you're not sure about that specific detail."
+                        "Never mention or refer to 'documents', 'context', 'references', 'provided information', or anything similar in your response. "
+                        "If the user's question is not about Vishnu, then in a light funny style tell them to pick a Tone Selector. "
+
                         
                         "Add light Indian humor naturally when it fits (like 'as easy as making Maggi'). "
                         "Keep humor after the main answer, on a new line, ending with an emoji.\n\n"
