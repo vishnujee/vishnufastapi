@@ -3092,14 +3092,20 @@ async function sendChat() {
 
                     // exponenitial backoff jitter delay
 
-                    // 🚀 EXPONENTIAL BACKOFF WITH JITTER
-                    function calculateBackoff(attempt, baseDelay = 2000, maxDelay = 8000) {
+                    // 🚀 EXPONENTIAL BACKOFF WITH JITTER 3000
+                    // function calculateBackoff(attempt, baseDelay = 2000, maxDelay = 8000) {
+                    //     const exponential = Math.pow(2, attempt - 1) * baseDelay;
+                    //     const withJitter = exponential * (0.7 + Math.random() * 0.6); // 0.7 to 1.3 random factor
+                    //     return Math.min(withJitter, maxDelay);
+                    // }
+                    // Longer base delays: 3000ms (3 seconds) instead of 2000ms
+                    function calculateBackoff(attempt, baseDelay = 3000, maxDelay = 10000) {
                         const exponential = Math.pow(2, attempt - 1) * baseDelay;
-                        const withJitter = exponential * (0.7 + Math.random() * 0.6); // 0.7 to 1.3 random factor
+                        const withJitter = exponential * (0.7 + Math.random() * 0.6);
                         return Math.min(withJitter, maxDelay);
                     }
 
-                    const backoffDelay = calculateBackoff(attempt, 2000, 8000);
+                    const backoffDelay = calculateBackoff(attempt, 2500, 10000);
                     const delaySeconds = Math.ceil(backoffDelay / 1000);
 
                     // UPDATE UI WITH DYNAMIC TIMER
