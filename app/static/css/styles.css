@@ -975,5 +975,13 @@ progress::-moz-progress-bar {
 }
 
 .bg-white.rounded-xl.tool-card {
-    padding: 0 !important;
+    padding: 10px !important;
+}
+
+
+.bg-green-50.rounded-lg.p-3.flex-1.w-full {
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+    margin-left: 0px !important;
+    margin-right: 0px !important;
 }

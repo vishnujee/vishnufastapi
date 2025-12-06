@@ -2879,10 +2879,10 @@ async function sendChat() {
             let currentReader = null;
             let timeoutId = null;
 
-            console.log(`🔄 ATTEMPT ${attempt} STARTING...`);
+            // console.log(`🔄 ATTEMPT ${attempt} STARTING...`);
 
             try {
-                console.log(`🔄 Attempt ${attempt}/2 - Making fetch request...`);
+                // console.log(`🔄 Attempt ${attempt}/2 - Making fetch request...`);
 
                 // Update status for retry attempts - MORE VISIBLE
                 if (attempt > 1) {
@@ -2923,7 +2923,7 @@ async function sendChat() {
                     timeoutId = null;
                 }
 
-                console.log(`✅ Attempt ${attempt} - Fetch completed, status: ${response.status}`);
+                // console.log(`✅ Attempt ${attempt} - Fetch completed, status: ${response.status}`);
 
                 if (!response.ok) {
                     console.log(`❌ Attempt ${attempt} - HTTP error: ${response.status}`);
@@ -2970,7 +2970,7 @@ async function sendChat() {
                         if (line.startsWith('data: ')) {
                             try {
                                 const data = JSON.parse(line.slice(6));
-                                console.log('📦 Received data:', data);
+                                // console.log('📦 Received data:', data);
 
                                 // 🚀 HANDLE STATUS MESSAGES IMMEDIATELY
                                 if (data.status) {
