@@ -975,6 +975,7 @@ progress::-moz-progress-bar {
 }
 
 .bg-white.rounded-xl.tool-card {
+<<<<<<< HEAD
     padding: 0 !important;
 }
 
@@ -1045,3 +1046,15 @@ progress::-moz-progress-bar {
     }
 }
 
+=======
+    padding: 10px !important;
+}
+
+
+.bg-green-50.rounded-lg.p-3.flex-1.w-full {
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+    margin-left: 0px !important;
+    margin-right: 0px !important;
+}
+>>>>>>> 9981128fbb59cc5f4e5cb5a2f2fc4a968cf016ae
