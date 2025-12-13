@@ -337,6 +337,8 @@
 
               <a href="#remove-background" class="block px-4 py-1 text-gray-700 hover:bg-gray-100"
                 onclick="showTool('removeBackground-section')">Remove Image Background</a>
+              <!-- <a href="#newsletter" class="nav-link text-xl text-gray-700 hover:text-green-600"
+                onclick="showTool('newsletter-section')">Newsletter</a> -->
 
 
 
@@ -348,7 +350,97 @@
             onclick="window.location.href='/static/videos.html'"> Videos </a>
           <a href="/login" class="nav-link text-xl text-gray-700 hover:text-green-600"
             onclick="window.location.href='/static/videos.html'"> Login</a>
+          <!-- <a href="/newsletter" class="nav-link text-xl text-gray-700 hover:text-green-600"
+            onclick="showTool('newsletter-section')">Newsletter</a> -->
+
+<br>
+          <div class="dropdown relative group">
+            <button class="nav-link text-xl text-gray-700 hover:text-green-600 flex items-center">
+              <i class="fas fa-newspaper mr-1"></i> Newsletters
+              <i class="fas fa-chevron-down ml-1 text-xs"></i>
+            </button>
+            <div
+              class="dropdown-content absolute left-0 mt-2 w-56 bg-white shadow-xl rounded-lg py-3 hidden group-hover:block transition-all duration-300">
+              <div class="px-4 py-2 border-b">
+                <h4 class="font-semibold text-gray-800 flex items-center">
+                  <i class="fas fa-newspaper text-blue-500 mr-2"></i>
+                  Daily Newsletters
+                </h4>
+                <p class="text-xs text-gray-500 mt-1">Curated & Updated Daily</p>
+              </div>
+
+              <div class="py-2" style="margin-right: 250px;">
+                <a href="/newsletter" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50" 
+                  onclick="showTool('newsletter-section')">
+                  <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3" >
+                    <i class="fas fa-plus text-green-600 text-sm"></i>
+                  </div>
+                  <div>
+                    <div class="font-medium">Generate New</div>
+                    <div class="text-xs text-gray-500">Create fresh newsletter</div>
+                  </div>
+                </a>
+
+                <a href="/newsletter-dashboard" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50">
+                  <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                    <i class="fas fa-th-large text-blue-600 text-sm"></i>
+                  </div>
+                  <div>
+                    <div class="font-medium">All Newsletters</div>
+                    <div class="text-xs text-gray-500">Browse all topics</div>
+                  </div>
+                </a>
+              </div>
+
+              <div class="px-4 py-2 border-t">
+                <h5 class="text-sm font-semibold text-gray-700 mb-2">Daily Editions</h5>
+                <div class="space-y-1">
+                  <a href="/view-newsletter/technology"
+                    class="flex items-center px-2 py-1.5 text-gray-600 hover:bg-gray-100 rounded">
+                    <i class="fas fa-robot text-purple-500 w-5 mr-2"></i>
+                    <span class="flex-1">Tech Daily</span>
+                    <span class="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded">🤖</span>
+                  </a>
+
+                  <a href="/view-newsletter/sports"
+                    class="flex items-center px-2 py-1.5 text-gray-600 hover:bg-gray-100 rounded">
+                    <i class="fas fa-running text-green-500 w-5 mr-2"></i>
+                    <span class="flex-1">Sports Daily</span>
+                    <span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">⚡</span>
+                  </a>
+
+                  <a href="/view-newsletter/india_power_projects"
+                    class="flex items-center px-2 py-1.5 text-gray-600 hover:bg-gray-100 rounded">
+                    <i class="fas fa-bolt text-yellow-500 w-5 mr-2"></i>
+                    <span class="flex-1">Power Projects</span>
+                    <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">⚡</span>
+                  </a>
+
+                  <a href="/view-newsletter/hiring_jobs"
+                    class="flex items-center px-2 py-1.5 text-gray-600 hover:bg-gray-100 rounded">
+                    <i class="fas fa-briefcase text-red-500 w-5 mr-2"></i>
+                    <span class="flex-1">Jobs Daily</span>
+                    <span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded">💼</span>
+                  </a>
+                </div>
+              </div>
+
+              <!-- <div class="px-4 py-2 border-t bg-gray-50">
+                <p class="text-xs text-gray-500">
+                  <i class="fas fa-info-circle mr-1"></i>
+                  Auto-updated • Saved for 7 days
+                </p>
+              </div> -->
+            </div>
+          </div>
+          <!-- new viewing newsletter -->
         </div>
+
+
+        <!-- new viewing newsletter -->
+
+
+
         <!-- Larger version -->
         <button class="md:hidden text-gray-900 p-3" id="mobile-menu-button">
           <i class="fas fa-bars text-3xl"></i>
@@ -423,6 +515,90 @@
 
         <a href="/login" class="nav-link text-xl text-gray-700 hover:text-green-600"
           onclick="window.location.href='/static/videos.html'"> Login</a>
+        <!-- <a href="/newsletter" class="nav-link text-xl text-gray-700 hover:text-green-600"
+          onclick="showTool('newsletter-section')">Newsletter</a> -->
+<br>
+           <div class="dropdown relative group" style="margin-top: 15px;">
+            <button class="nav-link text-xl text-gray-700 hover:text-green-600 flex items-center">
+              <i class="fas fa-newspaper mr-1"></i> Newsletters
+              <i class="fas fa-chevron-down ml-1 text-xs"></i>
+            </button>
+            <div
+              class="dropdown-content absolute left-0 mt-2 w-56 bg-white shadow-xl rounded-lg py-3 hidden group-hover:block transition-all duration-300">
+              <div class="px-4 py-2 border-b">
+                <h4 class="font-semibold text-gray-800 flex items-center">
+                  <i class="fas fa-newspaper text-blue-500 mr-2"></i>
+                  Daily Newsletters
+                </h4>
+                <p class="text-xs text-gray-500 mt-1">Curated & Updated Daily</p>
+              </div>
+
+              <div class="py-2">
+                <a href="/newsletter" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50"
+                  onclick="showTool('newsletter-section')">
+                  <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3" ;">
+                    <i class="fas fa-plus text-green-600 text-sm"></i>
+                  </div>
+                  <div>
+                    <div class="font-medium">Generate New</div>
+                    <div class="text-xs text-gray-500">Create fresh newsletter</div>
+                  </div>
+                </a>
+
+                <a href="/newsletter-dashboard" class="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50">
+                  <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                    <i class="fas fa-th-large text-blue-600 text-sm"></i>
+                  </div>
+                  <div>
+                    <div class="font-medium">All Newsletters</div>
+                    <div class="text-xs text-gray-500">Browse all topics</div>
+                  </div>
+                </a>
+              </div>
+
+              <div class="px-4 py-2 border-t">
+                <h5 class="text-sm font-semibold text-gray-700 mb-2">Daily Editions</h5>
+                <div class="space-y-1">
+                  <a href="/view-newsletter/technology"
+                    class="flex items-center px-2 py-1.5 text-gray-600 hover:bg-gray-100 rounded">
+                    <i class="fas fa-robot text-purple-500 w-5 mr-2"></i>
+                    <span class="flex-1">Tech Daily</span>
+                    <span class="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded">🤖</span>
+                  </a>
+
+                  <a href="/view-newsletter/sports"
+                    class="flex items-center px-2 py-1.5 text-gray-600 hover:bg-gray-100 rounded">
+                    <i class="fas fa-running text-green-500 w-5 mr-2"></i>
+                    <span class="flex-1">Sports Daily</span>
+                    <span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">⚡</span>
+                  </a>
+
+                  <a href="/view-newsletter/india_power_projects"
+                    class="flex items-center px-2 py-1.5 text-gray-600 hover:bg-gray-100 rounded">
+                    <i class="fas fa-bolt text-yellow-500 w-5 mr-2"></i>
+                    <span class="flex-1">Power Projects</span>
+                    <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">⚡</span>
+                  </a>
+
+                  <a href="/view-newsletter/hiring_jobs"
+                    class="flex items-center px-2 py-1.5 text-gray-600 hover:bg-gray-100 rounded">
+                    <i class="fas fa-briefcase text-red-500 w-5 mr-2"></i>
+                    <span class="flex-1">Jobs Daily</span>
+                    <span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded">💼</span>
+                  </a>
+                </div>
+              </div>
+
+              <!-- <div class="px-4 py-2 border-t bg-gray-50">
+                <p class="text-xs text-gray-500">
+                  <i class="fas fa-info-circle mr-1"></i>
+                  Auto-updated • Saved for 7 days
+                </p>
+              </div> -->
+            </div>
+          </div>
+          <!-- new viewing newsletter -->
+
       </div>
       <div class="grid grid-cols-1 gap-8">
 
@@ -490,9 +666,20 @@
             </p>
           </div>
         </div>
-        <p class="text-xl text-gray-600 max-w-3xl mx-auto mt-4"
+        
+        <!-- <p class="text-xl text-gray-600 max-w-3xl mx-auto mt-4"
           style="color: #e7082d;padding-left: 0px;padding-right: 0px;">
           Loading own LLM model. Coming soon!
+        </p> -->
+
+                <p class="text-lg md:text-xl font-semibold text-gray-700 max-w-3xl mx-auto mt-4 px-4 md:px-0">
+          <span style="color: #e7082d;">✨ Coming Soon: </span > 4 AI Agents will curate and deliver best daily insights from:
+        </p>
+        <!-- <p class="text-base md:text-lg text-gray-600 max-w-3xl mx-auto mt-2 px-4 md:px-0">
+          4 specialized AI agents will fetch and analyze the best resources daily across:
+        </p> -->
+        <p class="text-base md:text-lg text-gray-700 max-w-3xl mx-auto mt-1 px-4 md:px-0">
+          📱 Technology ⚡ India Power Sector <br> 🏏 Sports  💼 Hiring & Jobs
         </p>
 
       </div>
@@ -548,7 +735,7 @@
         </div>
 
         <!-- Hidden Text that appears on click -->
-  <div id="expandableText" style="
+        <div id="expandableText" style="
     display: none;
     text-align: left;
     margin-top: 10px;
@@ -561,17 +748,18 @@
     line-height: 1.5;
     animation: fadeIn 0.5s ease-in-out;
 ">
-  <p>✨ <b>New Feature:</b> Added <b>Tone Selector</b> with multiple unique modes — something even ChatGPT doesn’t have!</p>
-  
-  <p>🚀 <b>Chat response time improved for Vishnu mode:</b></p>
-  <div style="margin-left: 25px;">
-    July 2024 → 8 seconds<br>
-    Sept 2025 → 3 seconds<br>
-    Now → 1 – 2 seconds ⚡
-  </div>
+          <p>✨ <b>New Feature:</b> Added <b>Tone Selector</b> with multiple unique modes — something even ChatGPT
+            doesn’t have!</p>
 
-  <p>💡 <b>PDFs:</b> Super Fast PDF editing!</p>
-</div>
+          <p>🚀 <b>Chat response time improved for Vishnu mode:</b></p>
+          <div style="margin-left: 25px;">
+            July 2024 → 8 seconds<br>
+            Sept 2025 → 3 seconds<br>
+            Now → 1 – 2 seconds ⚡
+          </div>
+
+          <p>💡 <b>PDFs:</b> Super Fast PDF editing!</p>
+        </div>
 
 
         <style>
@@ -748,11 +936,13 @@
           <div id="chatOutput" class="text-gray-700 bg-gray-50 px-1 rounded-3xl min-h-32"></div>
         </div>
 
-
-
-
       </div>
     </div>
+
+   
+
+
+
 
 
 
@@ -2104,12 +2294,10 @@
       const menuButton = document.getElementById('mobile-menu-button');
       mobileSubmenu.classList.toggle('hidden');
 
-      // If submenu is opened and main menu is visible, revert icon to hamburger
-      // if (!mobileSubmenu.classList.contains('hidden') && !mobileMenu.classList.contains('hidden')) {
-      //   menuButton.querySelector('i').classList.remove('fa-times');
-      //   menuButton.querySelector('i').classList.add('fa-bars');
-      // }
+
     }
+
+
     document.getElementById('mobile-menu-button').addEventListener('click', toggleMobileMenu);
 
     function updatePageOrder(pages) {
@@ -2815,6 +3003,7 @@
       }
     }
   </script>
+
 
 
 

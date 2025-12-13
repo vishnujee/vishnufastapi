@@ -1,0 +1,691 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Sports Daily - Latest Updates</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+           
+            body {
+                font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+                line-height: 1.6;
+                color: #1a1a1a;
+                background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }
+           
+            .sports-container {
+                max-width: 1000px;
+                margin: 0 auto;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(20px);
+                border-radius: 24px;
+                overflow: hidden;
+                box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+           
+            .sports-header {
+                background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                color: white;
+                padding: 40px 30px;
+                text-align: center;
+                position: relative;
+                overflow: hidden;
+            }
+           
+            .sports-header::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            }
+           
+            .sports-header h1 {
+                font-size: 36px;
+                font-weight: 800;
+                margin-bottom: 15px;
+                position: relative;
+                z-index: 2;
+            }
+           
+            .sports-header p {
+                font-size: 16px;
+                opacity: 0.9;
+                font-weight: 600;
+                position: relative;
+                z-index: 2;
+            }
+           
+            .sports-content {
+                padding-left: 5px;
+            }
+           
+            .section-header {
+                font-size: 22px;
+                font-weight: 800;
+                margin: 35px 0 25px;
+                padding: 8px 30px;
+                border-radius: 16px;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                position: relative;
+                overflow: hidden;
+                color: white;
+            }
+           
+            .cricket-header {
+                background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            }
+           
+            .football-header {
+                background: linear-gradient(135deg, #00d2d3, #54a0ff);
+            }
+           
+            .othersports-header {
+                background: linear-gradient(135deg, #feca57, #ff9ff3);
+            }
+           
+            .sportsbiz-header {
+                background: linear-gradient(135deg, #5f27cd, #341f97);
+            }
+           
+            .sports-card {
+                background: rgba(248, 249, 250, 0.8);
+                backdrop-filter: blur(10px);
+                border-radius: 20px;
+                margin: 20px 30px;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                transition: all 0.4s ease;
+                overflow: hidden;
+                position: relative;
+            }
+           
+            .sports-card:hover {
+                transform: translateY(-8px);
+                box-shadow: 0 20px 40px rgba(255, 107, 107, 0.2);
+                border-color: #ff6b6b;
+            }
+           
+            .sports-content-inner {
+                padding: 0px;
+            }
+           
+            .sports-headline {
+                font-size: 18px;
+                font-weight: 700;
+                color: #2d3436;
+                text-decoration: none;
+                display: block;
+                margin-bottom: 15px;
+                line-height: 1.5;
+                transition: color 0.3s ease;
+            }
+           
+            .sports-headline:hover {
+                color: #ff6b6b;
+            }
+           
+            .sports-source {
+                background: rgba(255, 107, 107, 0.08);
+                padding: 12px 20px;
+                border-radius: 12px;
+                margin-top: 15px;
+                border-left: 4px solid #ff6b6b;
+            }
+           
+            .sports-source a {
+                color: #636e72;
+                font-size: 13px;
+                text-decoration: none;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                transition: color 0.2s ease;
+            }
+           
+            .sports-source a:hover {
+                color: #ff6b6b;
+            }
+           
+            @media (max-width: 768px) {
+                body {
+                    padding: 0px;
+                }
+               
+                .sports-header {
+                    padding: 30px 20px;
+                }
+               
+                .sports-header h1 {
+                    font-size: 28px;
+                }
+               
+                .section-header {
+                    font-size: 20px;
+                    margin: 30px 0 20px;
+                    padding: 8px 20px;
+                }
+               
+                .sports-card {
+                    margin: 15px 0px;
+                }
+               
+                .sports-headline {
+                    font-size: 16px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="sports-container">
+            <div class="sports-header">
+                <h1>🏆 SPORTS DAILY</h1>
+                <p>2025-12-12 • 60 Sources • Latest Sports Updates</p>
+            </div>
+           
+            <div class="sports-content">
+                Here's the sports news selection, adhering to all instructions:
+
+## <div class="section-header cricket-header">🏏 CRICKET UPDATES</div> (10-12 items)
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMixAFBVV95cUxPNVl6dE5PRkpjM2RwVEVXZ0FTREZsUDNCblR2M3Q1OEhwYTJVaEtKVDZCRVFTbWRTV0RNUTFCRnpzTGR2QjVjVXJycFA1X0V4VGtVOV9ySEl0NXNZbXk2THdrSDV0cGFicUNBUHBQSkxzRnpKeVVkN3ZFN1pTODhKczJuc09nSWVJa1E2dnc4V1ZsaEpGdHkzQko5RF9SajRKVjlPVkFhRDRsQlVEWHFrRkRpTW81U2pINFJPREhicldINXBC?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏏 IPL 2026 auction: what the ten teams have, and who they will be desperate to get
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMixAFBVV95cUxPNVl6dE5PRkpjM2RwVEVXZ0FTREZsUDNCblR2M3Q1OEhwYTJVaEtKVDZCRVFTbWRTV0RNUTFCRnpzTGR2QjVjVXJycFA1X0V4VGtVOV9ySEl0NXNZbXk2THdrSDV0cGFicUNBUHBQSkxzRnpKeVVkN3ZFN1pTODhKczJuc09nSWVJa1E2dnc4V1ZsaEpGdHkzQko5RF9SajRKVjlPVkFhRDRsQlVEWHFrRkRpTW81U2pINFJPREhicldINXBC?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMijgFBVV95cUxPOUI3ZGtqaWozR2lKZXFmdU45SUVRQXdLUVA0bndUZWwxQmg2c3FIWDU3eks0aUtHWXpvV1FwOXNvdmhsenAxdmFORTFfYzFfZC1lU2U2Vk5kZFVQOURtZnRoOWFyUjNQR2laTWZ5VXVLX0Z6Sk4tS3R1NnJJSFBtQUcyRDRSUnVfVXVpSnN3?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏏 IPL 2026 purse remaining - where every team stands ahead of the auction
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMijgFBVV95cUxPOUI3ZGtqaWozR2lKZXFmdU45SUVRQXdLUVA0bndUZWwxQmg2c3FIWDU3eks0aUtHWXpvV1FwOXNvdmhsenAxdmFORTFfYzFfZC1lU2U2Vk5kZFVQOURtZnRoOWFyUjNQR2laTWZ5VXVLX0Z6Sk4tS3R1NnJJSFBtQUcyRDRSUnVfVXVpSnN3?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMiygFBVV95cUxOOXlLQUVrenk1cGp6UmQtN0xoQ0lQRW1XSVFfNUhtUWxXWVVVNk5ERVpiWVVYX3BZMDExanJlV2w3SFc2dkFOOGY0ZWpnSkU5ZXRfT3c1WUF6VXNGVG5ILTA4MW01cVpod2JzUXVrUjI4aFlkcVRkV0hDeEFLbjA4SEpHS0pJUXBtbDdOQU16S3lnOEFQOGFja1ZpZU5FUzZQaFBvaDFDeWFsRzBCeHJheGM3cVUybW52RUlrbEZUMFpFN3dsNjBCaTdR0gHQAUFVX3lxTE1aUHk1RW5odkR2YVJQY3k2QjNIYWRLY2FZQUxIRVhiZEtRUURka0l6MF81a3lQOHNVR1M5NjljTmpUWUxZNGk5TG9ZVnVSZWVBSTByMkJQR09Pb3VyRjlPaW9POGhaQ2NrSEFfOWcwd29Od0J6bHd1MFA2RFVTOGJ2eTg0amQtZ1hYZ0MxREZiN2JFbjVNdHctOThEWW5TTkFjOWhqZFB5NGExclpWcE9SWDRBYmpVekRyMjlleDI0bDVxdEJVczdESnBJUXIzeTY?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏏 IPL Auction 2026: Who is Salil Arora? Punjab batter who smashed a 39-ball 100 and enters at Rs. 30 lakh base price
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMiygFBVV95cUxOOXlLQUVrenk1cGp6UmQtN0xoQ0lQRW1XSVFfNUhtUWxXWVVVNk5ERVpiWVVYX3BZMDExanJlV2w3SFc2dkFOOGY0ZWpnSkU5ZXRfT3c1WUF6VXNGVG5ILTA4MW01cVpod2JzUXVrUjI4aFlkcVRkV0hDeEFLbjA4SEpHS0pJUXBtbDdOQU16S3lnOEFQOGFja1ZpZU5FUzZQaFBvaDFDeWFsRzBCeHJheGM3cVUybW52RUlrbEZUMFpFN3dsNjBCaTdR0gHQAUFVX3lxTE1aUHk1RW5odkR2YVJQY3k2QjNIYWRLY2FZQUxIRVhiZEtRUURka0l6MF81a3lQOHNVR1M5NjljTmpUWUxZNGk5TG9ZVnVSZWVBSTByMkJQR09Pb3VyRjlPaW9POGhaQ2NrSEFfOWcwd29Od0J6bHd1MFA2RFVTOGJ2eTg0amQtZ1hYZ0MxREZiN2JFbjVNdHctOThEWW5TTkFjOWhqZFB5NGExclpWcE9SWDRBYmpVekRyMjlleDI0bDVxdEJVczdESnBJUXIzeTY?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMiogJBVV95cUxNZ0JzRGV1OWl3a2dveElNWXBKYVFVQjJwbEN6ejZGbnh4V1RhOTVzRk53am14NHc3Rmd5bERNSWV6SVdZVHNHOVV1U3ZheVJBUWVlOFhIeHVYd0VJR1Zrc3c0cDJMeUVvSFE1TE5DM2Jrd3lLRHZkMlR3Yi1nSDNFWXRCZDVrc2NPb3dXM2x5ODE5Zk1CSk5mTFd6LWU0M19tbjg4ZjdyRmxBUXlHMDZJUDUwUnlFOXZJQzF0OWJkQ0RmMDZfTmlSam15bEtwZUd0dzljcDI4QjBLTkRadVJPTGVPVW1fVHNWUERUWkhWZ1ZfMVBtbHhIaVZqaklQLXZPb3ZQTmhPeVJLQVd5WDVZVHBvd3M3MUVVeENQdGNfWkg5UdIBpwJBVV95cUxORDFpSUdpaENEYnBwamFSQVhIcDRaN3YxR2lpNmVhRXRReTZfVDJCSVZ4QVAtc3phQS0xUEQ3NkJvRW1obkdWYy1WeEJnU1R6MzU2QlNKOENkZVFHQzBNOGVpRU1mcDNtUXFPWWFrdUxWWENGY0N0VU1xTktkZFpoY2pFakRwSHc5ZWx0UHV4S0gydGREb01hbkpQaS1DTklfa1FNYlBYdWVqSGlYT2VrNUN2Mnk4dFZZanV0dk43dWxwU25zLTZucHJtTnVFUjlKRmRKOVJZdy01aXotWHJZVjk4MldJOVNTM2Q5eHlkT19iWFpZbldNZFZZY1d3eWhUSGt3S0U5U1JoM3A2ajM1WXU3TVRFa2x2eW9WS1c2UzNwbVBJQXR3?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏏 IPL Auction 2026 Preview: Lucknow Super Giants face key gaps to fix in bid to return as title contenders
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMiogJBVV95cUxNZ0JzRGV1OWl3a2dveElNWXBKYVFVQjJwbEN6ejZGbnh4V1RhOTVzRk53am14NHc3Rmd5bERNSWV6SVdZVHNHOVV1U3ZheVJBUWVlOFhIeHVYd0VJR1Zrc3c0cDJMeUVvSFE1TE5DM2Jrd3lLRHZkMlR3Yi1nSDNFWXRCZDVrc2NPb3dXM2x5ODE5Zk1CSk5mTFd6LWU0M19tbjg4ZjdyRmxBUXlHMDZJUDUwUnlFOXZJQzF0OWJkQ0RmMDZfTmlSam15bEtwZUd0dzljcDI4QjBLTkRadVJPTGVPVW1fVHNWUERUWkhWZ1ZfMVBtbHhIaVZqaklQLXZPb3ZQTmhPeVJLQVd5WDVZVHBvd3M3MUVVeENQdGNfWkg5UdIBpwJBVV95cUxORDFpSUdpaENEYnBwamFSQVhIcDRaN3YxR2lpNmVhRXRReTZfVDJCSVZ4QVAtc3phQS0xUEQ3NkJvRW1obkdWYy1WeEJnU1R6MzU2QlNKOENkZVFHQzBNOGVpRU1mcDNtUXFPWWFrdUxWWENGY0N0VU1xTktkZFpoY2pFakRwSHc5ZWx0UHV4S0gydGREb01hbkpQaS1DTklfa1FNYlBYdWVqSGlYT2VrNUN2Mnk4dFZZanV0dk43dWxwU25zLTZucHJtTnVFUjlKRmRKOVJZdy01aXotWHJZVjk4MldJOVNTM2Q5eHlkT19iWFpZbldNZFZZY1d3eWhUSGt3S0U5U1JoM3A2ajM1WXU3TVRFa2x2eW9WS1c2UzNwbVBJQXR3?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMilwJBVV95cUxQVk1vUkdzSnFRMy1tVHpQS2JtdUR0X1E0N2E5SS0yZWJPOXZiX01jOEFHT0MzanRtNXlhOXhaQVUyZENNX1FmelllVXBBUTVheklPXzA0ZjJvdktaS2ZhYWNYTnFvU2V5SnhWNXpZbkVmZEtaTVRnRmZUUXdQWDhPV1djTldpUTJPMzFOT0tVOVhDU0Q3cWFjazUyZ1djTWNWU0ZLcmhUQ2hIWklqT2NGTHYxa1lmRWU5Qk5uZkYwVm93VVIwZ25hMUpHRTFZMkhic0xYbG9tR1llV3gzdm5EeFlnR0g2M0c1dzVtSEE5Zm00d3RkMURWU0xGc0hEVFhDLTZPR1NyYVlQR2hVUGVwbU5tbkV3T1XSAZ4CQVVfeXFMTW9aaEEwUUhZeFB5eDJGNkJNQ1NRLV85RTJJVFJyUDdMX014eUlvN0VXYWhTTk5NcmNOQjlBcFVoSUVWZTRweXFvN2FTWXF1SXdyMjdYSFg1XzhqdFpSQWtuRFNlb1JncHQ3WWxZSm9QUHhkVmhJOUhnWFdRUFlVN0ptU1BqTF9fQzQweDVtX3RhQUh1bm5UalFLcHZTNGlfZlpXMFhHVnVLNG9wNkVpbXhlVzJsQlVWVmVDZm5pbEctbV9HUy1GLWNiSHVCY0l0aGgwdU9mbUNrZFVfM3Bra0FJLWF1eVhOWW9PQVdrTVZTbThObkh6dUpXa0pHdE1YaHdJY2x4c0hTWnVCM2thNWRDbGRlYVVwdDhocmpZQQ?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 India vs UAE U19 Asia Cup 2025 Highlights: India beat UAE by 234 runs
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMilwJBVV95cUxQVk1vUkdzSnFRMy1tVHpQS2JtdUR0X1E0N2E5SS0yZWJPOXZiX01jOEFHT0MzanRtNXlhOXhaQVUyZENNX1FmelllVXBBUTVheklPXzA0ZjJvdktaS2ZhYWNYTnFvU2V5SnhWNXpZbkVmZEtaTVRnRmZUUXdQWDhPV1djTldpUTJPMzFOT0tVOVhDU0Q3cWFjazUyZ1djTWNWU0ZLcmhUQ2hIWklqT2NGTHYxa1lmRWU5Qk5uZkYwVm93VVIwZ25hMUpHRTFZMkhic0xYbG9tR1llV3gzdm5EeFlnR0g2M0c1dzVtSEE5Zm00d3RkMURWU0xGc0hEVFhDLTZPR1NyYVlQR2hVUGVwbU5tbkV3T1XSAZ4CQVVfeXFMTW9aaEEwUUhZeFB5eDJGNkJNQ1NRLV85RTJJVFJyUDdMX014eUlvN0VXYWhTTk5NcmNOQjlBcFVoSUVWZTRweXFvN2FTWXF1SXdyMjdYSFg1XzhqdFpSQWtuRFNlb1JncHQ3WWxZSm9QUHhkVmhJOUhnWFdRUFlVN0ptU1BqTF9fQzQweDVtX3RhQUh1bm5UalFLcHZTNGlfZlpXMFhHVnVLNG9wNkVpbXhlVzJsQlVWVmVDZm5pbEctbV9HUy1GLWNiSHVCY0l0aGgwdU9mbUNrZFVfM3Bra0FJLWF1eVhOWW9PQVdrTVZTbThObkh6dUpXa0pHdE1YaHdJY2x4c0hTWnVCM2thNWRDbGRlYVVwdDhocmpZQQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMitgFBVV95cUxNSUhLX0pUdnZQU1FlcHR3YkJTNGNzMm1WcDZSMUdoM0daVDJwd0lHXzdkNlBIU3ZCZVhDUE9UNVBhb0NMQ1BmVHJ1SFYyZV80ZmZvWWFkdUtvb3BoZmVEeE9salFxcDZ3cnJNd3FyNEpGZkE5THRxVW05M0ctU3lZU3R0bm1ZNGdNSmdxQzNqMlI3b3otVnhfUHVCSTBlQWlzZ1Q4QjViRkhtT2dLdWF5QmxWZzZCQQ?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏏 "Gave Us A Lot Of Exposure": Mohammad Nabi On BCCI Helping Afghanistan Cricket
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMitgFBVV95cUxNSUhLX0pUdnZQU1FlcHR3YkJTNGNzMm1WcDZSMUdoM0daVDJwd0lHXzdkNlBIU3ZCZVhDUE9UNVBhb0NMQ1BmVHJ1SFYyZV80ZmZvWWFkdUtvb3BoZmVEeE9salFxcDZ3cnJNd3FyNEpGZkE5THRxVW05M0ctU3lZU3R0bm1ZNGdNSmdxQzNqMlI3b3otVnhfUHVCSTBlQWlzZ1Q4QjViRkhtT2dLdWF5QmxWZzZCQQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMipgFBVV95cUxOTW9yb2tJU3ZYdkZHNnVKeDdBLXRJQW1la2htVHBad2xfQ1BWYWFZZ0VhdnVlYzRvZHBPanJoVmZpS1gtSDlNUkpIbmFHejZ1eTYyRnBTWVY0c2tHX3pTeF9fSE9ZWFo3WVFGR1BLTDZhWTNrb21EaExDTXByeEM1X01BOU1TRFgxQjJySGRlcWVUelozcFkxejlBd2ZPR2JJRXh1c253?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏏 BORN READY: MI’s youngest picks at IPL Auctions over the years
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMipgFBVV95cUxOTW9yb2tJU3ZYdkZHNnVKeDdBLXRJQW1la2htVHBad2xfQ1BWYWFZZ0VhdnVlYzRvZHBPanJoVmZpS1gtSDlNUkpIbmFHejZ1eTYyRnBTWVY0c2tHX3pTeF9fSE9ZWFo3WVFGR1BLTDZhWTNrb21EaExDTXByeEM1X01BOU1TRFgxQjJySGRlcWVUelozcFkxejlBd2ZPR2JJRXh1c253?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMipgFBVV95cUxNWnF2YVRPZGpjTkJKc2tpdER6YnFfZXhyQjhiRXdqOE1TdHFYS29HeGhqeFp1ck1pa0NsSjgzeC13SEhWYUI5WGNlU0YxbTNjNG1Uc1U1ZVdqVllYcHdBRjRwc0lMUll1NzVxQlpDc2NvWkl3dkJpY1dRNTlKazBLdFNNazZrRUMwWUZDZnJjWkNBZDBtSHFLWXpHYkJWQm56ajlLNEZ30gGrAUFVX3lxTFBNZy1rWjdVX0RvMmpBRXdQOTNVS2VwS1R2MWQyeEZTSm9NdXBQeDlDN0lEQ21vRzBTUzJlTHBvWl9uLXhGVWhfcmZ5UU5EN2VkNUY5UC1OS1U5aEJzWm03TjAzZ0wxcHE1dnV5VFVwU2FnUDYtZ09vSEMtbnhVMUEzcUJyVG5zU2NkZmRORU8ybmZZRjI5SUxrc0dLYnJfZU1YZkxxd3pMWDBFVQ?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 ICC confirms Europe Qualification Pathway for Men’s T20 World Cup 2028
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMipgFBVV95cUxNWnF2YVRPZGpjTkJKc2tpdER6YnFfZXhyQjhiRXdqOE1TdHFYS29HeGhqeFp1ck1pa0NsSjgzeC13SEhWYUI5WGNlU0YxbTNjNG1Uc1U1ZVdqVllYcHdBRjRwc0lMUll1NzVxQlpDc2NvWkl3dkJpY1dRNTlKazBLdFNNazZrRUMwWUZDZnJjWkNBZDBtSHFLWXpHYkJWQm56ajlLNEZ30gGrAUFVX3lxTFBNZy1rWjdVX0RvMmpBRXdQOTNVS2VwS1R2MWQyeEZTSm9NdXBQeDlDN0lEQ21vRzBTUzJlTHBvWl9uLXhGVWhfcmZ5UU5EN2VkNUY5UC1OS1U5aEJzWm03TjAzZ0wxcHE1dnV5VFVwU2FnUDYtZ09vSEMtbnhVMUEzcUJyVG5zU2NkZmRORU8ybmZZRjI5SUxrc0dLYnJfZU1YZkxxd3pMWDBFVQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMiygFBVV95cUxPSHBhQzhRNEd5aWwtTDNTbEtXN1RLYmdCQUZRVFdvYklHUm9zTThtVXVQUkNWUnRoWjU1djQxVllLdjdsNTF3amNzMHd2ejNwb25Sa2hhOS1mTnRGd0ZCX0hveWtDNEh2VkdubzJUeHpyMXU2bVg3Sm9nM2x5eVRiV3MtbTZEVWFQcUJuWEw3cjVLYjA2VW1oS2VKYWNaR2x4M25GOEVMMHlySHdiUmVDVTV6Ym80VDhtRlBOd2FBTnNFVFo3ekQ3Vjdn?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Joint Statement from ICC and JioStar on Media Rights Agreement and recent media reports - ICC
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMiygFBVV95cUxPSHBhQzhRNEd5aWwtTDNTbEtXN1RLYmdCQUZRVFdvYklHUm9zTThtVXVQUkNWUnRoWjU1djQxVllLdjdsNTF3amNzMHd2ejNwb25Sa2hhOS1mTnRGd0ZCX0hveWtDNEh2VkdubzJUeHpyMXU2bVg3Sm9nM2x5eVRiV3MtbTZEVWFQcUJuWEw3cjVLYjA2VW1oS2VKYWNaR2x4M25GOEVMMHlySHdiUmVDVTV6Ym80VDhtRlBOd2FBTnNFVFo3ekQ3Vjdn?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMisgFBVV95cUxQbnN6aHNrSFlMcmw4c3hKLVM0M0lVUklyX3VlLUpYeEpXUWxTWEdqaW4tQUZ1S1hlVWdsUFY3NUIxazVOMUdmRUpDMHZneU5fb05zYWZyWWNOTWRFWVVhX0N2RUJfMUF2NHkyVDVMTEZCWkZ1bGJ2WlNHVnpzWm5wSGxHeVdmR1l1MTNyVEx1LUktdzVGUW54YnoyT3FjVTdWVWx1bEp3ejdrOXJYLThNSkJR0gG3AUFVX3lxTE5JeTByTk9vMVh1MnFPRnBlYlY0RW5JNnN1aUR3UjhubUl5VUhzMUVJZGdZc0hicUlUSEF1QmhvbnJBVmNPalh3YWU4QW5tMy1FTnROcTNFRnpRZy0yT1g1R3Ayc0FVdlJvQVJkZ2NzY3g2U0VQVzYwMUZSYTNQT1RpbGkwQWYzRlVYUkVLTlZheE8zTm12T2laM2RLTnNVTFJCMmZtdlEyRDBEX3NWUEhXQkhDMUxVZw?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 ICC judges stoic in face of US sanctions over Israeli war crimes cases
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMisgFBVV95cUxQbnN6aHNrSFlMcmw4c3hKLVM0M0lVUklyX3VlLUpYeEpXUWxTWEdqaW4tQUZ1S1hlVWdsUFY3NUIxazVOMUdmRUpDMHZneU5fb05zYWZyWWNOTWRFWVVhX0N2RUJfMUF2NHkyVDVMTEZCWkZ1bGJ2WlNHVnpzWm5wSGxHeVdmR1l1MTNyVEx1LUktdzVGUW54YnoyT3FjVTdWVWx1bEp3ejdrOXJYLThNSkJR0gG3AUFVX3lxTE5JeTByTk9vMVh1MnFPRnBlYlY0RW5JNnN1aUR3UjhubUl5VUhzMUVJZGdZc0hicUlUSEF1QmhvbnJBVmNPalh3YWU4QW5tMy1FTnROcTNFRnpRZy0yT1g1R3Ayc0FVdlJvQVJkZ2NzY3g2U0VQVzYwMUZSYTNQT1RpbGkwQWYzRlVYUkVLTlZheE8zTm12T2laM2RLTnNVTFJCMmZtdlEyRDBEX3NWUEhXQkhDMUxVZw?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMi3gFBVV95cUxNaUZRaGdwYXRGRkFHQ1BIczZmcWN2SEpvU2VNdVI4dldBRGlNQ0t0amJfU0hXcTkxTm5QOWdzQlZCVk1DZ0tDM1IybGxjem5qckY3STVYVzE0V045eTl1VGZqdE5oNTFpUVN4NmlyWk9seWVBX2ZrTHk3VlpUU1NkcmoyeUNhbFpjejgxRThsbVBpWmROdHVsdnRzSTZEaWF4c2o0M2VSSEJSMTNDUEJjUl8yQmZCSmRFMEZROWZIbjJVNElpSGg4RkpwVWs5NnQweUdGU1lrbVcwaHlDX2fSAeQBQVVfeXFMT3RUN1FMN3piaVcwWnVqVXFLNnhtQ2hsNkFBSElPeUl3dk5nY1RIa1JIejJpUGNBbHoxUVUwcUlSOVBDWldzY19DSmFqc1pfdkFRRzN2YzZCcjFIdjkwZmRNYVBrTEx5dlRlc0JyQm1zMFFHR2Q3Q2htYUwwQ01iZGluY1JjNGFvTkVXRWNWWktQVGRxUDVVX2J2NDM5Zms4NmJNYkxrcjBRdHBGTjIwSWFKMW1uMk95cFhWOThQZ0U2ZGlQdTI4dVVyS2dmNHJ1a3U5cEM4SWQ5eDdBSzlMT1RkbVBL?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏏 IPL Auction 2026: Are there any rules about left-handers/right-handers or foreign player caps in the auction pool?
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMi3gFBVV95cUxNaUZRaGdwYXRGRkFHQ1BIczZmcWN2SEpvU2VNdVI4dldBRGlNQ0t0amJfU0hXcTkxTm5QOWdzQlZCVk1DZ0tDM1IybGxjem5qckY3STVYVzE0V045eTl1VGZqdE5oNTFpUVN4NmlyWk9seWVBX2ZrTHk3VlpUU1NkcmoyeUNhbFpjejgxRThsbVBpWmROdHVsdnRzSTZEaWF4c2o0M2VSSEJSMTNDUEJjUl8yQmZCSmRFMEZROWZIbjJVNElpSGg4RkpwVWs5NnQweUdGU1lrbVcwaHlDX2fSAeQBQVVfeXFMT3RUN1FMN3piaVcwWnVqVXFLNnhtQ2hsNkFBSElPeUl3dk5nY1RIa1JIejJpUGNBbHoxUVUwcUlSOVBDWldzY19DSmFqc1pfdkFRRzN2YzZCcjFIdjkwZmRNYVBrTEx5dlRlc0JyQm1zMFFHR2Q3Q2htYUwwQ01iZGluY1JjNGFvTkVXRWNWWktQVGRxUDVVX2J2NDM5Zms4NmJNYkxrcjBRdHBGTjIwSWFKMW1uMk95cFhWOThQZ0U2ZGlQdTI4dVVyS2dmNHJ1a3U5cEM4SWQ5eDdBSzlMT1RkbVBL?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+## <div class="section-header football-header">⚽ FOOTBALL NEWS</div> (8-10 items)
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMijgJBVV95cUxPQ0hLOV9MLUVrU211dkt5Zm1VRUVEQWdzM09lZ3B0VVBGVnRVOWpHbmJ0WG9hcWR1S0ZVeFV1THM3clpEOHR0TC0wQXowOUdpYWcxUUhURjFDbXRGdjgyWU5fOEUxeWxqSGx3R2ZOMHRtbXJKbzdKRGlIU1ZZMFFYVUl4Q2dvUW1ScGJlMldHa3haZEhDR0oxYldscHdiUmFJcXpfU01IVm80Y1ZkVWNBRk01Q29hclRRS1hjRWdHcDFYUGtEMWNiSF9qUFF5OGExTUc1WGtsNnMwS3Z3UktfMWxPcEdHdjFHb2hjUkxqS3pLNG9vUUs5VzdqS0VFdDhxeWpTUEZYZ1d5UGNoQnfSAZMCQVVfeXFMTXBidFpSc21QbE9uQmhxZVZ5UDNackpXZEZ3T2pDOEt6TVZkdHBpRnBfbXZudXMwU1pDQy11R3dBajNzTnBfWFVEVGVkSGtfTHJXZm1RemRPZXduTkZrNVE3RF9SYXFzTVp3VEJabDNKZlM4b3Q3VVZEcVFDbHR2OGtmTk5SZkk3TUhTYk5uWjdsbXpRV1hoNVAtNlJ6ZVgwalFBVVhHTUdjbG1LMW11aU5kTWtBanF2WlYzLXFyMC1qVW9LWGJ1Yk9Weld3dloxRjBxUGp0bUNyY1BkQ3Q1VC1lemFPdHhjaVhKOU1IMDBaMWtuRGJjb2JrZFliSmxuN1FmRVZqTFJLSS1vQXJ4MGI3Nnc?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    ⚽ PM Modi, Shubman Gill, fashion show: Lionel Messi's 'GOAT India Tour' has everything but football
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMijgJBVV95cUxPQ0hLOV9MLUVrU211dkt5Zm1VRUVEQWdzM09lZ3B0VVBGVnRVOWpHbmJ0WG9hcWR1S0ZVeFV1THM3clpEOHR0TC0wQXowOUdpYWcxUUhURjFDbXRGdjgyWU5fOEUxeWxqSGx3R2ZOMHRtbXJKbzdKRGlIU1ZZMFFYVUl4Q2dvUW1ScGJlMldHa3haZEhDR0oxYldscHdiUmFJcXpfU01IVm80Y1ZkVWNBRk01Q29hclRRS1hjRWdHcDFYUGtEMWNiSF9qUFF5OGExTUc1WGtsNnMwS3Z3UktfMWxPcEdHdjFHb2hjUkxqS3pLNG9vUUs5VzdqS0VFdDhxeWpTUEZYZ1d5UGNoQnfSAZMCQVVfeXFMTXBidFpSc21QbE9uQmhxZVZ5UDNackpXZEZ3T2pDOEt6TVZkdHBpRnBfbXZudXMwU1pDQy11R3dBajNzTnBfWFVEVGVkSGtfTHJXZm1RemRPZXduTkZrNVE3RF9SYXFzTVp3VEJabDNKZlM4b3Q3VVZEcVFDbHR2OGtmTk5SZkk3TUhTYk5uWjdsbXpRV1hoNVAtNlJ6ZVgwalFBVVhHTUdjbG1LMW11aU5kTWtBanF2WlYzLXFyMC1qVW9LWGJ1Yk9Weld3dloxRjBxUGp0bUNyY1BkQ3Q1VC1lemFPdHhjaVhKOU1IMDBaMWtuRGJjb2JrZFliSmxuN1FmRVZqTFJLSS1vQXJ4MGI3Nnc?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMiwAFBVV95cUxPQzBMTG54eGwtYVE2OGdZZ2lKLWVSMldBeWRnRHV0czRHNTRON2E3QW1MZnp6bE01cGVTOFpUM0RqbXI4VXpXVW9pel9YYjl4cmxWTk9jZXBkS2U1dHQ3ZW1MWkwzNko4em9PUUNQYjdqdk4xLVNDaTIzRmk1OGpJcWR6LUpzamYycE92OFhMMlF5WVZwZ2RFM0gzd2tUUW9zdzJ5NVdDWWtEcGdLQm9OQ3p3ejlRM0FGZElYRU1HdG4?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Fan group urges FIFA to halt World Cup ticket sales over 'extortionate' prices
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMiwAFBVV95cUxPQzBMTG54eGwtYVE2OGdZZ2lKLWVSMldBeWRnRHV0czRHNTRON2E3QW1MZnp6bE01cGVTOFpUM0RqbXI4VXpXVW9pel9YYjl4cmxWTk9jZXBkS2U1dHQ3ZW1MWkwzNko4em9PUUNQYjdqdk4xLVNDaTIzRmk1OGpJcWR6LUpzamYycE92OFhMMlF5WVZwZ2RFM0gzd2tUUW9zdzJ5NVdDWWtEcGdLQm9OQ3p3ejlRM0FGZElYRU1HdG4?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMitAFBVV95cUxOcGs1X2ZrUlgzc2JSbndWNGZIcXFfNlJnWmZpNXkydGRjS2JDVzJkNWxNdzBnRVpKWHpRZER3XzRCVTZ3ZC1OU2k2Ums0MGV6TVFoX0RCdXJQY1hoT2N5dUM2cy1Wd3EtSFpaMlVraFE1ZVprODFpVThjeHd4YW9tZDJ0MzRrckx0aDlSbGI2QXpwekJHaC1JNklwSjJpOWE4VXhLdFFYYlhCWEpMV1M2M19IcEbSAboBQVVfeXFMTWUtU3c4b1lJeTRKVFFDTGstRHRRMEYwVXhybzV1T20zV2lNcllKaHNsR1NJODJ0SEwzVDh0eDBQWU5ZQ2hiTGR2YTAzOU42alUxMmRBOGlyR001UlBXWnFpeDFKenZpYXFrcjFqR3JUYXpCS1Q5UDdVVTU3MkdPbXcwZXhGTnp4b28wUG45dXVnOElCaVgwS3ZGUjRscmNYWkJvM3BJQ0hFd01rZXhObU4wellOaDJKSjhR?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Fans slam FIFA, demand halt to ‘extortionate’ 2026 World Cup ticket sales
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMitAFBVV95cUxOcGs1X2ZrUlgzc2JSbndWNGZIcXFfNlJnWmZpNXkydGRjS2JDVzJkNWxNdzBnRVpKWHpRZER3XzRCVTZ3ZC1OU2k2Ums0MGV6TVFoX0RCdXJQY1hoT2N5dUM2cy1Wd3EtSFpaMlVraFE1ZVprODFpVThjeHd4YW9tZDJ0MzRrckx0aDlSbGI2QXpwekJHaC1JNklwSjJpOWE4VXhLdFFYYlhCWEpMV1M2M19IcEbSAboBQVVfeXFMTWUtU3c4b1lJeTRKVFFDTGstRHRRMEYwVXhybzV1T20zV2lNcllKaHNsR1NJODJ0SEwzVDh0eDBQWU5ZQ2hiTGR2YTAzOU42alUxMmRBOGlyR001UlBXWnFpeDFKenZpYXFrcjFqR3JUYXpCS1Q5UDdVVTU3MkdPbXcwZXhGTnp4b28wUG45dXVnOElCaVgwS3ZGUjRscmNYWkJvM3BJQ0hFd01rZXhObU4wellOaDJKSjhR?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMirgFBVV95cUxQakVkTHJ3aHJURVRQcFg0NWlWQU9UZkxqVlp0WS05aTRGUWZkUnp4Z2FnYUdsOUQzNEE0ZHJydGJibVhucXRyRzJyWWFFckdJcFVVakNWQ0kzS3hEbGc3TE1CRVN6WHZVRmNoaVRoU3N1NWxBa2RNV1VISUdBQm16aThnRGgyeElZdGhneUtLZ1pDcFo1eGZ4d09zcmVaZXNQUmtTLTNBMzU2cXNvR1E?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Welcome to the 2026 World Cup shakedown! The price of a ticket: the integrity of the game | Marina Hyde - The Guardian
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMirgFBVV95cUxQakVkTHJ3aHJURVRQcFg0NWlWQU9UZkxqVlp0WS05aTRGUWZkUnp4Z2FnYUdsOUQzNEE0ZHJydGJibVhucXRyRzJyWWFFckdJcFVVakNWQ0kzS3hEbGc3TE1CRVN6WHZVRmNoaVRoU3N1NWxBa2RNV1VISUdBQm16aThnRGgyeElZdGhneUtLZ1pDcFo1eGZ4d09zcmVaZXNQUmtTLTNBMzU2cXNvR1E?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMiwAFBVV95cUxNWUUxalpYNHdWRFNPVEdFY2JqdFNlSVdLQ1pjdGk4VkY0MkdVNGQ1ZkthLWN6TElORXJNcW9wQldZa1l1dkZOc2xPUWxpT0hVUEh4S1JZWllmMmtSMzFUUEh4MjJYclNhNEJVc2lqMmFmZkF6MElHRlZuaC1TcGJfT1puYi1HVXZoc05scHJEbkxINE85TUdFZjdKQTc4SWxLUXA4LU9LTTNGQ1JSaGdVNk1ScDdicmdKRHF3RXpKZGvSAcYBQVVfeXFMTUt3dFpnRWxrREQ3emxsWUE2aU9KWkV6QVFVLUF3eHJUYzFWOU9IWjY0Ym9EMXZJQjAwamYzNDZwanU1NjZraHVQc0F5LXBQaXZweHZDclRHSGM1WTUtcndpdE45RUtILVFicGtIdi1XdGsxVHZaZTNhRXdGMkxLeEpsdmc3STlXNGc5b0I5TEdIcnJBX3FXVHRhbFM4TGdZeEk5SlBqeUlockJSSS1IQ1RvbVVqMy1Vem1HWTh4ak1KUmpuOE9B?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 AIFF Invites Applications As It Moves To Form Players’ Association
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMiwAFBVV95cUxNWUUxalpYNHdWRFNPVEdFY2JqdFNlSVdLQ1pjdGk4VkY0MkdVNGQ1ZkthLWN6TElORXJNcW9wQldZa1l1dkZOc2xPUWxpT0hVUEh4S1JZWllmMmtSMzFUUEh4MjJYclNhNEJVc2lqMmFmZkF6MElHRlZuaC1TcGJfT1puYi1HVXZoc05scHJEbkxINE85TUdFZjdKQTc4SWxLUXA4LU9LTTNGQ1JSaGdVNk1ScDdicmdKRHF3RXpKZGvSAcYBQVVfeXFMTUt3dFpnRWxrREQ3emxsWUE2aU9KWkV6QVFVLUF3eHJUYzFWOU9IWjY0Ym9EMXZJQjAwamYzNDZwanU1NjZraHVQc0F5LXBQaXZweHZDclRHSGM1WTUtcndpdE45RUtILVFicGtIdi1XdGsxVHZaZTNhRXdGMkxLeEpsdmc3STlXNGc5b0I5TEdIcnJBX3FXVHRhbFM4TGdZeEk5SlBqeUlockJSSS1IQ1RvbVVqMy1Vem1HWTh4ak1KUmpuOE9B?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMingFBVV95cUxNamZnOE80VzZERnhOYks5aDFWY0hjb1VTRi1yOTZSX05NaWVRaVY2cVBrUnZfN1VpT1E2QnZMcGllb3pUU09meG9BME91M1hwVVZQUlItenZybDBBdUZ1WGVRNEc4RWRuMGswSzBjcWxtSDBseWtXelZQTkZvQTMwNk5Lc2NHWjBUQlpnRFE0MFNiVlRUWFRzVlZtUW13UQ?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    ⚽ MAHARASHTRA LIFTS DR. T. AO JUNIOR GIRLS NATIONAL FOOTBALL CHAMPIONSHIP
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMingFBVV95cUxNamZnOE80VzZERnhOYks5aDFWY0hjb1VTRi1yOTZSX05NaWVRaVY2cVBrUnZfN1VpT1E2QnZMcGllb3pUU09meG9BME91M1hwVVZQUlItenZybDBBdUZ1WGVRNEc4RWRuMGswSzBjcWxtSDBseWtXelZQTkZvQTMwNk5Lc2NHWjBUQlpnRFE0MFNiVlRUWFRzVlZtUW13UQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMilgFBVV95cUxNdVdTc2s3V19KREZoZEJEWFhWV3NSSTJOa0hUaHhVenNzb21CNlhwa190aVg5SkNhbTNGUnFBbzd0V3J5RGRROWtLZnpUVEt5N0RRNTI0R3laMWtBaUVvd185OHdxOWZzLW9ubktKRmdSaTJsUUNFOHNGTFhYb3lQaGRlNWVwbjNVemxEaDl3akh5REktOFHSAZsBQVVfeXFMTi12aVRJNTNJeF9tcXdWUzZvYTZURzZoeEF2SWdFaHJ4bTBJc1hfV1lXY1NsTW56OHkzZHI0U2N0TkpfT2dmdXh2LUI1Q0Y2SXNBRGRtS3MyVzBpWHB6NlhzclZLMjI3eGlfeHlfSTI0UVRFX2g3OXV1VGh3Vmg4bVZIZ0ZHY0ZqeXA3SElHdlc2RDZGRF9XbnpqTWc?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Saudi Arabia beats Palestine in FIFA Arab Cup quarter final
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMilgFBVV95cUxNdVdTc2s3V19KREZoZEJEWFhWV3NSSTJOa0hUaHhVenNzb21CNlhwa190aVg5SkNhbTNGUnFBbzd0V3J5RGRROWtLZnpUVEt5N0RRNTI0R3laMWtBaUVvd185OHdxOWZzLW9ubktKRmdSaTJsUUNFOHNGTFhYb3lQaGRlNWVwbjNVemxEaDl3akh5REktOFHSAZsBQVVfeXFMTi12aVRJNTNJeF9tcXdWUzZvYTZURzZoeEF2SWdFaHJ4bTBJc1hfV1lXY1NsTW56OHkzZHI0U2N0TkpfT2dmdXh2LUI1Q0Y2SXNBRGRtS3MyVzBpWHB6NlhzclZLMjI3eGlfeHlfSTI0UVRFX2g3OXV1VGh3Vmg4bVZIZ0ZHY0ZqeXA3SElHdlc2RDZGRF9XbnpqTWc?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMipwFBVV95cUxNY2ctSVFXM05jX3dkR1hmZjRGV0hPeXJ2Ylh5UzBUeThIT21GVEVvSzhVUHFnZFJfZ1N1QXZyOGhjQmt1M28xY0psTWEwbUlkSTg4SzNvUnFSRGpMSzNfSkRsWVNGZS1PQ0VUclcwV0ZrcU1kWTF0MG01YkUxUEFnMDZwWS11RjNrdHhzZjdQN3Jadi12LXo0VzFOa29FZUdENTVfb2ZfRQ?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 FIFA World Cup 2026: 5 Unique Things to know about Cape Verde
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMipwFBVV95cUxNY2ctSVFXM05jX3dkR1hmZjRGV0hPeXJ2Ylh5UzBUeThIT21GVEVvSzhVUHFnZFJfZ1N1QXZyOGhjQmt1M28xY0psTWEwbUlkSTg4SzNvUnFSRGpMSzNfSkRsWVNGZS1PQ0VUclcwV0ZrcU1kWTF0MG01YkUxUEFnMDZwWS11RjNrdHhzZjdQN3Jadi12LXo0VzFOa29FZUdENTVfb2ZfRQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMiwAFBVV95cUxPQjluUzBDWEx2ME9WNkhEb1RNZUIxZl93NWNiU1lyTTAyU2ZLLWFFRHJObjZkZWVYYlI5M1dtaHdUY2VldnBvNkdleXozSTdQakppSFZuSHBvNmZ5V0UyTjRFWnJFemhDVFY3Y05LZkJVc1piVURXNG05UXZLMFRuTFNoLUt3ZUdyMEZTbUlsZmVEY2lKVVJVUVNHeXM3UXZ6a19mVXlFTGZVWEF6RmZYaDZXVE45d2k3R0FaRmg4Q20?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Looking To Form Its Own Players' Association, AIFF Opens Registration For Applicants
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMiwAFBVV95cUxPQjluUzBDWEx2ME9WNkhEb1RNZUIxZl93NWNiU1lyTTAyU2ZLLWFFRHJObjZkZWVYYlI5M1dtaHdUY2VldnBvNkdleXozSTdQakppSFZuSHBvNmZ5V0UyTjRFWnJFemhDVFY3Y05LZkJVc1piVURXNG05UXZLMFRuTFNoLUt3ZUdyMEZTbUlsZmVEY2lKVVJVUVNHeXM3UXZ6a19mVXlFTGZVWEF6RmZYaDZXVE45d2k3R0FaRmg4Q20?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+## <div class="section-header othersports-header">🏸 OTHER SPORTS</div> (10-12 items)
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMi0wFBVV95cUxNVVlpS09NcDVGQUVEZGpQbXZBREc0MGJMRUNJRHFkRzNpa0RRTTUyME5kdUVpYUQwN084S3ctbTExT3prUjVqZ21GZzZGNDdqZkJBU25VaS1XMjBneV84S1ZvMHpQZ2NqSk1PS3dDRS1Bc3lMTnhUaUxTT3hIVmREbWpTS21TSGMteU9FdDlHNFBrS2lOT3RfczEyNnJQUTdOQUxpODNEdFFxY0N1MVFRNGlyWDJRUXFxVXVfa2k0TVM0SFZVaWU5UlNfYWpMaExNM3VJ?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏸 India have announced its contingent for the Badminton Asia Team Championships 2026 next February! 🇮🇳🏸 PV Sindhu, Lakshya Sen, and Satwik-Chirag are all set to compete. 🔥🙌
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMi0wFBVV95cUxNVVlpS09NcDVGQUVEZGpQbXZBREc0MGJMRUNJRHFkRzNpa0RRTTUyME5kdUVpYUQwN084S3ctbTExT3prUjVqZ21GZzZGNDdqZkJBU25VaS1XMjBneV84S1ZvMHpQZ2NqSk1PS3dDRS1Bc3lMTnhUaUxTT3hIVmREbWpTS21TSGMteU9FdDlHNFBrS2lOT3RfczEyNnJQUTdOQUxpODNEdFFxY0N1MVFRNGlyWDJRUXFxVXVfa2k0TVM0SFZVaWU5UlNfYWpMaExNM3VJ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMivwFBVV95cUxPeXQyYlF5NktDLUhZRFdxcFN1ZEZ1aVJhSXFYbVFnLUVIdVB0cWtucDlGVUs2a2lIMXp4dWo3dHBLSjhYckNlTTB3bGJ3UThVUUI3T01pWTNvTEtQbEY2VEIxNDVhRHVSRjZmSTkwUDgydG9FYmM4b0ZacTkzMEE1TjB6cWtZZ2RuVjRNOGZtZF9BV0FnYm1pTXdsdlBnWGJ3TnJoOHJBT25hYi1jTWVBbVQ0WHNQdVZvbFFwNllUNA?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏸 P V Sindhu, Lakshya Sen Headline Strong Indian Squad for 2026 Badminton Asia Team Championships
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMivwFBVV95cUxPeXQyYlF5NktDLUhZRFdxcFN1ZEZ1aVJhSXFYbVFnLUVIdVB0cWtucDlGVUs2a2lIMXp4dWo3dHBLSjhYckNlTTB3bGJ3UThVUUI3T01pWTNvTEtQbEY2VEIxNDVhRHVSRjZmSTkwUDgydG9FYmM4b0ZacTkzMEE1TjB6cWtZZ2RuVjRNOGZtZF9BV0FnYm1pTXdsdlBnWGJ3TnJoOHJBT25hYi1jTWVBbVQ0WHNQdVZvbFFwNllUNA?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMi9AFBVV95cUxNSkNsc3oyaWZsZGRjZE9KM1hKckl6Z3NqcXZUMVVSRmM5VVRQV0RWbkg0OEctck1ES1JNU1pwVTVjYTJkR0lJd1VGRXdXTEExMUxCUFNDRHVFcGZnWWx0eko5cFQwakVwSTZCMXZDbF9LZksweGdjNFdjSlhSVDltbzNSV2xzODZ4S0Zmdm9TQjh5NDlIbWNpajBPZnI3T1VBU0dvc3pBM0JDdDJJNWZxbjNpMmRLTjV0MFFuQUhKMlpQd3p0c0pjSmhWOTlyMU1tNW5EMmxlY0d5dVNiYjJsUlVhQlEyQ3o1RjF2cnpFSWFOM0Z50gH6AUFVX3lxTE9nMG5ndTFOWUNOYjJnVHVmbll3NWtiWjJpR0E1VkJnMkRyM1dDcGhWSG9WVjJ0b0RHZ3BuU0k5WFVPUjBaRmd6RjJBcWNZMGI4dzdUUlVwaHg3cTh5XzJLYWp3Vl9KVEluTkp1OW9iZ2VTOEFVN1oxVjQ0cmtYSDdlWVRCRDdLcjh6c24zaGV5RzgyUFRPMVFZNEpEMm93bFpNMHFuVXljSHQ3SVVkaE1vRDNZNUw1UnYtcjdQVTEyWndwMWlqN0EyRG5kaTFqNWR5eE40elpYeXlsZTJuUjRBX2o0LTQ1N0p3QmI3Q29McENvRE1LVEdLTUE?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Chess | Will World No. 2 Hikaru Nakamura come to India for GCL season 3? Team shares update
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMi9AFBVV95cUxNSkNsc3oyaWZsZGRjZE9KM1hKckl6Z3NqcXZUMVVSRmM5VVRQV0RWbkg0OEctck1ES1JNU1pwVTVjYTJkR0lJd1VGRXdXTEExMUxCUFNDRHVFcGZnWWx0eko5cFQwakVwSTZCMXZDbF9LZksweGdjNFdjSlhSVDltbzNSV2xzODZ4S0Zmdm9TQjh5NDlIbWNpajBPZnI3T1VBU0dvc3pBM0JDdDJJNWZxbjNpMmRLTjV0MFFuQUhKMlpQd3p0c0pjSmhWOTlyMU1tNW5EMmxlY0d5dVNiYjJsUlVhQlEyQ3o1RjF2cnpFSWFOM0Z50gH6AUFVX3lxTE9nMG5ndTFOWUNOYjJnVHVmbll3NWtiWjJpR0E1VkJnMkRyM1dDcGhWSG9WVjJ0b0RHZ3BuU0k5WFVPUjBaRmd6RjJBcWNZMGI4dzdUUlVwaHg3cTh5XzJLYWp3Vl9KVEluTkp1OW9iZ2VTOEFVN1oxVjQ0cmtYSDdlWVRCRDdLcjh6c24zaGV5RzgyUFRPMVFZNEpEMm93bFpNMHFuVXljSHQ3SVVkaE1vRDNZNUw1UnYtcjdQVTEyWndwMWlqN0EyRG5kaTFqNWR5eE40elpYeXlsZTJuUjRBX2o0LTQ1N0p3QmI3Q29McENvRE1LVEdLTUE?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMi1wFBVV95cUxOV1RnTEVWaXZxTjRYZ3d6eDN5ZjB6WVZ1cjdRM1lva0p1YjhoVnUzTWZ1NllZZjlCN0FNM01pb3Z2T211U3ZKSjZJRmlKMHpFVlcyMEMyWXB3b3o2QzJwRTBzczRTclFScGhNcG1USjkteDZ2N3lOUC1YSWZSVUVZYkY4RHQzTzZWQmR4Y2x6aHZqOWY2V1VmYTgtOXpHVzBrcjViMVhjak5tcFhaYWRVTkFITklVUUo2OEdWVXRDVXYzVUNNczBPQ3p6VVJXYmVNbS1xQmx2RdIB3gFBVV95cUxPQl9KTXdFU18xT3RYZHpVZTlvbVdBMU41YnZoUURWT0VSb2duV2tleW9RODJXTUlxVVUzNHZWc0Rybzloa2F4Q2w5ODNRM0tIZ1U1c19TUXRzcXd6ekJ4Zlg2aC1McDYzc19GeEJ4elZUYnR6TVVwaFozQ3J1bU5BakJ0eHpSMkpnckU2dDZlWVE5amYtRW5zNjVhWG5sZ1E5X25PRDZyaUpYM2p1Yk5IQVVBWUNvRXE2eGJvdUJSVWV4OVVpcmZQTTlRejlTZnNZSzNiNDltQXBhZWNqX2c?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Wesley So: Caruana favourite to win Candidates, but Praggnanandhaa has chance too
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMi1wFBVV95cUxOV1RnTEVWaXZxTjRYZ3d6eDN5ZjB6WVZ1cjdRM1lva0p1YjhoVnUzTWZ1NllZZjlCN0FNM01pb3Z2T211U3ZKSjZJRmlKMHpFVlcyMEMyWXB3b3o2QzJwRTBzczRTclFScGhNcG1USjkteDZ2N3lOUC1YSWZSVUVZYkY4RHQzTzZWQmR4Y2x6aHZqOWY2V1VmYTgtOXpHVzBrcjViMVhjak5tcFhaYWRVTkFITklVUUo2OEdWVXRDVXYzVUNNczBPQ3p6VVJXYmVNbS1xQmx2RdIB3gFBVV95cUxPQl9KTXdFU18xT3RYZHpVZTlvbVdBMU41YnZoUURWT0VSb2duV2tleW9RODJXTUlxVVUzNHZWc0Rybzloa2F4Q2w5ODNRM0tIZ1U1c19TUXRzcXd6ekJ4Zlg2aC1McDYzc19GeEJ4elZUYnR6TVVwaFozQ3J1bU5BakJ0eHpSMkpnckU2dDZlWVE5amYtRW5zNjVhWG5sZ1E5X25PRDZyaUpYM2p1Yk5IQVVBWUNvRXE2eGJvdUJSVWV4OVVpcmZQTTlRejlTZnNZSzNiNDltQXBhZWNqX2c?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMi7AFBVV95cUxObmZJR3lEWTZkOVBJVDVHdXppdFhwWHF6U09DR0k1c19qTGJBVE12YnN3ajRnU2dRc3gzbkhfcFJBa3BlNHRsVHhxaEl1c0VsOW1IaUJfRjdwTEJRbVI5M2c1UFlER2FkdUpYdy1odjdtUk5IaGJwVFJWWVZXSDJ6Q2FMTnFXZV9YUXMxVFYyZzVFS2NDR291Tkc2ekVCSnNRcWhfeEQtU3B3V3ZyZjdLZ3Yza0llQmFPQ3BlbG1ZMTRMTjN0RFhSODM4N1U4alJDRm5TY0Jjb2gtUUFwSzJJc1VWLWhJWlFmNndMcNIB7AFBVV95cUxObmZJR3lEWTZkOVBJVDVHdXppdFhwWHF6U09DR0k1c19qTGJBVE12YnN3ajRnU2dRc3gzbkhfcFJBa3BlNHRsVHhxaEl1c0VsOW1IaUJfRjdwTEJRbVI5M2c1UFlER2FkdUpYdy1odjdtUk5IaGJwVFJWWVZXSDJ6Q2FMTnFXZV9YUXMxVFYyZzVFS2NDR291Tkc2ekVCSnNRcWhfeEQtU3B3V3ZyZjdLZ3Yza0llQmFPQ3BlbG1ZMTRMTjN0RFhSODM4N1U4alJDRm5TY0Jjb2gtUUFwSzJJc1VWLWhJWlFmNndMcA?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 "Memorable day for me": Praggnanandhaa interacts with children at Dharavi Chess Championship 2025
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMi7AFBVV95cUxObmZJR3lEWTZkOVBJVDVHdXppdFhwWHF6U09DR0k1c19qTGJBVE12YnN3ajRnU2dRc3gzbkhfcFJBa3BlNHRsVHhxaEl1c0VsOW1IaUJfRjdwTEJRbVI5M2c1UFlER2FkdUpYdy1odjdtUk5IaGJwVFJWWVZXSDJ6Q2FMTnFXZV9YUXMxVFYyZzVFS2NDR291Tkc2ekVCSnNRcWhfeEQtU3B3V3ZyZjdLZ3Yza0llQmFPQ3BlbG1ZMTRMTjN0RFhSODM4N1U4alJDRm5TY0Jjb2gtUUFwSzJJc1VWLWhJWlFmNndMcNIB7AFBVV95cUxObmZJR3lEWTZkOVBJVDVHdXppdFhwWHF6U09DR0k1c19qTGJBVE12YnN3ajRnU2dRc3gzbkhfcFJBa3BlNHRsVHhxaEl1c0VsOW1IaUJfRjdwTEJRbVI5M2c1UFlER2FkdUpYdy1odjdtUk5IaGJwVFJWWVZXSDJ6Q2FMTnFXZV9YUXMxVFYyZzVFS2NDR291Tkc2ekVCSnNRcWhfeEQtU3B3V3ZyZjdLZ3Yza0llQmFPQ3BlbG1ZMTRMTjN0RFhSODM4N1U4alJDRm5TY0Jjb2gtUUFwSzJJc1VWLWhJWlFmNndMcA?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMivAFBVV95cUxPUGpQSFhmaDdQZDNNc3FiTml5ZUVwbVJocURzUElOb19EV2l1WEtVakdCeF85eW9XQWtiMXQ3YkNtRVhhdmFuck1GeUs0VlBJSXFGYzI4MDlub0NJdVZmMkVCU1RUN0N1WV9FczRXUl9KY3Q0ZVNoYUdmX2tWWDhGX2Z6R0tPQmtsNk1wdHRpOHNCT3FMNDVNei1hYVJoN3JKSVVxZTg4eThuYXh6M29PWUVheC1fSUtpTzR4aNIBwgFBVV95cUxNdC1nMVMzbjZQWDEzVXJUWkx6aVBDaWJ2c1BxQjlvRjFLWVB1ZkVRdE9FRlBhMDVkMnFyaUJBdTVQaldsckRTeWNfTHhVbFp0TmZsWHJ1SEJIVXdMTlhUTjN4alFtSkJCeldjTUhoQ004SndWQXpPNTh3MndsbE1lTHVxVmZhWTFNZWVJLV9ZdDNncm9PRGtoSFpsMzMyWFBha01xZFU5aWZ0QjNvRlJXbUVxSVp5Rl92eGJSaEQ4Z2xBQQ?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 D Gukesh completes one year as World Champion; relive final moments of his historic victory
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMivAFBVV95cUxPUGpQSFhmaDdQZDNNc3FiTml5ZUVwbVJocURzUElOb19EV2l1WEtVakdCeF85eW9XQWtiMXQ3YkNtRVhhdmFuck1GeUs0VlBJSXFGYzI4MDlub0NJdVZmMkVCU1RUN0N1WV9FczRXUl9KY3Q0ZVNoYUdmX2tWWDhGX2Z6R0tPQmtsNk1wdHRpOHNCT3FMNDVNei1hYVJoN3JKSVVxZTg4eThuYXh6M29PWUVheC1fSUtpTzR4aNIBwgFBVV95cUxNdC1nMVMzbjZQWDEzVXJUWkx6aVBDaWJ2c1BxQjlvRjFLWVB1ZkVRdE9FRlBhMDVkMnFyaUJBdTVQaldsckRTeWNfTHhVbFp0TmZsWHJ1SEJIVXdMTlhUTjN4alFtSkJCeldjTUhoQ004SndWQXpPNTh3MndsbE1lTHVxVmZhWTFNZWVJLV9ZdDNncm9PRGtoSFpsMzMyWFBha01xZFU5aWZ0QjNvRlJXbUVxSVp5Rl92eGJSaEQ4Z2xBQQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMiyAFBVV95cUxNdHdFX1lsalNKZ2JrWk9hN1I4VE1aakFxbWRUNWgxNldFZGc4V21XQlU3R2VGbjhaem1VeXpnYXFtTFF2ejZtOTVaUEF0NDhKSVJfcnJ1aTFad180ZmhYdTJacF84LW5tTjBlQ0JKT2d0R3RRWHBRaldwZ1VnU3lVZ3J3VklkRjU2NERmWWhoWGFMbWwtbG1xNHBUT1lIUkVPRlJzdG5lREVzREZEVENfNGpZQzdaZnF1VDQzUEVJTG9aUGd5dWhfUdIByAFBVV95cUxNdHdFX1lsalNKZ2JrWk9hN1I4VE1aakFxbWRUNWgxNldFZGc4V21XQlU3R2VGbjhaem1VeXpnYXFtTFF2ejZtOTVaUEF0NDhKSVJfcnJ1aTFad180ZmhYdTJacF84LW5tTjBlQ0JKT2d0R3RRWHBRaldwZ1VnU3lVZ3J3VklkRjU2NERmWWhoWGFMbWwtbG1xNHBUT1lIUkVPRlJzdG5lREVzREZEVENfNGpZQzdaZnF1VDQzUEVJTG9aUGd5dWhfUQ?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Three-year-old’s rise as youngest rated chess player now under cloud after complaint filed
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMiyAFBVV95cUxNdHdFX1lsalNKZ2JrWk9hN1I4VE1aakFxbWRUNWgxNldFZGc4V21XQlU3R2VGbjhaem1VeXpnYXFtTFF2ejZtOTVaUEF0NDhKSVJfcnJ1aTFad180ZmhYdTJacF84LW5tTjBlQ0JKT2d0R3RRWHBRaldwZ1VnU3lVZ3J3VklkRjU2NERmWWhoWGFMbWwtbG1xNHBUT1lIUkVPRlJzdG5lREVzREZEVENfNGpZQzdaZnF1VDQzUEVJTG9aUGd5dWhfUdIByAFBVV95cUxNdHdFX1lsalNKZ2JrWk9hN1I4VE1aakFxbWRUNWgxNldFZGc4V21XQlU3R2VGbjhaem1VeXpnYXFtTFF2ejZtOTVaUEF0NDhKSVJfcnJ1aTFad180ZmhYdTJacF84LW5tTjBlQ0JKT2d0R3RRWHBRaldwZ1VnU3lVZ3J3VklkRjU2NERmWWhoWGFMbWwtbG1xNHBUT1lIUkVPRlJzdG5lREVzREZEVENfNGpZQzdaZnF1VDQzUEVJTG9aUGd5dWhfUQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMikAFBVV95cUxNYzlDWi00eXFVVS1vOU5DbVZKUW5MYmdOZUxXdUdmTGlhSjJ1TTVOV1VsNGlWVXA4UGZvVG9henRvOFNadS1TX0ZObjRRYndyaGo3MktGXzBJdzl1YzFkcXFvNlo3enVBVVVwOVBwdlcwS0hzc1FlckVGaVYtRWxFRENDT2d4TVRDbFpTNGNfVzY?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Journey of Karnataka’s first Woman Grandmaster Isha Sharma
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMikAFBVV95cUxNYzlDWi00eXFVVS1vOU5DbVZKUW5MYmdOZUxXdUdmTGlhSjJ1TTVOV1VsNGlWVXA4UGZvVG9henRvOFNadS1TX0ZObjRRYndyaGo3MktGXzBJdzl1YzFkcXFvNlo3enVBVVVwOVBwdlcwS0hzc1FlckVGaVYtRWxFRENDT2d4TVRDbFpTNGNfVzY?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMioAFBVV95cUxQOGZDdFBPSUxKLUFfRGFFRXdRMHpjVzNNZjJzVVBZa3A0Q2gwWlc3enJmMExfUkM0NXJTeVBKS0MzbU95UnBlYkNZblNmdVlTeEx1aDlKOXlETmFCMlc5OGYzM2ZUQmV6azE0dHIxZHlvSDc4Q3ZZMUtncER4YXBwdXVQQlQxRkVBZlBtUlE1N3hRNGcyV1RqNERMbHZqRm56?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏸 India lose 1-2 to Spain at the FIH Hockey Junior Women’s World Cup 2025
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMioAFBVV95cUxQOGZDdFBPSUxKLUFfRGFFRXdRMHpjVzNNZjJzVVBZa3A0Q2gwWlc3enJmMExfUkM0NXJTeVBKS0MzbU95UnBlYkNZblNmdVlTeEx1aDlKOXlETmFCMlc5OGYzM2ZUQmV6azE0dHIxZHlvSDc4Q3ZZMUtncER4YXBwdXVQQlQxRkVBZlBtUlE1N3hRNGcyV1RqNERMbHZqRm56?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMitwFBVV95cUxNaTdCT2p6aUdlZ24wb2hBVkdHQ2w3X0RPamt4LVlYNlNKam8tQl9MNGNQS2Q4N2RBaHlMYXdkbHJvUFlDTVBZWmJtbDhuU19VRGRPamFUMDA5cmgtLWJKTlgyLXRmU0xlY1lMN3FkWXFpNy1pY292bXZQakRPNHhKR1dJX1Rkb1BRSWtLWmpZVmJQdkoxTTNod1k1UnhROXAwT2ptVnMxVkdjU0RsbzlRd0xoZ3UzQ1E?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏸 India defeats hosts South Africa 5-2 in first match of men’s hockey series in Cape Town
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMitwFBVV95cUxNaTdCT2p6aUdlZ24wb2hBVkdHQ2w3X0RPamt4LVlYNlNKam8tQl9MNGNQS2Q4N2RBaHlMYXdkbHJvUFlDTVBZWmJtbDhuU19VRGRPamFUMDA5cmgtLWJKTlgyLXRmU0xlY1lMN3FkWXFpNy1pY292bXZQakRPNHhKR1dJX1Rkb1BRSWtLWmpZVmJQdkoxTTNod1k1UnhROXAwT2ptVnMxVkdjU0RsbzlRd0xoZ3UzQ1E?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMingFBVV95cUxNMmdTVjBuQ0t4ZzMtZHY2YWs5b2oxdnFpdVlaOWNRempiRTZ6SVBQRnN1Z0RHZlp1bFRTWUpHZXNjbXJsc0dLN01oRGNfQ18xbmNITG9uSkNFaEo1RWRlNmtfNHNkTHZfNDVhWHlzRm51bm1QTkVzNUl5RE1WY3hGSXJEZGZuakZQR0J3SnFTQ3M5S3M5eXVKaE9ISGROUQ?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Vinesh Phogat Announces Return to Wrestling After Paris Olympics Setback
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMingFBVV95cUxNMmdTVjBuQ0t4ZzMtZHY2YWs5b2oxdnFpdVlaOWNRempiRTZ6SVBQRnN1Z0RHZlp1bFRTWUpHZXNjbXJsc0dLN01oRGNfQ18xbmNITG9uSkNFaEo1RWRlNmtfNHNkTHZfNDVhWHlzRm51bm1QTkVzNUl5RE1WY3hGSXJEZGZuakZQR0J3SnFTQ3M5S3M5eXVKaE9ISGROUQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+## <div class="section-header sportsbiz-header">🏆 SPORTS BUSINESS</div> (3-5 items)
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMiuAFBVV95cUxQVUpoY3ZsRXBBN0hEWG9ESUw4cTVoOUpGWmUzYU5ZbzRtRHpPaFZQTnh2Q2ZxQ3NkMXU1YWtkZnBWYTJPZ0xiUE5tbHFRYUZ4cFFmRmhscjRNVTRrRHUzTkNINDJoNnJub2h0UDNIaFNkaHd3c1ltRnZzdVZhNWNFMlMxeG1yTWJydGlYRXIxaGVaSDZRR1hCakNzRGI4TXQxYWdCeTM1LVhFdHR0NmNLNUJ5UFpibUFn?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Sports Minister Mandaviya announces historic recruitment drive for assistant coaches in SAI
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMiuAFBVV95cUxQVUpoY3ZsRXBBN0hEWG9ESUw4cTVoOUpGWmUzYU5ZbzRtRHpPaFZQTnh2Q2ZxQ3NkMXU1YWtkZnBWYTJPZ0xiUE5tbHFRYUZ4cFFmRmhscjRNVTRrRHUzTkNINDJoNnJub2h0UDNIaFNkaHd3c1ltRnZzdVZhNWNFMlMxeG1yTWJydGlYRXIxaGVaSDZRR1hCakNzRGI4TXQxYWdCeTM1LVhFdHR0NmNLNUJ5UFpibUFn?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMi7AFBVV95cUxQMnFlN3VzWDJ6TDNTdFFQd04zYTdUT3ZIU3EzcnA0a0M4eHhDU3h1S3NkbjFnQUFiM1AyY3V3QXpGRzhFY3A5OU5WODJFczFFeGpsdHhSNVQ1ZG0ybmFvTG5udFpNRlNDd2FkNkVkNV93VzFrald1TmJ4QnpWYWVwcG1CcG9XVVE2ZWlrNHMzeXBHWnFRRGR1WC1EUElaSnJIWTlDUDFkVHRxckZ6SldtdGVGYjF2cjNGc3J2ZUZXWWU1blNXMTNfeTJldzZneXRoV1JDeFE2T3RoZTREcUtsSDRuVHFrRHJkVjJ5UtIB7AFBVV95cUxQMnFlN3VzWDJ6TDNTdFFQd04zYTdUT3ZIU3EzcnA0a0M4eHhDU3h1S3NkbjFnQUFiM1AyY3V3QXpGRzhFY3A5OU5WODJFczFFeGpsdHhSNVQ1ZG0ybmFvTG5udFpNRlNDd2FkNkVkNV93VzFrald1TmJ4QnpWYWVwcG1CcG9XVVE2ZWlrNHMzeXBHWnFRRGR1WC1EUElaSnJIWTlDUDFkVHRxckZ6SldtdGVGYjF2cjNGc3J2ZUZXWWU1blNXMTNfeTJldzZneXRoV1JDeFE2T3RoZTREcUtsSDRuVHFrRHJkVjJ5Ug?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 Make in India: Usha calls on government to promote manufacturing of anti-doping kits in India
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMi7AFBVV95cUxQMnFlN3VzWDJ6TDNTdFFQd04zYTdUT3ZIU3EzcnA0a0M4eHhDU3h1S3NkbjFnQUFiM1AyY3V3QXpGRzhFY3A5OU5WODJFczFFeGpsdHhSNVQ1ZG0ybmFvTG5udFpNRlNDd2FkNkVkNV93VzFrald1TmJ4QnpWYWVwcG1CcG9XVVE2ZWlrNHMzeXBHWnFRRGR1WC1EUElaSnJIWTlDUDFkVHRxckZ6SldtdGVGYjF2cjNGc3J2ZUZXWWU1blNXMTNfeTJldzZneXRoV1JDeFE2T3RoZTREcUtsSDRuVHFrRHJkVjJ5UtIB7AFBVV95cUxQMnFlN3VzWDJ6TDNTdFFQd04zYTdUT3ZIU3EzcnA0a0M4eHhDU3h1S3NkbjFnQUFiM1AyY3V3QXpGRzhFY3A5OU5WODJFczFFeGpsdHhSNVQ1ZG0ybmFvTG5udFpNRlNDd2FkNkVkNV93VzFrald1TmJ4QnpWYWVwcG1CcG9XVVE2ZWlrNHMzeXBHWnFRRGR1WC1EUElaSnJIWTlDUDFkVHRxckZ6SldtdGVGYjF2cjNGc3J2ZUZXWWU1blNXMTNfeTJldzZneXRoV1JDeFE2T3RoZTREcUtsSDRuVHFrRHJkVjJ5Ug?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMixgFBVV95cUxPQUtmREtHRnE4VXR1VU1EOXUyUXVTTFNKeFVqbzZ4Z2NzVkRlcTVkaFE0eExHZXg0MGk1OEN6bVJKSUFQR3hrQnQ1YjB5SVo5RmVZUHp5TzNoLWJSekVDZXZKdmtyeHJJclN4RDIyNXFxRlo3TzZMZUlIX3VjWXdGQ3BNaW1sZUtmdERJVC14TXlGYzdDeWwyTHA5RWhrNTdCWEotZm9PenF4TkhtdGpsMzh6MEtFMllLOUFBalJyU1p0eUZwWWfSAcsBQVVfeXFMTVBRSDBFSi1VMkQ1QnNPUm9Fdk9MVFMxZm9uODRrZWVuaHlMX3VnMC1tT3o3NU12elo2SmRTcTBQSjFHb1BFOXFBMlJ4dUZEWmpkblNkNjhySWM2Q0RSZFJDZ0ZXeU1WN3RsZHFac3Z0YjlraWlDdW9aMWJ2M01scGdRa0cxX3NfX2xnV0Y0TGVtckd6Mk5Samp4Z3ExdGt1UmgxZTZsVm1ibm5TcTJGSVBHRV9qWHZPZGJWUWdGVGd0U0haaWs3V3FFY3M?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 IOA and CONI sign strategic agreement to boost bilateral sports cooperation
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMixgFBVV95cUxPQUtmREtHRnE4VXR1VU1EOXUyUXVTTFNKeFVqbzZ4Z2NzVkRlcTVkaFE0eExHZXg0MGk1OEN6bVJKSUFQR3hrQnQ1YjB5SVo5RmVZUHp5TzNoLWJSekVDZXZKdmtyeHJJclN4RDIyNXFxRlo3TzZMZUlIX3VjWXdGQ3BNaW1sZUtmdERJVC14TXlGYzdDeWwyTHA5RWhrNTdCWEotZm9PenF4TkhtdGpsMzh6MEtFMllLOUFBalJyU1p0eUZwWWfSAcsBQVVfeXFMTVBRSDBFSi1VMkQ1QnNPUm9Fdk9MVFMxZm9uODRrZWVuaHlMX3VnMC1tT3o3NU12elo2SmRTcTBQSjFHb1BFOXFBMlJ4dUZEWmpkblNkNjhySWM2Q0RSZFJDZ0ZXeU1WN3RsZHFac3Z0YjlraWlDdW9aMWJ2M01scGdRa0cxX3NfX2xnV0Y0TGVtckd6Mk5Samp4Z3ExdGt1UmgxZTZsVm1ibm5TcTJGSVBHRV9qWHZPZGJWUWdGVGd0U0haaWs3V3FFY3M?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMizAFBVV95cUxPR2dGUTJWMUlzZzV1Y2cySGRtRkE3RUpnZDNtbUlRWHlIZ1RxS2tjNmFwSjA5dGU4OEt4dWpFY3VhRldTTHdhUFg4aTdlcDl6Z0JGQVg2WE5aSTE2N3RqTXQwdUdyOEVZNk5qbFVZbS1yS0pnSDAxMkFVMllDY25EeWIxZTNTeTEyU1k1dHlmVGZKdGFUU0E1LXVOeE5EOXppTjJDc2lFWTFBNFlLMndJOVpTSkxFd2RLcHlBUkkzeXJlTTZPcG5KWlFNVGw?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 JSW Sports-Backed Haryana Steelers Academy Inaugurated to Shape India’s Future Kabaddi Champions
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMizAFBVV95cUxPR2dGUTJWMUlzZzV1Y2cySGRtRkE3RUpnZDNtbUlRWHlIZ1RxS2tjNmFwSjA5dGU4OEt4dWpFY3VhRldTTHdhUFg4aTdlcDl6Z0JGQVg2WE5aSTE2N3RqTXQwdUdyOEVZNk5qbFVZbS1yS0pnSDAxMkFVMllDY25EeWIxZTNTeTEyU1k1dHlmVGZKdGFUU0E1LXVOeE5EOXppTjJDc2lFWTFBNFlLMndJOVpTSkxFd2RLcHlBUkkzeXJlTTZPcG5KWlFNVGw?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="sports-card">
+            <div class="sports-content-inner">
+                <a href="https://news.google.com/articles/CBMiuwFBVV95cUxQUURFbWxSbWhYMllUZm5xcGdUUkZ1dzNEZkRxbThoeGVIaHhySjEyZllsM0FNdVIxUjFLRkFkQzlyYlhHcVJ0a2hnbG1QRlhiZWtnVjhBc21yNFVwV0xITDdoWjJXWGJjRGZFZ25YNVZROXFEc0ptYk05RC1Qczh5dUtmUVF5WVl2VlhsR3RuWnNNQ2JqQThCUnozd3oyWHprdGxQY2ptMF9KSG9lbzFEOGlOQVJVVFlVTzJV0gHAAUFVX3lxTE1UYjM2bE5LQzNRcG9PcXJXb0MtY05JTzdkdElIV0xxZFR1VXlYTHFkQThsbEhBVDhQUW9zSm1ac2VBWFktNjVQS1VlN0Z5ZUpTbFRxcGtwT0haakFTbU5SN1RGdzlpczhFUlpJVmZSYkRVQW0wYW9FQUtmSjNTdG9sWjA3bXFGUFlodHg3WGZVNHJIVEE4THJLaVNFeTFKcW8zOTdqWGZ6QXRhZnVoTVhFdjB4aVJUYzZGTG1vQjFQdQ?hl=en-IN&gl=IN&ceid=IN:en" class="sports-headline" target="_blank" rel="noopener noreferrer">
+                    🏆 India's big pickleball leap has arrived through the IPBL - thebridge.in
+                </a>
+                <div class="sports-source">
+                    <a href="https://news.google.com/articles/CBMiuwFBVV95cUxQUURFbWxSbWhYMllUZm5xcGdUUkZ1dzNEZkRxbThoeGVIaHhySjEyZllsM0FNdVIxUjFLRkFkQzlyYlhHcVJ0a2hnbG1QRlhiZWtnVjhBc21yNFVwV0xITDdoWjJXWGJjRGZFZ25YNVZROXFEc0ptYk05RC1Qczh5dUtmUVF5WVl2VlhsR3RuWnNNQ2JqQThCUnozd3oyWHprdGxQY2ptMF9KSG9lbzFEOGlOQVJVVFlVTzJV0gHAAUFVX3lxTE1UYjM2bE5LQzNRcG9PcXJXb0MtY05JTzdkdElIV0xxZFR1VXlYTHFkQThsbEhBVDhQUW9zSm1ac2VBWFktNjVQS1VlN0Z5ZUpTbFRxcGtwT0haakFTbU5SN1RGdzlpczhFUlpJVmZSYkRVQW0wYW9FQUtmSjNTdG9sWjA3bXFGUFlodHg3WGZVNHJIVEE4THJLaVNFeTFKcW8zOTdqWGZ6QXRhZnVoTVhFdjB4aVJUYzZGTG1vQjFQdQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank" rel="noopener noreferrer">
+                        📍 Read Full Story →
+                    </a>
+                </div>
+            </div>
+        </div>
+            </div>
+        </div>
+       
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const links = document.querySelectorAll('a[href^="http"]');
+                links.forEach(link => {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                });
+            });
+        </script>
+    </body>
+    </html>
+    

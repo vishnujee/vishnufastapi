@@ -3237,61 +3237,173 @@ if (!document.querySelector('#fun-chat-styles')) {
 
 
 
+
+
+
+
+// Global error handler for navigation
+window.addEventListener('error', function(e) {
+    if (e.target && e.target.tagName === 'A') {
+        console.warn('Navigation error prevented:', e);
+        e.preventDefault();
+        return false;
+    }
+});
+
+// Handle promise rejections
+window.addEventListener('unhandledrejection', function(e) {
+    console.warn('Unhandled promise rejection:', e.reason);
+});
+
+// Safe navigation handler
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('a');
+    if (target && target.getAttribute('href') === '#') {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+});
 function showTool(toolId, event = null) {
-    localStorage.setItem('lastTool', toolId);
-    console.log("Showing tool:", toolId);
+    try {
+        console.log("🔄 Showing tool:", toolId);
 
-    // Hide all sections
-    document.querySelectorAll('.tool-section').forEach(section => {
-        section.style.display = 'none';
-    });
+        // Validate toolId
+        if (!toolId || toolId === '#' || toolId === 'undefined') {
+            console.warn('❌ Invalid tool ID:', toolId);
+            toolId = 'chat-section'; // Default fallback
+        }
 
-    // Show selected section
-    const toolSection = document.getElementById(toolId);
-    if (toolSection) {
-        toolSection.style.display = 'block';
-    }
+        // Hide all sections safely
+        const sections = document.querySelectorAll('.tool-section');
+        sections.forEach(section => {
+            if (section && section.style) {
+                section.style.display = 'none';
+            }
+        });
 
+        // Show selected section
+        const toolSection = document.getElementById(toolId);
+        if (toolSection && toolSection.style) {
+            toolSection.style.display = 'block';
+            console.log('✅ Tool section displayed:', toolId);
+        } else {
+            console.error('❌ Tool section not found:', toolId);
+            // Fallback to chat section
+            const chatSection = document.getElementById('chat-section');
+            if (chatSection && chatSection.style) {
+                chatSection.style.display = 'block';
+                toolId = 'chat-section';
+            }
+        }
 
-    // Show/hide clear form button
-    const clearBtn = document.getElementById('clear-all-btn-container');
-    if (toolId === 'chat-section') {
-        clearBtn.style.display = 'none';
-    } else {
-        clearBtn.style.display = 'block';
-    }
+        // Update clear button visibility
+        const clearBtn = document.getElementById('clear-all-btn-container');
+        if (clearBtn) {
+            if (toolId === 'chat-section' || toolId === 'newsletter-section') {
+                clearBtn.style.display = 'none';
+            } else {
+                clearBtn.style.display = 'block';
+            }
+        }
 
-    // Update navigation styling
-    document.querySelectorAll('.nav-link, .dropdown-content a').forEach(link => {
-        link.classList.remove('text-green-600');
-        link.classList.add('text-blue-600');
-    });
+        // Update navigation styling safely
+        const navLinks = document.querySelectorAll('.nav-link, .dropdown-content a');
+        navLinks.forEach(link => {
+            if (link) {
+                link.classList.remove('text-green-600', 'active');
+                link.classList.add('text-blue-600');
+            }
+        });
 
-    if (event && event.currentTarget) {
-        event.currentTarget.classList.add('text-green-600');
-    }
+        if (event && event.currentTarget) {
+            event.currentTarget.classList.add('text-green-600', 'active');
+            event.currentTarget.classList.remove('text-blue-600');
+        }
 
-    // Mobile menu handling
-    const mobileMenu = document.querySelector('#mobile-menu');
-    const mobileSubmenu = document.querySelector('#mobile-submenu');
-    const menuButton = document.querySelector('#mobile-menu-button');
-    if (mobileMenu && window.innerWidth <= 768) {
-        mobileMenu.classList.add('hidden');
-        if (mobileSubmenu) {
+        // Save to localStorage safely
+        try {
+            localStorage.setItem('lastTool', toolId);
+        } catch (e) {
+            console.warn('Could not save to localStorage:', e);
+        }
+
+        // Close mobile menu if open
+        const mobileMenu = document.getElementById('mobile-menu');
+        const mobileSubmenu = document.getElementById('mobile-submenu');
+        if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+            mobileMenu.classList.add('hidden');
+        }
+        if (mobileSubmenu && !mobileSubmenu.classList.contains('hidden')) {
             mobileSubmenu.classList.add('hidden');
         }
-        if (menuButton) {
-            menuButton.querySelector('i').classList.remove('fa-times');
-            menuButton.querySelector('i').classList.add('fa-bars');
+
+    } catch (error) {
+        console.error('💥 Error in showTool:', error);
+        // Emergency fallback - show chat section
+        const chatSection = document.getElementById('chat-section');
+        if (chatSection && chatSection.style) {
+            chatSection.style.display = 'block';
         }
     }
 }
 
+// function showTool(toolId, event = null) {
+//     localStorage.setItem('lastTool', toolId);
+//     console.log("Showing tool:", toolId);
+
+//     // Hide all sections
+//     document.querySelectorAll('.tool-section').forEach(section => {
+//         section.style.display = 'none';
+//     });
+    
+
+//     // Show selected section
+//     const toolSection = document.getElementById(toolId);
+//     if (toolSection) {
+//         toolSection.style.display = 'block';
+//     }
+
+//     // Show/hide clear form button - ADD NEWSLETTER TO THIS CONDITION
+//     const clearBtn = document.getElementById('clear-all-btn-container');
+//     if (toolId === 'chat-section' || toolId === 'newsletter-section') {
+//         clearBtn.style.display = 'none';
+//     } else {
+//         clearBtn.style.display = 'block';
+//     }
+
+//     // Update navigation styling
+//     document.querySelectorAll('.nav-link, .dropdown-content a').forEach(link => {
+//         link.classList.remove('text-green-600');
+//         link.classList.add('text-blue-600');
+//     });
+
+//     if (event && event.currentTarget) {
+//         event.currentTarget.classList.add('text-green-600');
+//     }
+
+//     // Mobile menu handling
+//     const mobileMenu = document.querySelector('#mobile-menu');
+//     const mobileSubmenu = document.querySelector('#mobile-submenu');
+//     const menuButton = document.querySelector('#mobile-menu-button');
+//     if (mobileMenu && window.innerWidth <= 768) {
+//         mobileMenu.classList.add('hidden');
+//         if (mobileSubmenu) {
+//             mobileSubmenu.classList.add('hidden');
+//         }
+//         if (menuButton) {
+//             menuButton.querySelector('i').classList.remove('fa-times');
+//             menuButton.querySelector('i').classList.add('fa-bars');
+//         }
+//     }
+// }
+
+
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function () {
-    // Preload common libraries in background
-    // pdfLibraryManager.loadLibrary('fileSaver').catch(console.warn);
-    // pdfLibraryManager.loadLibrary('jszip').catch(console.warn);
+    
+
 
     // Show last used tool or chat by default
     const lastTool = localStorage.getItem('lastTool') || 'chat-section';
@@ -3686,5 +3798,798 @@ if (chatOutput) {
 
 
 
-// // // / // /// / / / //  retry test
+// ===== MAIN GENERATION FUNCTION =====
 
+
+// ===== MAIN GENERATION FUNCTION =====
+async function generateNewsletter() {
+    // Validation
+    if (!elements.topic.value) {
+        showNotification('Please select a topic', 'error', 'Validation Error');
+        elements.topic.focus();
+        return;
+    }
+    
+    if (state.isGenerating) return;
+    
+    // Update UI state
+    state.isGenerating = true;
+    elements.generateBtn.disabled = true;
+    elements.generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    elements.loading.classList.add('active');
+    
+    // Show loading state
+    elements.newsletterPreview.innerHTML = `
+        <div class="preview-placeholder">
+            <div class="spinner"></div>
+            <h3>Creating your newsletter...</h3>
+            <p>Fetching latest content and designing layout</p>
+            <p style="font-size: 0.875rem; margin-top: 10px; color: #666;">
+                Will open in new tab when ready
+            </p>
+        </div>
+    `;
+    
+    try {
+        // Prepare data
+        const formData = new FormData();
+        formData.append('topic', elements.topic.value);
+        formData.append('publish_date', elements.publishDate.value || new Date().toISOString().split('T')[0]);
+        formData.append('keywords', elements.keywords.value);
+        formData.append('style', 'professional');
+        
+        console.log('📤 Sending request to /generate-newsletter...');
+        
+        // Make API request
+        const response = await fetch('/generate-newsletter', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Accept': 'application/json'  // Explicitly ask for JSON
+            }
+        });
+        
+        console.log('📥 Response status:', response.status);
+        
+        // Get response as text first to debug
+        const responseText = await response.text();
+        console.log('📥 Response text (first 500 chars):', responseText.substring(0, 500));
+        
+        // Try to parse as JSON
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (jsonError) {
+            console.error('❌ Failed to parse JSON:', jsonError);
+            throw new Error(`Server returned HTML instead of JSON. The response starts with: "${responseText.substring(0, 100)}..."`);
+        }
+        
+        if (!response.ok) {
+            throw new Error(result.error || `Server error ${response.status}`);
+        }
+        
+        if (result.error) {
+            throw new Error(result.error);
+        }
+        
+        console.log('✅ Parsed result:', result);
+        
+        // 🚀 HANDLE REDIRECT
+        if (result.redirect_url) {
+            console.log('🔄 Redirecting to:', result.redirect_url);
+            
+            // Show success message
+            showNotification(
+                '✅ Newsletter generated! Opening full view...',
+                'success',
+                'Complete'
+            );
+            
+            // Wait 1 second then redirect
+            setTimeout(() => {
+                // Open in new tab
+                const newWindow = window.open(result.redirect_url, '_blank');
+                if (!newWindow || newWindow.closed) {
+                    // Popup blocked, redirect in current tab
+                    window.location.href = result.redirect_url;
+                }
+            }, 1000);
+            
+        } else if (result.html) {
+            // Old format - show preview (fallback)
+            console.log('📄 Old format detected, showing preview');
+            displayNewsletterResult(result);
+            showNotification(
+                'Newsletter generated (old format)',
+                'info',
+                'Complete'
+            );
+            
+        } else {
+            throw new Error('Invalid response format from server');
+        }
+        
+    } catch (error) {
+        console.error('❌ Newsletter generation error:', error);
+        
+        // Display detailed error
+        elements.newsletterPreview.innerHTML = `
+            <div class="error-state">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h3>Failed to generate newsletter</h3>
+                <p style="font-family: monospace; font-size: 0.875rem; background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow: auto; max-height: 200px;">
+                    ${error.message}
+                </p>
+                <button class="btn btn-secondary" onclick="generateNewsletter()" style="margin-top: 1rem;">
+                    <i class="fas fa-redo"></i> Try Again
+                </button>
+            </div>
+        `;
+        
+        showNotification(
+            `Generation failed: ${error.message.substring(0, 100)}...`,
+            'error',
+            'Error'
+        );
+        
+    } finally {
+        // Reset UI state
+        state.isGenerating = false;
+        elements.generateBtn.disabled = false;
+        elements.generateBtn.innerHTML = '<i class="fas fa-newspaper"></i> Generate Newsletter';
+        elements.loading.classList.remove('active');
+    }
+}
+
+// ===== HELPER: Check if string is valid JSON =====
+function isValidJSON(str) {
+    try {
+        JSON.parse(str);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+// 🆕 NEW FUNCTION: Quick preview display
+function displayNewsletterPreview(result) {
+    if (!result || !result.html) {
+        displayErrorState('No newsletter content received');
+        return;
+    }
+    
+    // Create a quick preview
+    elements.newsletterPreview.innerHTML = `
+        <div style="text-align: center; padding: 2rem;">
+            <div class="spinner" style="margin-bottom: 1rem;"></div>
+            <h3>✅ Newsletter Generated!</h3>
+            <p>Opening full view page...</p>
+            <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
+                <p><strong>Stats:</strong></p>
+                <p>• Sources: ${result.metadata?.sources_used || 0}</p>
+                <p>• Words: ${result.metadata?.word_count || 0}</p>
+                <p>• Read time: ${Math.max(1, Math.floor((result.metadata?.word_count || 0) / 200))} min</p>
+            </div>
+        </div>
+    `;
+}
+
+
+// async function generateNewsletter() {
+//     const topic = document.getElementById('topic').value;
+//     const publishDate = document.getElementById('publishDate').value;
+//     const keywords = document.getElementById('keywords').value;
+
+//     if (!topic) {
+//         showNotification('Please select a topic', 'error');
+//         return;
+//     }
+
+//     const generateBtn = document.getElementById('generateBtn');
+//     const loading = document.getElementById('loading');
+
+//     // Enhanced loading state
+//     generateBtn.disabled = true;
+//     generateBtn.innerHTML = '<i class="fas fa-satellite-dish mr-2"></i> Curating High-Value Content...';
+//     loading.classList.remove('hidden');
+
+//     try {
+//         const formData = new FormData();
+//         formData.append('topic', topic);
+//         formData.append('publish_date', publishDate || new Date().toISOString().split('T')[0]);
+//         formData.append('keywords', keywords);
+//         formData.append('style', 'professional');
+
+//         const response = await fetch('/generate-newsletter', {
+//             method: 'POST',
+//             body: formData
+//         });
+
+//         if (!response.ok) {
+//             const errorData = await response.json().catch(() => ({}));
+//             throw new Error(errorData.detail || `Server error: ${response.status}`);
+//         }
+
+//         const result = await response.json();
+        
+//         if (result.error) {
+//             throw new Error(result.error);
+//         }
+        
+
+//         // Display enhanced newsletter
+//         displayKillerNewsletter(result);
+//         showNewsletterTab('preview', null);
+        
+//         // Update analytics
+//         updateNewsletterAnalytics(result);
+        
+//         showNotification(`✅ Curated ${result.metadata?.high_quality_sources || 0} high-value insights!`, 'success');
+
+//     } catch (error) {
+//         console.error('Newsletter generation error:', error);
+//         handleNewsletterError(error);
+//     } finally {
+//         generateBtn.disabled = false;
+//         generateBtn.innerHTML = '<i class="fas fa-newspaper mr-2"></i> Generate Newsletter';
+//         loading.classList.add('hidden');
+//     }
+// }
+
+
+
+// In script.js, replace the entire displayKillerNewsletter function with this:
+function displayKillerNewsletter(result) {
+    const previewContainer = document.getElementById('newsletter-preview');
+    if (!result || !result.html) {
+        previewContainer.innerHTML = createErrorState('No high-quality content found for this topic');
+        return;
+    }
+
+    // Create iframe with proper sandbox permissions
+    const iframe = document.createElement('iframe');
+    iframe.className = 'newsletter-iframe w-full h-[600px] md:h-[700px] border-0 rounded-lg bg-white shadow-inner';
+    
+    // FIX: Add allow-popups and allow-popups-to-escape-sandbox
+    iframe.sandbox = 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox';
+    
+    iframe.style.width = '100%';
+    iframe.style.height = '600px';
+    iframe.style.border = 'none';
+    iframe.style.background = 'white';
+
+    // Create complete HTML document with click handler
+    const completeHtml = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <base target="_blank">
+                    <style>
+                        body { 
+                            font-family: system-ui, -apple-system, sans-serif; 
+                            margin: 0; 
+                            padding: 0;
+                            background: white;
+                        }
+                        a { 
+                            color: #0066cc; 
+                            text-decoration: none;
+                            cursor: pointer;
+                        }
+                        a:hover { 
+                            text-decoration: underline; 
+                        }
+                    </style>
+                    <script>
+                        // Global click handler for newsletter links
+                        function handleNewsletterClick(event, url) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            console.log('Opening URL:', url);
+                            window.open(url, '_blank', 'noopener,noreferrer');
+                            return false;
+                        }
+                        
+                        // Attach click handlers when DOM loads
+                        document.addEventListener('DOMContentLoaded', function() {
+                            // Attach to all links
+                            const links = document.querySelectorAll('a[href]');
+                            links.forEach(link => {
+                                link.addEventListener('click', function(e) {
+                                    e.preventDefault();
+                                    window.open(this.href, '_blank', 'noopener,noreferrer');
+                                });
+                            });
+                        });
+                    </script>
+                </head>
+                <body>
+                    ${result.html}
+                </body>
+                </html>
+            `;
+
+    iframe.srcdoc = completeHtml;
+
+    // Mobile height adjustment
+    function adjustIframeHeight() {
+        if (window.innerWidth < 768) {
+            iframe.style.height = '500px';
+        } else if (window.innerWidth < 1024) {
+            iframe.style.height = '600px';
+        } else {
+            iframe.style.height = '700px';
+        }
+    }
+    adjustIframeHeight();
+    window.addEventListener('resize', adjustIframeHeight);
+
+    // Replace container content
+    const container = document.createElement('div');
+    container.className = 'newsletter-preview-container w-full';
+    container.innerHTML = `
+        <div class="preview-controls mb-4 flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+            <div class="text-sm text-gray-600 flex items-center">
+                <i class="fas fa-mobile-alt mr-2 text-blue-500"></i>
+                All links now clickable and open in new tabs
+            </div>
+            <div class="flex gap-2">
+                <button onclick="refreshNewsletterView()" 
+                        class="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-lg transition-colors flex items-center">
+                    <i class="fas fa-sync-alt mr-1"></i>Refresh
+                </button>
+                <button onclick="toggleNewsletterFullscreen()" 
+                        class="text-sm bg-blue-100 hover:bg-blue-200 px-3 py-1 rounded-lg transition-colors flex items-center">
+                    <i class="fas fa-expand mr-1"></i>Fullscreen
+                </button>
+            </div>
+        </div>
+        <div class="newsletter-iframe-container relative border rounded-lg overflow-hidden bg-white w-full">
+            ${iframe.outerHTML}
+        </div>
+        
+        <!-- Quality Metrics -->
+
+    `;
+
+    previewContainer.innerHTML = container.innerHTML;
+    window.currentNewsletterResult = result;
+
+    // Add global click handler for parent window
+    window.handleNewsletterClick = function(event, url) {
+        event.preventDefault();
+        event.stopPropagation();
+        console.log('Opening URL from parent:', url);
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return false;
+    };
+
+    // New: Fullscreen toggle
+    window.toggleNewsletterFullscreen = function() {
+        const iframe = previewContainer.querySelector('iframe');
+        if (iframe.requestFullscreen) {
+            iframe.requestFullscreen().catch(err => console.warn('Fullscreen failed:', err));
+        }
+    };
+
+    showNotification(`✅ Curated ${result.metadata?.high_quality_sources || 0} high-value insights with clickable links!`, 'success');
+}
+
+// Update refresh function to recreate iframe
+function refreshNewsletterView() {
+    if (window.currentNewsletterResult) {
+        displayKillerNewsletter(window.currentNewsletterResult);
+    }
+}
+function refreshNewsletterView() {
+    if (window.currentNewsletterResult) {
+        displayKillerNewsletter(window.currentNewsletterResult);
+        showNotification('View refreshed', 'info');
+    }
+}
+
+// Enhanced error handling
+function handleNewsletterError(error) {
+    let userMessage = 'Error generating newsletter';
+    
+    if (error.message.includes('No high-quality news found')) {
+        userMessage = 'Using demo content. Real news sources limited. Try adding specific keywords.';
+    } else if (error.name === 'TimeoutError') {
+        userMessage = 'Search taking longer. Using available content.';
+    } else {
+        userMessage = error.message;
+    }
+    
+    showNotification(userMessage, 'warning');
+}
+
+function createErrorState(message) {
+    return `
+        <div class="text-center py-12">
+            <i class="fas fa-filter text-4xl text-gray-400 mb-4"></i>
+            <p class="text-lg font-medium text-gray-600">Content Curation Required</p>
+            <p class="text-sm text-gray-500 mb-4">${message}</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="generateNewsletter()" 
+                        class="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors">
+                    <i class="fas fa-redo mr-2"></i>Try Again
+                </button>
+                <button onclick="document.getElementById('keywords').focus()" 
+                        class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-edit mr-2"></i>Add Keywords
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// Enhanced analytics
+function updateNewsletterAnalytics(result) {
+    const analyticsStats = document.getElementById('analytics-stats');
+    const contentInsights = document.getElementById('content-insights');
+    
+    if (!analyticsStats) return;
+
+    const stats = {
+        relevance: calculateRelevanceScore(result),
+        engagement: calculateEngagementScore(result),
+        freshness: calculateFreshnessScore(result),
+        depth: calculateDepthScore(result)
+    };
+
+    analyticsStats.innerHTML = `
+        <div class="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+            <div class="text-2xl font-bold text-green-600">${stats.relevance}%</div>
+            <div class="text-sm text-green-700">Topic Relevance</div>
+        </div>
+        <div class="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div class="text-2xl font-bold text-blue-600">${stats.engagement}/10</div>
+            <div class="text-sm text-blue-700">CXO Engagement</div>
+        </div>
+        <div class="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <div class="text-2xl font-bold text-purple-600">${stats.freshness}%</div>
+            <div class="text-sm text-purple-700">Market Freshness</div>
+        </div>
+        <div class="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+            <div class="text-2xl font-bold text-orange-600">${stats.depth}/10</div>
+            <div class="text-sm text-orange-700">Analysis Depth</div>
+        </div>
+    `;
+
+    // Enhanced insights
+    const insights = generateKillerInsights(result);
+    if (contentInsights) {
+        contentInsights.innerHTML = insights.map(insight => 
+            `<div class="flex items-center text-sm p-2 bg-white rounded border-l-4 border-green-400">
+                <i class="fas fa-bolt text-green-500 mr-3"></i>
+                ${insight}
+            </div>`
+        ).join('');
+    }
+}
+
+function calculateRelevanceScore(result) {
+    const highQualitySources = result.metadata?.high_quality_sources || 0;
+    const totalSources = result.metadata?.sources_used || 1;
+    return Math.round((highQualitySources / totalSources) * 100);
+}
+
+function calculateDepthScore(result) {
+    let score = 7; // base
+    const content = result.html || '';
+    
+    if (content.includes('₹') || content.includes('MW')) score += 1;
+    if (content.includes('Q') && content.includes('202')) score += 1;
+    if ((result.metadata?.word_count || 0) > 1000) score += 1;
+    
+    return Math.min(10, score);
+}
+
+function generateKillerInsights(result) {
+    const insights = [];
+    const metadata = result.metadata || {};
+
+    if (metadata.high_quality_sources > 8) {
+        insights.push("Premium source curation - executive grade");
+    }
+    
+    if (metadata.estimated_read_time <= 5) {
+        insights.push("Perfect CXO length - under 5 minute read");
+    } else {
+        insights.push("Comprehensive coverage - deep dive edition");
+    }
+    
+    if (metadata.word_count > 800) {
+        insights.push("High-density intelligence - zero fluff");
+    }
+    
+    insights.push("Mobile-optimized for on-the-go executives");
+    insights.push("Real numbers focus - MW, ₹ Cr, dates emphasized");
+
+    return insights;
+}
+
+// Newsletter tab management
+function showNewsletterTab(tabName, event = null) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.add('hidden');
+    });
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active', 'bg-white', 'text-orange-600', 'shadow-sm');
+        tab.classList.add('text-gray-600', 'hover:bg-gray-50');
+    });
+
+    // Show selected tab
+    const tabElement = document.getElementById(`newsletter-${tabName}`);
+    if (tabElement) {
+        tabElement.classList.remove('hidden');
+    }
+
+    // Get the clicked element safely
+    let clickedElement = event ? event.currentTarget : document.querySelector(`[onclick*="${tabName}"]`);
+
+    if (clickedElement) {
+        clickedElement.classList.add('active', 'bg-white', 'text-orange-600', 'shadow-sm');
+        clickedElement.classList.remove('text-gray-600', 'hover:bg-gray-50');
+    }
+}
+
+// Copy functions
+function copyHtmlSource() {
+    const htmlSource = document.getElementById('htmlSource');
+    if (htmlSource && htmlSource.textContent.trim()) {
+        navigator.clipboard.writeText(htmlSource.textContent).then(() => {
+            showNotification('HTML copied to clipboard!');
+        });
+    } else {
+        showNotification('No HTML content to copy', 'error');
+    }
+}
+
+function copyMetadata() {
+    const metadata = document.getElementById('metadataContent');
+    if (metadata && metadata.textContent.trim()) {
+        navigator.clipboard.writeText(metadata.textContent).then(() => {
+            showNotification('Metadata copied to clipboard!');
+        });
+    } else {
+        showNotification('No metadata to copy', 'error');
+    }
+}
+
+function showCopyNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    const bgColor = type === 'error' ? 'bg-red-500' : 'bg-green-500';
+    notification.className = `fixed top-4 right-4 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.remove();
+    }, 2000);
+}
+
+// Initialize newsletter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const publishDate = document.getElementById('publishDate');
+    if (publishDate) {
+        publishDate.value = new Date().toISOString().split('T')[0];
+    }
+    
+    // Add topic change handler for better UX
+    const topicSelect = document.getElementById('topic');
+    if (topicSelect) {
+        topicSelect.addEventListener('change', function() {
+            const keywords = document.getElementById('keywords');
+            if (keywords && !keywords.value) {
+                // Pre-fill relevant keywords based on topic
+                const topicKeywords = {
+                    'india power projects': 'NTPC, Adani Green, solar tender, MW capacity',
+                    'technology': 'AI, machine learning, innovation, startup',
+                    'sports': 'tournament, championship, results, updates'
+                };
+                keywords.placeholder = topicKeywords[this.value] || 'Enter specific keywords...';
+            }
+        });
+    }
+    
+    console.log('Newsletter generator initialized');
+});
+
+
+// newss letter reaction emojis
+// === ADD THESE MISSING FUNCTIONS TO YOUR script.js ===
+
+// Fix 1: Add missing calculateEngagementScore function
+function calculateEngagementScore(result) {
+    let score = 7; // base score
+    const content = result.html || '';
+    const metadata = result.metadata || {};
+    
+    // Engagement scoring logic
+    if (content.includes('🔥') || content.includes('⚡')) score += 1;
+    if (metadata.word_count > 800) score += 1;
+    if (metadata.high_quality_sources > 5) score += 1;
+    if (metadata.estimated_read_time <= 5) score += 1;
+    
+    return Math.min(10, score);
+}
+
+// Fix 2: Add missing calculateFreshnessScore function  
+function calculateFreshnessScore(result) {
+    const metadata = result.metadata || {};
+    let score = 85; // base freshness
+    
+    if (metadata.high_quality_sources > 8) score += 10;
+    if (metadata.sources_used > 10) score += 5;
+    
+    return Math.min(100, score);
+}
+
+// Fix 3: Add missing showNotification function
+function showNotification(message, type = 'success') {
+    // Remove any existing notifications first
+    const existingNotifications = document.querySelectorAll('.custom-notification');
+    existingNotifications.forEach(notification => notification.remove());
+    
+    const notification = document.createElement('div');
+    const bgColor = type === 'error' ? 'bg-red-500' : 
+                   type === 'warning' ? 'bg-yellow-500' : 
+                   'bg-green-500';
+    
+    notification.className = `custom-notification fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-0`;
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 
+                         type === 'warning' ? 'fa-exclamation-triangle' : 
+                         'fa-check-circle'} mr-2"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 4 seconds
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 4000);
+}
+
+// Fix 4: Update the updateNewsletterAnalytics function
+function updateNewsletterAnalytics(result) {
+    const analyticsStats = document.getElementById('analytics-stats');
+    const contentInsights = document.getElementById('content-insights');
+    
+    if (!analyticsStats) return;
+
+    const stats = {
+        relevance: calculateRelevanceScore(result),
+        engagement: calculateEngagementScore(result),
+        freshness: calculateFreshnessScore(result),
+        depth: calculateDepthScore(result)
+    };
+
+    analyticsStats.innerHTML = `
+        <div class="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+            <div class="text-2xl font-bold text-green-600">${stats.relevance}%</div>
+            <div class="text-sm text-green-700">Topic Relevance</div>
+        </div>
+        <div class="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div class="text-2xl font-bold text-blue-600">${stats.engagement}/10</div>
+            <div class="text-sm text-blue-700">Reader Engagement</div>
+        </div>
+        <div class="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <div class="text-2xl font-bold text-purple-600">${stats.freshness}%</div>
+            <div class="text-sm text-purple-700">Content Freshness</div>
+        </div>
+        <div class="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+            <div class="text-2xl font-bold text-orange-600">${stats.depth}/10</div>
+            <div class="text-sm text-orange-700">Analysis Depth</div>
+        </div>
+    `;
+
+    // Enhanced insights
+    const insights = generateKillerInsights(result);
+    if (contentInsights) {
+        contentInsights.innerHTML = insights.map(insight => 
+            `<div class="flex items-center text-sm p-2 bg-white rounded border-l-4 border-green-400">
+                <i class="fas fa-bolt text-green-500 mr-3"></i>
+                ${insight}
+            </div>`
+        ).join('');
+    }
+}
+
+// Fix 5: Add missing calculateRelevanceScore function
+function calculateRelevanceScore(result) {
+    const metadata = result.metadata || {};
+    const highQualitySources = metadata.high_quality_sources || 0;
+    const totalSources = metadata.sources_used || 1;
+    return Math.round((highQualitySources / totalSources) * 100);
+}
+
+// Fix 6: Add missing calculateDepthScore function
+function calculateDepthScore(result) {
+    let score = 7; // base
+    const content = result.html || '';
+    const metadata = result.metadata || {};
+    
+    if (content.includes('₹') || content.includes('MW')) score += 1;
+    if (content.includes('Q') && content.includes('202')) score += 1;
+    if ((metadata.word_count || 0) > 1000) score += 1;
+    
+    return Math.min(10, score);
+}
+
+// Fix 7: Add missing generateKillerInsights function
+function generateKillerInsights(result) {
+    const insights = [];
+    const metadata = result.metadata || {};
+
+    if (metadata.high_quality_sources > 8) {
+        insights.push("Premium source curation - executive grade");
+    }
+    
+    if (metadata.estimated_read_time <= 5) {
+        insights.push("Perfect reading length - under 5 minute read");
+    } else {
+        insights.push("Comprehensive coverage - deep dive edition");
+    }
+    
+    if (metadata.word_count > 800) {
+        insights.push("High-density intelligence - zero fluff");
+    }
+    
+    insights.push("Mobile-optimized for on-the-go reading");
+    insights.push("Real numbers focus - data-driven insights");
+
+    return insights;
+}
+
+// Fix 8: Update handleNewsletterError function
+function handleNewsletterError(error) {
+    let userMessage = 'Error generating newsletter';
+    
+    if (error.message.includes('No high-quality news found')) {
+        userMessage = 'Using demo content. Real news sources limited. Try adding specific keywords.';
+    } else if (error.name === 'TimeoutError') {
+        userMessage = 'Search taking longer. Using available content.';
+    } else {
+        userMessage = error.message;
+    }
+    
+    // Use the fixed showNotification function
+    showNotification(userMessage, 'warning');
+}
+
+
+// //  ///  NEW FOR HIRING FORM  ///  //
+
+// document.addEventListener('DOMContentLoaded', function() {
+//     // Validate all links and fix any issues
+//     const links = document.querySelectorAll('a[href]');
+//     links.forEach(link => {
+//         const href = link.getAttribute('href');
+        
+//         // Fix malformed links
+//         if (!href || href.includes('class=') || !href.startsWith('http')) {
+//             console.log('Found malformed link, removing:', href);
+//             link.setAttribute('href', '#');
+//             link.style.color = '#ff6b6b';
+//             link.style.textDecoration = 'line-through';
+//             link.title = 'Link not available - search for this job directly';
+            
+//             link.addEventListener('click', function(e) {
+//                 e.preventDefault();
+//                 const jobTitle = link.textContent.replace('💼 ', '');
+//                 alert(`Job link not available. Please search for: "${jobTitle}" on ${link.closest('.tech-card')?.querySelector('.tech-source a')?.textContent?.replace('📍 ', '') || 'job portals'}`);
+//             });
+//         }
+//     });
+// });

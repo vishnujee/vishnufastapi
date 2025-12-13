@@ -1,0 +1,660 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Jobs Daily - Career Opportunities</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+           
+            body {
+                font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+                line-height: 1.6;
+                color: #1a1a1a;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }
+           
+            .tech-container {
+                max-width: 1000px;
+                margin: 0 auto;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(20px);
+                border-radius: 24px;
+                overflow: hidden;
+                box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+           
+            .tech-header {
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                color: white;
+                padding: 40px 30px;
+                text-align: center;
+                position: relative;
+                overflow: hidden;
+            }
+           
+            .tech-header::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            }
+           
+            .tech-header h1 {
+                font-size: 36px;
+                font-weight: 800;
+                margin-bottom: 15px;
+                position: relative;
+                z-index: 2;
+            }
+           
+            .tech-header p {
+                font-size: 16px;
+                opacity: 0.9;
+                font-weight: 600;
+                position: relative;
+                z-index: 2;
+            }
+           
+            .tech-content {
+                padding-left: 5px;
+            }
+           
+            .section-header {
+                font-size: 22px;
+                font-weight: 800;
+                margin: 35px 0 25px;
+                padding: 8px 30px;
+                border-radius: 16px;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                position: relative;
+                overflow: hidden;
+                color: white;
+            }
+           
+            .section-header {
+                background: linear-gradient(135deg, #667eea, #764ba2);
+            }
+           
+            .tech-card {
+                background: rgba(248, 249, 250, 0.8);
+                backdrop-filter: blur(10px);
+                border-radius: 20px;
+                margin: 20px 30px;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                transition: all 0.4s ease;
+                overflow: hidden;
+                position: relative;
+            }
+           
+            .tech-card:hover {
+                transform: translateY(-8px);
+                box-shadow: 0 20px 40px rgba(102, 126, 234, 0.2);
+                border-color: #667eea;
+            }
+           
+            .tech-content-inner {
+                padding: 0px;
+            }
+           
+            .tech-headline {
+                font-size: 18px;
+                font-weight: 700;
+                color: #2d3436;
+                text-decoration: none;
+                display: block;
+                margin-bottom: 15px;
+                line-height: 1.5;
+                transition: color 0.3s ease;
+            }
+           
+            .tech-headline:hover {
+                color: #667eea;
+            }
+           
+            .tech-source {
+                background: rgba(102, 126, 234, 0.08);
+                padding: 12px 20px;
+                border-radius: 12px;
+                margin-top: 15px;
+                border-left: 4px solid #667eea;
+            }
+           
+            .tech-source a {
+                color: #636e72;
+                font-size: 13px;
+                text-decoration: none;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                transition: color 0.2s ease;
+            }
+           
+            .tech-source a:hover {
+                color: #667eea;
+            }
+           
+            @media (max-width: 768px) {
+                body {
+                    padding: 0px;
+                }
+               
+                .tech-header {
+                    padding: 30px 20px;
+                }
+               
+                .tech-header h1 {
+                    font-size: 28px;
+                }
+               
+                .section-header {
+                    font-size: 20px;
+                    margin: 30px 0 20px;
+                    padding: 8px 20px;
+                }
+               
+                .tech-card {
+                    margin: 15px 0px;
+                }
+               
+                .tech-headline {
+                    font-size: 16px;
+                }
+            }
+
+            .electrical-header {
+                background: linear-gradient(135deg, #0f4c75, #3282b8) !important;
+            }
+
+            .civil-header {
+                background: linear-gradient(135deg, #feca57, #ff9ff3) !important;
+            }
+
+            .software-header {
+                background: linear-gradient(135deg, #5f27cd, #341f97) !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="tech-container">
+            <div class="tech-header">
+                <h1>💼 JOBS DAILY</h1>
+                <p>2025-12-07 • 35 Sources • Career Opportunities</p>
+            </div>
+           
+            <div class="tech-content">
+                <div class="section-header electrical-header">⚡ ELECTRICAL & POWER JOBS</div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMiqwFBVV95cUxQc25wVFhkSEVYcURpODBnRVM4T3RDRUtUTTEwczdYU1FYa3BsLTJER0N4eXdDRi0wZ05qclYxVHE0YmdzWHBiWWh2NmgzSV9vSXppMjNvZDBtc1YybnRBSExUM1p6N19ZX1R5TkJTb0lPZVNvSDQyalMyOXJiRjk1bU1PdXM3SUNFRm5wWmRsS3JCTWpCSXpCWXppeVZLU3pYRlQxY19fTDRPVTQ?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Electrical Engineer - Naukri.com
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMiqwFBVV95cUxQc25wVFhkSEVYcURpODBnRVM4T3RDRUtUTTEwczdYU1FYa3BsLTJER0N4eXdDRi0wZ05qclYxVHE0YmdzWHBiWWh2NmgzSV9vSXppMjNvZDBtc1YybnRBSExUM1p6N19ZX1R5TkJTb0lPZVNvSDQyalMyOXJiRjk1bU1PdXM3SUNFRm5wWmRsS3JCTWpCSXpCWXppeVZLU3pYRlQxY19fTDRPVTQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 Naukri.com → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMisgFBVV95cUxOMk9xMjFJLUNxYW9Lem1pNmpiVFpMa3dpLUo1c3FRMVdpbGNEcU5uS3d6QXhDV0NfZ0lFemowNGx4TE5kWml5WTI2TlNnSlNtMlgtTmJ2SDI0bmJWNzl4OWp3R3puS2dNS2RpQ0NFNVNPYk5MRmZXRUt5RkFyakJUN3RaLXhEekNBdW8zV0s5cEFwY2tvU3MyYWU3ZE5WbExkVVlSWXBsel9vdVJ2Q2FoVTZB?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Electrical Design Engineer - Nasik - Nido Machineries - 2 to 6 years of experience - Naukri.com
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMisgFBVV95cUxOMk9xMjFJLUNxYW9Lem1pNmpiVFpMa3dpLUo1c3FRMVdpbGNEcU5uS3d6QXhDV0NfZ0lFemowNGx4TE5kWml5WTI2TlNnSlNtMlgtTmJ2SDI0bmJWNzl4OWp3R3puS2dNS2RpQ0NFNVNPYk5MRmZXRUt5RkFyakJUN3RaLXhEekNBdW8zV0s5cEFwY2tvU3MyYWU3ZE5WbExkVVlSWXBsel9vdVJ2Q2FoVTZB?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 Naukri.com → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMipwFBVV95cUxOdjZBelhjV1VDaGFPc3MtUkoyZHNWanY0ZFpHSGZDWllIVDZqbU9SYXhBUWRQSUtkZk9ORUJOXzk3QlV1a1o0czh1QjlUMWJRZVozQzQwYVFQQmNJSkRCRmswQW5SaTNyRklkNzRpT1hOcl9HS2oxWVIxaTlibWZMTkRTYXdYa2NvWDd6NXl5ejI3azdLMGZsQnh1LUNiSkVpeTdWc25Waw?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Karytron Electricals Pvt. Ltd. hiring Electrical Project Engineer in Delhi, Delhi, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMipwFBVV95cUxOdjZBelhjV1VDaGFPc3MtUkoyZHNWanY0ZFpHSGZDWllIVDZqbU9SYXhBUWRQSUtkZk9ORUJOXzk3QlV1a1o0czh1QjlUMWJRZVozQzQwYVFQQmNJSkRCRmswQW5SaTNyRklkNzRpT1hOcl9HS2oxWVIxaTlibWZMTkRTYXdYa2NvWDd6NXl5ejI3azdLMGZsQnh1LUNiSkVpeTdWc25Waw?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMipAFBVV95cUxNVExSS2k3ZzBDSlZZbnFYWTNNZXdJOTJ2Mlo4c2VNV1U2dHMtbzlTWmxodHh0X2hQZkZ6ODQ4TmNOVjl3ckZPSkE4a0xhaVJVbENNdElCZXUtdlJfaEpiYXRONVA0WlhGOE9Wb1FULWRQMDdXcV8wYkNmZ3Bud0hNRUdrMW85TTl0VEtJdlhORVJ1SFhTLXhPaThNWWU5eVVrSkZERA?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Shambhavi Renewable Energy Limited hiring Electrical Engineer in Ahmedabad, Gujarat, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMipAFBVV95cUxNVExSS2k3ZzBDSlZZbnFYWTNNZXdJOTJ2Mlo4c2VNV1U2dHMtbzlTWmxodHh0X2hQZkZ6ODQ4TmNOVjl3ckZPSkE4a0xhaVJVbENNdElCZXUtdlJfaEpiYXRONVA0WlhGOE9Wb1FULWRQMDdXcV8wYkNmZ3Bud0hNRUdrMW85TTl0VEtJdlhORVJ1SFhTLXhPaThNWWU5eVVrSkZERA?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMivwFBVV95cUxOQnJ5XzV2WnhSdWR0Q2RhN2EwcGo0SWdWdmRFMUJOZ01FN1pWSG1FZmNqQzhyWjdHWktnX0lyR0NULXZURHVRWWxJVGtzQjV1OFBZUXMyZFNXYUxKV3NUc1hjY2I0emxEOHA5TzB4T0NJdXJxd2liWDlncUxoWEs0bWVWci0wUXUzeURxTDRkeFpyb2IxN000OW1IN1FzQmVSalk1MjFHOTQyU2w0ZmVPaGwyTDBteks0cV9PaVpyMA?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Askin Electric Pvt Ltd hiring Junior Electrical Engineer | Freshers and experienced in Thrissur, Kerala, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMivwFBVV95cUxOQnJ5XzV2WnhSdWR0Q2RhN2EwcGo0SWdWdmRFMUJOZ01FN1pWSG1FZmNqQzhyWjdHWktnX0lyR0NULXZURHVRWWxJVGtzQjV1OFBZUXMyZFNXYUxKV3NUc1hjY2I0emxEOHA5TzB4T0NJdXJxd2liWDlncUxoWEs0bWVWci0wUXUzeURxTDRkeFpyb2IxN000OW1IN1FzQmVSalk1MjFHOTQyU2w0ZmVPaGwyTDBteks0cV9PaVpyMA?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMiiAFBVV95cUxNaGtxS3J5ZzZjMnhKZE1sbFk3QXRPdlFuTmNRZDhNVjB0UWtfajJhVi1QeVZDWGxpYXdjUThiM0NXUGpSM05yRTlVNVhSZ2xLUVpNSnFORFFmMHVEY25RS2YzX3Bpc1Qxb0U0YTlobzBaWjFUZmdMUG5Kd2tIX1dJM2ZMTnVtMnB0?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Utthunga hiring Lead Electrical Engineer in Bengaluru, Karnataka, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMiiAFBVV95cUxNaGtxS3J5ZzZjMnhKZE1sbFk3QXRPdlFuTmNRZDhNVjB0UWtfajJhVi1QeVZDWGxpYXdjUThiM0NXUGpSM05yRTlVNVhSZ2xLUVpNSnFORFFmMHVEY25RS2YzX3Bpc1Qxb0U0YTlobzBaWjFUZmdMUG5Kd2tIX1dJM2ZMTnVtMnB0?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMingFBVV95cUxPN1NQVGlMOHRZLVZWbHFvTndxTEYzUF8zcldnVnNKcy1GY0phOXJmWGhKUGFLQkVUUjBJXzJDLXo0bThFUzlyVHdLQVY4MHV6MDBZcFdqNkJJdThIVFpDWjlkQUJBdUs5VFdOZVRTWWxKMGhQbXJzVFl0cWlENVdjLUJpUEtTZ0tRLW0yaEF5RTFKVThheG1KQnFvZ3BDZw?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Bright Electricals hiring Electrical Estimation Engineer in Mumbai, Maharashtra, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMingFBVV95cUxPN1NQVGlMOHRZLVZWbHFvTndxTEYzUF8zcldnVnNKcy1GY0phOXJmWGhKUGFLQkVUUjBJXzJDLXo0bThFUzlyVHdLQVY4MHV6MDBZcFdqNkJJdThIVFpDWjlkQUJBdUs5VFdOZVRTWWxKMGhQbXJzVFl0cWlENVdjLUJpUEtTZ0tRLW0yaEF5RTFKVThheG1KQnFvZ3BDZw?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMiggFBVV95cUxPNDhGc1RkeVZ6aGtJZU01N2FGdjkxRnhVdVVLVnhsUVRwSFowaTBaa3ZSSnpDNlBRZUNsLWR2dkxJS2dsRlpGNmhyWEtpQ1JFTUF3NjBRTC1NaDZrOHFDT2VHUERCWVV2RmYweEV3c1hPd05iUF9nUUdENVpTenBYTHdn?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Archis hiring Solar Design Engineer in Noida, Uttar Pradesh, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMiggFBVV95cUxPNDhGc1RkeVZ6aGtJZU01N2FGdjkxRnhVdVVLVnhsUVRwSFowaTBaa3ZSSnpDNlBRZUNsLWR2dkxJS2dsRlpGNmhyWEtpQ1JFTUF3NjBRTC1NaDZrOHFDT2VHUERCWVV2RmYweEV3c1hPd05iUF9nUUdENVpTenBYTHdn?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMingFBVV95cUxQMmNMNDV2WHZOSHd3WVduSUtNU3JaVlFtYW9BN0dFNE90cTFhZ3JocmVwTF80b0N2UnVOWF82cVBnTkF0X2tNLU1SMmxVYjJNVGRmZ3pzdFluREhKNjJGUjlGX2xmMDBDQnVxZ2xReEZ2eXA0ejRIQlNZY0F4WFBIak5TRTNCRWpJS1hIaGFIUWxxTDNIOUkxRzY5a29vdw?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ People Prime Worldwide hiring Electrical Design Engineer in Bengaluru, Karnataka, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMingFBVV95cUxQMmNMNDV2WHZOSHd3WVduSUtNU3JaVlFtYW9BN0dFNE90cTFhZ3JocmVwTF80b0N2UnVOWF82cVBnTkF0X2tNLU1SMmxVYjJNVGRmZ3pzdFluREhKNjJGUjlGX2xmMDBDQnVxZ2xReEZ2eXA0ejRIQlNZY0F4WFBIak5TRTNCRWpJS1hIaGFIUWxxTDNIOUkxRzY5a29vdw?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMivgFBVV95cUxOZm5OQ0ZxNnlaaUVtaHpjbFJUV3RPNDdHZTdCU3hUSkxzcm9BVFZFSUNtT0NJR0ZwcVVkalJXNS1BWmt1Nmx0ejdCREstTHVNVVpteGJnOWJnR0VIcElmd2VlcWt5Wnhja0Nrdm1MZUVnaFQ0RDJiLWJRN2hWa3pfTFZxb3ZfUS1fcExfTUV3VE1jYTREeUYxTWY0OEkyUVJMNFYwZnNqVFhnbExCZFd2b3Y0d0ExN3U5TEJMcFpR?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ ib vogt GmbH hiring Manager – Design and Engineer (Electrical) (Solar) (m/f/d) in Gurugram, Haryana, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMivgFBVV95cUxOZm5OQ0ZxNnlaaUVtaHpjbFJUV3RPNDdHZTdCU3hUSkxzcm9BVFZFSUNtT0NJR0ZwcVVkalJXNS1BWmt1Nmx0ejdCREstTHVNVVpteGJnOWJnR0VIcElmd2VlcWt5Wnhja0Nrdm1MZUVnaFQ0RDJiLWJRN2hWa3pfTFZxb3ZfUS1fcExfTUV3VE1jYTREeUYxTWY0OEkyUVJMNFYwZnNqVFhnbExCZFd2b3Y0d0ExN3U5TEJMcFpR?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMioAFBVV95cUxQMmw4UExPU1NWN1h5OEpFS0h3N2NnSWFvZDFUUEJNaUdpenlFVFZpckNmaUpoVHZxZkV0VGlxZC1qR25KUGVWTmNiRk5FcTB3dGNLY05qSU5leHh3SFRCNzk2MkYyTV94UU5RMmNGNXRoejFmRUNkMEZjYWFCaGFGTi1CNzhZRllzOXNJdGQtZHRnU29DNGVtUk4zUGZway1s?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ A-SQUARE MEP CONSULTANTS hiring Electrical Design Engineer in Devanahalli, Karnataka, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMioAFBVV95cUxQMmw4UExPU1NWN1h5OEpFS0h3N2NnSWFvZDFUUEJNaUdpenlFVFZpckNmaUpoVHZxZkV0VGlxZC1qR25KUGVWTmNiRk5FcTB3dGNLY05qSU5leHh3SFRCNzk2MkYyTV94UU5RMmNGNXRoejFmRUNkMEZjYWFCaGFGTi1CNzhZRllzOXNJdGQtZHRnU29DNGVtUk4zUGZway1s?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMinwFBVV95cUxNYklBSEJKU0dmMWZDS1h4bFk3WVVMcjkybDVQWnh1V3Z5QVE5ZDR0ZGZRdmlMOXpsdEJTRURQblNmZXlmeVpLRUVsbHdZSE5BdDRFZ0F0YjQxYndYd3JZc0R6eW1LS0pleU50d3o2RjY1eUhhWnYyNkdwc0FHVkpZalU0eVZiMkd3eHBDTW01aVBFT1FJbXVMY2hBYV96ZDQ?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Softcon Systems Pvt. Ltd. hiring Electrical Design Engineer in Pune, Maharashtra, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMinwFBVV95cUxNYklBSEJKU0dmMWZDS1h4bFk3WVVMcjkybDVQWnh1V3Z5QVE5ZDR0ZGZRdmlMOXpsdEJTRURQblNmZXlmeVpLRUVsbHdZSE5BdDRFZ0F0YjQxYndYd3JZc0R6eW1LS0pleU50d3o2RjY1eUhhWnYyNkdwc0FHVkpZalU0eVZiMkd3eHBDTW01aVBFT1FJbXVMY2hBYV96ZDQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMiowFBVV95cUxOTDkycUZkVDRxd2xFNmFTTnhYXzNCNDNKcG5hc29qWGo1Yk0yYlB3cmlBTFJDYi1VanA3WmtCRWpzY01PampGU0U4ZXhwWFp2bzRfajRMTkxxYXNENFlrVEFnaDVsTUpMd0FsT0p2WHJtU25PbjVLWms3R3NNWnJIQWpISVlBeENuUThIVlhyNzZTNml5REdvZE1yeEZ6M0cyeVVV?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Horizon Renewable Power Pvt. Ltd. hiring Solar Design Engineer in Delhi, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMiowFBVV95cUxOTDkycUZkVDRxd2xFNmFTTnhYXzNCNDNKcG5hc29qWGo1Yk0yYlB3cmlBTFJDYi1VanA3WmtCRWpzY01PampGU0U4ZXhwWFp2bzRfajRMTkxxYXNENFlrVEFnaDVsTUpMd0FsT0p2WHJtU25PbjVLWms3R3NNWnJIQWpISVlBeENuUThIVlhyNzZTNml5REdvZE1yeEZ6M0cyeVVV?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMilwFBVV95cUxNVG1VanM4VUl4bUp5WVVYRFo2cGhvVXBhYng0dEtnVGZaZ0NqV2ZVMzdRckpTSnUxN09OV296c3lQbWVPakk4cFNtaGx4QkR0b1RsN1EtamRibkVkdjR2NGZxMzlEZ3BtRmx5RDRTTF9pNHZEd1FVS19BcGVQcWotbTAyV2diazZmM1llblZ0aDY1VGRyQlp3?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Mott MacDonald hiring Assistant Electrical Engineer in Ahmedabad, Gujarat, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMilwFBVV95cUxNVG1VanM4VUl4bUp5WVVYRFo2cGhvVXBhYng0dEtnVGZaZ0NqV2ZVMzdRckpTSnUxN09OV296c3lQbWVPakk4cFNtaGx4QkR0b1RsN1EtamRibkVkdjR2NGZxMzlEZ3BtRmx5RDRTTF9pNHZEd1FVS19BcGVQcWotbTAyV2diazZmM1llblZ0aDY1VGRyQlp3?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMilwFBVV95cUxQQ2hBQUF4aWowYVhLOVpjZHdoZGJGMGFXV0YtQmc3bFRmVzVOaHBlcVlvM2hSdEhrOXFjU2EtTGZrY2xlYTBHbVlyTGdVWFBhdDNkb0drZThqRUJfaHpyV3A4Q0lyZ2pPRkYyTHBCeXhfb3g4UE1md0NMTzVydjhfeDkyU0hzcDE1MGZaY3NkS2N3cEJNaGFF?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Mott MacDonald hiring Assistant Electrical Engineer in Bengaluru, Karnataka, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMilwFBVV95cUxQQ2hBQUF4aWowYVhLOVpjZHdoZGJGMGFXV0YtQmc3bFRmVzVOaHBlcVlvM2hSdEhrOXFjU2EtTGZrY2xlYTBHbVlyTGdVWFBhdDNkb0drZThqRUJfaHpyV3A4Q0lyZ2pPRkYyTHBCeXhfb3g4UE1md0NMTzVydjhfeDkyU0hzcDE1MGZaY3NkS2N3cEJNaGFF?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMinwFBVV95cUxNWi04d3hXNUUyblJhOFo1TzQ0dThHYzU5UlltY29YUEZPd2g0dGtXc0I4ajVtRHZsUFhyX2l6TDhMenlpaUJSXzNJNXliU1ZucEVOZ1FlWmJsRnpuUU91SmwtWmhUd2tJUWZibDZISVItRmRVRlZUd1VWTHZmNXZlSGpFcWM3Qjk5eVF6QTdwTjhzMnRpUlA3RFh1b2ZITWc?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        ⚡ Ameren hiring Associate Engineer (Transmission Line Design) in Akuhaito, Nagaland, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMinwFBVV95cUxNWi04d3hXNUUyblJhOFo1TzQ0dThHYzU5UlltY29YUEZPd2g0dGtXc0I4ajVtRHZsUFhyX2l6TDhMenlpaUJSXzNJNXliU1ZucEVOZ1FlWmJsRnpuUU91SmwtWmhUd2tJUWZibDZISVItRmRVRlZUd1VWTHZmNXZlSGpFcWM3Qjk5eVF6QTdwTjhzMnRpUlA3RFh1b2ZITWc?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+<div class="section-header civil-header">🏗️ CIVIL & CONSTRUCTION JOBS</div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMilgFBVV95cUxPZUpYTXExb1pkSDhubVM1RzRwREx4THdVMVZaSlRhdkZ5c3VCSmlLNnhSTWRkRmlWQzhLSXlLVnFDLXRGdkJ3WEVrVEVZMHNsUXZBbWlMY1BTZEI0MUo2em53Q1BJUUFtS21GdF9CVmw3V1FUQm50Y1p5WnR3YWljRzd1V0Z2TndTcGdfUzc1akdTQ0d2WHc?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        🏗️ Civil Engineering jobs in Ka Bangalore East Prestige Technology Park - Naukri.com
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMilgFBVV95cUxPZUpYTXExb1pkSDhubVM1RzRwREx4THdVMVZaSlRhdkZ5c3VCSmlLNnhSTWRkRmlWQzhLSXlLVnFDLXRGdkJ3WEVrVEVZMHNsUXZBbWlMY1BTZEI0MUo2em53Q1BJUUFtS21GdF9CVmw3V1FUQm50Y1p5WnR3YWljRzd1V0Z2TndTcGdfUzc1akdTQ0d2WHc?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 Naukri.com → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMickFVX3lxTE81ZGl3TjZ1bklMb19wV3owaTZmYnJzcTBISjU0cXNZQlpwXzJFcU9VYll3WXBJTndiS2luN1pBenZsQm9lZUpCS1pTdHBnNV9xMHZzODR3YkhhXzE3dUtkT0p5aFRrWG85SE9hb3lpQThSQQ?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        🏗️ Civil Quality Engineer jobs in Chandigarh - Naukri.com
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMickFVX3lxTE81ZGl3TjZ1bklMb19wV3owaTZmYnJzcTBISjU0cXNZQlpwXzJFcU9VYll3WXBJTndiS2luN1pBenZsQm9lZUpCS1pTdHBnNV9xMHZzODR3YkhhXzE3dUtkT0p5aFRrWG85SE9hb3lpQThSQQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 Naukri.com → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMimwFBVV95cUxObXYyc1l3dnRsSzlka0plVTFMUFNzYUwxY25mUXZKcGxRQmNfZnVhV3dlUGppNlNNMnVkb3ZOYmxQQ2hyM21weGF2bFNjV3dyNi05eEU1cW80SE9xVVN4N0c5eGdUeU9MWXZSUVQzeU9URkFjbUY0cW10ekJXSDZyakVQUUJqTEFBR3ItZi0xUUxGcElyN0N5VWVySQ?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        🏗️ Civil Engineer - Mundra - Adani Solar - 3 to 7 years of experience - Naukri.com
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMimwFBVV95cUxObXYyc1l3dnRsSzlka0plVTFMUFNzYUwxY25mUXZKcGxRQmNfZnVhV3dlUGppNlNNMnVkb3ZOYmxQQ2hyM21weGF2bFNjV3dyNi05eEU1cW80SE9xVVN4N0c5eGdUeU9MWXZSUVQzeU9URkFjbUY0cW10ekJXSDZyakVQUUJqTEFBR3ItZi0xUUxGcElyN0N5VWVySQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 Naukri.com → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMivgFBVV95cUxPeTJndThXWnN2c2xqaHFiUDlGVkszOWRleHNScllWYkowcy1ZZllOd3RCSFRCa002TndPRGJtekp6a3phamdzSUlST25WZGllZjc2Z0tZalRsbUpQOVAwRmNIaXdwRGo4Z25YTkpKU090LXI4VU9NMXZKa2pObWROZGRnbnNMZEFCLUZOZW5KNXZfNlRVbHJfT1FNUU9xQ3E5dlNISHktemtlZnRURnhHT3VuSHdmYTlWS3A2dXV3?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        🏗️ Civil Site Engineer - Chennai - Tech Bio Natura - 0 to 5 years of experience - Naukri.com
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMivgFBVV95cUxPeTJndThXWnN2c2xqaHFiUDlGVkszOWRleHNScllWYkowcy1ZZllOd3RCSFRCa002TndPRGJtekp6a3phamdzSUlST25WZGllZjc2Z0tZalRsbUpQOVAwRmNIaXdwRGo4Z25YTkpKU090LXI4VU9NMXZKa2pObWROZGRnbnNMZEFCLUZOZW5KNXZfNlRVbHJfT1FNUU9xQ3E5dlNISHktemtlZnRURnhHT3VuSHdmYTlWS3A2dXV3?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 Naukri.com → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMijgJBVV95cUxNSm5Ha19xbUppcmR2eGdzaEtCQ3kxMlJObkJhZ3JPUU1KVXZraldCWVNCRk40VUVRYUlsS09rS2V5eTFiUzJsdWZlamR6RHJQZ0lzVmpJd2VHMkZfR2tsb3c1VDJValdBU0l4S1A5QUx4TXk5bTdqbGUtUDlSY19MYjNqbHNPQmFvZ0NKaGdQX1k3YVVaTmFVbGFUTzBBd2V6NDc4elZYcV9nM3kzdWNpbVZ2UzBFQ2pCMFRwR3ZjVFhuMUg4cTR1bEFqWXBnSGxaLU4zQ0thV09tOUxJalRjcFlNdGZEWXROXzRtVHBEQnFHdHZidlNjenNUTnNZRVdhLVlvRHJtTTJFRFNQekE?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        🏗️ Field Quality Engineer-Civil ( Solar Project) - Naukri.com
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMijgJBVV95cUxNSm5Ha19xbUppcmR2eGdzaEtCQ3kxMlJObkJhZ3JPUU1KVXZraldCWVNCRk40VUVRYUlsS09rS2V5eTFiUzJsdWZlamR6RHJQZ0lzVmpJd2VHMkZfR2tsb3c1VDJValdBU0l4S1A5QUx4TXk5bTdqbGUtUDlSY19MYjNqbHNPQmFvZ0NKaGdQX1k3YVVaTmFVbGFUTzBBd2V6NDc4elZYcV9nM3kzdWNpbVZ2UzBFQ2pCMFRwR3ZjVFhuMUg4cTR1bEFqWXBnSGxaLU4zQ0thV09tOUxJalRjcFlNdGZEWXROXzRtVHBEQnFHdHZidlNjenNUTnNZRVdhLVlvRHJtTTJFRFNQekE?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 Naukri.com → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMilAFBVV95cUxPVTJxSGdkNEoyb3FlVnZZdkY1ak9qbW90akwxWkxMSWIyZDdHM0tWeVdyTU9hdG53UEd2dGd5b3FmSkpEVjJJS2lITEJhdDJsQllJbC1iVTY0OElUQVNISERpYXVRcDhXSFo4R1EzZ3cwTjY0QzFlNUI2ako2LTFLV3diamJUVFp2TGQ1Z1YySHlFM3BT?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        🏗️ Zachariah Consultants - India hiring Civil Engineer in Bengaluru, Karnataka, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMilAFBVV95cUxPVTJxSGdkNEoyb3FlVnZZdkY1ak9qbW90akwxWkxMSWIyZDdHM0tWeVdyTU9hdG53UEd2dGd5b3FmSkpEVjJJS2lITEJhdDJsQllJbC1iVTY0OElUQVNISERpYXVRcDhXSFo4R1EzZ3cwTjY0QzFlNUI2ako2LTFLV3diamJUVFp2TGQ1Z1YySHlFM3BT?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMiXkFVX3lxTE5mc2NvNTN5RGM5dkNWUUxlaFR1cEJjZ3NUaWlWOTAyTF9LVDdkOXNjVDFBaWZvdXhUNl82MXNFN1JpNnQtUzB0WDJWQ3M3TEJpcUhsWnN2MnZxZ2R1cUE?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        🏗️ DGM, Civil & Structural Design at KALPATARU PROJECTS INTERNATIONAL LIMITED (Steel, Metal & Mining) - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMiXkFVX3lxTE5mc2NvNTN5RGM5dkNWUUxlaFR1cEJjZ3NUaWlWOTAyTF9LVDdkOXNjVDFBaWZvdXhUNl82MXNFN1JpNnQtUzB0WDJWQ3M3TEJpcUhsWnN2MnZxZ2R1cUE?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMikAFBVV95cUxPbXlDR2pUUWxNOTdNQUdFS3Y5QXIwaC02czM2X0F0NlhOTk55SEtJUTEtUVVBWGlIell1RmVycnM1QkhxZXlGci1MSVZ3MDdIQzM0OVJaUkMwcGN0WER6VU9kM3BiUFpvV3dLNUpxWEw0VmdmeHo0Y19WZU9YWHBHZVJHdW95ckhNRkxoblZWYU8?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        🏗️ Axis Energy Group hiring Civil Design Engineer in Hyderabad, Telangana, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMikAFBVV95cUxPbXlDR2pUUWxNOTdNQUdFS3Y5QXIwaC02czM2X0F0NlhOTk55SEtJUTEtUVVBWGlIell1RmVycnM1QkhxZXlGci1MSVZ3MDdIQzM0OVJaUkMwcGN0WER6VU9kM3BiUFpvV3dLNUpxWEw0VmdmeHo0Y19WZU9YWHBHZVJHdW95ckhNRkxoblZWYU8?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMiggFBVV95cUxNUTdqcjBMdkRxU1Q1a3gxLXJob3Ixdzl3RmY5M1lTLWZDX0psMXhfSWpQZ2lDMGlDVVlLN1ZPNm9zaHNJUEJ0bEJJZ01qbnQ0bXplelZLVmhxNnNUUG96ZzQ1OXNUWktMQVNwenQ2V2ttN3hrU3R6UFdiZHhFdUJtMG5n?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        🏗️ LifeWall hiring Civil Site Engineer in New Delhi, Delhi, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMiggFBVV95cUxNUTdqcjBMdkRxU1Q1a3gxLXJob3Ixdzl3RmY5M1lTLWZDX0psMXhfSWpQZ2lDMGlDVVlLN1ZPNm9zaHNJUEJ0bEJJZ01qbnQ0bXplelZLVmhxNnNUUG96ZzQ1OXNUWktMQVNwenQ2V2ttN3hrU3R6UFdiZHhFdUJtMG5n?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMitwFBVV95cUxPQ0ctRUM1S2w1VG0wVjBYVVBPT1MySEs3M1l1MmNDeW5nQkVQeXVLcGRGSG4tTVJlaER0c3ZPaTB4bnMxakM1NGFyTFNSMUxIVU9Ja094dDVmeEdib2Q5RnRXa1RJVE1RREVhQjV2YUxDYW9BS1VzcDJkaWt2RHdJNFZwX2lIUkZmSjR1c3gxZTRtS0hDQk0xek1FMjNnWnc4UUtGbjIwNWZXYnMwMDg3ZlloTmlLZ28?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        🏗️ Tata Consulting Engineers hiring Manager/Senior Manager - Civil Design - PLSCAD in Noida, Uttar Pradesh, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMitwFBVV95cUxPQ0ctRUM1S2w1VG0wVjBYVVBPT1MySEs3M1l1MmNDeW5nQkVQeXVLcGRGSG4tTVJlaER0c3ZPaTB4bnMxakM1NGFyTFNSMUxIVU9Ja094dDVmeEdib2Q5RnRXa1RJVE1RREVhQjV2YUxDYW9BS1VzcDJkaWt2RHdJNFZwX2lIUkZmSjR1c3gxZTRtS0hDQk0xek1FMjNnWnc4UUtGbjIwNWZXYnMwMDg3ZlloTmlLZ28?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+<div class="section-header software-header">💻 SOFTWARE & IT JOBS</div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMitgFBVV95cUxQUTctNS1aYkxWYVZKOTJQTS1oQ0pZS2owdDloVHFPQzk1eXB1SjZ5RFRxdUpnWkthRnhBQkNrS29RXzNTMUNxX1RnTExMSXhVbWdQTU9NYVl5SjgxMkZ5dTVYRXJ4LWFkckVheDczZ3NCNDdJMENRWVJLemRjQXNlNU83SnM3V25vZGR4NTFNNVU4V1p2cHgtcEczek40amJNcDZPNDMtU3l6TENVVXc0WnFyVXdiZw?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        💻 DevOps Engineer - Bengaluru/Bangalore - Accenture - 3 to 6 years of experience - Naukri.com
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMitgFBVV95cUxQUTctNS1aYkxWYVZKOTJQTS1oQ0pZS2owdDloVHFPQzk1eXB1SjZ5RFRxdUpnWkthRnhBQkNrS29RXzNTMUNxX1RnTExMSXhVbWdQTU9NYVl5SjgxMkZ5dTVYRXJ4LWFkckVheDczZ3NCNDdJMENRWVJLemRjQXNlNU83SnM3V25vZGR4NTFNNVU4V1p2cHgtcEczek40amJNcDZPNDMtU3l6TENVVXc0WnFyVXdiZw?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 Naukri.com → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMipAFBVV95cUxQZWdhUlloaWxhOENTWVdKQTFpTWVKX2JMMFZKeDU3YWZCcWZoUGhwRGFJYk56TGotTjB6TXpsSTdpM0FGU1dhaTkwRHZhQ2lLY1AtdlhHVTYxWTFyZGVNdWJPUi12T1lJVnVlTkxhVFNIS0M4NzhGLVhCclZ0TWpTeEdoclRFVHN6UkFXcDhjbzNiajRFOFFDMG1kRzBqSEtwbzN2bw?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        💻 DevOps Engineer L3 - Chennai - Wipro - 3 to 5 years of experience - Naukri.com
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMipAFBVV95cUxQZWdhUlloaWxhOENTWVdKQTFpTWVKX2JMMFZKeDU3YWZCcWZoUGhwRGFJYk56TGotTjB6TXpsSTdpM0FGU1dhaTkwRHZhQ2lLY1AtdlhHVTYxWTFyZGVNdWJPUi12T1lJVnVlTkxhVFNIS0M4NzhGLVhCclZ0TWpTeEdoclRFVHN6UkFXcDhjbzNiajRFOFFDMG1kRzBqSEtwbzN2bw?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 Naukri.com → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMitAFBVV95cUxOU0F6cm1zSjJoUjV5aFFOdUh6NXN6ai1QamlrTi1JMWh2akFELXVvRGhiREJ1YmFNblhmN2w3ZWhpLWswVG95TEYwZG5KczBRQ1lCR2VWLVZVQTJoZGJGUEo4c3hKQVR5azVtSnYyekZjQUU3YWlmVW9Wd0hzY2VTT0plUUpqMUJZaHA0OGxVY2gwLXlOSnF6Z2ZmSWdfSzNMUV9WazBySVlTZjVmS2xpdkZlbVM?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        💻 Java Back End Developer - Fresher - Bengaluru/Bangalore - Altimetrik - 0 to 1 years of experience - Naukri.com
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMitAFBVV95cUxOU0F6cm1zSjJoUjV5aFFOdUh6NXN6ai1QamlrTi1JMWh2akFELXVvRGhiREJ1YmFNblhmN2w3ZWhpLWswVG95TEYwZG5KczBRQ1lCR2VWLVZVQTJoZGJGUEo4c3hKQVR5azVtSnYyekZjQUU3YWlmVW9Wd0hzY2VTT0plUUpqMUJZaHA0OGxVY2gwLXlOSnF6Z2ZmSWdfSzNMUV9WazBySVlTZjVmS2xpdkZlbVM?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 Naukri.com → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMi3wFBVV95cUxQZ0Q5a1o0QThGcU5jaUlZNmtwOWpJbjA2Zk96R0VualpHSTJ1TEhzcTRQQ0VHa1Fiay11dE5kZ2F6cG1hc21LMV9pcWlCYmZNS0hiZW1lYzBiLWpHdUpCT2tKM21CUkgzRmVDWkJTcG13cEpINzNISmgtZGFtMGNaWkxmSFlaVXMtdTFCS2FnajdVQUNzbW5yNnU0d2VTYTU2eWNpQUJxRUhXRzZpZUdNUTA3MjZRQjNVZUk1VlZQU0lTYjd1LU9LdTJaR3hqdGZhdTVfYlF2NXVUbE8zaXpB?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        💻 Graduate Engineer Trainee (Software) - Naukri.com
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMi3wFBVV95cUxQZ0Q5a1o0QThGcU5jaUlZNmtwOWpJbjA2Zk96R0VualpHSTJ1TEhzcTRQQ0VHa1Fiay11dE5kZ2F6cG1hc21LMV9pcWlCYmZNS0hiZW1lYzBiLWpHdUpCT2tKM21CUkgzRmVDWkJTcG13cEpINzNISmgtZGFtMGNaWkxmSFlaVXMtdTFCS2FnajdVQUNzbW5yNnU0d2VTYTU2eWNpQUJxRUhXRzZpZUdNUTA3MjZRQjNVZUk1VlZQU0lTYjd1LU9LdTJaR3hqdGZhdTVfYlF2NXVUbE8zaXpB?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 Naukri.com → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMizgFBVV95cUxPVXp3eTNaVzN1c29DUjdiR2RMR0UyX2xLV1ZsektCWlVtN05QUVl6N3FvaU1YMGd3YmtXcXNMSHhOMWk3Mm1QdTZKZl9vOHZHYW85d2VHVUxEWmpuSmx0b3prOEdoZUhiQzJkazBaQ0JqNHN6VGJvSzA1cDZpLVpocTNwR1Niejl5VmowOGxBTlNBRUo5cG82NzVya2xEOG9sUWdIVmpCUlNjMkxCZmt2MENPbHJtbFBVby0zbV9TS2Vqa2dXcEJBOGZNQlRQUQ?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        💻 Senior Java Full Stack Developer - Chennai - Tata Consultancy Services - 5 to 10 years of experience - Naukri.com
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMizgFBVV95cUxPVXp3eTNaVzN1c29DUjdiR2RMR0UyX2xLV1ZsektCWlVtN05QUVl6N3FvaU1YMGd3YmtXcXNMSHhOMWk3Mm1QdTZKZl9vOHZHYW85d2VHVUxEWmpuSmx0b3prOEdoZUhiQzJkazBaQ0JqNHN6VGJvSzA1cDZpLVpocTNwR1Niejl5VmowOGxBTlNBRUo5cG82NzVya2xEOG9sUWdIVmpCUlNjMkxCZmt2MENPbHJtbFBVby0zbV9TS2Vqa2dXcEJBOGZNQlRQUQ?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 Naukri.com → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMilgFBVV95cUxQOERzNDhQcC1HbXY3UmZ4bzlVSVBieHhldkRDdHdSbDZwdGpjd2RpWEZLQzdfaFBGdkxjZzBlWHFfbW9acUl3TjV4YUZwb181NHFIMzF4RGRYYkhudVFJNFdpblNSMjNjRHRwNDlYTE5qeWRYTWtBSXZVSU1NaTdvbTUxVjJpb25pQ1FQQWU2QzhUeC1KNmc?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        💻 HackerRank hiring Senior Technical Product Manager in Bengaluru East, Karnataka, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMilgFBVV95cUxQOERzNDhQcC1HbXY3UmZ4bzlVSVBieHhldkRDdHdSbDZwdGpjd2RpWEZLQzdfaFBGdkxjZzBlWHFfbW9acUl3TjV4YUZwb181NHFIMzF4RGRYYkhudVFJNFdpblNSMjNjRHRwNDlYTE5qeWRYTWtBSXZVSU1NaTdvbTUxVjJpb25pQ1FQQWU2QzhUeC1KNmc?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMikgFBVV95cUxQeldMcjI4Rk1kaTM1dzF6eW1Da3g5RFNqSjhYM0dyVURwdmtPMUxIdGotUDYyMkZPUUp3TUxCbmZDRkdsWGlscWV5NllDb2JqdURqbFRqOGFUcWc0d3Z3d0dkaFd6U2NleW8zZi1uWm1QMW04WDNqYUp2REp3RURoRFpWTEcxM2VNRk51MDVXUUhUdw?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        💻 Infosys hiring Sr Consultant- Data Science & GenAI in Bengaluru East, Karnataka, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMikgFBVV95cUxQeldMcjI4Rk1kaTM1dzF6eW1Da3g5RFNqSjhYM0dyVURwdmtPMUxIdGotUDYyMkZPUUp3TUxCbmZDRkdsWGlscWV5NllDb2JqdURqbFRqOGFUcWc0d3Z3d0dkaFd6U2NleW8zZi1uWm1QMW04WDNqYUp2REp3RURoRFpWTEcxM2VNRk51MDVXUUhUdw?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tech-card">
+                <div class="tech-content-inner">
+                    <a href="https://news.google.com/articles/CBMiqwFBVV95cUxPaFdqUGJaWmJhLUlpWkNxRFdDdm5CbFRxTEdRMjcyX0xNS1JOVzhvM0NYZ1dMdGlZcWtlaG1YR3NqT2pqYklrLTE3S0d3aXFmQkxRU0RmeW8zRVpVbTN2NzJrQkRid1ZNS2RRQ2pxV216WElZejRkLTVyd1k5Zk5DcV9nNnluRHNkWUdyaVRNY0pObmM1MENlYWsxOWFQUDB5b2RqVmhMWXQza3c?hl=en-IN&gl=IN&ceid=IN:en" class="tech-headline" target="_blank">
+                        💻 Drevol hiring Cloud & Infrastructure Engineer (Azure / Intune / Terraform) in Vadodara, Gujarat, India - LinkedIn India
+                    </a>
+                    <div class="tech-source">
+                        <a href="https://news.google.com/articles/CBMiqwFBVV95cUxPaFdqUGJaWmJhLUlpWkNxRFdDdm5CbFRxTEdRMjcyX0xNS1JOVzhvM0NYZ1dMdGlZcWtlaG1YR3NqT2pqYklrLTE3S0d3aXFmQkxRU0RmeW8zRVpVbTN2NzJrQkRid1ZNS2RRQ2pxV216WElZejRkLTVyd1k5Zk5DcV9nNnluRHNkWUdyaVRNY0pObmM1MENlYWsxOWFQUDB5b2RqVmhMWXQza3c?hl=en-IN&gl=IN&ceid=IN:en" target="_blank">
+                            📍 LinkedIn → Apply Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            </div>
+        </div>
+       
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const links = document.querySelectorAll('a[href^="http"]');
+                links.forEach(link => {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                });
+            });
+        </script>
+    </body>
+    </html>
+    

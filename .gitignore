@@ -13,4 +13,6 @@ output_pdfs/
 # Local database files
 
 chroma_db/
+newsletters.db
+*.db
 

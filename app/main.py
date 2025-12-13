@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse,JSONResponse,Redir
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import platform
+from datetime import datetime, timezone   # ← ADD THIS LINE
 import subprocess
 import uuid
 import os
@@ -190,6 +191,7 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
+
 ##### ehuggingface
 
 
@@ -260,6 +262,27 @@ AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
 USE_S3 = all([BUCKET_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY])
 CORRECT_PASSWORD_HASH = os.getenv("CORRECT_PASSWORD_HASH")
 CLEANUP_DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
+
+#### for lambda schedule newsletter
+
+# Add these environment variables (add to your .env file too)
+LAMBDA_FUNCTION_NAME = os.getenv("NEWSLETTER_LAMBDA_NAME", "newsletter-generator")
+AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
+
+# Initialize Lambda client (add after S3 client initialization)
+lambda_client = None
+try:
+    lambda_client = boto3.client(
+        "lambda",
+        region_name=AWS_REGION,
+        aws_access_key_id=AWS_ACCESS_KEY,
+        aws_secret_access_key=AWS_SECRET_KEY
+    )
+    logger.info("Lambda client initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize Lambda client: {str(e)}")
+    lambda_client = None
+#### for lambda schedule newsletter
 
 s3_client = boto3.client(
     "s3",
@@ -1429,6 +1452,677 @@ async def serve_index():
     index_path = os.path.join(static_dir, "index.html")
     with open(index_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+    
+# @app.on_event("shutdown")
+# async def shutdown_cleanup():
+#     await close_gemini_session()  # ← Closes Gemini's hidden session
+
+
+
+####################  news letter
+
+from app.newsletter import generate_dynamic_newsletter, EnhancedNewsSearcher
+
+@app.post("/generate-newsletter")
+async def generate_newsletter(
+    topic: str = Form(...),
+    publish_date: str = Form(None),
+    keywords: str = Form(""),
+    style: str = Form("professional")
+):
+    """Generate newsletter and return redirect URL"""
+    try:
+        # Get topic key
+        topic_key = topic.lower().replace(" ", "_")
+        
+        # Set default date
+        if not publish_date:
+            publish_date = datetime.now().date().isoformat()
+        
+        # Generate newsletter
+        async with EnhancedNewsSearcher() as searcher:
+            result_json = await generate_dynamic_newsletter(
+                topic=topic,
+                publish_date=publish_date,
+                keywords=[k.strip() for k in keywords.split(",") if k.strip()],
+                style=style,
+                news_searcher_instance=searcher
+            )
+        
+        data = json.loads(result_json)
+        
+        if "error" in data:
+            return JSONResponse(
+                content={"error": data["error"]},
+                status_code=500
+            )
+        
+        # Save newsletter
+        from app.newsletter_manager import NewsletterManager
+        manager = NewsletterManager()
+        
+        newsletter_data = {
+            'topic': topic_key,
+            'title': f"{topic_key.replace('_', ' ').title()} Daily - {publish_date}",
+            'html_content': data['html'],
+            'publish_date': publish_date,
+            'metadata': data['metadata']
+        }
+        
+        newsletter_id = manager.db.save_newsletter(newsletter_data)
+        manager.save_html_file(topic_key, publish_date, data['html'])
+        
+        # ✅ Return SIMPLE JSON with redirect URL
+        return {
+            "success": True,
+            "redirect": f"/view-newsletter/{topic_key}?id={newsletter_id}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500
+        )
+
+#################### REAL-TIME NEWSLETTER ENGINE (COPY THIS ENTIRE BLOCK) ####################
+
+
+@app.get("/newsletter", response_class=HTMLResponse)
+async def serve_newsletter_page():
+    """Serve the newsletter generator page"""
+    newsletter_path = os.path.join(static_dir, "newsletter.html")
+    with open(newsletter_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
+
+
+
+# main.py - Add these endpoints
+from app.newsletter_manager import NewsletterManager
+from datetime import datetime, timedelta
+
+newsletter_manager = NewsletterManager()
+
+@app.get("/api/newsletter/{topic}")
+async def get_newsletter(
+    topic: str,
+    date: str = None,
+    force_new: bool = False
+):
+    """Get newsletter for a topic - FIXED VERSION"""
+    valid_topics = ["technology", "sports", "india_power_projects", "hiring_jobs"]
+    
+    if topic not in valid_topics:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "error": "Invalid topic"}
+        )
+    
+    try:
+        if force_new:
+            newsletter = newsletter_manager.generate_daily_newsletter(topic, force_new=True)
+        else:
+            newsletter = newsletter_manager.get_newsletter_view(topic, date)
+        
+        if not newsletter:
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "error": "Newsletter not found"}
+            )
+        
+        return JSONResponse(content={
+            "success": True,
+            "newsletter": newsletter
+        })
+    except Exception as e:
+        logger.error(f"Newsletter error: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+    
+
+@app.get("/api/newsletter/{topic}/history")
+async def get_newsletter_history(
+    topic: str,
+    limit: int = 7
+):
+    """Get newsletter history for a topic"""
+    try:
+        newsletters = newsletter_manager.get_topic_newsletters(topic, limit)
+        
+        return JSONResponse(content={
+            "success": True,
+            "topic": topic,
+            "newsletters": newsletters,
+            "count": len(newsletters)
+        })
+    except Exception as e:
+        logger.error(f"Error getting newsletter history: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+@app.post("/api/newsletter/{topic}/generate")
+async def generate_newsletter(
+    topic: str,
+    background_tasks: BackgroundTasks
+):
+    """Generate newsletter (async)"""
+    def generate_task():
+        newsletter_manager.generate_daily_newsletter(topic, force_new=True)
+    
+    background_tasks.add_task(generate_task)
+    
+    return JSONResponse(content={
+        "success": True,
+        "message": f"Newsletter generation started for {topic}",
+        "estimated_time": "1-2 minutes"
+    })
+# In your main.py, update the status endpoint:
+
+@app.get("/api/newsletter/status/{topic}")
+async def get_newsletter_status(topic: str):
+    """Get newsletter generation status - FIXED VERSION"""
+    try:
+        today = datetime.now().date().isoformat()
+        newsletter = newsletter_manager.get_newsletter_view(topic)
+        
+        return JSONResponse(content={
+            "success": True,
+            "topic": topic,
+            "has_todays_newsletter": newsletter is not None and newsletter.get('publish_date') == today,
+            "newsletter_exists": newsletter is not None,
+            "last_updated": newsletter.get('publish_date') if newsletter else "Never generated",
+            "title": newsletter.get('title') if newsletter else None
+        })
+    except Exception as e:
+        logger.error(f"Error getting newsletter status: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False, 
+                "error": str(e),
+                "last_updated": "Error loading"
+            }
+        )
+# #############
+
+@app.get("/newsletter-dashboard")
+async def newsletter_dashboard():
+    """Serve newsletter dashboard page"""
+    dashboard_path = os.path.join(static_dir, "newsletter_dashboard.html")
+    with open(dashboard_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+newsletter_manager = NewsletterManager()
+
+@app.get("/api/newsletter/history/all")
+async def get_all_newsletters_history(limit: int = 20):
+    """Get all newsletters across all topics - FIXED VERSION"""
+    try:
+        newsletters = newsletter_manager.get_all_newsletters(limit)
+        
+        # Ensure each newsletter has required fields
+        for newsletter in newsletters:
+            if 'metadata' not in newsletter:
+                newsletter['metadata'] = {}
+            if 'topic' not in newsletter:
+                newsletter['topic'] = 'unknown'
+            if 'publish_date' not in newsletter:
+                newsletter['publish_date'] = 'unknown'
+        
+        return JSONResponse(content={
+            "success": True,
+            "newsletters": newsletters,
+            "count": len(newsletters)
+        })
+    except Exception as e:
+        logger.error(f"Error in get_all_newsletters_history: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+
+from fastapi.responses import HTMLResponse, FileResponse
+
+@app.get("/view-newsletter/{topic}")
+async def view_newsletter_html(topic: str, date: str = None):
+    """View a saved newsletter as a complete HTML page"""
+    from app.newsletter_manager import NewsletterManager
+    from datetime import datetime
+    
+    manager = NewsletterManager()
+    
+    if not date:
+        date = datetime.now().date().isoformat()
+    
+    try:
+        # Get newsletter from database
+        newsletter = manager.db.get_active_newsletter(topic)
+        
+        # If not found in DB, try to load from file
+        if not newsletter:
+            file_path = manager.get_file_path(topic, date)
+            if file_path.exists():
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+                
+                newsletter = {
+                    'topic': topic,
+                    'title': f"{topic.replace('_', ' ').title()} - {date}",
+                    'html_content': html_content,
+                    'publish_date': date,
+                    'metadata': {
+                        'topic': topic,
+                        'publish_date': date,
+                        'sources_used': 35,
+                        'word_count': len(html_content.split()),
+                        'estimated_read_time': len(html_content.split()) // 200
+                    }
+                }
+            else:
+                # If not found, return error
+                return HTMLResponse(content=f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head><title>Newsletter Not Found</title></head>
+                    <body style="font-family: Arial; padding: 40px; text-align: center;">
+                        <h1>📰 Newsletter Not Found</h1>
+                        <p>No newsletter found for topic: <strong>{topic}</strong> on date: <strong>{date}</strong></p>
+                        <p><a href="/newsletter">Generate a new newsletter</a></p>
+                        <p><a href="/">← Back to Home</a></p>
+                    </body>
+                    </html>
+                """)
+        
+        # Create a complete HTML page with the newsletter
+        html_template = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>{newsletter['title']}</title>
+            <style>
+                body {{
+                    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    background: #f5f5f7;
+                }}
+                .container {{
+                    max-width: 1000px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 24px;
+                    overflow: hidden;
+                    box-shadow: 0 25px 50px rgba(0,0,0,0.1);
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #667eea, #764ba2);
+                    color: white;
+                    padding: 40px;
+                    text-align: center;
+                }}
+                .content {{
+                    padding: 40px;
+                }}
+                .back-btn {{
+                    display: inline-block;
+                    background: #2563eb;
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    text-decoration: none;
+                    margin-bottom: 20px;
+                }}
+                .back-btn:hover {{
+                    background: #1d4ed8;
+                }}
+                .metadata {{
+                    background: #f8fafc;
+                    padding: 20px;
+                    border-radius: 12px;
+                    margin-bottom: 30px;
+                    border-left: 4px solid #3b82f6;
+                }}
+                .stats-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 15px;
+                    margin-top: 10px;
+                }}
+                .stat-box {{
+                    background: white;
+                    padding: 15px;
+                    border-radius: 8px;
+                    border: 1px solid #e5e7eb;
+                }}
+                .stat-value {{
+                    font-size: 1.5rem;
+                    font-weight: bold;
+                    color: #1f2937;
+                }}
+                .stat-label {{
+                    font-size: 0.9rem;
+                    color: #6b7280;
+                }}
+                @media (max-width: 768px) {{
+                    .content {{
+                        padding: 20px;
+                    }}
+                    .header {{
+                        padding: 30px 20px;
+                    }}
+                }}
+            </style>
+            <!-- Include your existing newsletter CSS -->
+            <link rel="stylesheet" href="/static/css/tailwind.min.css">
+            <link rel="stylesheet" href="/static/css/all.min.css">
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="font-size: 2.5rem; margin: 0 0 10px 0;">{newsletter['title']}</h1>
+                    <p style="font-size: 1.1rem; opacity: 0.9; margin: 0;">
+                        Published: {newsletter['publish_date']} • 
+                        {newsletter['metadata'].get('sources_used', 35)} Sources • 
+                        {newsletter['metadata'].get('estimated_read_time', 5)} min read
+                    </p>
+                </div>
+                
+                <div class="content">
+                    <a href="/" class="back-btn">
+                        <i class="fas fa-arrow-left mr-2"></i>HomePage
+                    </a>
+                    
+                    <div class="metadata">
+                        <h3 style="margin-top: 0; color: #1f2937;">📊 Newsletter Statistics</h3>
+                        <div class="stats-grid">
+                            <div class="stat-box">
+                                <div class="stat-value">{newsletter['metadata'].get('sources_used', 35)}</div>
+                                <div class="stat-label">Sources Used</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-value">{newsletter['metadata'].get('word_count', 0)}</div>
+                                <div class="stat-label">Total Words</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-value">{newsletter['metadata'].get('estimated_read_time', 5)} min</div>
+                                <div class="stat-label">Reading Time</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-value">{newsletter['publish_date']}</div>
+                                <div class="stat-label">Published Date</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- The actual newsletter content -->
+                    <div id="newsletter-content">{newsletter['html_content']}</div>
+                    
+                    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                        <p style="color: #6b7280; font-size: 0.9rem;">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            This newsletter was automatically generated and saved on {datetime.now().strftime('%Y-%m-%d %H:%M')}
+                        </p>
+                        <div style="margin-top: 15px;">
+                            <button onclick="window.print()" style="background: #6b7280; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-right: 10px;">
+                                <i class="fas fa-print mr-2"></i>Print
+                            </button>
+                            <button id="downloadBtn" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                                <i class="fas fa-download mr-2"></i>Download
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+                // Wait for DOM to be fully loaded
+                document.addEventListener('DOMContentLoaded', function() {{
+                    // Make all external links open in new tab
+                    const links = document.querySelectorAll('a[href^="http"]');
+                    links.forEach(link => {{
+                        link.setAttribute('target', '_blank');
+                        link.setAttribute('rel', 'noopener noreferrer');
+                    }});
+                    
+                    // Add download button event listener
+                    document.getElementById('downloadBtn').addEventListener('click', downloadNewsletter);
+                }});
+                
+                function downloadNewsletter() {{
+                    try {{
+                        // Get the newsletter content
+                        const content = document.getElementById('newsletter-content').innerHTML;
+                        const title = "{newsletter['title']}";
+                        const publishDate = "{newsletter['publish_date']}";
+                        const sourcesUsed = "{newsletter['metadata'].get('sources_used', 35)}";
+                        const wordCount = "{newsletter['metadata'].get('word_count', 0)}";
+                        const readTime = "{newsletter['metadata'].get('estimated_read_time', 5)}";
+                        
+                        // Create HTML template for download
+                        const htmlTemplate = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <title>${{title}}</title>
+                            <style>
+                                body {{ 
+                                    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+                                    margin: 0;
+                                    padding: 20px;
+                                    background: #f5f5f7;
+                                }}
+                                .container {{ 
+                                    max-width: 1000px;
+                                    margin: 0 auto;
+                                    background: white;
+                                    border-radius: 24px;
+                                    overflow: hidden;
+                                    box-shadow: 0 25px 50px rgba(0,0,0,0.1);
+                                    padding: 40px;
+                                }}
+                                .header {{ 
+                                    background: linear-gradient(135deg, #667eea, #764ba2);
+                                    color: white;
+                                    padding: 40px;
+                                    text-align: center;
+                                    border-radius: 24px 24px 0 0;
+                                    margin: -40px -40px 20px -40px;
+                                }}
+                                .metadata {{ 
+                                    background: #f8fafc;
+                                    padding: 20px;
+                                    border-radius: 12px;
+                                    margin-bottom: 30px;
+                                    border-left: 4px solid #3b82f6;
+                                }}
+                                .footer {{ 
+                                    margin-top: 40px;
+                                    padding-top: 20px;
+                                    border-top: 1px solid #e5e7eb;
+                                    text-align: center;
+                                    color: #6b7280;
+                                    font-size: 0.9rem;
+                                }}
+                            </style>
+                        </head>
+                        <body>
+                            <div class="container">
+                                <div class="header">
+                                    <h1>${{title}}</h1>
+                                    <p>Published: ${{publishDate}} • Downloaded on ${{new Date().toLocaleDateString()}}</p>
+                                </div>
+                                
+                                <div class="metadata">
+                                    <h3>📊 Newsletter Statistics</h3>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px;">
+                                        <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                                            <div style="font-size: 1.5rem; font-weight: bold; color: #1f2937;">${{sourcesUsed}}</div>
+                                            <div style="font-size: 0.9rem; color: #6b7280;">Sources Used</div>
+                                        </div>
+                                        <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                                            <div style="font-size: 1.5rem; font-weight: bold; color: #1f2937;">${{wordCount}}</div>
+                                            <div style="font-size: 0.9rem; color: #6b7280;">Total Words</div>
+                                        </div>
+                                        <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                                            <div style="font-size: 1.5rem; font-weight: bold; color: #1f2937;">${{readTime}} min</div>
+                                            <div style="font-size: 0.9rem; color: #6b7280;">Reading Time</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                ${{content}}
+                                
+                                <div class="footer">
+                                    <p>This newsletter was automatically generated by SmartFix PDF Engine</p>
+                                </div>
+                            </div>
+                        </body>
+                        </html>`;
+                                                
+                        const blob = new Blob([htmlTemplate], {{ type: 'text/html' }});
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${{title.replace(/\\s+/g, '_')}}.html`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        
+                        alert('Newsletter downloaded successfully!');
+                    }} catch (error) {{
+                        console.error('Download error:', error);
+                        alert('Failed to download newsletter. Please try again.');
+                    }}
+                }}
+            </script>
+        </body>
+        </html>
+        """
+        
+        return HTMLResponse(content=html_template)
+        
+    except Exception as e:
+        logger.error(f"Error viewing newsletter: {str(e)}")
+        return HTMLResponse(content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head><title>Error</title></head>
+            <body style="font-family: Arial; padding: 40px; text-align: center;">
+                <h1 style="color: #dc2626;">⚠️ Error Loading Newsletter</h1>
+                <p>Error: {str(e)}</p>
+                <p><a href="/newsletter-dashboard">Go to Dashboard</a> | <a href="/">Home</a></p>
+            </body>
+            </html>
+        """)
+    
+
+## lambda newsletter
+@app.post("/api/newsletter/trigger-lambda")
+async def trigger_newsletter_lambda(request: Request):
+    """Trigger newsletter generation via Lambda"""
+    check_auth(request)
+    
+    try:
+        # Invoke Lambda function
+        response = lambda_client.invoke(
+            FunctionName=LAMBDA_FUNCTION_NAME,
+            InvocationType='Event',  # Asynchronous execution
+            Payload=json.dumps({})  # Empty payload
+        )
+        
+        return JSONResponse(content={
+            "success": True,
+            "message": "Newsletter generation triggered via Lambda",
+            "request_id": response.get('ResponseMetadata', {}).get('RequestId'),
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Lambda invocation error: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+@app.get("/api/newsletter/lambda-status")
+async def get_lambda_status(request: Request):
+    """Get Lambda function status"""
+    check_auth(request)
+    
+    try:
+        # Get Lambda function configuration
+        response = lambda_client.get_function_configuration(
+            FunctionName=LAMBDA_FUNCTION_NAME
+        )
+        
+        # Get last few invocations from CloudWatch Logs
+        logs_client = boto3.client('logs', region_name=AWS_REGION)
+        
+        # Get CloudWatch log group name
+        log_group_name = f"/aws/lambda/{LAMBDA_FUNCTION_NAME}"
+        
+        # Query recent logs
+        query = "fields @timestamp, @message | sort @timestamp desc | limit 20"
+        
+        try:
+            start_query_response = logs_client.start_query(
+                logGroupName=log_group_name,
+                startTime=int((datetime.now() - timedelta(days=7)).timestamp()),
+                endTime=int(datetime.now().timestamp()),
+                queryString=query,
+            )
+            
+            query_id = start_query_response['queryId']
+            
+            # Wait for query to complete
+            time.sleep(1)
+            
+            query_results = logs_client.get_query_results(queryId=query_id)
+            recent_logs = []
+            
+            for result in query_results.get('results', []):
+                log_entry = {}
+                for field in result:
+                    log_entry[field['field']] = field['value']
+                recent_logs.append(log_entry)
+                
+        except Exception as log_error:
+            logger.warning(f"Could not fetch logs: {log_error}")
+            recent_logs = []
+        
+        return JSONResponse(content={
+            "success": True,
+            "function_name": response['FunctionName'],
+            "last_modified": response['LastModified'],
+            "state": response.get('State', 'Active'),
+            "runtime": response['Runtime'],
+            "memory_size": response['MemorySize'],
+            "timeout": response['Timeout'],
+            "recent_logs": recent_logs[:5]  # Last 5 logs
+        })
+        
+    except lambda_client.exceptions.ResourceNotFoundException:
+        return JSONResponse(
+            status_code=404,
+            content={"success": False, "error": "Lambda function not found"}
+        )
+    except Exception as e:
+        logger.error(f"Error getting Lambda status: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
 
 
 #######################################   login
@@ -2583,7 +3277,7 @@ def cleanup_local_files():
             except Exception as e:
                 logger.error(f"Failed to delete local file {file_path}: {str(e)}")
 
-import os, hashlib, logging
+
 
 def upload_to_s3(file_content: bytes, filename: str) -> str:
     """Upload file content to S3 and return the S3 key."""
@@ -3217,7 +3911,7 @@ async def get_progress_status(task_id: str):
     return JSONResponse(content=progress_data)
 
 
-import subprocess
+
 import platform
 
 @app.post("/stop_operations")

@@ -977,3 +977,71 @@ progress::-moz-progress-bar {
 .bg-white.rounded-xl.tool-card {
     padding: 0 !important;
 }
+
+/*  news letter */
+
+
+
+/* FIXED DROPDOWN STYLES - Add this to your styles.css */
+
+/* Keep this section as is - DO NOT MODIFY IT */
+
+
+/* FIXED DROPDOWN STYLES */
+.dropdown .dropdown-content {
+    position: absolute;
+    top: 100%;
+    left: -100px;
+    min-width: 400px;
+    max-width: 550px;
+    z-index: 10;
+    background-color: white;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border-radius: 0.375rem;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+    display: block !important; /* Force block display */
+}
+
+/* Newsletter dropdown */
+.dropdown.group .dropdown-content {
+    left: 0;
+    width: 56rem; /* w-56 = 14rem = 224px */
+}
+
+/* Show on hover - this is the key fix */
+.dropdown:hover .dropdown-content,
+.dropdown.group:hover .dropdown-content {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+    .dropdown-content {
+        position: static !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: none !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        left: 0 !important;
+        margin: 10px 0;
+        box-shadow: none;
+        border: 1px solid #e5e7eb;
+        display: none !important; /* Hide by default on mobile */
+    }
+    
+    .dropdown.group .dropdown-content {
+        width: 100% !important;
+    }
+    
+    /* Show dropdown when mobile menu is open */
+    #mobile-menu .dropdown-content {
+        display: block !important;
+    }
+}
+

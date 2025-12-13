@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newsletter Generator | RecallMind</title>
+    
+    <!-- Load Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        /* ===== CSS VARIABLES ===== */
+        :root {
+            /* Primary Colors */
+            --primary-color: #2563eb;
+            --primary-light: #3b82f6;
+            --primary-dark: #1d4ed8;
+            
+            /* Background Colors */
+            --bg-primary: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-sidebar: #ffffff;
+            
+            /* Text Colors */
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --text-light: #9ca3af;
+            
+            /* Border & Shadow */
+            --border-color: #e5e7eb;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            
+            /* Spacing */
+            --space-xs: 0.5rem;
+            --space-sm: 1rem;
+            --space-md: 1.5rem;
+            --space-lg: 2rem;
+            --space-xl: 3rem;
+            
+            /* Border Radius */
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+            
+            /* Transition */
+            --transition-fast: 150ms ease;
+            --transition-base: 300ms ease;
+            --transition-slow: 500ms ease;
+        }
+
+        /* ===== CSS RESET & BASE STYLES ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ===== UTILITY CLASSES ===== */
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 var(--space-md);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* ===== LAYOUT COMPONENTS ===== */
+        .app-header {
+            text-align: center;
+            padding: var(--space-xl) 0 var(--space-lg);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+            margin-bottom: var(--space-xl);
+        }
+
+        .app-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: var(--space-xs);
+        }
+
+        .app-header p {
+            font-size: 1.125rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Main Grid Layout */
+        .app-main {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: var(--space-lg);
+            margin-bottom: var(--space-xl);
+            align-items: start;
+        }
+
+        /* ===== FORM COMPONENTS ===== */
+        .form-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            box-shadow: var(--shadow-lg);
+            position: sticky;
+            top: var(--space-lg);
+            border: 1px solid var(--border-color);
+        }
+
+        .form-group {
+            margin-bottom: var(--space-md);
+        }
+
+        .form-label {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-xs);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-label i {
+            color: var(--primary-color);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 0.9375rem;
+            transition: all var(--transition-fast);
+            background: white;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-control:disabled {
+            background-color: #f9fafb;
+            cursor: not-allowed;
+        }
+
+        .form-control::placeholder {
+            color: var(--text-light);
+        }
+
+        /* Button Styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-xs);
+            padding: 0.875rem 1.5rem;
+            border: none;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 0.9375rem;
+            cursor: pointer;
+            transition: all var(--transition-base);
+            text-decoration: none;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+            width: 100%;
+            padding: 1rem;
+            font-size: 1rem;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            background: var(--text-light);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        /* ===== OUTPUT PANEL ===== */
+        .output-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            box-shadow: var(--shadow-lg);
+            min-height: 600px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: #f3f4f6;
+            border-radius: var(--radius-md);
+            padding: 0.25rem;
+            margin-bottom: var(--space-lg);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            border-radius: calc(var(--radius-md) - 0.25rem);
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all var(--transition-base);
+            font-size: 0.875rem;
+        }
+
+        .tab:hover {
+            color: var(--primary-color);
+        }
+
+        .tab.active {
+            background: white;
+            color: var(--primary-color);
+            font-weight: 600;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Tab Content */
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+            animation: fadeIn var(--transition-base);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Preview Area */
+        .preview-area {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background: white;
+            overflow: hidden;
+            min-height: 500px;
+        }
+
+        .preview-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-xl);
+            text-align: center;
+            color: var(--text-light);
+            height: 100%;
+        }
+
+        .preview-placeholder i {
+            font-size: 4rem;
+            margin-bottom: var(--space-md);
+            opacity: 0.3;
+        }
+
+        .preview-placeholder p {
+            font-size: 1.125rem;
+            max-width: 400px;
+            line-height: 1.6;
+        }
+
+        /* Iframe Container */
+        .iframe-container {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            overflow: hidden;
+            border-radius: var(--radius-md);
+        }
+
+        .newsletter-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: var(--space-sm);
+            margin-top: var(--space-lg);
+            padding: var(--space-md);
+            background: #f9fafb;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: var(--space-sm);
+        }
+
+        .stat-number {
+            display: block;
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Code Display */
+        .code-display {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: var(--space-md);
+            border-radius: var(--radius-md);
+            overflow: auto;
+            max-height: 500px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.8125rem;
+            line-height: 1.5;
+        }
+
+        .code-display pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* ===== LOADING STATE ===== */
+        .loading-state {
+            display: none;
+            text-align: center;
+            padding: var(--space-xl);
+            background: #f9fafb;
+            border-radius: var(--radius-md);
+            margin-top: var(--space-md);
+            border: 1px solid var(--border-color);
+        }
+
+        .loading-state.active {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 3px solid #f3f4f6;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: var(--space-md);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ===== ERROR STATE ===== */
+        .error-state {
+            text-align: center;
+            padding: var(--space-xl);
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: var(--radius-md);
+            color: #dc2626;
+        }
+
+        .error-state i {
+            font-size: 3rem;
+            margin-bottom: var(--space-md);
+            opacity: 0.7;
+        }
+
+        .error-state h3 {
+            font-size: 1.25rem;
+            margin-bottom: var(--space-xs);
+        }
+
+        .error-state p {
+            color: #6b7280;
+            margin-bottom: var(--space-md);
+        }
+
+        /* ===== NOTIFICATION SYSTEM ===== */
+        .notification {
+            position: fixed;
+            top: var(--space-lg);
+            right: var(--space-lg);
+            padding: 1rem 1.5rem;
+            border-radius: var(--radius-md);
+            background: white;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            transform: translateX(120%);
+            transition: transform var(--transition-base);
+            border-left: 4px solid;
+            min-width: 300px;
+            max-width: 400px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            border-left-color: #10b981;
+        }
+
+        .notification.error {
+            border-left-color: #ef4444;
+        }
+
+        .notification.info {
+            border-left-color: #3b82f6;
+        }
+
+        .notification-icon {
+            font-size: 1.25rem;
+        }
+
+        .notification.success .notification-icon {
+            color: #10b981;
+        }
+
+        .notification.error .notification-icon {
+            color: #ef4444;
+        }
+
+        .notification.info .notification-icon {
+            color: #3b82f6;
+        }
+
+        .notification-content {
+            flex: 1;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 0.125rem;
+        }
+
+        .notification-message {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+        }
+
+        .notification-close {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0.25rem;
+            line-height: 1;
+        }
+
+        .notification-close:hover {
+            color: var(--text-primary);
+        }
+
+        /* ===== RESPONSIVE DESIGN ===== */
+        @media (max-width: 1024px) {
+            .app-main {
+                grid-template-columns: 300px 1fr;
+                gap: var(--space-md);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-header {
+                padding: var(--space-lg) var(--space-md);
+                margin-bottom: var(--space-lg);
+                border-radius: 0;
+            }
+
+            .app-header h1 {
+                font-size: 2rem;
+            }
+
+            .app-header p {
+                font-size: 1rem;
+            }
+
+            .app-main {
+                grid-template-columns: 1fr;
+                gap: var(--space-lg);
+            }
+
+            .form-card {
+                position: static;
+            }
+
+            .preview-area,
+            .iframe-container {
+                height: 400px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 0 var(--space-sm);
+            }
+
+            .app-header h1 {
+                font-size: 1.75rem;
+            }
+
+            .form-card,
+            .output-card {
+                padding: var(--space-md);
+            }
+
+            .tabs {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+
+            .tab {
+                text-align: left;
+            }
+
+            .preview-area,
+            .iframe-container {
+                height: 350px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: var(--space-xs);
+            }
+
+            .notification {
+                left: var(--space-sm);
+                right: var(--space-sm);
+                max-width: none;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .app-header {
+                padding: var(--space-md);
+            }
+
+            .app-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .preview-area,
+            .iframe-container {
+                height: 300px;
+            }
+        }
+
+        /* ===== PRINT STYLES ===== */
+        @media print {
+            .form-card,
+            .tabs,
+            .btn {
+                display: none !important;
+            }
+
+            .output-card {
+                box-shadow: none;
+                border: none;
+                padding: 0;
+            }
+
+            .iframe-container {
+                height: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Notification Container -->
+    <div id="notificationContainer"></div>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="container">
+            <h1><i class="fas fa-newspaper"></i> AI Newsletter Generator</h1>
+            <p>Create professional newsletters with real-time content and beautiful designs</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <div class="app-main">
+            <!-- Controls Panel -->
+            <aside class="form-card">
+                <div class="form-group">
+                    <label for="topic" class="form-label">
+                        <i class="fas fa-tag"></i> Topic *
+                    </label>
+                    <select id="topic" class="form-control" required>
+                        <option value="">Select a topic</option>
+                        <option value="technology">🚀 Technology</option>
+                        <option value="sports">⚡ Sports</option>
+                        <option value="india_power_projects">🌱 India Power Projects</option>
+                        <option value="hiring_jobs">💼 Hiring & Jobs</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="publishDate" class="form-label">
+                        <i class="fas fa-calendar"></i> Publish Date
+                    </label>
+                    <input type="date" id="publishDate" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label for="keywords" class="form-label">
+                        <i class="fas fa-key"></i> Keywords
+                    </label>
+                    <textarea id="keywords" class="form-control" 
+                              placeholder="Enter relevant keywords (comma-separated)..." 
+                              rows="3"></textarea>
+                </div>
+
+                <button id="generateBtn" class="btn btn-primary" onclick="generateNewsletter()">
+                    <i class="fas fa-newspaper"></i> Generate Newsletter
+                </button>
+
+                <div id="loading" class="loading-state">
+                    <div class="spinner"></div>
+                    <h3>Generating your newsletter...</h3>
+                    <p>Fetching latest content and creating layout</p>
+                </div>
+            </aside>
+
+            <!-- Output Panel -->
+            <section class="output-card">
+                <!-- Tabs -->
+                <div class="tabs">
+                    <div class="tab active" onclick="showTab('preview')">
+                        <i class="fas fa-eye"></i> Preview
+                    </div>
+                    <div class="tab" onclick="showTab('html')">
+                        <i class="fas fa-code"></i> HTML Source
+                    </div>
+                    <div class="tab" onclick="showTab('metadata')">
+                        <i class="fas fa-chart-bar"></i> Analytics
+                    </div>
+                </div>
+
+                <!-- Preview Tab -->
+                <div id="preview" class="tab-pane active">
+                    <div class="preview-area">
+                        <div id="newsletterPreview" class="preview-placeholder">
+                            <i class="fas fa-newspaper"></i>
+                            <h3>Your Newsletter Awaits</h3>
+                            <p>Select a topic above and click "Generate Newsletter" to create your first newsletter</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HTML Source Tab -->
+                <div id="html" class="tab-pane">
+                    <div class="code-display">
+                        <pre id="htmlSource">No HTML content generated yet</pre>
+                    </div>
+                </div>
+
+                <!-- Analytics Tab -->
+                <div id="metadata" class="tab-pane">
+                    <div class="code-display">
+                        <pre id="metadataContent">No metadata available yet</pre>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+<script>
+    // Simple newsletter generator
+    const state = {
+        isGenerating: false
+    };
+
+    // DOM elements
+    const topicSelect = document.getElementById('topic');
+    const publishDate = document.getElementById('publishDate');
+    const keywords = document.getElementById('keywords');
+    const generateBtn = document.getElementById('generateBtn');
+    const loading = document.getElementById('loading');
+    const newsletterPreview = document.getElementById('newsletterPreview');
+
+    // Set default date
+    if (publishDate) {
+        publishDate.value = new Date().toISOString().split('T')[0];
+    }
+
+    // Generate newsletter function
+    async function generateNewsletter() {
+        if (!topicSelect.value) {
+            alert('Please select a topic');
+            return;
+        }
+
+        if (state.isGenerating) return;
+
+        // Show loading
+        state.isGenerating = true;
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+        loading.classList.add('active');
+
+        // Show loading message
+        newsletterPreview.innerHTML = `
+            <div class="preview-placeholder">
+                <div class="spinner"></div>
+                <h3>Generating newsletter...</h3>
+                <p>Please wait...</p>
+            </div>
+        `;
+
+        try {
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('topic', topicSelect.value);
+            formData.append('publish_date', publishDate.value);
+            formData.append('keywords', keywords.value);
+            formData.append('style', 'professional');
+
+            console.log('Sending request...');
+
+            // Send request
+            const response = await fetch('/generate-newsletter', {
+                method: 'POST',
+                body: formData
+            });
+
+            console.log('Response status:', response.status);
+
+            // Get response as text first
+            const responseText = await response.text();
+            console.log('Response:', responseText);
+
+            // Try to parse JSON
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                console.error('JSON parse error:', e);
+                throw new Error('Server returned invalid response. Please try again.');
+            }
+
+            // Check for errors
+            if (!response.ok || data.error) {
+                throw new Error(data.error || 'Server error');
+            }
+
+            console.log('Success! Data:', data);
+
+            // ✅ Check for redirect URL
+            if (data.redirect) {
+                console.log('Redirecting to:', data.redirect);
+                
+                // Show success message briefly
+                newsletterPreview.innerHTML = `
+                    <div class="preview-placeholder" style="color: green;">
+                        <i class="fas fa-check-circle" style="font-size: 3rem;"></i>
+                        <h3>✅ Newsletter Generated!</h3>
+                        <p>Redirecting to full view...</p>
+                    </div>
+                `;
+                
+                // Redirect after 1 second
+                setTimeout(() => {
+                    window.location.href = data.redirect;
+                }, 1000);
+                
+            } else if (data.html) {
+                // Fallback: show in iframe
+                showNewsletterPreview(data);
+            } else {
+                throw new Error('No redirect URL received');
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            
+            // Show error
+            newsletterPreview.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>Failed to generate newsletter</h3>
+                    <p>${error.message}</p>
+                    <button class="btn btn-secondary" onclick="generateNewsletter()">
+                        <i class="fas fa-redo"></i> Try Again
+                    </button>
+                </div>
+            `;
+            
+            // Show alert
+            alert('Error: ' + error.message);
+            
+        } finally {
+            // Reset
+            state.isGenerating = false;
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '<i class="fas fa-newspaper"></i> Generate Newsletter';
+            loading.classList.remove('active');
+        }
+    }
+
+    // Tab switching (keep existing)
+    function showTab(tabName) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('active');
+        });
+        
+        // Show selected tab
+        document.getElementById(tabName).classList.add('active');
+        
+        // Update tab buttons
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        event.currentTarget.classList.add('active');
+    }
+
+    // Fallback preview function
+    function showNewsletterPreview(data) {
+        newsletterPreview.innerHTML = `
+            <div class="preview-placeholder">
+                <i class="fas fa-check-circle" style="color: green; font-size: 3rem;"></i>
+                <h3>Newsletter Generated</h3>
+                <p>Would normally redirect to view page</p>
+                <p><a href="/view-newsletter/${topicSelect.value}" target="_blank">Click here to view</a></p>
+            </div>
+        `;
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newsletter Dashboard | SmartFix PDF</title>
+    <link rel="stylesheet" href="/static/css/tailwind.min.css">
+    <link rel="stylesheet" href="/static/css/all.min.css">
+    <style>
+        /* Custom Styles */
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        .loading-spinner {
+            border: 4px solid rgba(59, 130, 246, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Newsletter Cards */
+        .newsletter-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e5e7eb;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            height: 100%;
+        }
+        
+        .newsletter-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-color: #d1d5db;
+        }
+        
+        /* Topic-specific borders */
+        .tech-border { border-left: 4px solid #3b82f6; }
+        .sports-border { border-left: 4px solid #10b981; }
+        .power-border { border-left: 4px solid #f59e0b; }
+        .jobs-border { border-left: 4px solid #ef4444; }
+        
+        /* Topic badges */
+        .topic-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .tech-badge { background: #dbeafe; color: #1e40af; }
+        .sports-badge { background: #d1fae5; color: #065f46; }
+        .power-badge { background: #fef3c7; color: #92400e; }
+        .jobs-badge { background: #fee2e2; color: #991b1b; }
+        
+        /* Stats Cards */
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .tech-stat { border-top: 3px solid #3b82f6; }
+        .sports-stat { border-top: 3px solid #10b981; }
+        .power-stat { border-top: 3px solid #f59e0b; }
+        .jobs-stat { border-top: 3px solid #ef4444; }
+        
+        /* Tabs */
+        .tab-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            background: white;
+        }
+        
+        .tab-btn:hover {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+        }
+        
+        .tab-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Responsive fixes */
+        @media (max-width: 768px) {
+            .tab-btn {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+            
+            .stat-card {
+                padding: 15px;
+            }
+        }
+        
+        /* Fix for empty states */
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            background: white;
+            border-radius: 12px;
+            border: 2px dashed #d1d5db;
+        }
+        
+        /* Better button styling */
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        /* Fix for grid layout */
+        .newsletter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .newsletter-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <a href="/" class="text-xl font-bold text-blue-600 flex items-center">
+                        <i class="fas fa-newspaper mr-2"></i>Smart Newsletter Dashboard
+                    </a>
+                    <p class="text-gray-500 text-sm mt-1">View, manage, and generate newsletters</p>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <!-- <a href="/newsletter" class="btn-primary flex items-center">
+                        <i class="fas fa-plus mr-2"></i>Generate New
+                    </a> -->
+                    <a href="/" class="btn-primary flex items-center">
+                        <i class="fas fa-home mr-2"></i>Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-6 md:py-8">
+        <!-- Stats Overview -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 Dashboard Overview</h2>
+       
+        </div>
+
+        <!-- Main Content -->
+        <div class="bg-white rounded-xl shadow-sm border p-4 md:p-6 mb-8">
+            <!-- Controls -->
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="loadAllNewsletters()" class="tab-btn active" id="tab-all">
+                        <i class="fas fa-th-large mr-2"></i>All Newsletters
+                    </button>
+                    <button onclick="loadTopicNewsletters('technology')" class="tab-btn" id="tab-tech">
+                        <i class="fas fa-robot mr-2"></i>Technology
+                    </button>
+                    <button onclick="loadTopicNewsletters('sports')" class="tab-btn" id="tab-sports">
+                        <i class="fas fa-running mr-2"></i>Sports
+                    </button>
+                    <button onclick="loadTopicNewsletters('india_power_projects')" class="tab-btn" id="tab-power">
+                        <i class="fas fa-bolt mr-2"></i>Power Projects
+                    </button>
+                    <button onclick="loadTopicNewsletters('hiring_jobs')" class="tab-btn" id="tab-jobs">
+                        <i class="fas fa-briefcase mr-2"></i>Jobs
+                    </button>
+                        <button onclick="refreshAll()" class="btn-primary whitespace-nowrap ml-5">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                </div>
+                
+                
+                <div class="flex items-center gap-3 w-full lg:w-auto">
+                    <!-- <div class="relative flex-1 lg:flex-none">
+                        <input type="text" id="searchInput" placeholder="Search newsletters..." 
+                               class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div> -->
+                    <!-- <button onclick="refreshAll()" class="btn-primary whitespace-nowrap ml-5">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button> -->
+                </div>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800" id="currentTopicTitle">All Newsletters</h2>
+                    <p class="text-gray-600 text-sm" id="newsletterCount">Loading newsletters...</p>
+                </div>
+                <div class="text-sm text-gray-500">
+                    Last updated: <span id="updateTime" class="font-medium">Just now</span>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingContainer" class="text-center py-12">
+                <div class="loading-spinner mx-auto mb-4"></div>
+                <p class="text-gray-600">Loading newsletters...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorContainer" class="hidden bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+                <div class="flex items-start">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-xl mt-1 mr-3"></i>
+                    <div>
+                        <h3 class="text-red-800 font-semibold" id="errorTitle">Error Loading Newsletters</h3>
+                        <p class="text-red-700 text-sm mt-1" id="errorMessage">Something went wrong. Please try again.</p>
+                        <button onclick="retryLoading()" class="mt-3 text-red-600 hover:text-red-800 text-sm font-medium">
+                            <i class="fas fa-redo mr-1"></i>Retry
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Newsletters Grid -->
+            <div id="newslettersContainer" class="hidden">
+                <div class="newsletter-grid" id="newsletterList">
+                    <!-- Newsletters will be loaded here -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="hidden empty-state">
+                    <i class="fas fa-newspaper text-gray-300 text-5xl mb-4"></i>
+                    <h3 class="text-xl font-semibold text-gray-600 mb-2">No Newsletters Found</h3>
+                    <p class="text-gray-500 mb-6">Generate your first newsletter to get started!</p>
+                    <a href="/newsletter" class="btn-primary inline-flex items-center">
+                        <i class="fas fa-plus mr-2"></i>Generate Newsletter
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        // Global variables
+        let currentTopic = 'all';
+        let allNewsletters = [];
+        
+        // DOM Elements
+        const loadingContainer = document.getElementById('loadingContainer');
+        const errorContainer = document.getElementById('errorContainer');
+        const newslettersContainer = document.getElementById('newslettersContainer');
+        const newsletterList = document.getElementById('newsletterList');
+        const emptyState = document.getElementById('emptyState');
+        const errorTitle = document.getElementById('errorTitle');
+        const errorMessage = document.getElementById('errorMessage');
+        const currentTopicTitle = document.getElementById('currentTopicTitle');
+        const newsletterCount = document.getElementById('newsletterCount');
+        const updateTime = document.getElementById('updateTime');
+        const statsContainer = document.getElementById('statsContainer');
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dashboard loaded, initializing...');
+            loadStats();
+            loadAllNewsletters();
+            
+            // Setup search with debounce
+            const searchInput = document.getElementById('searchInput');
+            let searchTimeout;
+            if (searchInput) {
+                searchInput.addEventListener('input', function(e) {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        searchNewsletters(e.target.value);
+                    }, 300);
+                });
+            }
+        });
+        
+        // Load all newsletters
+        async function loadAllNewsletters() {
+            console.log('Loading all newsletters...');
+            setActiveTab('tab-all');
+            currentTopic = 'all';
+            currentTopicTitle.textContent = 'All Newsletters';
+            
+            showLoading();
+            hideError();
+            
+            try {
+                const response = await fetch('/api/newsletter/history/all?limit=50');
+                const data = await response.json();
+                
+                console.log('API Response for all newsletters:', data);
+                
+                if (data.success) {
+                    allNewsletters = data.newsletters || [];
+                    displayNewsletters(allNewsletters);
+                } else {
+                    showError('Failed to load newsletters', data.error || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Error loading newsletters:', error);
+                showError('Network Error', 'Failed to connect to server. Please check your connection.');
+            }
+        }
+        
+        // Load topic-specific newsletters
+        async function loadTopicNewsletters(topic) {
+            console.log(`Loading ${topic} newsletters...`);
+            
+            // Map topic to display name
+            const topicNames = {
+                'technology': 'Technology Newsletters',
+                'sports': 'Sports Newsletters', 
+                'india_power_projects': 'Power Projects Newsletters',
+                'hiring_jobs': 'Jobs Newsletters'
+            };
+            
+            currentTopic = topic;
+            currentTopicTitle.textContent = topicNames[topic] || topic;
+            setActiveTab(`tab-${topic.replace('_', '-')}`);
+            
+            showLoading();
+            hideError();
+            
+            try {
+                const response = await fetch(`/api/newsletter/${topic}/history?limit=20`);
+                const data = await response.json();
+                
+                console.log(`API Response for ${topic}:`, data);
+                
+                if (data.success) {
+                    allNewsletters = data.newsletters || [];
+                    displayNewsletters(allNewsletters);
+                } else {
+                    showError(`Failed to load ${topic} newsletters`, data.error || 'Unknown error');
+                }
+            } catch (error) {
+                console.error(`Error loading ${topic} newsletters:`, error);
+                showError('Network Error', 'Failed to connect to server.');
+            }
+        }
+        
+        // Display newsletters in the UI
+        function displayNewsletters(newsletters) {
+            console.log(`Displaying ${newsletters.length} newsletters`);
+            
+            hideLoading();
+            
+            if (!newsletters || newsletters.length === 0) {
+                newsletterList.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                newslettersContainer.classList.remove('hidden');
+                newsletterCount.textContent = 'No newsletters found';
+                return;
+            }
+            
+            // Clear the list
+            newsletterList.innerHTML = '';
+            
+            // Add each newsletter to the list
+            newsletters.forEach((newsletter, index) => {
+                const newsletterElement = createNewsletterCard(newsletter);
+                if (newsletterElement) {
+                    newsletterList.appendChild(newsletterElement);
+                }
+            });
+            
+            // Show container and update stats
+            emptyState.classList.add('hidden');
+            newslettersContainer.classList.remove('hidden');
+            newsletterCount.textContent = `${newsletters.length} newsletter${newsletters.length !== 1 ? 's' : ''}`;
+            updateTime.textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+        
+        // Create a newsletter card element
+        function createNewsletterCard(newsletter) {
+            try {
+                if (!newsletter) return null;
+                
+                const topic = newsletter.topic || 'unknown';
+                const title = newsletter.title || 'Untitled Newsletter';
+                const publishDate = newsletter.publish_date || newsletter.publishDate || 'Unknown date';
+                const metadata = newsletter.metadata || {};
+                const wordCount = metadata.word_count || 0;
+                const sourcesUsed = metadata.sources_used || 0;
+                
+                // Topic styling
+                const topicStyles = {
+                    'technology': { 
+                        badgeClass: 'tech-badge', 
+                        borderClass: 'tech-border',
+                        icon: 'fa-robot', 
+                        iconColor: 'text-blue-600',
+                        statClass: 'tech-stat'
+                    },
+                    'sports': { 
+                        badgeClass: 'sports-badge', 
+                        borderClass: 'sports-border',
+                        icon: 'fa-running', 
+                        iconColor: 'text-green-600',
+                        statClass: 'sports-stat'
+                    },
+                    'india_power_projects': { 
+                        badgeClass: 'power-badge', 
+                        borderClass: 'power-border',
+                        icon: 'fa-bolt', 
+                        iconColor: 'text-yellow-600',
+                        statClass: 'power-stat'
+                    },
+                    'hiring_jobs': { 
+                        badgeClass: 'jobs-badge', 
+                        borderClass: 'jobs-border',
+                        icon: 'fa-briefcase', 
+                        iconColor: 'text-red-600',
+                        statClass: 'jobs-stat'
+                    }
+                };
+                
+                const style = topicStyles[topic] || topicStyles.technology;
+                
+                // Format date
+                let formattedDate = publishDate;
+                let displayDate = publishDate;
+                try {
+                    const dateObj = new Date(publishDate);
+                    if (!isNaN(dateObj)) {
+                        formattedDate = dateObj.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                        });
+                        displayDate = dateObj.toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                        });
+                    }
+                } catch (e) {
+                    console.warn('Date formatting error:', e);
+                }
+                
+                // Create card
+                const card = document.createElement('div');
+                card.className = `newsletter-card ${style.borderClass}`;
+                card.onclick = () => viewNewsletter(newsletter);
+                
+                card.innerHTML = `
+                    <div class="p-6 h-full flex flex-col">
+                        <!-- Header -->
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center">
+                                <i class="fas ${style.icon} ${style.iconColor} text-lg mr-3"></i>
+                                <div class="flex-1 min-w-0">
+                                    <!-- Clean title WITHOUT date -->
+                                    <h3 class="font-bold text-gray-800 text-lg mb-1 truncate -pl-5 pr-0" 
+                                        title="${title}">
+                                        ${cleanTitle(title)}
+                                    </h3>
+                                    
+                                    <!-- Date on NEW LINE -->
+                                    <div class="text-gray-600 text-sm mb-2 flex items-center">
+                                        <i class="far fa-calendar-alt mr-2">   </i>
+                                        <span class="font-medium">${displayDate}</span>
+                                    </div>
+                                    
+         
+                                </div>
+                            </div>
+                       
+                        </div>
+                        
+                        <!-- Stats -->
+                        <div class="grid grid-cols-2 gap-3 mb-5 mt-auto">
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <div class="text-xl font-bold text-gray-800">${sourcesUsed}</div>
+                                <div class="text-gray-500 text-xs mt-1">Sources Used</div>
+                            </div>
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <div class="text-xl font-bold text-gray-800">${Math.max(1, Math.floor(wordCount/200))}</div>
+                                <div class="text-gray-500 text-xs mt-1">Min Read</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <div class="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
+                            <a href="/view-newsletter/${topic}?date=${publishDate}" 
+                            target="_blank"
+                            onclick="event.stopPropagation()"
+                            class="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center">
+                                <i class="fas fa-external-link-alt mr-2"></i>View Full
+                            </a>
+                 
+                        </div>
+                    </div>
+                `;
+
+                // Add this helper function at the top of createNewsletterCard() or globally:
+                function cleanTitle(fullTitle) {
+                    // Remove common date patterns from the end of titles
+                    return fullTitle
+                        .replace(/\s*-\s*\d{4}-\d{2}-\d{2}$/, '')  // Remove "- 2025-12-07"
+                        .replace(/\s*-\s*\w+\s+\d{1,2},\s+\d{4}$/, '')  // Remove "- Dec 7, 2025"
+                        .replace(/\s*-\s*\d{1,2}\/\d{1,2}\/\d{4}$/, '')  // Remove "- 12/7/2025"
+                        .replace(/\s*Daily$/, '')  // Remove "Daily" if you want
+                        .trim();
+                }
+                                
+                return card;
+                
+            } catch (error) {
+                console.error('Error creating newsletter card:', error);
+                return null;
+            }
+        }
+        
+        // View newsletter details
+        async function viewNewsletter(newsletter) {
+            const modal = document.getElementById('newsletterModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalContent = document.getElementById('modalContent');
+            
+            if (!modal || !modalTitle || !modalContent) return;
+            
+            const topic = newsletter.topic || 'unknown';
+            const title = newsletter.title || 'Untitled Newsletter';
+            const htmlContent = newsletter.html_content || '<p>No content available</p>';
+            const metadata = newsletter.metadata || {};
+            
+            modalTitle.textContent = title;
+            
+            // Show loading in modal
+            modalContent.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-gray-600">Loading newsletter details...</p>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+            
+            // Try to fetch fresh content
+            try {
+                const response = await fetch(`/api/newsletter/${topic}?date=${newsletter.publish_date}`);
+                const data = await response.json();
+                
+                if (data.success && data.newsletter) {
+                    newsletter = data.newsletter;
+                }
+            } catch (error) {
+                console.log('Using cached newsletter data');
+            }
+            
+            // Create modal content
+            const finalMetadata = newsletter.metadata || metadata;
+            
+            modalContent.innerHTML = `
+                <div class="mb-6">
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full text-sm font-medium">
+                            <i class="fas fa-tag mr-1.5"></i>${topic.replace('_', ' ').toUpperCase()}
+                        </span>
+                        <span class="bg-green-100 text-green-800 px-3 py-1.5 rounded-full text-sm font-medium">
+                            <i class="far fa-calendar mr-1.5"></i>${newsletter.publish_date || 'Unknown date'}
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                        <div class="text-center p-4 bg-blue-50 rounded-lg">
+                            <div class="text-xl font-bold text-blue-700">${finalMetadata.sources_used || 0}</div>
+                            <div class="text-blue-600 text-xs mt-1">Sources Used</div>
+                        </div>
+                        <div class="text-center p-4 bg-green-50 rounded-lg">
+                            <div class="text-xl font-bold text-green-700">${finalMetadata.word_count || 0}</div>
+                            <div class="text-green-600 text-xs mt-1">Total Words</div>
+                        </div>
+                        <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                            <div class="text-xl font-bold text-yellow-700">${Math.max(1, Math.floor((finalMetadata.word_count || 0)/200))}</div>
+                            <div class="text-yellow-600 text-xs mt-1">Min Read</div>
+                        </div>
+                        <div class="text-center p-4 bg-purple-50 rounded-lg">
+                            <div class="text-xl font-bold text-purple-700">${new Date().toLocaleDateString()}</div>
+                            <div class="text-purple-600 text-xs mt-1">Saved On</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="border-t pt-6">
+                    <h4 class="font-bold text-gray-800 mb-4 text-lg">Newsletter Preview:</h4>
+                    <div class="border rounded-lg p-4 max-h-96 overflow-y-auto bg-gray-50">
+                        ${newsletter.html_content || htmlContent}
+                    </div>
+                </div>
+                
+                <div class="mt-8 flex flex-wrap gap-3 justify-end">
+                    <a href="/view-newsletter/${topic}?date=${newsletter.publish_date}" 
+                       target="_blank"
+                       class="btn-primary flex items-center">
+                        <i class="fas fa-external-link-alt mr-2"></i>Open Full View
+                    </a>
+                    <button onclick="closeModal()" 
+                            class="btn-secondary flex items-center">
+                        Close Preview
+                    </button>
+                </div>
+            `;
+        }
+        
+        // Close modal
+        function closeModal() {
+            const modal = document.getElementById('newsletterModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+        
+        // Search newsletters
+        function searchNewsletters(query) {
+            if (!query.trim()) {
+                // If empty search, show current topic newsletters
+                if (currentTopic === 'all') {
+                    displayNewsletters(allNewsletters);
+                } else {
+                    const filtered = allNewsletters.filter(n => n.topic === currentTopic);
+                    displayNewsletters(filtered);
+                }
+                return;
+            }
+            
+            const searchTerm = query.toLowerCase();
+            const filtered = allNewsletters.filter(newsletter => {
+                const title = (newsletter.title || '').toLowerCase();
+                const topic = (newsletter.topic || '').toLowerCase();
+                const content = (newsletter.html_content || '').toLowerCase();
+                
+                return title.includes(searchTerm) || 
+                       topic.includes(searchTerm) ||
+                       content.includes(searchTerm);
+            });
+            
+            displayNewsletters(filtered);
+        }
+        
+        // Load statistics
+        async function loadStats() {
+            try {
+                const topics = ['technology', 'sports', 'india_power_projects', 'hiring_jobs'];
+                const statsData = [];
+                
+                // Fetch all topic statuses
+                for (const topic of topics) {
+                    try {
+                        const response = await fetch(`/api/newsletter/status/${topic}`);
+                        const data = await response.json();
+                        statsData.push({ topic, data });
+                    } catch (error) {
+                        console.error(`Error fetching stats for ${topic}:`, error);
+                        statsData.push({ 
+                            topic, 
+                            data: { 
+                                success: false, 
+                                error: 'Failed to load'
+                            } 
+                        });
+                    }
+                }
+                
+                // Clear and rebuild stats container
+                statsContainer.innerHTML = '';
+                
+                const statConfigs = [
+                    { topic: 'Technology', icon: 'fa-robot', color: 'tech-stat', key: 'technology' },
+                    { topic: 'Sports', icon: 'fa-running', color: 'sports-stat', key: 'sports' },
+                    { topic: 'Power Projects', icon: 'fa-bolt', color: 'power-stat', key: 'india_power_projects' },
+                    { topic: 'Jobs', icon: 'fa-briefcase', color: 'jobs-stat', key: 'hiring_jobs' }
+                ];
+                
+                statConfigs.forEach(config => {
+                    const stat = statsData.find(s => s.topic === config.key);
+                    const statCard = document.createElement('div');
+                    statCard.className = `stat-card ${config.color}`;
+                    
+                    let statusText = 'Not Generated';
+                    let lastUpdated = 'Never';
+                    let hasNewsletter = false;
+                    
+                    if (stat && stat.data.success) {
+                        hasNewsletter = stat.data.has_todays_newsletter || stat.data.newsletter_exists;
+                        lastUpdated = stat.data.last_updated || 'Never';
+                        statusText = hasNewsletter ? 'Ready' : 'Not Generated';
+                    }
+                    
+                    statCard.innerHTML = `
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-bold text-gray-800 mb-1">${config.topic}</h3>
+                                <div class="flex items-center">
+                                    <span class="inline-block w-2 h-2 rounded-full ${hasNewsletter ? 'bg-green-500' : 'bg-gray-300'} mr-2"></span>
+                                    <span class="text-sm text-gray-600">${statusText}</span>
+                                </div>
+                            </div>
+                            <i class="fas ${config.icon} text-xl text-gray-400"></i>
+                        </div>
+                        <div class="text-sm text-gray-500 mb-3">
+                            <div class="mb-1"><i class="far fa-calendar mr-1.5"></i>Last: ${lastUpdated}</div>
+                        </div>
+                        <button onclick="loadTopicNewsletters('${config.key}')" 
+                                class="w-full text-center py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                            View Newsletters
+                        </button>
+                    `;
+                    
+                    statsContainer.appendChild(statCard);
+                });
+                
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                statsContainer.innerHTML = `
+                    <div class="col-span-4 text-center p-6 text-gray-500">
+                        <i class="fas fa-exclamation-triangle text-xl mb-3"></i>
+                        <p>Failed to load statistics</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Generate new newsletter
+        async function generateNewsletter(topic) {
+            if (!confirm(`Generate new newsletter for ${topic}? This may take 1-2 minutes.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/newsletter/${topic}/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ Newsletter generation started! It will be ready in 1-2 minutes.');
+                    // Reload after a delay
+                    setTimeout(() => {
+                        if (currentTopic === 'all') {
+                            loadAllNewsletters();
+                        } else {
+                            loadTopicNewsletters(currentTopic);
+                        }
+                        loadStats();
+                    }, 5000);
+                } else {
+                    alert('❌ Failed to start generation: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error generating newsletter:', error);
+                alert('❌ Failed to start newsletter generation. Please check console.');
+            }
+        }
+        
+        // Delete newsletter (placeholder - implement your own endpoint)
+        async function deleteNewsletter(id) {
+            if (!id || id === 'null') {
+                alert('Cannot delete: Newsletter ID is missing');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to delete this newsletter? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                // Note: You need to implement this endpoint
+                const response = await fetch(`/api/newsletter/delete/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert('✅ Newsletter deleted successfully!');
+                    // Reload current view
+                    if (currentTopic === 'all') {
+                        loadAllNewsletters();
+                    } else {
+                        loadTopicNewsletters(currentTopic);
+                    }
+                    loadStats();
+                } else {
+                    const error = await response.json().catch(() => ({}));
+                    alert('❌ Failed to delete newsletter: ' + (error.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error deleting newsletter:', error);
+                alert('❌ Failed to delete newsletter. Please implement the delete endpoint.');
+            }
+        }
+        
+        // Set active tab
+        function setActiveTab(tabId) {
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab-btn').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Add active class to selected tab
+            const activeTab = document.getElementById(tabId);
+            if (activeTab) {
+                activeTab.classList.add('active');
+            }
+        }
+        
+        // Show loading state
+        function showLoading() {
+            if (loadingContainer) loadingContainer.classList.remove('hidden');
+            if (newslettersContainer) newslettersContainer.classList.add('hidden');
+            if (errorContainer) errorContainer.classList.add('hidden');
+        }
+        
+        // Hide loading state
+        function hideLoading() {
+            if (loadingContainer) loadingContainer.classList.add('hidden');
+        }
+        
+        // Show error state
+        function showError(title, message) {
+            if (errorTitle) errorTitle.textContent = title;
+            if (errorMessage) errorMessage.textContent = message;
+            if (errorContainer) errorContainer.classList.remove('hidden');
+            if (newslettersContainer) newslettersContainer.classList.add('hidden');
+            if (loadingContainer) loadingContainer.classList.add('hidden');
+        }
+        
+        // Hide error state
+        function hideError() {
+            if (errorContainer) errorContainer.classList.add('hidden');
+        }
+        
+        // Retry loading
+        function retryLoading() {
+            if (currentTopic === 'all') {
+                loadAllNewsletters();
+            } else {
+                loadTopicNewsletters(currentTopic);
+            }
+            loadStats();
+        }
+        
+        // Refresh all data
+        function refreshAll() {
+            loadStats();
+            if (currentTopic === 'all') {
+                loadAllNewsletters();
+            } else {
+                loadTopicNewsletters(currentTopic);
+            }
+        }
+        
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Escape closes modal
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+            // Ctrl/Cmd + F focuses search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.focus();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
