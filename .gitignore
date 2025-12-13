@@ -16,3 +16,4 @@ chroma_db/
 newsletters.db
 *.db
 
+generate_newsletters.sh

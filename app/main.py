@@ -262,26 +262,7 @@ USE_S3 = all([BUCKET_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY])
 CORRECT_PASSWORD_HASH = os.getenv("CORRECT_PASSWORD_HASH")
 CLEANUP_DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
 
-#### for lambda schedule newsletter
 
-# Add these environment variables (add to your .env file too)
-LAMBDA_FUNCTION_NAME = os.getenv("NEWSLETTER_LAMBDA_NAME", "newsletter-generator")
-AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
-
-# Initialize Lambda client (add after S3 client initialization)
-lambda_client = None
-try:
-    lambda_client = boto3.client(
-        "lambda",
-        region_name=AWS_REGION,
-        aws_access_key_id=AWS_ACCESS_KEY,
-        aws_secret_access_key=AWS_SECRET_KEY
-    )
-    logger.info("Lambda client initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize Lambda client: {str(e)}")
-    lambda_client = None
-#### for lambda schedule newsletter
 
 s3_client = boto3.client(
     "s3",
@@ -1621,22 +1602,44 @@ async def generate_newsletter(
         "message": f"Newsletter generation started for {topic}",
         "estimated_time": "1-2 minutes"
     })
-# In your main.py, update the status endpoint:
+
 
 @app.get("/api/newsletter/status/{topic}")
 async def get_newsletter_status(topic: str):
-    """Get newsletter generation status - FIXED VERSION"""
+    """Get newsletter generation status - IMPROVED VERSION"""
     try:
         today = datetime.now().date().isoformat()
-        newsletter = newsletter_manager.get_newsletter_view(topic)
+        
+        # Get the latest newsletter for this topic
+        newsletters = newsletter_manager.get_topic_newsletters(topic, limit=1)
+        
+        has_today = False
+        last_updated = "Never"
+        latest_title = None
+        
+        if newsletters:
+            latest = newsletters[0]
+            has_today = latest.get('publish_date') == today
+            last_updated = latest.get('publish_date', 'Unknown')
+            latest_title = latest.get('title', 'Unknown')
+            
+            # Try to parse the date for better display
+            try:
+                from datetime import datetime as dt
+                date_obj = dt.strptime(last_updated, '%Y-%m-%d')
+                last_updated = date_obj.strftime('%b %d, %Y')
+            except:
+                pass
         
         return JSONResponse(content={
             "success": True,
             "topic": topic,
-            "has_todays_newsletter": newsletter is not None and newsletter.get('publish_date') == today,
-            "newsletter_exists": newsletter is not None,
-            "last_updated": newsletter.get('publish_date') if newsletter else "Never generated",
-            "title": newsletter.get('title') if newsletter else None
+            "has_todays_newsletter": has_today,
+            "newsletter_exists": len(newsletters) > 0,
+            "last_updated": last_updated,
+            "title": latest_title,
+            "total_newsletters": len(newsletters),
+            "next_scheduled": "8:00 AM Daily"
         })
     except Exception as e:
         logger.error(f"Error getting newsletter status: {str(e)}")
@@ -1645,9 +1648,36 @@ async def get_newsletter_status(topic: str):
             content={
                 "success": False, 
                 "error": str(e),
-                "last_updated": "Error loading"
+                "last_updated": "Error loading",
+                "next_scheduled": "8:00 AM Daily"
             }
         )
+
+# @app.get("/api/newsletter/status/{topic}")
+# async def get_newsletter_status(topic: str):
+#     """Get newsletter generation status - FIXED VERSION"""
+#     try:
+#         today = datetime.now().date().isoformat()
+#         newsletter = newsletter_manager.get_newsletter_view(topic)
+        
+#         return JSONResponse(content={
+#             "success": True,
+#             "topic": topic,
+#             "has_todays_newsletter": newsletter is not None and newsletter.get('publish_date') == today,
+#             "newsletter_exists": newsletter is not None,
+#             "last_updated": newsletter.get('publish_date') if newsletter else "Never generated",
+#             "title": newsletter.get('title') if newsletter else None
+#         })
+#     except Exception as e:
+#         logger.error(f"Error getting newsletter status: {str(e)}")
+#         return JSONResponse(
+#             status_code=500,
+#             content={
+#                 "success": False, 
+#                 "error": str(e),
+#                 "last_updated": "Error loading"
+#             }
+#         )
 # #############
 
 @app.get("/newsletter-dashboard")
@@ -1733,7 +1763,7 @@ async def view_newsletter_html(topic: str, date: str = None):
                     <body style="font-family: Arial; padding: 40px; text-align: center;">
                         <h1>📰 Newsletter Not Found</h1>
                         <p>No newsletter found for topic: <strong>{topic}</strong> on date: <strong>{date}</strong></p>
-                        <p><a href="/newsletter">Generate a new newsletter</a></p>
+                      
                         <p><a href="/">← Back to Home</a></p>
                     </body>
                     </html>
@@ -2026,102 +2056,6 @@ async def view_newsletter_html(topic: str, date: str = None):
         """)
     
 
-## lambda newsletter
-@app.post("/api/newsletter/trigger-lambda")
-async def trigger_newsletter_lambda(request: Request):
-    """Trigger newsletter generation via Lambda"""
-    check_auth(request)
-    
-    try:
-        # Invoke Lambda function
-        response = lambda_client.invoke(
-            FunctionName=LAMBDA_FUNCTION_NAME,
-            InvocationType='Event',  # Asynchronous execution
-            Payload=json.dumps({})  # Empty payload
-        )
-        
-        return JSONResponse(content={
-            "success": True,
-            "message": "Newsletter generation triggered via Lambda",
-            "request_id": response.get('ResponseMetadata', {}).get('RequestId'),
-            "timestamp": datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"Lambda invocation error: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
-
-@app.get("/api/newsletter/lambda-status")
-async def get_lambda_status(request: Request):
-    """Get Lambda function status"""
-    check_auth(request)
-    
-    try:
-        # Get Lambda function configuration
-        response = lambda_client.get_function_configuration(
-            FunctionName=LAMBDA_FUNCTION_NAME
-        )
-        
-        # Get last few invocations from CloudWatch Logs
-        logs_client = boto3.client('logs', region_name=AWS_REGION)
-        
-        # Get CloudWatch log group name
-        log_group_name = f"/aws/lambda/{LAMBDA_FUNCTION_NAME}"
-        
-        # Query recent logs
-        query = "fields @timestamp, @message | sort @timestamp desc | limit 20"
-        
-        try:
-            start_query_response = logs_client.start_query(
-                logGroupName=log_group_name,
-                startTime=int((datetime.now() - timedelta(days=7)).timestamp()),
-                endTime=int(datetime.now().timestamp()),
-                queryString=query,
-            )
-            
-            query_id = start_query_response['queryId']
-            
-            # Wait for query to complete
-            time.sleep(1)
-            
-            query_results = logs_client.get_query_results(queryId=query_id)
-            recent_logs = []
-            
-            for result in query_results.get('results', []):
-                log_entry = {}
-                for field in result:
-                    log_entry[field['field']] = field['value']
-                recent_logs.append(log_entry)
-                
-        except Exception as log_error:
-            logger.warning(f"Could not fetch logs: {log_error}")
-            recent_logs = []
-        
-        return JSONResponse(content={
-            "success": True,
-            "function_name": response['FunctionName'],
-            "last_modified": response['LastModified'],
-            "state": response.get('State', 'Active'),
-            "runtime": response['Runtime'],
-            "memory_size": response['MemorySize'],
-            "timeout": response['Timeout'],
-            "recent_logs": recent_logs[:5]  # Last 5 logs
-        })
-        
-    except lambda_client.exceptions.ResourceNotFoundException:
-        return JSONResponse(
-            status_code=404,
-            content={"success": False, "error": "Lambda function not found"}
-        )
-    except Exception as e:
-        logger.error(f"Error getting Lambda status: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
 
 
 #######################################   login
