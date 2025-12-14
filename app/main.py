@@ -1936,18 +1936,35 @@ async def view_newsletter_html(topic: str, date: str = None):
                 .content {{
                     padding: 40px;
                 }}
-                .back-btn {{
-                    display: inline-block;
-                    background: #2563eb;
-                    color: white;
-                    padding: 12px 24px;
-                    border-radius: 8px;
+               .back-btn,
+                .back-btn-homepage {{
+                    display: inline-flex;
+                    align-items: center;
+                    font-weight: 500;
                     text-decoration: none;
-                    margin-bottom: 20px;
                 }}
-                .back-btn:hover {{
-                    background: #1d4ed8;
+
+                .arrow-circle {{
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    background: #dc2626; /* red */
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-right: 10px;
+                    transition: all 0.2s ease;
                 }}
+
+                .arrow-circle.green {{
+                    background: #16a34a; /* green */
+                }}
+
+                .arrow-circle:hover {{
+                    transform: translateX(-3px);
+                }}
+
                 .metadata {{
                     background: #f8fafc;
                     padding: 20px;
@@ -2018,10 +2035,20 @@ async def view_newsletter_html(topic: str, date: str = None):
                 </div>
                 
                 <div class="content">
-                    <a href="/" class="back-btn">
-                        <i class="fas fa-arrow-left mr-2"></i>HomePage
-                    </a>
-                    
+                        <a href="/newsletter-dashboard" class="back-btn">
+                    <span class="arrow-circle">
+                        <i class="fas fa-arrow-left"></i>
+                    </span>
+                    Newsletter Dashboard
+                </a>
+
+                <a href="/" class="back-btn-homepage">
+                    <span class="arrow-circle green">
+                        <i class="fas fa-arrow-left"></i>
+                    </span>
+                    HomePage
+                </a>
+
                     <div class="metadata">
                         <h3 style="margin-top: 0; color: #1f2937;">📊 Newsletter Statistics</h3>
                         <div class="stats-grid">
