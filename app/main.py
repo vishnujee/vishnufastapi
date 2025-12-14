@@ -1567,17 +1567,33 @@ async def get_newsletter(
 @app.get("/api/newsletter/{topic}/history")
 async def get_newsletter_history(
     topic: str,
-    limit: int = 7
+    limit: int = 7,
+    today_only: bool = True  # Add this parameter
 ):
-    """Get newsletter history for a topic"""
+    """Get newsletter history for a topic - NOW FILTERS TODAY ONLY"""
     try:
-        newsletters = newsletter_manager.get_topic_newsletters(topic, limit)
+        if today_only:
+            # Get today's date
+            today = datetime.now().date().isoformat()
+            
+            # Get ALL newsletters for the topic
+            all_newsletters = newsletter_manager.get_topic_newsletters(topic, limit * 2)  # Get more to filter
+            
+            # Filter to only today's
+            newsletters = []
+            for newsletter in all_newsletters:
+                if newsletter.get('publish_date') == today:
+                    newsletters.append(newsletter)
+        else:
+            # Original behavior - all newsletters
+            newsletters = newsletter_manager.get_topic_newsletters(topic, limit)
         
         return JSONResponse(content={
             "success": True,
             "topic": topic,
             "newsletters": newsletters,
-            "count": len(newsletters)
+            "count": len(newsletters),
+            "today_only": today_only
         })
     except Exception as e:
         logger.error(f"Error getting newsletter history: {str(e)}")
@@ -1585,6 +1601,27 @@ async def get_newsletter_history(
             status_code=500,
             content={"success": False, "error": str(e)}
         )
+# @app.get("/api/newsletter/{topic}/history")
+# async def get_newsletter_history(
+#     topic: str,
+#     limit: int = 7
+# ):
+#     """Get newsletter history for a topic"""
+#     try:
+#         newsletters = newsletter_manager.get_topic_newsletters(topic, limit)
+        
+#         return JSONResponse(content={
+#             "success": True,
+#             "topic": topic,
+#             "newsletters": newsletters,
+#             "count": len(newsletters)
+#         })
+#     except Exception as e:
+#         logger.error(f"Error getting newsletter history: {str(e)}")
+#         return JSONResponse(
+#             status_code=500,
+#             content={"success": False, "error": str(e)}
+#         )
 
 @app.post("/api/newsletter/{topic}/generate")
 async def generate_newsletter(
@@ -1605,42 +1642,67 @@ async def generate_newsletter(
 
 
 @app.get("/api/newsletter/status/{topic}")
-async def get_newsletter_status(topic: str):
-    """Get newsletter generation status - IMPROVED VERSION"""
+async def get_newsletter_status(topic: str, today_only: bool = True):  # Add parameter
+    """Get newsletter generation status - SHOWS TODAY'S STATUS"""
     try:
         today = datetime.now().date().isoformat()
         
-        # Get the latest newsletter for this topic
-        newsletters = newsletter_manager.get_topic_newsletters(topic, limit=1)
-        
-        has_today = False
-        last_updated = "Never"
-        latest_title = None
-        
-        if newsletters:
-            latest = newsletters[0]
-            has_today = latest.get('publish_date') == today
-            last_updated = latest.get('publish_date', 'Unknown')
-            latest_title = latest.get('title', 'Unknown')
+        if today_only:
+            # Get today's newsletter specifically
+            newsletter = newsletter_manager.db.get_newsletter_by_date(topic, today)
             
-            # Try to parse the date for better display
+            has_today = newsletter is not None
+            last_updated = today if has_today else "Never"
+            latest_title = newsletter.get('title', 'No title') if newsletter else None
+            
+            # Format the date for display
             try:
-                from datetime import datetime as dt
-                date_obj = dt.strptime(last_updated, '%Y-%m-%d')
+                date_obj = datetime.strptime(today, '%Y-%m-%d')
                 last_updated = date_obj.strftime('%b %d, %Y')
             except:
                 pass
-        
-        return JSONResponse(content={
-            "success": True,
-            "topic": topic,
-            "has_todays_newsletter": has_today,
-            "newsletter_exists": len(newsletters) > 0,
-            "last_updated": last_updated,
-            "title": latest_title,
-            "total_newsletters": len(newsletters),
-            "next_scheduled": "8:00 AM Daily"
-        })
+            
+            return JSONResponse(content={
+                "success": True,
+                "topic": topic,
+                "has_todays_newsletter": has_today,
+                "newsletter_exists": has_today,
+                "last_updated": last_updated,
+                "title": latest_title,
+                "total_newsletters": 1 if has_today else 0,
+                "next_scheduled": "8:00 AM Daily"
+            })
+        else:
+            # Original behavior - get latest newsletter
+            newsletters = newsletter_manager.get_topic_newsletters(topic, limit=1)
+            
+            has_today = False
+            last_updated = "Never"
+            latest_title = None
+            
+            if newsletters:
+                latest = newsletters[0]
+                has_today = latest.get('publish_date') == today
+                last_updated = latest.get('publish_date', 'Unknown')
+                latest_title = latest.get('title', 'Unknown')
+                
+                try:
+                    date_obj = datetime.strptime(last_updated, '%Y-%m-%d')
+                    last_updated = date_obj.strftime('%b %d, %Y')
+                except:
+                    pass
+            
+            return JSONResponse(content={
+                "success": True,
+                "topic": topic,
+                "has_todays_newsletter": has_today,
+                "newsletter_exists": len(newsletters) > 0,
+                "last_updated": last_updated,
+                "title": latest_title,
+                "total_newsletters": len(newsletters),
+                "next_scheduled": "8:00 AM Daily"
+            })
+            
     except Exception as e:
         logger.error(f"Error getting newsletter status: {str(e)}")
         return JSONResponse(
@@ -1653,6 +1715,55 @@ async def get_newsletter_status(topic: str):
             }
         )
 
+# @app.get("/api/newsletter/status/{topic}")
+# async def get_newsletter_status(topic: str):
+#     """Get newsletter generation status - IMPROVED VERSION"""
+#     try:
+#         today = datetime.now().date().isoformat()
+        
+#         # Get the latest newsletter for this topic
+#         newsletters = newsletter_manager.get_topic_newsletters(topic, limit=1)
+        
+#         has_today = False
+#         last_updated = "Never"
+#         latest_title = None
+        
+#         if newsletters:
+#             latest = newsletters[0]
+#             has_today = latest.get('publish_date') == today
+#             last_updated = latest.get('publish_date', 'Unknown')
+#             latest_title = latest.get('title', 'Unknown')
+            
+#             # Try to parse the date for better display
+#             try:
+#                 from datetime import datetime as dt
+#                 date_obj = dt.strptime(last_updated, '%Y-%m-%d')
+#                 last_updated = date_obj.strftime('%b %d, %Y')
+#             except:
+#                 pass
+        
+#         return JSONResponse(content={
+#             "success": True,
+#             "topic": topic,
+#             "has_todays_newsletter": has_today,
+#             "newsletter_exists": len(newsletters) > 0,
+#             "last_updated": last_updated,
+#             "title": latest_title,
+#             "total_newsletters": len(newsletters),
+#             "next_scheduled": "8:00 AM Daily"
+#         })
+#     except Exception as e:
+#         logger.error(f"Error getting newsletter status: {str(e)}")
+#         return JSONResponse(
+#             status_code=500,
+#             content={
+#                 "success": False, 
+#                 "error": str(e),
+#                 "last_updated": "Error loading",
+#                 "next_scheduled": "8:00 AM Daily"
+#             }
+#         )
+
 
 
 @app.get("/newsletter-dashboard")
@@ -1664,11 +1775,27 @@ async def newsletter_dashboard():
 
 newsletter_manager = NewsletterManager()
 
+
+
 @app.get("/api/newsletter/history/all")
-async def get_all_newsletters_history(limit: int = 20):
-    """Get all newsletters across all topics - FIXED VERSION"""
+async def get_all_newsletters_history(limit: int = 20, today_only: bool = True):  # Add today_only parameter
+    """Get newsletters - MODIFIED: Only today's by default"""
     try:
-        newsletters = newsletter_manager.get_all_newsletters(limit)
+        if today_only:
+            # Get today's date
+            today = datetime.now().date().isoformat()
+            
+            # Filter newsletters to only today's
+            all_newsletters = newsletter_manager.get_all_newsletters(limit)
+            today_newsletters = []
+            
+            for newsletter in all_newsletters:
+                if newsletter.get('publish_date') == today:
+                    today_newsletters.append(newsletter)
+            
+            newsletters = today_newsletters
+        else:
+            newsletters = newsletter_manager.get_all_newsletters(limit)
         
         # Ensure each newsletter has required fields
         for newsletter in newsletters:
@@ -1677,12 +1804,14 @@ async def get_all_newsletters_history(limit: int = 20):
             if 'topic' not in newsletter:
                 newsletter['topic'] = 'unknown'
             if 'publish_date' not in newsletter:
-                newsletter['publish_date'] = 'unknown'
+                newsletter['publish_date'] = datetime.now().date().isoformat()
         
         return JSONResponse(content={
             "success": True,
             "newsletters": newsletters,
-            "count": len(newsletters)
+            "count": len(newsletters),
+            "today_only": today_only,
+            "date": datetime.now().date().isoformat() if today_only else None
         })
     except Exception as e:
         logger.error(f"Error in get_all_newsletters_history: {e}")
@@ -1690,6 +1819,32 @@ async def get_all_newsletters_history(limit: int = 20):
             status_code=500,
             content={"success": False, "error": str(e)}
         )
+# @app.get("/api/newsletter/history/all")
+# async def get_all_newsletters_history(limit: int = 20):
+#     """Get all newsletters across all topics - FIXED VERSION"""
+#     try:
+#         newsletters = newsletter_manager.get_all_newsletters(limit)
+        
+#         # Ensure each newsletter has required fields
+#         for newsletter in newsletters:
+#             if 'metadata' not in newsletter:
+#                 newsletter['metadata'] = {}
+#             if 'topic' not in newsletter:
+#                 newsletter['topic'] = 'unknown'
+#             if 'publish_date' not in newsletter:
+#                 newsletter['publish_date'] = 'unknown'
+        
+#         return JSONResponse(content={
+#             "success": True,
+#             "newsletters": newsletters,
+#             "count": len(newsletters)
+#         })
+#     except Exception as e:
+#         logger.error(f"Error in get_all_newsletters_history: {e}")
+#         return JSONResponse(
+#             status_code=500,
+#             content={"success": False, "error": str(e)}
+#         )
 
 
 from fastapi.responses import HTMLResponse, FileResponse
@@ -2412,34 +2567,66 @@ async def get_cleanup_logs_page():
             // Load stats
             async function loadStats() {{
                 try {{
-                    const response = await fetch('/cleanup-logs');
-                    const data = await response.json();
+                    const topics = ['technology', 'sports', 'india_power_projects', 'hiring_jobs'];
+                    const today = new Date().toISOString().split('T')[0];
+                    let todayCount = 0;
                     
-                    const statsHtml = `
-                        <div class="stat-card">
-                            <div class="stat-number">${{data.total_runs || 0}}</div>
-                            <div class="stat-label">Total Runs</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${{data.line_count || 0}}</div>
-                            <div class="stat-label">Log Entries</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${{data.file_size || '0 KB'}}</div>
-                            <div class="stat-label">Log Size</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${{data.last_updated ? new Date(data.last_updated * 1000).toLocaleDateString() : 'Never'}}</div>
-                            <div class="stat-label">Last Updated</div>
+                    // Check each topic for today's newsletter
+                    for (const topic of topics) {{
+                        try {{
+                            // ADD today_only=true
+                            const response = await fetch(`/api/newsletter/status/${{topic}}?today_only=true`);
+                            const data = await response.json();
+                            
+                            if (data.success && data.has_todays_newsletter) {{
+                                todayCount++;
+                            }}
+                        }} catch (error) {{
+                            console.error(`Error checking ${{topic}}:`, error);
+                        }}
+                    }}
+                    
+                    // Update stats container - FIXED WITH DOUBLE BRACES
+                    statsContainer.innerHTML = `
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            <div class="stat-card tech-stat">
+                                <div class="text-center">
+                                    <div class="text-3xl font-bold text-blue-600 mb-2">${{todayCount}}/4</div>
+                                    <div class="text-gray-600 text-sm">Today's Topics</div>
+                                </div>
+                            </div>
+                            <div class="stat-card sports-stat">
+                                <div class="text-center">
+                                    <div class="text-3xl font-bold text-green-600 mb-2">${{new Date().toLocaleDateString('en-US', {{ month: 'short', day: 'numeric' }})}}</div>
+                                    <div class="text-gray-600 text-sm">Date</div>
+                                </div>
+                            </div>
+                            <div class="stat-card power-stat">
+                                <div class="text-center">
+                                    <div class="text-3xl font-bold text-yellow-600 mb-2">Daily</div>
+                                    <div class="text-gray-600 text-sm">Auto-generate</div>
+                                </div>
+                            </div>
+                            <div class="stat-card jobs-stat">
+                                <div class="text-center">
+                                    <div class="text-3xl font-bold text-red-600 mb-2">${{todayCount === 4 ? '✅' : '🔄'}}</div>
+                                    <div class="text-gray-600 text-sm">Status</div>
+                                </div>
+                            </div>
                         </div>
                     `;
                     
-                    document.getElementById('logStats').innerHTML = statsHtml;
                 }} catch (error) {{
                     console.error('Error loading stats:', error);
+                    statsContainer.innerHTML = `
+                        <div class="text-center p-6 text-gray-500">
+                            <i class="fas fa-exclamation-triangle text-xl mb-3"></i>
+                            <p>Failed to load today's statistics</p>
+                        </div>
+                    `;
                 }}
             }}
-            
+                        
             document.addEventListener('DOMContentLoaded', function() {{
                 colorCodeLogs();
                 loadStats();

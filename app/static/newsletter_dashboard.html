@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,12 +12,12 @@
         * {
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #f8fafc;
         }
-        
+
         .loading-spinner {
             border: 4px solid rgba(59, 130, 246, 0.1);
             border-left-color: #3b82f6;
@@ -25,11 +26,13 @@
             height: 40px;
             animation: spin 1s linear infinite;
         }
-        
+
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
-        
+
         /* Newsletter Cards */
         .newsletter-card {
             background: white;
@@ -40,19 +43,30 @@
             overflow: hidden;
             height: 100%;
         }
-        
+
         .newsletter-card:hover {
             transform: translateY(-4px);
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
             border-color: #d1d5db;
         }
-        
+
         /* Topic-specific borders */
-        .tech-border { border-left: 4px solid #3b82f6; }
-        .sports-border { border-left: 4px solid #10b981; }
-        .power-border { border-left: 4px solid #f59e0b; }
-        .jobs-border { border-left: 4px solid #ef4444; }
-        
+        .tech-border {
+            border-left: 4px solid #3b82f6;
+        }
+
+        .sports-border {
+            border-left: 4px solid #10b981;
+        }
+
+        .power-border {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .jobs-border {
+            border-left: 4px solid #ef4444;
+        }
+
         /* Topic badges */
         .topic-badge {
             display: inline-block;
@@ -63,12 +77,27 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        
-        .tech-badge { background: #dbeafe; color: #1e40af; }
-        .sports-badge { background: #d1fae5; color: #065f46; }
-        .power-badge { background: #fef3c7; color: #92400e; }
-        .jobs-badge { background: #fee2e2; color: #991b1b; }
-        
+
+        .tech-badge {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .sports-badge {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .power-badge {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .jobs-badge {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
         /* Stats Cards */
         .stat-card {
             background: white;
@@ -78,17 +107,28 @@
             border: 1px solid #e5e7eb;
             transition: all 0.3s ease;
         }
-        
+
         .stat-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
         }
-        
-        .tech-stat { border-top: 3px solid #3b82f6; }
-        .sports-stat { border-top: 3px solid #10b981; }
-        .power-stat { border-top: 3px solid #f59e0b; }
-        .jobs-stat { border-top: 3px solid #ef4444; }
-        
+
+        .tech-stat {
+            border-top: 3px solid #3b82f6;
+        }
+
+        .sports-stat {
+            border-top: 3px solid #10b981;
+        }
+
+        .power-stat {
+            border-top: 3px solid #f59e0b;
+        }
+
+        .jobs-stat {
+            border-top: 3px solid #ef4444;
+        }
+
         /* Tabs */
         .tab-btn {
             padding: 10px 20px;
@@ -98,18 +138,18 @@
             border: 1px solid transparent;
             background: white;
         }
-        
+
         .tab-btn:hover {
             background: #f3f4f6;
             border-color: #d1d5db;
         }
-        
+
         .tab-btn.active {
             background: #3b82f6;
             color: white;
             border-color: #3b82f6;
         }
-        
+
         /* Modal */
         .modal-overlay {
             position: fixed;
@@ -124,7 +164,7 @@
             z-index: 1000;
             padding: 20px;
         }
-        
+
         .modal-content {
             background: white;
             border-radius: 16px;
@@ -134,19 +174,19 @@
             overflow-y: auto;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
-        
+
         /* Responsive fixes */
         @media (max-width: 768px) {
             .tab-btn {
                 padding: 8px 12px;
                 font-size: 14px;
             }
-            
+
             .stat-card {
                 padding: 15px;
             }
         }
-        
+
         /* Fix for empty states */
         .empty-state {
             padding: 60px 20px;
@@ -155,7 +195,7 @@
             border-radius: 12px;
             border: 2px dashed #d1d5db;
         }
-        
+
         /* Better button styling */
         .btn-primary {
             background: #3b82f6;
@@ -167,12 +207,12 @@
             border: none;
             cursor: pointer;
         }
-        
+
         .btn-primary:hover {
             background: #2563eb;
             transform: translateY(-1px);
         }
-        
+
         .btn-secondary {
             background: #6b7280;
             color: white;
@@ -183,18 +223,18 @@
             border: none;
             cursor: pointer;
         }
-        
+
         .btn-secondary:hover {
             background: #4b5563;
         }
-        
+
         /* Fix for grid layout */
         .newsletter-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 20px;
         }
-        
+
         @media (max-width: 768px) {
             .newsletter-grid {
                 grid-template-columns: 1fr;
@@ -202,6 +242,7 @@
         }
     </style>
 </head>
+
 <body class="bg-gray-50 min-h-screen">
     <!-- Navigation -->
     <nav class="bg-white shadow-sm border-b">
@@ -229,7 +270,7 @@
         <!-- Stats Overview -->
         <div class="mb-8">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 Dashboard Overview</h2>
-       
+
         </div>
 
         <!-- Main Content -->
@@ -252,26 +293,27 @@
                     <button onclick="loadTopicNewsletters('hiring_jobs')" class="tab-btn" id="tab-jobs">
                         <i class="fas fa-briefcase mr-2"></i>Jobs
                     </button>
-                        <button onclick="refreshAll()" class="btn-primary whitespace-nowrap ml-5">
+                    <button onclick="refreshAll()" class="btn-primary whitespace-nowrap ml-5">
                         <i class="fas fa-sync-alt mr-2"></i>Refresh
                     </button>
                 </div>
-                
-                
-                <div class="flex items-center gap-3 w-full lg:w-auto">
-                    <!-- <div class="relative flex-1 lg:flex-none">
+
+
+                <!-- <div class="flex items-center gap-3 w-full lg:w-auto">
+                    <div class="relative flex-1 lg:flex-none">
                         <input type="text" id="searchInput" placeholder="Search newsletters..." 
                                class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full">
                         <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                    </div> -->
-                    <!-- <button onclick="refreshAll()" class="btn-primary whitespace-nowrap ml-5">
+                    </div>
+                    <button onclick="refreshAll()" class="btn-primary whitespace-nowrap ml-5">
                         <i class="fas fa-sync-alt mr-2"></i>Refresh
-                    </button> -->
-                </div>
+                    </button>
+                </div> -->
             </div>
 
             <!-- Status Bar -->
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
+            <div
+                class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
                 <div>
                     <h2 class="text-xl font-bold text-gray-800" id="currentTopicTitle">All Newsletters</h2>
                     <p class="text-gray-600 text-sm" id="newsletterCount">Loading newsletters...</p>
@@ -293,8 +335,10 @@
                     <i class="fas fa-exclamation-triangle text-red-500 text-xl mt-1 mr-3"></i>
                     <div>
                         <h3 class="text-red-800 font-semibold" id="errorTitle">Error Loading Newsletters</h3>
-                        <p class="text-red-700 text-sm mt-1" id="errorMessage">Something went wrong. Please try again.</p>
-                        <button onclick="retryLoading()" class="mt-3 text-red-600 hover:text-red-800 text-sm font-medium">
+                        <p class="text-red-700 text-sm mt-1" id="errorMessage">Something went wrong. Please try again.
+                        </p>
+                        <button onclick="retryLoading()"
+                            class="mt-3 text-red-600 hover:text-red-800 text-sm font-medium">
                             <i class="fas fa-redo mr-1"></i>Retry
                         </button>
                     </div>
@@ -326,7 +370,7 @@
         // Global variables
         let currentTopic = 'all';
         let allNewsletters = [];
-        
+
         // DOM Elements
         const loadingContainer = document.getElementById('loadingContainer');
         const errorContainer = document.getElementById('errorContainer');
@@ -339,18 +383,18 @@
         const newsletterCount = document.getElementById('newsletterCount');
         // const updateTime = document.getElementById('updateTime');
         const statsContainer = document.getElementById('statsContainer');
-        
+
         // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             console.log('Dashboard loaded, initializing...');
             loadStats();
             loadAllNewsletters();
-            
+
             // Setup search with debounce
             const searchInput = document.getElementById('searchInput');
             let searchTimeout;
             if (searchInput) {
-                searchInput.addEventListener('input', function(e) {
+                searchInput.addEventListener('input', function (e) {
                     clearTimeout(searchTimeout);
                     searchTimeout = setTimeout(() => {
                         searchNewsletters(e.target.value);
@@ -358,23 +402,24 @@
                 });
             }
         });
-        
+
         // Load all newsletters
         async function loadAllNewsletters() {
             console.log('Loading all newsletters...');
             setActiveTab('tab-all');
             currentTopic = 'all';
             currentTopicTitle.textContent = 'All Newsletters';
-            
+
             showLoading();
             hideError();
-            
+
             try {
-                const response = await fetch('/api/newsletter/history/all?limit=50');
+                // Change the fetch call to:
+                const response = await fetch('/api/newsletter/history/all?limit=50&today_only=true');
                 const data = await response.json();
-                
+
                 console.log('API Response for all newsletters:', data);
-                
+
                 if (data.success) {
                     allNewsletters = data.newsletters || [];
                     displayNewsletters(allNewsletters);
@@ -386,32 +431,34 @@
                 showError('Network Error', 'Failed to connect to server. Please check your connection.');
             }
         }
-        
+
         // Load topic-specific newsletters
+        // Update ALL calls to topic endpoints to include today_only=true
         async function loadTopicNewsletters(topic) {
             console.log(`Loading ${topic} newsletters...`);
-            
+
             // Map topic to display name
             const topicNames = {
                 'technology': 'Technology Newsletters',
-                'sports': 'Sports Newsletters', 
+                'sports': 'Sports Newsletters',
                 'india_power_projects': 'Power Projects Newsletters',
                 'hiring_jobs': 'Jobs Newsletters'
             };
-            
+
             currentTopic = topic;
             currentTopicTitle.textContent = topicNames[topic] || topic;
             setActiveTab(`tab-${topic.replace('_', '-')}`);
-            
+
             showLoading();
             hideError();
-            
+
             try {
-                const response = await fetch(`/api/newsletter/${topic}/history?limit=20`);
+                // ADD today_only=true parameter
+                const response = await fetch(`/api/newsletter/${topic}/history?limit=20&today_only=true`);
                 const data = await response.json();
-                
+
                 console.log(`API Response for ${topic}:`, data);
-                
+
                 if (data.success) {
                     allNewsletters = data.newsletters || [];
                     displayNewsletters(allNewsletters);
@@ -423,13 +470,13 @@
                 showError('Network Error', 'Failed to connect to server.');
             }
         }
-        
+
         // Display newsletters in the UI
         function displayNewsletters(newsletters) {
             console.log(`Displaying ${newsletters.length} newsletters`);
-            
+
             hideLoading();
-            
+
             if (!newsletters || newsletters.length === 0) {
                 newsletterList.innerHTML = '';
                 emptyState.classList.remove('hidden');
@@ -437,10 +484,10 @@
                 newsletterCount.textContent = 'No newsletters found';
                 return;
             }
-            
+
             // Clear the list
             newsletterList.innerHTML = '';
-            
+
             // Add each newsletter to the list
             newsletters.forEach((newsletter, index) => {
                 const newsletterElement = createNewsletterCard(newsletter);
@@ -448,60 +495,60 @@
                     newsletterList.appendChild(newsletterElement);
                 }
             });
-            
+
             // Show container and update stats
             emptyState.classList.add('hidden');
             newslettersContainer.classList.remove('hidden');
             newsletterCount.textContent = `${newsletters.length} newsletter${newsletters.length !== 1 ? 's' : ''}`;
             // updateTime.textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         }
-        
+
         // Create a newsletter card element
         function createNewsletterCard(newsletter) {
             try {
                 if (!newsletter) return null;
-                
+
                 const topic = newsletter.topic || 'unknown';
                 const title = newsletter.title || 'Untitled Newsletter';
                 const publishDate = newsletter.publish_date || newsletter.publishDate || 'Unknown date';
                 const metadata = newsletter.metadata || {};
                 const wordCount = metadata.word_count || 0;
                 const sourcesUsed = metadata.sources_used || 0;
-                
+
                 // Topic styling
                 const topicStyles = {
-                    'technology': { 
-                        badgeClass: 'tech-badge', 
+                    'technology': {
+                        badgeClass: 'tech-badge',
                         borderClass: 'tech-border',
-                        icon: 'fa-robot', 
+                        icon: 'fa-robot',
                         iconColor: 'text-blue-600',
                         statClass: 'tech-stat'
                     },
-                    'sports': { 
-                        badgeClass: 'sports-badge', 
+                    'sports': {
+                        badgeClass: 'sports-badge',
                         borderClass: 'sports-border',
-                        icon: 'fa-running', 
+                        icon: 'fa-running',
                         iconColor: 'text-green-600',
                         statClass: 'sports-stat'
                     },
-                    'india_power_projects': { 
-                        badgeClass: 'power-badge', 
+                    'india_power_projects': {
+                        badgeClass: 'power-badge',
                         borderClass: 'power-border',
-                        icon: 'fa-bolt', 
+                        icon: 'fa-bolt',
                         iconColor: 'text-yellow-600',
                         statClass: 'power-stat'
                     },
-                    'hiring_jobs': { 
-                        badgeClass: 'jobs-badge', 
+                    'hiring_jobs': {
+                        badgeClass: 'jobs-badge',
                         borderClass: 'jobs-border',
-                        icon: 'fa-briefcase', 
+                        icon: 'fa-briefcase',
                         iconColor: 'text-red-600',
                         statClass: 'jobs-stat'
                     }
                 };
-                
+
                 const style = topicStyles[topic] || topicStyles.technology;
-                
+
                 // Format date
                 let formattedDate = publishDate;
                 let displayDate = publishDate;
@@ -522,12 +569,12 @@
                 } catch (e) {
                     console.warn('Date formatting error:', e);
                 }
-                
+
                 // Create card
                 const card = document.createElement('div');
                 card.className = `newsletter-card ${style.borderClass}`;
                 card.onclick = () => viewNewsletter(newsletter);
-                
+
                 card.innerHTML = `
                     <div class="p-6 h-full flex flex-col">
                         <!-- Header -->
@@ -560,7 +607,7 @@
                                 <div class="text-gray-500 text-xs mt-1">Sources Used</div>
                             </div>
                             <div class="text-center p-3 bg-gray-50 rounded-lg">
-                                <div class="text-xl font-bold text-gray-800">${Math.max(1, Math.floor(wordCount/200))}</div>
+                                <div class="text-xl font-bold text-gray-800">${Math.max(1, Math.floor(wordCount / 200))}</div>
                                 <div class="text-gray-500 text-xs mt-1">Min Read</div>
                             </div>
                         </div>
@@ -588,30 +635,30 @@
                         .replace(/\s*Daily$/, '')  // Remove "Daily" if you want
                         .trim();
                 }
-                                
+
                 return card;
-                
+
             } catch (error) {
                 console.error('Error creating newsletter card:', error);
                 return null;
             }
         }
-        
+
         // View newsletter details
         async function viewNewsletter(newsletter) {
             const modal = document.getElementById('newsletterModal');
             const modalTitle = document.getElementById('modalTitle');
             const modalContent = document.getElementById('modalContent');
-            
+
             if (!modal || !modalTitle || !modalContent) return;
-            
+
             const topic = newsletter.topic || 'unknown';
             const title = newsletter.title || 'Untitled Newsletter';
             const htmlContent = newsletter.html_content || '<p>No content available</p>';
             const metadata = newsletter.metadata || {};
-            
+
             modalTitle.textContent = title;
-            
+
             // Show loading in modal
             modalContent.innerHTML = `
                 <div class="text-center py-8">
@@ -619,24 +666,24 @@
                     <p class="text-gray-600">Loading newsletter details...</p>
                 </div>
             `;
-            
+
             modal.classList.remove('hidden');
-            
+
             // Try to fetch fresh content
             try {
                 const response = await fetch(`/api/newsletter/${topic}?date=${newsletter.publish_date}`);
                 const data = await response.json();
-                
+
                 if (data.success && data.newsletter) {
                     newsletter = data.newsletter;
                 }
             } catch (error) {
                 console.log('Using cached newsletter data');
             }
-            
+
             // Create modal content
             const finalMetadata = newsletter.metadata || metadata;
-            
+
             modalContent.innerHTML = `
                 <div class="mb-6">
                     <div class="flex flex-wrap gap-2 mb-4">
@@ -658,7 +705,7 @@
                             <div class="text-green-600 text-xs mt-1">Total Words</div>
                         </div>
                         <div class="text-center p-4 bg-yellow-50 rounded-lg">
-                            <div class="text-xl font-bold text-yellow-700">${Math.max(1, Math.floor((finalMetadata.word_count || 0)/200))}</div>
+                            <div class="text-xl font-bold text-yellow-700">${Math.max(1, Math.floor((finalMetadata.word_count || 0) / 200))}</div>
                             <div class="text-yellow-600 text-xs mt-1">Min Read</div>
                         </div>
                         <div class="text-center p-4 bg-purple-50 rounded-lg">
@@ -688,7 +735,7 @@
                 </div>
             `;
         }
-        
+
         // Close modal
         function closeModal() {
             const modal = document.getElementById('newsletterModal');
@@ -696,7 +743,7 @@
                 modal.classList.add('hidden');
             }
         }
-        
+
         // Search newsletters
         function searchNewsletters(query) {
             if (!query.trim()) {
@@ -709,27 +756,27 @@
                 }
                 return;
             }
-            
+
             const searchTerm = query.toLowerCase();
             const filtered = allNewsletters.filter(newsletter => {
                 const title = (newsletter.title || '').toLowerCase();
                 const topic = (newsletter.topic || '').toLowerCase();
                 const content = (newsletter.html_content || '').toLowerCase();
-                
-                return title.includes(searchTerm) || 
-                       topic.includes(searchTerm) ||
-                       content.includes(searchTerm);
+
+                return title.includes(searchTerm) ||
+                    topic.includes(searchTerm) ||
+                    content.includes(searchTerm);
             });
-            
+
             displayNewsletters(filtered);
         }
-        
+
         // Load statistics
         async function loadStats() {
             try {
                 const topics = ['technology', 'sports', 'india_power_projects', 'hiring_jobs'];
                 const statsData = [];
-                
+
                 // Fetch all topic statuses
                 for (const topic of topics) {
                     try {
@@ -738,41 +785,41 @@
                         statsData.push({ topic, data });
                     } catch (error) {
                         console.error(`Error fetching stats for ${topic}:`, error);
-                        statsData.push({ 
-                            topic, 
-                            data: { 
-                                success: false, 
+                        statsData.push({
+                            topic,
+                            data: {
+                                success: false,
                                 error: 'Failed to load'
-                            } 
+                            }
                         });
                     }
                 }
-                
+
                 // Clear and rebuild stats container
                 statsContainer.innerHTML = '';
-                
+
                 const statConfigs = [
                     { topic: 'Technology', icon: 'fa-robot', color: 'tech-stat', key: 'technology' },
                     { topic: 'Sports', icon: 'fa-running', color: 'sports-stat', key: 'sports' },
                     { topic: 'Power Projects', icon: 'fa-bolt', color: 'power-stat', key: 'india_power_projects' },
                     { topic: 'Jobs', icon: 'fa-briefcase', color: 'jobs-stat', key: 'hiring_jobs' }
                 ];
-                
+
                 statConfigs.forEach(config => {
                     const stat = statsData.find(s => s.topic === config.key);
                     const statCard = document.createElement('div');
                     statCard.className = `stat-card ${config.color}`;
-                    
+
                     let statusText = 'Not Generated';
                     let lastUpdated = 'Never';
                     let hasNewsletter = false;
-                    
+
                     if (stat && stat.data.success) {
                         hasNewsletter = stat.data.has_todays_newsletter || stat.data.newsletter_exists;
                         lastUpdated = stat.data.last_updated || 'Never';
                         statusText = hasNewsletter ? 'Ready' : 'Not Generated';
                     }
-                    
+
                     statCard.innerHTML = `
                         <div class="flex items-center justify-between mb-4">
                             <div>
@@ -792,10 +839,10 @@
                             View Newsletters
                         </button>
                     `;
-                    
+
                     statsContainer.appendChild(statCard);
                 });
-                
+
             } catch (error) {
                 console.error('Error loading stats:', error);
                 statsContainer.innerHTML = `
@@ -806,13 +853,13 @@
                 `;
             }
         }
-        
+
         // Generate new newsletter
         async function generateNewsletter(topic) {
             if (!confirm(`Generate new newsletter for ${topic}? This may take 1-2 minutes.`)) {
                 return;
             }
-            
+
             try {
                 const response = await fetch(`/api/newsletter/${topic}/generate`, {
                     method: 'POST',
@@ -820,9 +867,9 @@
                         'Content-Type': 'application/json',
                     }
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     alert('✅ Newsletter generation started! It will be ready in 1-2 minutes.');
                     // Reload after a delay
@@ -842,24 +889,24 @@
                 alert('❌ Failed to start newsletter generation. Please check console.');
             }
         }
-        
+
         // Delete newsletter (placeholder - implement your own endpoint)
         async function deleteNewsletter(id) {
             if (!id || id === 'null') {
                 alert('Cannot delete: Newsletter ID is missing');
                 return;
             }
-            
+
             if (!confirm('Are you sure you want to delete this newsletter? This action cannot be undone.')) {
                 return;
             }
-            
+
             try {
                 // Note: You need to implement this endpoint
                 const response = await fetch(`/api/newsletter/delete/${id}`, {
                     method: 'DELETE'
                 });
-                
+
                 if (response.ok) {
                     alert('✅ Newsletter deleted successfully!');
                     // Reload current view
@@ -878,33 +925,33 @@
                 alert('❌ Failed to delete newsletter. Please implement the delete endpoint.');
             }
         }
-        
+
         // Set active tab
         function setActiveTab(tabId) {
             // Remove active class from all tabs
             document.querySelectorAll('.tab-btn').forEach(tab => {
                 tab.classList.remove('active');
             });
-            
+
             // Add active class to selected tab
             const activeTab = document.getElementById(tabId);
             if (activeTab) {
                 activeTab.classList.add('active');
             }
         }
-        
+
         // Show loading state
         function showLoading() {
             if (loadingContainer) loadingContainer.classList.remove('hidden');
             if (newslettersContainer) newslettersContainer.classList.add('hidden');
             if (errorContainer) errorContainer.classList.add('hidden');
         }
-        
+
         // Hide loading state
         function hideLoading() {
             if (loadingContainer) loadingContainer.classList.add('hidden');
         }
-        
+
         // Show error state
         function showError(title, message) {
             if (errorTitle) errorTitle.textContent = title;
@@ -913,12 +960,12 @@
             if (newslettersContainer) newslettersContainer.classList.add('hidden');
             if (loadingContainer) loadingContainer.classList.add('hidden');
         }
-        
+
         // Hide error state
         function hideError() {
             if (errorContainer) errorContainer.classList.add('hidden');
         }
-        
+
         // Retry loading
         function retryLoading() {
             if (currentTopic === 'all') {
@@ -928,7 +975,7 @@
             }
             loadStats();
         }
-        
+
         // Refresh all data
         function refreshAll() {
             loadStats();
@@ -938,9 +985,9 @@
                 loadTopicNewsletters(currentTopic);
             }
         }
-        
+
         // Handle keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             // Escape closes modal
             if (e.key === 'Escape') {
                 closeModal();
@@ -956,4 +1003,5 @@
         });
     </script>
 </body>
+
 </html>

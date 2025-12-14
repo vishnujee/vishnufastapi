@@ -152,23 +152,19 @@ class NewsletterDB:
             logger.error(f"Error getting newsletter history: {e}")
             return []
     
+
     def get_all_newsletters(self, limit: int = 20) -> List[Dict]:
-        """Get all newsletters across all topics - ONLY TODAY'S"""
+        """Get all newsletters across all topics"""
         try:
-            # ADD THIS ONE LINE
-            today = datetime.now().date().isoformat()
-            
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
-            # CHANGE THIS ONE LINE: Add WHERE clause
             cursor.execute('''
                 SELECT * FROM newsletters 
-                WHERE publish_date = ?  # ← ADDED THIS
                 ORDER BY publish_date DESC, created_at DESC 
                 LIMIT ?
-            ''', (today, limit))  # ← ADDED today parameter
+            ''', (limit,))
             
             newsletters = []
             for row in cursor.fetchall():
@@ -185,34 +181,6 @@ class NewsletterDB:
         except Exception as e:
             logger.error(f"Error getting all newsletters: {e}")
             return []
-    # def get_all_newsletters(self, limit: int = 20) -> List[Dict]:
-    #     """Get all newsletters across all topics"""
-    #     try:
-    #         conn = sqlite3.connect(self.db_path)
-    #         conn.row_factory = sqlite3.Row
-    #         cursor = conn.cursor()
-            
-    #         cursor.execute('''
-    #             SELECT * FROM newsletters 
-    #             ORDER BY publish_date DESC, created_at DESC 
-    #             LIMIT ?
-    #         ''', (limit,))
-            
-    #         newsletters = []
-    #         for row in cursor.fetchall():
-    #             newsletter = dict(row)
-    #             try:
-    #                 newsletter['metadata'] = json.loads(newsletter['metadata'])
-    #             except:
-    #                 newsletter['metadata'] = {}
-    #             newsletters.append(newsletter)
-            
-    #         conn.close()
-    #         return newsletters
-            
-    #     except Exception as e:
-    #         logger.error(f"Error getting all newsletters: {e}")
-    #         return []
     
     def expire_old_newsletters(self):
         """Mark old newsletters as expired"""
