@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse,JSONResponse,Redir
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import platform
-from datetime import datetime, timezone   # ← ADD THIS LINE
+from datetime import datetime, timezone  
 import subprocess
 import uuid
 import os
@@ -1505,7 +1505,7 @@ async def generate_newsletter(
             status_code=500
         )
 
-#################### REAL-TIME NEWSLETTER ENGINE (COPY THIS ENTIRE BLOCK) ####################
+#################### REAL-TIME NEWSLETTER ENGINE  ####################
 
 
 @app.get("/newsletter", response_class=HTMLResponse)
@@ -1653,32 +1653,7 @@ async def get_newsletter_status(topic: str):
             }
         )
 
-# @app.get("/api/newsletter/status/{topic}")
-# async def get_newsletter_status(topic: str):
-#     """Get newsletter generation status - FIXED VERSION"""
-#     try:
-#         today = datetime.now().date().isoformat()
-#         newsletter = newsletter_manager.get_newsletter_view(topic)
-        
-#         return JSONResponse(content={
-#             "success": True,
-#             "topic": topic,
-#             "has_todays_newsletter": newsletter is not None and newsletter.get('publish_date') == today,
-#             "newsletter_exists": newsletter is not None,
-#             "last_updated": newsletter.get('publish_date') if newsletter else "Never generated",
-#             "title": newsletter.get('title') if newsletter else None
-#         })
-#     except Exception as e:
-#         logger.error(f"Error getting newsletter status: {str(e)}")
-#         return JSONResponse(
-#             status_code=500,
-#             content={
-#                 "success": False, 
-#                 "error": str(e),
-#                 "last_updated": "Error loading"
-#             }
-#         )
-# #############
+
 
 @app.get("/newsletter-dashboard")
 async def newsletter_dashboard():
@@ -1733,6 +1708,11 @@ async def view_newsletter_html(topic: str, date: str = None):
     try:
         # Get newsletter from database
         newsletter = manager.db.get_active_newsletter(topic)
+        # new date format
+        raw_date = newsletter['publish_date']  # "2025-12-14"
+        formatted_date = datetime.strptime(raw_date, "%Y-%m-%d").strftime("%d %b- %Y")
+
+        newsletter['publish_date'] = formatted_date
         
         # If not found in DB, try to load from file
         if not newsletter:
@@ -1795,7 +1775,7 @@ async def view_newsletter_html(topic: str, date: str = None):
                 .header {{
                     background: linear-gradient(135deg, #667eea, #764ba2);
                     color: white;
-                    padding: 40px;
+                    padding: 20px;
                     text-align: center;
                 }}
                 .content {{
@@ -1849,6 +1829,22 @@ async def view_newsletter_html(topic: str, date: str = None):
                         padding: 30px 20px;
                     }}
                 }}
+                .sports-header 
+                {{
+                    padding: 0 !important;
+                    }}
+                .tech-header {{
+                    padding: 0 !important;
+                }}
+
+                .india-power-header {{
+                    padding: 0 !important;
+                }}
+
+                .hiring-jobs-header {{
+                    padding: 0 !important;
+                }}
+
             </style>
             <!-- Include your existing newsletter CSS -->
             <link rel="stylesheet" href="/static/css/tailwind.min.css">
@@ -1857,6 +1853,7 @@ async def view_newsletter_html(topic: str, date: str = None):
         <body>
             <div class="container">
                 <div class="header">
+                
                     <h1 style="font-size: 2.5rem; margin: 0 0 10px 0;">{newsletter['title']}</h1>
                     <p style="font-size: 1.1rem; opacity: 0.9; margin: 0;">
                         Published: {newsletter['publish_date']} • 
@@ -1886,7 +1883,9 @@ async def view_newsletter_html(topic: str, date: str = None):
                                 <div class="stat-label">Reading Time</div>
                             </div>
                             <div class="stat-box">
+                            
                                 <div class="stat-value">{newsletter['publish_date']}</div>
+                                
                                 <div class="stat-label">Published Date</div>
                             </div>
                         </div>
@@ -1898,7 +1897,7 @@ async def view_newsletter_html(topic: str, date: str = None):
                     <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
                         <p style="color: #6b7280; font-size: 0.9rem;">
                             <i class="fas fa-info-circle mr-1"></i>
-                            This newsletter was automatically generated and saved on {datetime.now().strftime('%Y-%m-%d %H:%M')}
+                            This newsletter was automatically generated and saved on {datetime.now().strftime('%d-%m-%Y')}
                         </p>
                         <div style="margin-top: 15px;">
                             <button onclick="window.print()" style="background: #6b7280; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-right: 10px;">
