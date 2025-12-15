@@ -1568,24 +1568,24 @@ async def get_newsletter(
 async def get_newsletter_history(
     topic: str,
     limit: int = 7,
-    today_only: bool = True  # Add this parameter
+    today_only: bool = True
 ):
-    """Get newsletter history for a topic - NOW FILTERS TODAY ONLY"""
+    """Get newsletter history for a topic - SHOWS LATEST IF TODAY'S NOT AVAILABLE"""
     try:
+        logger.info(f"GET /api/newsletter/{topic}/history called with today_only={today_only}")
+        
         if today_only:
-            # Get today's date
             today = datetime.now().date().isoformat()
             
-            # Get ALL newsletters for the topic
-            all_newsletters = newsletter_manager.get_topic_newsletters(topic, limit * 2)  # Get more to filter
+            # Get the latest newsletter for this specific topic on or before today
+            newsletter = newsletter_manager.db.get_latest_newsletter_for_topic(topic, today)
             
-            # Filter to only today's
-            newsletters = []
-            for newsletter in all_newsletters:
-                if newsletter.get('publish_date') == today:
-                    newsletters.append(newsletter)
+            # Wrap in list since frontend expects an array
+            newsletters = [newsletter] if newsletter else []
+            
+            logger.info(f"Latest {topic} newsletter found: {len(newsletters)}")
         else:
-            # Original behavior - all newsletters
+            # Original behavior - get all newsletters for the topic
             newsletters = newsletter_manager.get_topic_newsletters(topic, limit)
         
         return JSONResponse(content={
@@ -1596,11 +1596,48 @@ async def get_newsletter_history(
             "today_only": today_only
         })
     except Exception as e:
-        logger.error(f"Error getting newsletter history: {str(e)}")
+        logger.error(f"Error getting newsletter history for {topic}: {str(e)}")
         return JSONResponse(
             status_code=500,
             content={"success": False, "error": str(e)}
         )
+# @app.get("/api/newsletter/{topic}/history")
+# async def get_newsletter_history(
+#     topic: str,
+#     limit: int = 7,
+#     today_only: bool = True  # Add this parameter
+# ):
+#     """Get newsletter history for a topic - NOW FILTERS TODAY ONLY"""
+#     try:
+#         if today_only:
+#             # Get today's date
+#             today = datetime.now().date().isoformat()
+            
+#             # Get ALL newsletters for the topic
+#             all_newsletters = newsletter_manager.get_topic_newsletters(topic, limit * 2)  # Get more to filter
+            
+#             # Filter to only today's
+#             newsletters = []
+#             for newsletter in all_newsletters:
+#                 if newsletter.get('publish_date') == today:
+#                     newsletters.append(newsletter)
+#         else:
+#             # Original behavior - all newsletters
+#             newsletters = newsletter_manager.get_topic_newsletters(topic, limit)
+        
+#         return JSONResponse(content={
+#             "success": True,
+#             "topic": topic,
+#             "newsletters": newsletters,
+#             "count": len(newsletters),
+#             "today_only": today_only
+#         })
+#     except Exception as e:
+#         logger.error(f"Error getting newsletter history: {str(e)}")
+#         return JSONResponse(
+#             status_code=500,
+#             content={"success": False, "error": str(e)}
+#         )
 # @app.get("/api/newsletter/{topic}/history")
 # async def get_newsletter_history(
 #     topic: str,
@@ -1775,30 +1812,21 @@ async def newsletter_dashboard():
 
 newsletter_manager = NewsletterManager()
 
+
 @app.get("/api/newsletter/history/all")
 async def get_all_newsletters_history(limit: int = 20, today_only: bool = True):
-    """Get newsletters - MODIFIED: Only today's by default"""
+    """Get newsletters - SHOWS LATEST AVAILABLE IF TODAY'S NOT READY"""
     try:
         logger.info(f"GET /api/newsletter/history/all called with today_only={today_only}")
         
         if today_only:
             today = datetime.now().date().isoformat()
-            logger.info(f"Looking for newsletters with date: {today}")
             
-            # Get ALL newsletters
-            all_newsletters = newsletter_manager.get_all_newsletters(limit * 2)  # Get more
+            # Use the NEW method: Get the latest newsletter for each topic,
+            # but only if it was published on or before today.
+            newsletters = newsletter_manager.db.get_latest_newsletters_by_topic(today)
             
-            logger.info(f"Total newsletters found: {len(all_newsletters)}")
-            
-            # Filter to only today's
-            newsletters = []
-            for newsletter in all_newsletters:
-                pub_date = newsletter.get('publish_date')
-                logger.info(f"Checking newsletter: {newsletter.get('title', 'No title')[:50]}... date={pub_date}")
-                if pub_date == today:
-                    newsletters.append(newsletter)
-            
-            logger.info(f"Today's newsletters found: {len(newsletters)}")
+            logger.info(f"Latest newsletters for each topic (up to {today}) found: {len(newsletters)}")
         else:
             newsletters = newsletter_manager.get_all_newsletters(limit)
         
@@ -1812,18 +1840,68 @@ async def get_all_newsletters_history(limit: int = 20, today_only: bool = True):
                 newsletter['publish_date'] = datetime.now().date().isoformat()
         
         return JSONResponse(content={
-            "success": True,
-            "newsletters": newsletters,
-            "count": len(newsletters),
-            "today_only": today_only,
-            "date": datetime.now().date().isoformat() if today_only else None
-        })
+                "success": True,
+                "newsletters": newsletters,
+                "count": len(newsletters),
+                "today_only": today_only,
+                "date": today if today_only else None
+            })
     except Exception as e:
-        logger.error(f"Error in get_all_newsletters_history: {e}")
+        logger.error(f"❌ Error in get_all_newsletters_history: {e}")
         return JSONResponse(
             status_code=500,
             content={"success": False, "error": str(e)}
         )
+
+# @app.get("/api/newsletter/history/all")
+# async def get_all_newsletters_history(limit: int = 20, today_only: bool = True):
+#     """Get newsletters - MODIFIED: Only today's by default"""
+#     try:
+#         logger.info(f"GET /api/newsletter/history/all called with today_only={today_only}")
+        
+#         if today_only:
+#             today = datetime.now().date().isoformat()
+#             logger.info(f"Looking for newsletters with date: {today}")
+            
+#             # Get ALL newsletters
+#             all_newsletters = newsletter_manager.get_all_newsletters(limit * 2)  # Get more
+            
+#             logger.info(f"Total newsletters found: {len(all_newsletters)}")
+            
+#             # Filter to only today's
+#             newsletters = []
+#             for newsletter in all_newsletters:
+#                 pub_date = newsletter.get('publish_date')
+#                 logger.info(f"Checking newsletter: {newsletter.get('title', 'No title')[:50]}... date={pub_date}")
+#                 if pub_date == today:
+#                     newsletters.append(newsletter)
+            
+#             logger.info(f"Today's newsletters found: {len(newsletters)}")
+#         else:
+#             newsletters = newsletter_manager.get_all_newsletters(limit)
+        
+#         # Ensure each newsletter has required fields
+#         for newsletter in newsletters:
+#             if 'metadata' not in newsletter:
+#                 newsletter['metadata'] = {}
+#             if 'topic' not in newsletter:
+#                 newsletter['topic'] = 'unknown'
+#             if 'publish_date' not in newsletter:
+#                 newsletter['publish_date'] = datetime.now().date().isoformat()
+        
+#         return JSONResponse(content={
+#             "success": True,
+#             "newsletters": newsletters,
+#             "count": len(newsletters),
+#             "today_only": today_only,
+#             "date": datetime.now().date().isoformat() if today_only else None
+#         })
+#     except Exception as e:
+#         logger.error(f"Error in get_all_newsletters_history: {e}")
+#         return JSONResponse(
+#             status_code=500,
+#             content={"success": False, "error": str(e)}
+#         )
 
 
 # @app.get("/api/newsletter/history/all")

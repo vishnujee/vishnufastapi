@@ -234,3 +234,95 @@ class NewsletterDB:
         except Exception as e:
             logger.error(f"Error getting newsletter by date: {e}")
             return None
+        
+
+    def get_latest_newsletters_by_topic(self, date_limit: str = None):
+        """Get the latest newsletter for EACH topic. If date_limit is provided, 
+        get the latest one ON or BEFORE that date."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # This query groups by topic and gets the most recent publish_date for each.
+            if date_limit:
+                # Get the latest newsletter for each topic published ON or BEFORE the limit date
+                cursor.execute('''
+                    SELECT n1.* FROM newsletters n1
+                    INNER JOIN (
+                        SELECT topic, MAX(publish_date) as max_date 
+                        FROM newsletters 
+                        WHERE publish_date <= ?
+                        GROUP BY topic
+                    ) n2 ON n1.topic = n2.topic AND n1.publish_date = n2.max_date
+                    ORDER BY n1.created_at DESC
+                ''', (date_limit,))
+            else:
+                # Simply get the absolute latest newsletter for each topic
+                cursor.execute('''
+                    SELECT n1.* FROM newsletters n1
+                    INNER JOIN (
+                        SELECT topic, MAX(publish_date) as max_date 
+                        FROM newsletters 
+                        GROUP BY topic
+                    ) n2 ON n1.topic = n2.topic AND n1.publish_date = n2.max_date
+                    ORDER BY n1.created_at DESC
+                ''')
+            
+            newsletters = []
+            for row in cursor.fetchall():
+                newsletter = dict(row)
+                try:
+                    newsletter['metadata'] = json.loads(newsletter['metadata'])
+                except:
+                    newsletter['metadata'] = {}
+                newsletters.append(newsletter)
+            
+            conn.close()
+            return newsletters
+            
+        except Exception as e:
+            logger.error(f"Error getting latest newsletters by topic: {e}")
+            return []
+        
+
+    def get_latest_newsletter_for_topic(self, topic: str, date_limit: str = None) -> Optional[Dict]:
+        """Get the latest newsletter for a SPECIFIC topic on or before date_limit"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            if date_limit:
+                # Get the latest newsletter for this topic published ON or BEFORE the limit date
+                cursor.execute('''
+                    SELECT * FROM newsletters 
+                    WHERE topic = ? AND publish_date <= ?
+                    ORDER BY publish_date DESC, created_at DESC 
+                    LIMIT 1
+                ''', (topic, date_limit))
+            else:
+                # Get the absolute latest newsletter for this topic
+                cursor.execute('''
+                    SELECT * FROM newsletters 
+                    WHERE topic = ? 
+                    ORDER BY publish_date DESC, created_at DESC 
+                    LIMIT 1
+                ''', (topic,))
+            
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                newsletter = dict(row)
+                try:
+                    newsletter['metadata'] = json.loads(newsletter['metadata'])
+                except:
+                    newsletter['metadata'] = {}
+                return newsletter
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting latest newsletter for topic {topic}: {e}")
+            return None
