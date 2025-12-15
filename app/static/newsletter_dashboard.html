@@ -405,23 +405,44 @@
 
         // Load all newsletters
         async function loadAllNewsletters() {
-            console.log('Loading all newsletters...');
+            console.log('Loading TODAY\'S newsletters...');
             setActiveTab('tab-all');
             currentTopic = 'all';
-            currentTopicTitle.textContent = 'All Newsletters';
+            currentTopicTitle.textContent = 'Today\'s Newsletters';
 
             showLoading();
             hideError();
 
             try {
-                // Change the fetch call to:
-                const response = await fetch('/api/newsletter/history/all?limit=50&today_only=true');
-                const data = await response.json();
+                // ADD DEBUG LOG
+                console.log('Fetching: /api/newsletter/history/all?limit=50&today_only=true');
 
-                console.log('API Response for all newsletters:', data);
+                const response = await fetch('/api/newsletter/history/all?limit=50&today_only=true');
+                console.log('Response status:', response.status);
+
+                const responseText = await response.text();
+                console.log('Raw response:', responseText);
+
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('Failed to parse JSON:', e);
+                    showError('Server Error', 'Invalid response from server');
+                    return;
+                }
+
+                console.log('Parsed data:', data);
 
                 if (data.success) {
                     allNewsletters = data.newsletters || [];
+                    console.log(`Found ${allNewsletters.length} newsletters for today`);
+
+                    // Log each newsletter
+                    allNewsletters.forEach((newsletter, i) => {
+                        console.log(`${i + 1}. ${newsletter.topic} - ${newsletter.title} (${newsletter.publish_date})`);
+                    });
+
                     displayNewsletters(allNewsletters);
                 } else {
                     showError('Failed to load newsletters', data.error || 'Unknown error');
