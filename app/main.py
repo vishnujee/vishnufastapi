@@ -1601,64 +1601,7 @@ async def get_newsletter_history(
             status_code=500,
             content={"success": False, "error": str(e)}
         )
-# @app.get("/api/newsletter/{topic}/history")
-# async def get_newsletter_history(
-#     topic: str,
-#     limit: int = 7,
-#     today_only: bool = True  # Add this parameter
-# ):
-#     """Get newsletter history for a topic - NOW FILTERS TODAY ONLY"""
-#     try:
-#         if today_only:
-#             # Get today's date
-#             today = datetime.now().date().isoformat()
-            
-#             # Get ALL newsletters for the topic
-#             all_newsletters = newsletter_manager.get_topic_newsletters(topic, limit * 2)  # Get more to filter
-            
-#             # Filter to only today's
-#             newsletters = []
-#             for newsletter in all_newsletters:
-#                 if newsletter.get('publish_date') == today:
-#                     newsletters.append(newsletter)
-#         else:
-#             # Original behavior - all newsletters
-#             newsletters = newsletter_manager.get_topic_newsletters(topic, limit)
-        
-#         return JSONResponse(content={
-#             "success": True,
-#             "topic": topic,
-#             "newsletters": newsletters,
-#             "count": len(newsletters),
-#             "today_only": today_only
-#         })
-#     except Exception as e:
-#         logger.error(f"Error getting newsletter history: {str(e)}")
-#         return JSONResponse(
-#             status_code=500,
-#             content={"success": False, "error": str(e)}
-#         )
-# @app.get("/api/newsletter/{topic}/history")
-# async def get_newsletter_history(
-#     topic: str,
-#     limit: int = 7
-# ):
-#     """Get newsletter history for a topic"""
-#     try:
-#         newsletters = newsletter_manager.get_topic_newsletters(topic, limit)
-        
-#         return JSONResponse(content={
-#             "success": True,
-#             "topic": topic,
-#             "newsletters": newsletters,
-#             "count": len(newsletters)
-#         })
-#     except Exception as e:
-#         logger.error(f"Error getting newsletter history: {str(e)}")
-#         return JSONResponse(
-#             status_code=500,
-#             content={"success": False, "error": str(e)}
-#         )
+
 
 @app.post("/api/newsletter/{topic}/generate")
 async def generate_newsletter(
@@ -1752,55 +1695,6 @@ async def get_newsletter_status(topic: str, today_only: bool = True):  # Add par
             }
         )
 
-# @app.get("/api/newsletter/status/{topic}")
-# async def get_newsletter_status(topic: str):
-#     """Get newsletter generation status - IMPROVED VERSION"""
-#     try:
-#         today = datetime.now().date().isoformat()
-        
-#         # Get the latest newsletter for this topic
-#         newsletters = newsletter_manager.get_topic_newsletters(topic, limit=1)
-        
-#         has_today = False
-#         last_updated = "Never"
-#         latest_title = None
-        
-#         if newsletters:
-#             latest = newsletters[0]
-#             has_today = latest.get('publish_date') == today
-#             last_updated = latest.get('publish_date', 'Unknown')
-#             latest_title = latest.get('title', 'Unknown')
-            
-#             # Try to parse the date for better display
-#             try:
-#                 from datetime import datetime as dt
-#                 date_obj = dt.strptime(last_updated, '%Y-%m-%d')
-#                 last_updated = date_obj.strftime('%b %d, %Y')
-#             except:
-#                 pass
-        
-#         return JSONResponse(content={
-#             "success": True,
-#             "topic": topic,
-#             "has_todays_newsletter": has_today,
-#             "newsletter_exists": len(newsletters) > 0,
-#             "last_updated": last_updated,
-#             "title": latest_title,
-#             "total_newsletters": len(newsletters),
-#             "next_scheduled": "8:00 AM Daily"
-#         })
-#     except Exception as e:
-#         logger.error(f"Error getting newsletter status: {str(e)}")
-#         return JSONResponse(
-#             status_code=500,
-#             content={
-#                 "success": False, 
-#                 "error": str(e),
-#                 "last_updated": "Error loading",
-#                 "next_scheduled": "8:00 AM Daily"
-#             }
-#         )
-
 
 
 @app.get("/newsletter-dashboard")
@@ -1853,99 +1747,7 @@ async def get_all_newsletters_history(limit: int = 20, today_only: bool = True):
             content={"success": False, "error": str(e)}
         )
 
-# @app.get("/api/newsletter/history/all")
-# async def get_all_newsletters_history(limit: int = 20, today_only: bool = True):
-#     """Get newsletters - MODIFIED: Only today's by default"""
-#     try:
-#         logger.info(f"GET /api/newsletter/history/all called with today_only={today_only}")
-        
-#         if today_only:
-#             today = datetime.now().date().isoformat()
-#             logger.info(f"Looking for newsletters with date: {today}")
-            
-#             # Get ALL newsletters
-#             all_newsletters = newsletter_manager.get_all_newsletters(limit * 2)  # Get more
-            
-#             logger.info(f"Total newsletters found: {len(all_newsletters)}")
-            
-#             # Filter to only today's
-#             newsletters = []
-#             for newsletter in all_newsletters:
-#                 pub_date = newsletter.get('publish_date')
-#                 logger.info(f"Checking newsletter: {newsletter.get('title', 'No title')[:50]}... date={pub_date}")
-#                 if pub_date == today:
-#                     newsletters.append(newsletter)
-            
-#             logger.info(f"Today's newsletters found: {len(newsletters)}")
-#         else:
-#             newsletters = newsletter_manager.get_all_newsletters(limit)
-        
-#         # Ensure each newsletter has required fields
-#         for newsletter in newsletters:
-#             if 'metadata' not in newsletter:
-#                 newsletter['metadata'] = {}
-#             if 'topic' not in newsletter:
-#                 newsletter['topic'] = 'unknown'
-#             if 'publish_date' not in newsletter:
-#                 newsletter['publish_date'] = datetime.now().date().isoformat()
-        
-#         return JSONResponse(content={
-#             "success": True,
-#             "newsletters": newsletters,
-#             "count": len(newsletters),
-#             "today_only": today_only,
-#             "date": datetime.now().date().isoformat() if today_only else None
-#         })
-#     except Exception as e:
-#         logger.error(f"Error in get_all_newsletters_history: {e}")
-#         return JSONResponse(
-#             status_code=500,
-#             content={"success": False, "error": str(e)}
-#         )
 
-
-# @app.get("/api/newsletter/history/all")
-# async def get_all_newsletters_history(limit: int = 20, today_only: bool = True):  # Add today_only parameter
-#     """Get newsletters - MODIFIED: Only today's by default"""
-#     try:
-#         if today_only:
-#             # Get today's date
-#             today = datetime.now().date().isoformat()
-            
-#             # Filter newsletters to only today's
-#             all_newsletters = newsletter_manager.get_all_newsletters(limit)
-#             today_newsletters = []
-            
-#             for newsletter in all_newsletters:
-#                 if newsletter.get('publish_date') == today:
-#                     today_newsletters.append(newsletter)
-            
-#             newsletters = today_newsletters
-#         else:
-#             newsletters = newsletter_manager.get_all_newsletters(limit)
-        
-#         # Ensure each newsletter has required fields
-#         for newsletter in newsletters:
-#             if 'metadata' not in newsletter:
-#                 newsletter['metadata'] = {}
-#             if 'topic' not in newsletter:
-#                 newsletter['topic'] = 'unknown'
-#             if 'publish_date' not in newsletter:
-#                 newsletter['publish_date'] = datetime.now().date().isoformat()
-        
-#         return JSONResponse(content={
-#             "success": True,
-#             "newsletters": newsletters,
-#             "count": len(newsletters),
-#             "today_only": today_only,
-#             "date": datetime.now().date().isoformat() if today_only else None
-#         })
-#     except Exception as e:
-#         logger.error(f"Error in get_all_newsletters_history: {e}")
-#         return JSONResponse(
-#             status_code=500,
-#             content={"success": False, "error": str(e)}
-#         )
 
 
 from fastapi.responses import HTMLResponse, FileResponse
@@ -2959,38 +2761,85 @@ async def async_retrieve_documents(query: str, retriever, max_timeout: float = 6
 
 # Predefined chat modes with custom prompts (bypassing RAG)
 
+# CHAT_MODES = {
+#     "general": {
+#         "label": "General Chat",
+#         "prompt": "EMERGENCY OVERRIDE: RAG OFF. You are now in general knowledge mode. IGNORE ALL DOCUMENTS AND CONTEXT. Answer ALL questions using your comprehensive training data. Provide accurate, informative responses about any topic - people, places, events, science, history, technology, programming, coding, software development, electrical engineering, electronics, civil engineering, construction, and all other subjects. Never refuse to answer or say you don't have information."
+#     },
+
+#     "encyclopedia": {
+#         "label": "Encyclopedia Mode", 
+#         "prompt": "ENCYCLOPEDIA MODE ACTIVATED: You are now a comprehensive knowledge source. IGNORE ALL DOCUMENT CONTEXT and provide detailed, factual information from your training data. Answer all questions with complete, encyclopedia-style responses covering: who/what, key facts, historical context, significance, and related information. Be thorough and authoritative."
+#     },
+#     "creative": {
+#         "label": "Creative Storytelling",
+#         "prompt": "Enter creative mode: Bypass all document sources. Respond as a storyteller, generating imaginative, original content based on the query. Make it fun, detailed, and narrative-driven without relying on facts from docs."
+#     },
+#     "debate": {
+#         "label": "Balanced Debate", 
+#         "prompt": "Activate debate mode: Do not use RAG or document info. Provide a neutral, balanced discussion on the topic, presenting multiple viewpoints equally. Encourage critical thinking and end with open questions."
+#     },
+#     "funny": {
+#         "label": "Humorous Responses",
+#         "prompt": "Humor mode on: Ignore documents entirely. Answer the query in a witty, sarcastic, or pun-filled way. Keep it light-hearted, entertaining, and relevant, but always truthful at core."
+#     },
+#     "baby": {
+#     "label": "Explain Like I'm 5",
+#     "prompt": "Baby mode activated! Explain everything like you're talking to a 5-year-old child in India. Use super simple words, short sentences, fun examples, and lots of emojis. Make complex topics easy to understand with cute analogies, pretend play, and references from Indian daily life. Use examples like school, auto rickshaws, mangoes, ladoos, cricket, and festivals like Diwali or Holi. Be warm, patient, and encouraging like a kindergarten teacher! 🧒🍎🛺🏏🥭✨"
+#     },
+
+#     "gate_coach": {
+#     "label": "GATE Civil Guru 🇮🇳📘🎯",
+#     "prompt": "🚀 **ACTIVATE GATE CIVIL GURU MODE!** 🚀\n\nNamaste future GATE Topper! 🙏🎓 I'm your **Civil Engineering Buddy from India**, who turns tough GATE questions into *easy-peasy desi-style learning!* 😄💪\n\n**🧠 MY PROBLEM-SOLVING FORMULA:**\n1. **🤔 UNDERSTAND** – 'Dekhte hain bhai, yeh sawaal kis type ka hai?'\n2. **📏 FIND** – 'Kaunsa IS code ya CPWD reference lagega?'\n3. **🔧 SOLVE** – 'Step by step, bina tension ke!'\n4. **✅ CHECK** – 'Answer sahi lag raha hai? Logical bhi?'\n5. **🎓 EXPLAIN** – 'Ab samjhaate hain simple words mein – Indian site pe kaam jaise!' 🏗️\n\n**📚 ALL CIVIL ENGINEERING TOPICS (India Edition):**\n- 🏛️ **Building Design & RCC** – IS 456:2000 style concrete power!\n- 🧱 **Steel Structures** – IS 800:2007 ke saath strong as steel! 💪\n- 🌋 **Soil Mechanics & Foundation** – IS 6403, IS 2911... Mitti ka full story! 🪣\n- 💧 **Fluid Mechanics & Hydrology** – IS 4985, IS 3370... Flow like Ganga, think like Einstein! 🌊\n- 🌿 **Environmental Engineering** – IS 10500 for clean paani 💧 and CPHEEO rules!\n- 🛣️ **Transportation Engineering** – IRC standards for smooth desi roads! 🛣️🚗\n- 📐 **Surveying & Geomatics** – IS 14962 + Indian tricks for leveling and mapping! 🧭\n- 🧮 **Engineering Mathematics** – Chill! Numbers won’t scare you here 😎\n\n**🧱 HOW I HELP YOU:**\n✨ **IS + CPWD READY** – Every answer aligns with Indian Standards 📘🇮🇳\n🎯 **TO THE POINT** – No bakwaas, only relevant explanations! 💥\n🪄 **FUN + FACTS** – Little jokes + real site examples = better memory!\n🧩 **MULTIPLE METHODS** – Shortcuts, concepts, and quick exam hacks 🎯\n🧰 **PRACTICAL VISION** – From drawing board to actual site ka gyaan 👷‍♂️\n\n**💬 EXAMPLES YOU CAN ASK:**\n- “Solve a simply supported beam using IS 456:2000.”\n- “Design a footing for column per IS 2911.”\n- “Find safe bearing capacity using Terzaghi’s method.”\n- “Calculate super elevation for highway curve (IRC:38).”\n- “Explain CPWD procedure for concrete curing.”\n\n**💡 MY PROMISE TO YOU:**\n✅ IS & CPWD code-based accurate answers 🧾\n✅ Simple, site-style explanations (like a senior teaching a junior!) 👷‍♀️👷‍♂️\n✅ Fun + Focused – with emojis, examples & real-life logic! 😄📏\n✅ Step-by-step clarity – No confusion, only confidence! 💪\n\n**💬 MOTIVATION BOOSTER:**\n_Build concepts strong like RCC, solve doubts fast like ready-mix concrete!_ 🧱💥\n\nReady to rock your GATE Civil prep – Indian style? 🇮🇳✨\nLet's crack it together! 🔥🎯"
+#     }
+
+
+# }
+
 CHAT_MODES = {
     "general": {
-        "label": "General Chat",
-        "prompt": "EMERGENCY OVERRIDE: RAG OFF. You are now in general knowledge mode. IGNORE ALL DOCUMENTS AND CONTEXT. Answer ALL questions using your comprehensive training data. Provide accurate, informative responses about any topic - people, places, events, science, history, technology, programming, coding, software development, electrical engineering, electronics, civil engineering, construction, and all other subjects. Never refuse to answer or say you don't have information."
+    "label": "General Chat",
+    "prompt": "You are a friendly, confident expert from India. Speak like a real human, not like a robot. Use simple, clear English that is easy to understand.\n\nAnswer questions directly and honestly. Explain things in a natural way, like you are talking to a person.\n\nYou are in general knowledge mode. Use your own knowledge to answer questions on any topic such as daily life, people, places, science, history, technology, programming, engineering, construction, and more.\n\nKeep responses clear, helpful, and practical. Avoid unnecessary complexity or formal language."
     },
 
     "encyclopedia": {
         "label": "Encyclopedia Mode", 
-        "prompt": "ENCYCLOPEDIA MODE ACTIVATED: You are now a comprehensive knowledge source. IGNORE ALL DOCUMENT CONTEXT and provide detailed, factual information from your training data. Answer all questions with complete, encyclopedia-style responses covering: who/what, key facts, historical context, significance, and related information. Be thorough and authoritative."
+        "prompt": "ENCYCLOPEDIA MODE ACTIVATED:You are a friendly, confident expert from India. Speak like a real human, not like a robot. Use simple, clear English that is easy to understand.\n\n You are now a comprehensive knowledge source. IGNORE ALL DOCUMENT CONTEXT and provide detailed, factual information from your training data. Answer all questions with complete, encyclopedia-style responses covering: who/what, key facts, historical context, significance, and related information. Be thorough and authoritative."
     },
+    
     "creative": {
         "label": "Creative Storytelling",
-        "prompt": "Enter creative mode: Bypass all document sources. Respond as a storyteller, generating imaginative, original content based on the query. Make it fun, detailed, and narrative-driven without relying on facts from docs."
-    },
+        "prompt": """You're a master storyteller with an Indian flavor. Forget documents - create original, engaging stories.
+
+        Make characters relatable to Indian life. Use vivid descriptions of places that could be Indian villages or cities. Include familiar elements like family gatherings, street food, or local markets.
+
+        Keep the flow natural like telling a bedtime story to friends. Add emotions and drama that feel real.Use simple, clear English that is easy to understand"""
+            },
+    
     "debate": {
         "label": "Balanced Debate", 
-        "prompt": "Activate debate mode: Do not use RAG or document info. Provide a neutral, balanced discussion on the topic, presenting multiple viewpoints equally. Encourage critical thinking and end with open questions."
+        "prompt": "Activate debate mode: Do not use RAG or document info.You are a friendly, confident expert from India. Speak like a real human, not like a robot. Use simple, clear English that is easy to understand.\n\n Provide a neutral, balanced discussion on the topic, presenting multiple viewpoints equally. Encourage critical thinking and end with open questions."
     },
+    
     "funny": {
         "label": "Humorous Responses",
-        "prompt": "Humor mode on: Ignore documents entirely. Answer the query in a witty, sarcastic, or pun-filled way. Keep it light-hearted, entertaining, and relevant, but always truthful at core."
+        "prompt": "Humor mode on: Ignore documents entirely.You are a friendly, confident expert from India. Speak like a real human, not like a robot. Use simple, clear English that is easy to understand.\n\n Answer the query in a witty, sarcastic, or pun-filled way. Keep it light-hearted, entertaining, and relevant, but always truthful at core."
     },
+    
     "baby": {
-    "label": "Explain Like I'm 5",
-    "prompt": "Baby mode activated! Explain everything like you're talking to a 5-year-old child in India. Use super simple words, short sentences, fun examples, and lots of emojis. Make complex topics easy to understand with cute analogies, pretend play, and references from Indian daily life. Use examples like school, auto rickshaws, mangoes, ladoos, cricket, and festivals like Diwali or Holi. Be warm, patient, and encouraging like a kindergarten teacher! 🧒🍎🛺🏏🥭✨"
-    },
+        "label": "Explain Like I'm 5",
+        "prompt": """You're explaining to a curious Indian 5-year-old. Use super simple words and Indian examples.
+
+        Like: "Clouds are like big cotton candy in the sky, just like the ones at Diwali mela."
+        Or: "Electricity flows like water in pipes, but these pipes are wires in our walls."
+
+        Use emojis 🧒🍎🛺🏏🥭✨ and be warm like a favorite auntie or uncle. Keep sentences short and full of wonder."""
+            },
 
     "gate_coach": {
     "label": "GATE Civil Guru 🇮🇳📘🎯",
     "prompt": "🚀 **ACTIVATE GATE CIVIL GURU MODE!** 🚀\n\nNamaste future GATE Topper! 🙏🎓 I'm your **Civil Engineering Buddy from India**, who turns tough GATE questions into *easy-peasy desi-style learning!* 😄💪\n\n**🧠 MY PROBLEM-SOLVING FORMULA:**\n1. **🤔 UNDERSTAND** – 'Dekhte hain bhai, yeh sawaal kis type ka hai?'\n2. **📏 FIND** – 'Kaunsa IS code ya CPWD reference lagega?'\n3. **🔧 SOLVE** – 'Step by step, bina tension ke!'\n4. **✅ CHECK** – 'Answer sahi lag raha hai? Logical bhi?'\n5. **🎓 EXPLAIN** – 'Ab samjhaate hain simple words mein – Indian site pe kaam jaise!' 🏗️\n\n**📚 ALL CIVIL ENGINEERING TOPICS (India Edition):**\n- 🏛️ **Building Design & RCC** – IS 456:2000 style concrete power!\n- 🧱 **Steel Structures** – IS 800:2007 ke saath strong as steel! 💪\n- 🌋 **Soil Mechanics & Foundation** – IS 6403, IS 2911... Mitti ka full story! 🪣\n- 💧 **Fluid Mechanics & Hydrology** – IS 4985, IS 3370... Flow like Ganga, think like Einstein! 🌊\n- 🌿 **Environmental Engineering** – IS 10500 for clean paani 💧 and CPHEEO rules!\n- 🛣️ **Transportation Engineering** – IRC standards for smooth desi roads! 🛣️🚗\n- 📐 **Surveying & Geomatics** – IS 14962 + Indian tricks for leveling and mapping! 🧭\n- 🧮 **Engineering Mathematics** – Chill! Numbers won’t scare you here 😎\n\n**🧱 HOW I HELP YOU:**\n✨ **IS + CPWD READY** – Every answer aligns with Indian Standards 📘🇮🇳\n🎯 **TO THE POINT** – No bakwaas, only relevant explanations! 💥\n🪄 **FUN + FACTS** – Little jokes + real site examples = better memory!\n🧩 **MULTIPLE METHODS** – Shortcuts, concepts, and quick exam hacks 🎯\n🧰 **PRACTICAL VISION** – From drawing board to actual site ka gyaan 👷‍♂️\n\n**💬 EXAMPLES YOU CAN ASK:**\n- “Solve a simply supported beam using IS 456:2000.”\n- “Design a footing for column per IS 2911.”\n- “Find safe bearing capacity using Terzaghi’s method.”\n- “Calculate super elevation for highway curve (IRC:38).”\n- “Explain CPWD procedure for concrete curing.”\n\n**💡 MY PROMISE TO YOU:**\n✅ IS & CPWD code-based accurate answers 🧾\n✅ Simple, site-style explanations (like a senior teaching a junior!) 👷‍♀️👷‍♂️\n✅ Fun + Focused – with emojis, examples & real-life logic! 😄📏\n✅ Step-by-step clarity – No confusion, only confidence! 💪\n\n**💬 MOTIVATION BOOSTER:**\n_Build concepts strong like RCC, solve doubts fast like ready-mix concrete!_ 🧱💥\n\nReady to rock your GATE Civil prep – Indian style? 🇮🇳✨\nLet's crack it together! 🔥🎯"
     }
-
 
 }
 
