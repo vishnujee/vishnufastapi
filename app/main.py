@@ -2795,6 +2795,7 @@ async def async_retrieve_documents(query: str, retriever, max_timeout: float = 6
 
 
 # }
+#  prompt modified to make it more human like and indian tone
 
 CHAT_MODES = {
     "general": {
