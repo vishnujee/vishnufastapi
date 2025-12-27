@@ -150,6 +150,103 @@ class EnergyNewsSearcher:
             "techcrunch", "theverge", "wired", "techradar"
         ]
 
+        
+        
+        self.top_companies_list = [
+
+            # =========================
+            # Power / Energy / Utilities
+            # =========================
+            "NTPC", "Power Grid", "NHPC", "NPCIL",
+            "Tata Power", "Tata Renewable",
+            "Adani Power", "Adani Green", "Adani Transmission",
+            "ReNew", "Torrent Power", "JSW Energy", "SJVN",
+            "GMR Energy", "Reliance Power", "RattanIndia",
+            "BHEL", "Siemens Energy", "GE Power", "GE Vernova",
+            "ABB", "Schneider", "Hitachi Energy",
+            "L&T Power", "Sterling & Wilson",
+            "Suzlon", "Inox Wind",
+            "Thermax", "ISGEC",
+            "KEC International", "Kalpataru Power",
+            "Techno Electric",
+            "Waaree Energies", "Vikram Solar",
+            "Azure Power", "Greenko",
+            "Amara Raja", "Exide",
+            "Jindal Power",
+
+            # =========================
+            # Construction / Infrastructure / EPC
+            # =========================
+            "Larsen & Toubro", "L&T",
+            "Shapoorji Pallonji",
+            "Afcons Infrastructure",
+            "Tata Projects",
+            "NCC Limited", "NCC",
+            "HCC",
+            "IRCON International", "IRCON",
+            "RITES",
+            "RVNL", "Rail Vikas Nigam",
+            "Gammon India", "Gammon",
+            "Simplex Infrastructure", "Simplex",
+            "GMR Infrastructure",
+            "GVK",
+            "Dilip Buildcon",
+            "Ashoka Buildcon",
+            "J Kumar Infraprojects", "J Kumar",
+            "Patel Engineering",
+            "Montecarlo",
+            "Sadbhav Engineering", "Sadbhav",
+            "PNC Infratech",
+            "Megha Engineering", "MEIL",
+            "ITD Cementation",
+            "Ahluwalia Contracts", "Ahluwalia",
+            "KNR Constructions", "KNR",
+            "Capacite Infraprojects", "Capacite",
+            "Som Projects",
+            "Hindustan Prefab",
+            "NBCC",
+            "Engineers India", "EIL",
+
+            # =========================
+            # Electrical / Industrial Manufacturing
+            # =========================
+            "Havells",
+            "Polycab",
+            "KEI Industries",
+            "Apar Industries",
+            "Crompton Greaves",
+            "Bajaj Electricals",
+            "Luminous",
+            "Finolex Cables",
+            "CG Power",
+            "Voltamp",
+
+            # =========================
+            # IT / Software (≤ 20)
+            # =========================
+            "TCS", "Tata Consultancy",
+            "Infosys",
+            "Wipro",
+            "HCL",
+            "Tech Mahindra",
+            "LTIMindtree",
+            "Accenture",
+            "IBM",
+            "Capgemini",
+            "Cognizant",
+            "Oracle",
+            "SAP",
+            "Microsoft",
+            "Google",
+            "Amazon",
+            "Zoho",
+            "Freshworks",
+            "Persistent",
+            "Tata Elxsi",
+            "Siemens Digital"
+        ]
+
+
 
     def clean_html_content(self, html_text: str, max_length: int = 500) -> str:
         """Remove HTML tags and clean text for LLM processing"""
@@ -1065,67 +1162,528 @@ class EnergyNewsSearcher:
             )
         return self.session
     
-    async def search_naukri_jobs_fast(self, keywords: List[str] = None) -> List[Dict]:
-        """IMPROVED Naukri search with engineering focus"""
+
+############################################  NEW APPROACH FOR JOB SEARCH  ############################################
+
+
+    # async def _analyze_job_with_llm(self, title: str, content: str, source: str) -> Dict:
+    #     """FIXED LLM call - No aggressive software forcing, adds proper company detection"""
+    #     try:
+    #         model = get_gemini_model("gemini-2.0-flash-lite")
+            
+    #         # Prepare top companies list for prompt
+    #         top_companies_str = "\n".join([f"- {company}" for company in self.top_companies_list[:50]])
+            
+    #         prompt = f"""
+    #         **CRITICAL TASK**: Analyze this job posting for category AND detect if it's from a top company.
+            
+    #         JOB TITLE: {title}
+    #         DESCRIPTION: {content[:400]}
+    #         SOURCE: {source}
+            
+    #         **CRITICAL FIRST CHECK**: Is this a REAL job posting or just search results?
+            
+    #         **REJECT IF ANY OF THESE (These are NOT real jobs):**
+    #         1. Search results pages: "13215 Construction Engineer Job Vacancies In India"
+    #         2. Personal profiles: "NUNAKANI RAMANJANEYULU - Senior Piping Engineer"
+    #         3. Generic listings: "Construction Engineer Jobs In India" (no company)
+    #         4. Multiple openings: "Diploma Electrical Abb Jobs - 910 Diploma Electrical Abb Job Vacancies"
+            
+    #         **ACCEPT ONLY REAL JOB POSTINGS:**
+    #         - Specific role with company name: "Engineer at Adani Power"
+    #         - Contains experience: "4 to 8 years of experience"
+    #         - Specific location: "in Chennai, Tamil Nadu"
+            
+    #         **TOP 100 INDIAN COMPANIES TO CHECK**:
+    #         {top_companies_str}
+            
+    #         **CATEGORY RULES (MUST FOLLOW)**:
+    #         1. **SOFTWARE**: ONLY if role involves SOFTWARE DEVELOPMENT/CODING
+    #         - "Software Engineer", "Software Developer", "Programmer", "Full Stack Developer"
+    #         - NOT: "Electrical Engineer with IT skills", "Maintenance Engineer in IT department"
+            
+    #         2. **ELECTRICAL**: Power/Electrical engineering roles
+    #         - "Electrical Engineer", "Power Engineer", "Transmission Engineer", "Substation Engineer"
+    #         - Renewable energy engineering roles: "Solar Engineer", "Wind Engineer"
+            
+    #         3. **CIVIL**: Construction/Infrastructure roles
+    #         - "Civil Engineer", "Site Engineer", "Construction Engineer", "Structural Engineer"
+            
+    #         4. **OTHER**: Non-engineering or ambiguous roles
+    #         - Sales, HR, Marketing, Admin, Business Development
+    #         - Management roles without clear engineering focus
+    #         - **ALSO USE "other" FOR SEARCH RESULTS/PROFILES** (score them 0.1)
+            
+    #         **COMPANY DETECTION RULES**:
+    #         - Look for company name IN THE TITLE
+    #         - Must match EXACTLY or be very close variation of companies in list above
+    #         - Common patterns: "at [Company]", "- [Company]", "hiring for [Company]"
+    #         - If company is NOT in top list → is_top_company = false
+    #         - "LinkedIn India", "Naukri.com" are NOT top companies
+            
+    #         **CRITICAL EXAMPLES**:
+    #         ✅ REAL JOBS (ANALYZE NORMALLY):
+    #         - "Electrical Engineer at Adani Power" → Category: ELECTRICAL, Company: Adani Power, Top: YES
+    #         - "Software Developer at Infosys" → Category: SOFTWARE, Company: Infosys, Top: YES
+    #         - "Civil Site Engineer - L&T Construction" → Category: CIVIL, Company: L&T Construction, Top: YES
+            
+    #         ❌ REJECT THESE (Category: OTHER, Score: 0.1):
+    #         - "13215 Construction Engineer Job Vacancies" → Category: OTHER, Score: 0.1 (search results)
+    #         - "NUNAKANI RAMANJANEYULU - Senior Piping Engineer" → Category: OTHER, Score: 0.1 (profile)
+    #         - "Construction Engineer Jobs In India" → Category: OTHER, Score: 0.1 (generic listing)
+    #         - "Electrical Engineer - Naukri.com" → Category: OTHER, Score: 0.1 (no company)
+            
+    #         **SCORING**:
+    #         - Engineering role (electrical/civil/software): relevance_score = 0.7-1.0
+    #         - Top company bonus: +0.2 to relevance_score
+    #         - Non-engineering role: relevance_score = 0.3-0.6
+    #         - **Search results/profiles: relevance_score = 0.1** (This will filter them out)
+            
+    #         **RESPONSE (JSON ONLY)**:
+    #         {{
+    #             "category": "electrical/civil/software/other",
+    #             "company_detected": "EXACT COMPANY NAME or 'Not Found'",
+    #             "is_top_company": true/false,
+    #             "relevance_score": 0.0-1.0,
+    #             "confidence": 0.0-1.0,
+    #             "reasoning": "Brief explanation of category and company match"
+    #         }}
+    #         """
+            
+    #         response = model.generate_content(prompt)
+    #         text = response.text.strip()
+    #         logger.debug(f"📄 Raw LLM response: {text}")
+            
+    #         # Clean JSON response
+    #         text = self._clean_json_response(text)
+    #         logger.debug(f"📄 Cleaned JSON: {text}")
+            
+    #         try:
+    #             result = json.loads(text)
+                
+    #             # Ensure category is lowercase
+    #             category = result.get("category", "other").lower()
+    #             result["category"] = category
+                
+    #             # Extract and validate company
+    #             company = result.get("company_detected", "Not Found")
+                
+    #             # CRITICAL FIX: Clean up company name
+    #             company = company.replace("LinkedIn India", "").replace("Naukri.com", "").strip()
+    #             if not company or company in ["LinkedIn", "Naukri", "Not Found", "Unknown", "Search Results"]:
+    #                 company = "Not Found"
+    #                 result["is_top_company"] = False
+    #             else:
+    #                 # Check if it's actually a top company
+    #                 is_top = False
+    #                 for top_company in self.top_companies_list:
+    #                     if top_company.lower() in company.lower() or company.lower() in top_company.lower():
+    #                         is_top = True
+    #                         # Use the standardized company name
+    #                         company = top_company
+    #                         break
+    #                 result["is_top_company"] = is_top
+                
+    #             result["company_detected"] = company
+                
+    #             # Adjust scoring based on findings
+    #             relevance = float(result.get("relevance_score", 0.5))
+                
+    #             # Apply top company bonus
+    #             if result["is_top_company"]:
+    #                 relevance = min(1.0, relevance + 0.2)
+    #                 logger.info(f"✅ TOP COMPANY DETECTED: {company} - {title[:50]}...")
+                
+    #             # Penalize "other" category
+    #             if category == "other":
+    #                 # If it's likely search results/profiles, give very low score
+    #                 title_lower = title.lower()
+    #                 if any(pattern in title_lower for pattern in [
+    #                     'job vacancies', 'job openings', ' vacancies', 
+    #                     'jobs in', '- jobs', ' job ', 'profile', '- linkedin', '- naukri'
+    #                 ]):
+    #                     relevance = 0.1
+    #                     result["reasoning"] = "Search results/generic listing"
+    #                 else:
+    #                     relevance = max(0.3, relevance - 0.2)
+                
+    #             result["relevance_score"] = relevance
+    #             result["confidence"] = float(result.get("confidence", 0.7))
+    #             result["reasoning"] = result.get("reasoning", "No reasoning")
+                
+    #             # Calculate combined score
+    #             result["combined_score"] = (
+    #                 result["relevance_score"] * 0.6 +
+    #                 result["confidence"] * 0.4
+    #             )
+                
+    #             # Log if low score (likely bulk posting)
+    #             if result["relevance_score"] < 0.3:
+    #                 logger.info(f"🔍 Low score job detected: {title[:50]}... (Score: {result['relevance_score']:.2f})")
+                
+    #             return result
+                
+    #         except json.JSONDecodeError as e:
+    #             logger.error(f"❌ JSON parse failed! Raw: {text[:200]}...")
+    #             logger.error(f"❌ Error: {e}")
+    #             return self._fallback_categorization(title, content)
+                
+    #     except Exception as e:
+    #         logger.error(f"LLM analysis failed: {e}")
+    #         return self._fallback_categorization(title, content)
+    async def _analyze_job_with_llm(self, title: str, content: str, source: str) -> Dict:
+        """FIXED LLM call - No aggressive software forcing, adds proper company detection"""
+        try:
+            model = get_gemini_model("gemini-2.0-flash-lite")
+            
+            # Prepare top companies list for prompt
+            top_companies_str = "\n".join([f"- {company}" for company in self.top_companies_list[:50]])
+            
+            prompt = f"""
+            **CRITICAL TASK**: Analyze this job posting for category AND detect if it's from a top company.
+            
+            JOB TITLE: {title}
+            DESCRIPTION: {content[:400]}
+            SOURCE: {source}
+            
+            **TOP 100 INDIAN COMPANIES TO CHECK**:
+            {top_companies_str}
+            
+            **CATEGORY RULES (MUST FOLLOW)**:
+            1. **SOFTWARE**: ONLY if role involves SOFTWARE DEVELOPMENT/CODING
+            - "Software Engineer", "Software Developer", "Programmer", "Full Stack Developer"
+            - NOT: "Electrical Engineer with IT skills", "Maintenance Engineer in IT department"
+            
+            2. **ELECTRICAL**: Power/Electrical engineering roles
+            - "Electrical Engineer", "Power Engineer", "Transmission Engineer", "Substation Engineer"
+            - Renewable energy engineering roles: "Solar Engineer", "Wind Engineer"
+            
+            3. **CIVIL**: Construction/Infrastructure roles
+            - "Civil Engineer", "Site Engineer", "Construction Engineer", "Structural Engineer"
+            
+            4. **OTHER**: Non-engineering or ambiguous roles
+            - Sales, HR, Marketing, Admin, Business Development
+            - Management roles without clear engineering focus
+            
+            **COMPANY DETECTION RULES**:
+            - Look for company name IN THE TITLE
+            - Must match EXACTLY or be very close variation of companies in list above
+            - Common patterns: "at [Company]", "- [Company]", "hiring for [Company]"
+            - If company is NOT in top list → is_top_company = false
+            - "LinkedIn India", "Naukri.com" are NOT top companies
+            
+            **CRITICAL EXAMPLES**:
+            - "Electrical Engineer at Adani Power" → Category: ELECTRICAL, Company: Adani Power, Top: YES
+            - "Software Developer at Infosys" → Category: SOFTWARE, Company: Infosys, Top: YES
+            - "Civil Site Engineer - L&T Construction" → Category: CIVIL, Company: L&T Construction, Top: YES
+            - "Electrical Maintenance Engineer - LinkedIn India" → Category: ELECTRICAL, Company: Not Found, Top: NO
+            - "HR Recruiter at TCS" → Category: OTHER, Company: TCS, Top: YES (but category is other)
+            
+            **SCORING**:
+            - Engineering role (electrical/civil/software): relevance_score = 0.7-1.0
+            - Top company bonus: +0.2 to relevance_score
+            - Non-engineering role: relevance_score = 0.3-0.6
+            
+            **RESPONSE (JSON ONLY)**:
+            {{
+                "category": "electrical/civil/software/other",
+                "company_detected": "EXACT COMPANY NAME or 'Not Found'",
+                "is_top_company": true/false,
+                "relevance_score": 0.0-1.0,
+                "confidence": 0.0-1.0,
+                "reasoning": "Brief explanation of category and company match"
+            }}
+            """
+            
+            response = model.generate_content(prompt)
+            text = response.text.strip()
+            logger.debug(f"📄 Raw LLM response: {text}")
+            
+            # Clean JSON response
+            text = self._clean_json_response(text)
+            logger.debug(f"📄 Cleaned JSON: {text}")
+            
+            try:
+                result = json.loads(text)
+                
+                # Ensure category is lowercase
+                category = result.get("category", "other").lower()
+                result["category"] = category
+                
+                # Extract and validate company
+                company = result.get("company_detected", "Not Found")
+                
+                # CRITICAL FIX: Clean up company name
+                company = company.replace("LinkedIn India", "").replace("Naukri.com", "").strip()
+                if not company or company in ["LinkedIn", "Naukri", "Not Found", "Unknown"]:
+                    company = "Not Found"
+                    result["is_top_company"] = False
+                else:
+                    # Check if it's actually a top company
+                    is_top = False
+                    for top_company in self.top_companies_list:
+                        if top_company.lower() in company.lower() or company.lower() in top_company.lower():
+                            is_top = True
+                            # Use the standardized company name
+                            company = top_company
+                            break
+                    result["is_top_company"] = is_top
+                
+                result["company_detected"] = company
+                
+                # Adjust scoring based on findings
+                relevance = float(result.get("relevance_score", 0.5))
+                
+                # Apply top company bonus
+                if result["is_top_company"]:
+                    relevance = min(1.0, relevance + 0.2)
+                    logger.info(f"✅ TOP COMPANY DETECTED: {company} - {title[:50]}...")
+                
+                # Penalize "other" category
+                if category == "other":
+                    relevance = max(0.3, relevance - 0.2)
+                
+                result["relevance_score"] = relevance
+                result["confidence"] = float(result.get("confidence", 0.7))
+                result["reasoning"] = result.get("reasoning", "No reasoning")
+                
+                # Calculate combined score
+                result["combined_score"] = (
+                    result["relevance_score"] * 0.6 +
+                    result["confidence"] * 0.4
+                )
+                
+                return result
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ JSON parse failed! Raw: {text[:200]}...")
+                logger.error(f"❌ Error: {e}")
+                return self._fallback_categorization(title, content)
+                
+        except Exception as e:
+            logger.error(f"LLM analysis failed: {e}")
+            return self._fallback_categorization(title, content)
+
+
+    def _fallback_categorization(self, title: str, content: str) -> Dict:
+        """Fallback categorization when LLM fails"""
+        title_lower = title.lower()
+        
+        # Check for bulk posting patterns in fallback too
+        bulk_patterns = [
+            r'\d{3,}\s+(job|vacancy|opening)',
+            r'jobs?\s+in\s+[a-z\s]+$',
+            r'\d+\s+jobs?\s+(found|available|vacancies)',
+        ]
+        
+        for pattern in bulk_patterns:
+            if re.search(pattern, title_lower):
+                logger.info(f"🔍 Fallback: Detected bulk posting - {title[:50]}...")
+                return {
+                    "category": "other",
+                    "relevance_score": 0.1,
+                    "confidence": 0.8,
+                    "reasoning": f"Fallback: Detected as bulk/search results",
+                    "company_detected": "Search Results",
+                    "is_top_company": False,
+                    "combined_score": 0.1 * 0.6 + 0.8 * 0.4  # = 0.38
+                }
+        
+        # Check for personal profiles
+        if re.match(r'^[a-z]+\s+[a-z]+\s+-', title_lower):
+            logger.info(f"🔍 Fallback: Detected personal profile - {title[:50]}...")
+            return {
+                "category": "other",
+                "relevance_score": 0.1,
+                "confidence": 0.8,
+                "reasoning": "Fallback: Detected as personal profile",
+                "company_detected": "Personal Profile",
+                "is_top_company": False,
+                "combined_score": 0.1 * 0.6 + 0.8 * 0.4  # = 0.38
+            }
+        
+        # Original fallback logic for real jobs
+        software_keywords = ['software', 'developer', 'programmer', 'full stack', 'frontend', 
+                            'backend', 'web', 'mobile', 'app', 'qa', 'tester', 'automation',
+                            'devops', 'cloud', 'data', 'ai', 'ml', 'it ', 'information technology']
+        
+        electrical_keywords = ['electrical', 'power', 'transmission', 'distribution', 'substation',
+                            'grid', 'switchgear', 'transformer', 'motor', 'drive', 'solar panel',
+                            'wind turbine', 'hv', 'ehv', 'power system', 'electrical engineer']
+        
+        civil_keywords = ['civil', 'structural', 'construction', 'site engineer', 'building',
+                        'infrastructure', 'road', 'bridge', 'highway', 'rcc', 'concrete']
+        
+        # Check categories in priority order
+        if any(keyword in title_lower or keyword in content.lower() for keyword in software_keywords):
+            category = "software"
+            relevance = 0.7
+        elif any(keyword in title_lower or keyword in content.lower() for keyword in electrical_keywords):
+            category = "electrical"
+            relevance = 0.7
+        elif any(keyword in title_lower or keyword in content.lower() for keyword in civil_keywords):
+            category = "civil"
+            relevance = 0.7
+        else:
+            category = "other"
+            relevance = 0.3
+        
+        return {
+            "category": category,
+            "relevance_score": relevance,
+            "confidence": 0.6,
+            "reasoning": f"Fallback categorization: {category}",
+            "company_detected": "Not Specified",
+            "is_top_company": False,
+            "combined_score": relevance * 0.6 + 0.6 * 0.4
+        }
+    # def _fallback_categorization(self, title: str, content: str) -> Dict:
+    #     """Fallback categorization when LLM fails"""
+    #     title_lower = title.lower()
+    #     content_lower = content.lower() if content else ""
+        
+    #     # Software keywords (expanded list)
+    #     software_keywords = ['software', 'developer', 'programmer', 'full stack', 'frontend', 
+    #                         'backend', 'web', 'mobile', 'app', 'qa', 'tester', 'automation',
+    #                         'devops', 'cloud', 'data', 'ai', 'ml', 'it ', 'information technology',
+    #                         'plm', 'salesforce', 'observability', 'lifecycle', 'code', 'programming',
+    #                         'java', 'python', 'javascript', 'react', 'angular', 'node', 'sql']
+        
+    #     # Electrical keywords
+    #     electrical_keywords = ['electrical', 'power', 'transmission', 'distribution', 'substation',
+    #                         'grid', 'switchgear', 'transformer', 'motor', 'drive', 'solar panel',
+    #                         'wind turbine', 'hv', 'ehv', 'power system', 'electrical engineer']
+        
+    #     # Civil keywords
+    #     civil_keywords = ['civil', 'structural', 'construction', 'site engineer', 'building',
+    #                     'infrastructure', 'road', 'bridge', 'highway', 'rcc', 'concrete']
+        
+    #     # Check categories in priority order
+    #     if any(keyword in title_lower or keyword in content_lower for keyword in software_keywords):
+    #         category = "software"
+    #         relevance = 0.7
+    #     elif any(keyword in title_lower or keyword in content_lower for keyword in electrical_keywords):
+    #         category = "electrical"
+    #         relevance = 0.7
+    #     elif any(keyword in title_lower or keyword in content_lower for keyword in civil_keywords):
+    #         category = "civil"
+    #         relevance = 0.7
+    #     else:
+    #         category = "other"
+    #         relevance = 0.3
+        
+    #     return {
+    #         "category": category,
+    #         "relevance_score": relevance,
+    #         "confidence": 0.6,
+    #         "reasoning": f"Fallback categorization: {category}",
+    #         "company_detected": "Not Specified",
+    #         "is_top_company": False,
+    #         "combined_score": relevance * 0.6 + 0.6 * 0.4
+    #     }
+
+
+
+
+
+    async def search_with_top_companies(self) -> List[Dict]:
+        """Search specifically for top companies"""
+        session = await self.get_session()
+        all_jobs = []
+        
+        # TOP 20 COMPANIES SPECIFIC SEARCH
+        top_companies_to_search = [
+            "Tata Power", "Adani Power", "L&T","Larsen & Toubro", "Torrent Power", "CESC",
+            "KEC International", "Afcons","Megha Engineering", "Sterlite Power","shapoorji pallonji",
+            "TCS", "Infosys", "Wipro", "HCL", "Accenture",
+            "RPSG", "Siemens", "ABB", "Schneider", "GE Power",
+            "Jindal", "Adani","Adani Green","Adani Electricity","Adani Transmission","Adani Solar", "JSW Energy", "ReNew", "Microsoft India"
+        ]
+        
+        url = "https://news.google.com/rss/search"
+        
+        for company in top_companies_to_search:
+            try:
+                # Search on both LinkedIn and Naukri
+                queries = [
+                    f'site:linkedin.com "{company}" hiring engineer when:3d',
+                    f'site:naukri.com "{company}" jobs when:3d',
+                    # WALKIN    
+                    f'site:naukri.com "{company}" walkin OR "walk in" OR "walk-in" when:3d',
+                    f'site:linkedin.com "{company}" walkin OR "walk in" OR "walk-in" when:3d',
+                    
+           
+                    ]
+                
+                for query in queries:
+                    params = {
+                        "q": query,
+                        "hl": "en-IN",
+                        "gl": "IN", 
+                        "ceid": "IN:en"
+                    }
+                    
+                    async with session.get(url, params=params, timeout=20) as resp:
+                        if resp.status == 200:
+                            feed = feedparser.parse(await resp.text())
+                            
+                            for entry in feed.entries[:8]:
+                                title = entry.title
+                                
+                                # Skip non-jobs
+                                if any(term in title.lower() for term in ['resume', 'cv', 'interview']):
+                                    continue
+                                
+                                # Analyze with enhanced LLM
+                                analysis = await self._analyze_job_with_llm(
+                                    title=title,
+                                    content=entry.get("summary", ""),
+                                    source="LinkedIn" if "linkedin" in query else "Naukri.com"
+                                )
+                                
+                                job_data = {
+                                    "title": title,
+                                    "url": entry.link,
+                                    "content": entry.get("summary", "")[:200],
+                                    "source": "LinkedIn" if "linkedin" in query else "Naukri.com",
+                                    "published_at": entry.get("published", ""),
+                                    "company": analysis["company_detected"],
+                                    "is_top_company": analysis["is_top_company"],
+                                    "category": analysis["category"],
+                                    "relevance_score": analysis["relevance_score"],
+                                    "forced_company_search": True
+                                }
+                                
+                                if not any(job['title'] == job_data['title'] for job in all_jobs):
+                                    all_jobs.append(job_data)
+                                    
+            except Exception as e:
+                logger.warning(f"Company search failed for {company}: {e}")
+                continue
+        
+        logger.info(f"🔍 Company-specific search: {len(all_jobs)} jobs")
+        return all_jobs
+
+
+    async def search_naukri_jobs_simple(self, keywords: List[str] = None) -> List[Dict]:
+        """Simple Naukri search with real-time LLM analysis"""
         try:
             session = await self.get_session()
             
-
-
-            engineering_queries = [
-        
-                    # Core Electrical & Power Engineering Roles
-                    '"electrical engineer" OR "power engineer" OR "electrical design engineer" OR "electrical project engineer"',
-                    '"substation engineer" OR "transmission engineer" OR "distribution engineer" OR "grid engineer"',
-                    '"Tata Power" OR "Adani" OR "Siemens India" OR "ABB India" OR "Schneider Electric" OR "TORRENT POWER" OR "RPSG" OR "CESC" OR "ReNew Power"'
-              
-        
-                    # Power Sector Construction & Field Execution
-                    '"erection engineer" OR "tower engineer" OR "stringing engineer" OR "line engineer"',
-                    '"commissioning engineer" OR "testing engineer" OR "field engineer" OR "site engineer"',
-                    '"HV engineer" OR "EHV engineer" OR "transmission line" OR "distribution line"'
-        
-                    # Core Civil & Construction Engineering
-                    '"civil engineer" OR "structural engineer" OR "site engineer" OR "construction engineer"',
-                    '"building construction" OR "RCC engineer" OR "structural design" OR "construction supervisor"'
-                    '"Sterlite Power" OR "KEC International" OR "Kalpataru Projects International" OR "L&T Construction" OR "Tata Projects" OR "Afcons Infrastructure" OR "HCC Limited" OR "Megha Engineering & Infrastructures" OR "Dilip Buildcon"'
-        
-                    # Infrastructure & Specialized Civil Roles
-                    '"highway engineer" OR "road engineer" OR "bridge engineer" OR "infrastructure engineer"',
-                    '"planning engineer" OR "billing engineer" OR "quantity surveyor" OR "estimation engineer"'
-       
-                    # Renewable Energy Focus (Indian Context)
-                    '"solar engineer" OR "solar project engineer" OR "solar plant engineer" OR "solar design engineer"',
-                    '"wind energy engineer" OR "wind project engineer" OR "renewable energy engineer" OR "green energy"',
-                    '"solar power plant" OR "wind farm" OR "renewable project" OR "clean energy engineer"'
-         
-                    # Construction Support & Safety Roles
-                    '"QA QC engineer" OR "quality engineer" OR "quality control engineer" OR "inspection engineer"',
-                    '"safety officer" OR "EHS officer" OR "safety engineer" OR "HSE officer"',
-                    '"store engineer" OR "material engineer" OR "procurement engineer" OR "inventory engineer"'
-   
-                    # Electrical Maintenance & Operations
-                    '"electrical maintenance engineer" OR "maintenance engineer" OR "operation engineer"',
-                    '"electrical supervisor" OR "shift engineer" OR "plant engineer" OR "facility engineer"'
-      
-                    # Software & IT Roles (Indian Tech Stack)
-                    '"software engineer" OR "software developer" OR "java developer" OR "python developer"',
-                    '"full stack developer" OR "web developer" OR "frontend developer" OR "backend developer"',
-                    '"mobile app developer" OR "android developer" OR "ios developer" OR "react native developer"'
-   
-                    # Specialized Software & IT Roles
-                    '"data engineer" OR "data analyst" OR "database administrator" OR "sql developer"',
-                    '"devops engineer" OR "cloud engineer" OR "aws engineer" OR "azure engineer"'
-                 
-
+            # SIMPLIFIED QUERIES - just broad searches
+            queries = [
+                'electrical engineer OR power engineer OR transmission engineer when:3d',
+                'civil engineer OR construction engineer OR site engineer when:3d',
+                'software engineer OR developer OR programmer when:3d',
+                'engineer jobs India when:3d'
             ]
-
+            
             all_jobs = []
             url = "https://news.google.com/rss/search"
             
-            for query in engineering_queries:  # Use all queries
+            for query in queries:
                 try:
-                    complete_query = f'site:naukri.com {query} when:7d'
+                    complete_query = f'site:naukri.com {query}'
                     
                     params = {
                         "q": complete_query,
@@ -1134,101 +1692,150 @@ class EnergyNewsSearcher:
                         "ceid": "IN:en"
                     }
                     
-                    logger.info(f"Naukri engineering search: {query[:50]}...")
+                    logger.info(f"Naukri search: {query}")
                     
                     async with session.get(url, params=params, timeout=20) as resp:
                         if resp.status == 200:
                             feed = feedparser.parse(await resp.text())
                             
-                            for entry in feed.entries[:10]:  # Get 15 per query
-                                title = entry.title.lower()
-                                # Skip generic "Electrical Engineer - Naukri.com" type titles
-                                if title.strip() == "Electrical Engineer - Naukri.com":
-                                    logger.info(f"🔍 Skipping generic title: {title}")
-                                    continue
-
-                                # Also skip similar patterns
-                                if title.strip() in ["Electrical Engineer - Naukri.com", 
-                                                    "Civil Engineer - Naukri.com", 
-                                                    "Software Engineer - Naukri.com"]:
-                                    logger.info(f"🔍 Skipping generic title: {title}")
+                            for entry in feed.entries[:15]:  # Get more entries
+                                title = entry.title
+                                
+                                # Skip obvious non-jobs
+                                if 'resume' in title.lower() or 'interview tips' in title.lower():
                                     continue
                                 
-                                # Skip non-engineering content
-                                skip_terms = [
-                                    'resume', 'cv', 'interview tips', 'career advice',
-                                    'sales', 'marketing', 'hr', 'recruitment', 'bpo',
-                                    'call center', 'voice process', 'medical', 'pharmacy'
-                                ]
+                                # REAL-TIME LLM ANALYSIS
+                                analysis = await self._analyze_job_with_llm(
+                                    title=title,
+                                    content=entry.get("summary", ""),
+                                    source="Naukri.com"
+                                )
                                 
-                                if any(term in title for term in skip_terms):
+                                # Skip if not engineering or very low score
+                                if analysis["category"] == "other" and analysis["relevance_score"] < 0.3:
                                     continue
                                 
-                                # Check if it's likely an engineering job
-                                engineering_terms = [
-                                    'engineer', 'developer', 'designer', 'analyst',
-                                    'architect', 'technician', 'specialist'
-                                ]
-                                
-                                if not any(term in title for term in engineering_terms):
-                                    continue
-                                
-                                # Convert RSS URL to actual job URL FIRST
-                                # actual_url = validate_and_clean_url_standalone_job(entry.link)
-
-                                # # NOW check if it's a search results page
-                                # if is_search_results_url(actual_url):
-                                #     logger.info(f"🔍 Skipping search results URL: {entry.title[:50]}...")
-                                #     logger.info(f"🔍 Converted URL: {actual_url}")
-                                #     continue
-
-                                # job_data = {
-                                #     "title": entry.title,
-                                #     "url": actual_url,  # Use the converted URL
-                                #     "content": entry.get("summary", "")[:200],
-                                #     "source": "Naukri.com",
-                                #     "published_at": entry.get("published", ""),
-                                #     "type": "job_posting",
-                                #     "relevance_score": 0.6  # Start with decent score
-                                # }
-
                                 job_data = {
-                                    "title": entry.title,
+                                    "title": title,
                                     "url": entry.link,
                                     "content": entry.get("summary", "")[:200],
                                     "source": "Naukri.com",
                                     "published_at": entry.get("published", ""),
                                     "type": "job_posting",
-                                    "relevance_score": 0.6  # Start with decent score
+                                    "company": analysis["company_detected"],
+                                    "is_top_company": analysis["is_top_company"],
+                                    "category": analysis["category"],
+                                    "relevance_score": analysis["relevance_score"],
+                                    "analysis_reasoning": analysis["reasoning"]
                                 }
-
-                                                            
-                                # Avoid duplicates
+                                
+                                # Simple deduplication
                                 if not any(job['title'] == job_data['title'] for job in all_jobs):
                                     all_jobs.append(job_data)
+                                    
+                                    # Log if top company found
+                                    if analysis["is_top_company"]:
+                                        logger.info(f"🏢 TOP COMPANY: {analysis['company_detected']} - {title[:50]}...")
                             
-                            logger.info(f"Naukri query found {len(feed.entries)} entries, kept {len([e for e in feed.entries[:10] if not any(st in e.title.lower() for st in skip_terms)])}")
+                            logger.info(f"Query found {len(feed.entries)} entries")
                                 
-                except asyncio.TimeoutError:
-                    logger.warning(f"Naukri query timeout: {query[:50]}...")
-                    continue
                 except Exception as e:
-                    logger.warning(f"Naukri query failed: {query[:50]}... - {e}")
+                    logger.warning(f"Query failed: {query} - {e}")
                     continue
             
-            logger.info(f"🎯 Naukri Search Complete: {len(all_jobs)} engineering jobs from {len(engineering_queries[:8])} queries")
-            
-            # Apply LLM scoring to filter further
-            if all_jobs:
-                scored_jobs = await self.fast_batch_llm_check(all_jobs, keywords)
-                logger.info(f"Naukri after LLM scoring: {len(scored_jobs)} jobs")
-                return scored_jobs[:100]  # Limit to 100 jobs
-            else:
-                return []
+            logger.info(f"✅ Naukri: {len(all_jobs)} jobs analyzed")
+            return all_jobs[:100]  # Limit results
                         
         except Exception as e:
             logger.error(f"Naukri search failed: {e}")
             return []
+    
+    async def search_linkedin_jobs_simple(self, keywords: List[str] = None) -> List[Dict]:
+        """Simple LinkedIn search with real-time LLM analysis"""
+        try:
+            session = await self.get_session()
+            
+            # SIMPLE QUERIES
+            queries = [
+                'hiring engineer OR job opening OR career opportunity when:3d',
+                'electrical engineer jobs India when:3d',
+                'civil engineer jobs India when:3d',
+                'software engineer jobs India when:3d'
+            ]
+            
+            all_jobs = []
+            url = "https://news.google.com/rss/search"
+            
+            for query in queries:
+                try:
+                    complete_query = f'site:linkedin.com {query}'
+                    
+                    params = {
+                        "q": complete_query,
+                        "hl": "en-IN",
+                        "gl": "IN", 
+                        "ceid": "IN:en"
+                    }
+                    
+                    logger.info(f"LinkedIn search: {query}")
+                    
+                    async with session.get(url, params=params, timeout=25) as resp:
+                        if resp.status == 200:
+                            feed = feedparser.parse(await resp.text())
+                            
+                            for entry in feed.entries[:15]:
+                                title = entry.title
+                                
+                                # Skip non-jobs
+                                if any(term in title.lower() for term in ['resume', 'cv', 'how to', 'career advice']):
+                                    continue
+                                
+                                # REAL-TIME LLM ANALYSIS
+                                analysis = await self._analyze_job_with_llm(
+                                    title=title,
+                                    content=entry.get("summary", ""),
+                                    source="LinkedIn"
+                                )
+                                
+                                # Skip non-engineering/low relevance
+                                if analysis["category"] == "other" and analysis["relevance_score"] < 0.3:
+                                    continue
+                                
+                                job_data = {
+                                    "title": title,
+                                    "url": entry.link,
+                                    "content": entry.get("summary", "")[:300],
+                                    "source": "LinkedIn",
+                                    "published_at": entry.get("published", ""),
+                                    "type": "job_posting",
+                                    "company": analysis["company_detected"],
+                                    "is_top_company": analysis["is_top_company"],
+                                    "category": analysis["category"],
+                                    "relevance_score": analysis["relevance_score"],
+                                    "analysis_reasoning": analysis["reasoning"]
+                                }
+                                
+                                if not any(job['title'] == job_data['title'] for job in all_jobs):
+                                    all_jobs.append(job_data)
+                                    
+                                    if analysis["is_top_company"]:
+                                        logger.info(f"🏢 LINKEDIN TOP COMPANY: {analysis['company_detected']} - {title[:50]}...")
+                                
+                except Exception as e:
+                    logger.warning(f"LinkedIn query failed: {query} - {e}")
+                    continue
+            
+            logger.info(f"✅ LinkedIn: {len(all_jobs)} jobs analyzed")
+            return all_jobs[:120]
+                
+        except Exception as e:
+            logger.error(f"LinkedIn search failed: {e}")
+            return []
+
+
+############################################  NEW APPROACH FOR JOB SEARCH  ############################################
+
 
     def _clean_json_response(self, text: str) -> str:
         """Clean JSON response to fix parsing issues"""
@@ -1601,171 +2208,7 @@ class EnergyNewsSearcher:
         
         return processed_jobs
     
-    async def search_linkedin_jobs(self, keywords: List[str] = None, location: str = "India") -> List[Dict]:
-        """ENHANCED LinkedIn search with topic-based queries for better coverage"""
-        try:
-            session = await self.get_session()
 
-            # DEFINE TOPIC-BASED QUERIES FOR ELECTRICAL/POWER SECTOR
-            topic_queries = {
-                "electrical_power_core": [
-                    # Core Electrical & Power Engineering Roles
-                    '"electrical engineer" OR "power engineer" OR "electrical design engineer" OR "electrical project engineer"',
-                    '"substation engineer" OR "transmission engineer" OR "distribution engineer" OR "grid engineer" OR "manager" OR "Deputy manager" OR "Operation manager" OR "assistant manager"',
-                    '"Tata Power" OR "Adani" OR "Siemens India" OR "ABB India" OR "Schneider Electric" OR "TORRENT POWER" OR "RPSG" OR "CESC" OR "ReNew Power"'
-                ],
-                "power_construction_field": [
-                    # Power Sector Construction & Field Execution
-                    '"erection engineer" OR "tower engineer" OR "stringing engineer" OR "line engineer"',
-                    '"commissioning engineer" OR "testing engineer" OR "field engineer" OR "site engineer"',
-                    '"HV engineer" OR "EHV engineer" OR "transmission line" OR "distribution line"'
-                ],
-                "civil_construction_core": [
-                    # Core Civil & Construction Engineering
-                    '"civil engineer" OR "structural engineer" OR "site engineer" OR "construction engineer"',
-                    '"building construction" OR "RCC engineer" OR "structural design" OR "construction supervisor"'
-                    '"Sterlite Power" OR "KEC International" OR "Kalpataru Projects International" OR "L&T Construction" OR "Tata Projects" OR "Afcons Infrastructure" OR "HCC Limited" OR "Megha Engineering & Infrastructures" OR "Dilip Buildcon"'
-                ],
-                "civil_infrastructure_specialized": [
-                    # Infrastructure & Specialized Civil Roles
-                    '"highway engineer" OR "road engineer" OR "bridge engineer" OR "infrastructure engineer"',
-                    '"planning engineer" OR "billing engineer" OR "quantity surveyor" OR "estimation engineer"'
-                ],
-                "renewable_energy": [
-                    # Renewable Energy Focus (Indian Context)
-                    '"solar engineer" OR "solar project engineer" OR "solar plant engineer" OR "solar design engineer"',
-                    '"wind energy engineer" OR "wind project engineer" OR "renewable energy engineer" OR "green energy"',
-                    '"solar power plant" OR "wind farm" OR "renewable project" OR "clean energy engineer"'
-                ],
-                "construction_support": [
-                    # Construction Support & Safety Roles
-                    '"QA QC engineer" OR "quality engineer" OR "quality control engineer" OR "inspection engineer"',
-                    '"safety officer" OR "EHS officer" OR "safety engineer" OR "HSE officer"',
-                    '"store engineer" OR "material engineer" OR "procurement engineer" OR "inventory engineer"'
-                ],
-                "electrical_maintenance_operations": [
-                    # Electrical Maintenance & Operations
-                    '"electrical maintenance engineer" OR "maintenance engineer" OR "operation engineer"',
-                    '"electrical supervisor" OR "shift engineer" OR "plant engineer" OR "facility engineer"'
-                ],
-                "software_it_roles": [
-                    # Software & IT Roles (Indian Tech Stack)
-                    '"software engineer" OR "software developer" OR "java developer" OR "python developer"',
-                    '"full stack developer" OR "web developer" OR "frontend developer" OR "backend developer"',
-                    '"mobile app developer" OR "android developer" OR "ios developer" OR "react native developer"'
-                ],
-                "software_specialized": [
-                    # Specialized Software & IT Roles
-                    '"data engineer" OR "data analyst" OR "database administrator" OR "sql developer"',
-                    '"devops engineer" OR "cloud engineer" OR "aws engineer" OR "azure engineer"'
-          
-                ]
-            }
-
-
-            # BUILD QUERIES BASED ON KEYWORDS OR DEFAULT TOPICS
-            if keywords:
-                # 🎯 KEYWORD-BASED APPROACH (SIMPLIFIED)
-                expanded_keywords = self.expand_job_keywords(keywords)
-                # Use only user keywords, don't mix with electrical keywords
-                job_titles = " OR ".join([f'"{kw}"' for kw in expanded_keywords[:6]])  # More keywords
-                search_terms = f"({job_titles})"
-                queries = [search_terms]
-                logger.info(f"Using keyword-based query: {search_terms}")
-            else:
-                # ⭐⭐ TOPIC-BASED APPROACH (NO KEYWORDS)
-                queries = []
-                for category, category_queries in topic_queries.items():
-                    queries.extend(category_queries)
-                
-                logger.info(f"Using {len(queries)} topic-based queries for LinkedIn search")
-
-            all_jobs = []
-            url = "https://news.google.com/rss/search"
-
-            # EXECUTE ALL QUERIES
-            for query in queries:  # Increased to 12 queries for better coverage
-                try:
-                    # Build complete search query
-                    complete_query = f"site:linkedin.com {query} {location} when:7d"
-                    
-                    params = {
-                        "q": complete_query,
-                        "hl": "en-IN",
-                        "gl": "IN", 
-                        "ceid": "IN:en"
-                    }
-                    
-                    logger.info(f"LinkedIn Query: {complete_query}")
-
-                    async with session.get(url, params=params, timeout=25) as resp:
-                        if resp.status == 200:
-                            text = await resp.text()
-                            feed = feedparser.parse(text)
-                            
-                            for entry in feed.entries[:12]:  
-                                # Skip career advice and non-job content
-                                title_lower = entry.title.lower()
-                                skip_terms = ['resume', 'cv', 'interview tips', 'career advice', 'how to']
-                                if any(term in title_lower for term in skip_terms):
-                                    continue
-
-
-                                # Convert RSS URL to actual URL FIRST
-                                # actual_url = validate_and_clean_url_standalone_job(entry.link)
-
-                                # # Check if it's a search results page
-                                # if is_search_results_url(actual_url):
-                                #     logger.info(f"🔍 LinkedIn: Skipping search results URL: {entry.title[:50]}...")
-                                #     logger.info(f"url {actual_url}")
-                                #     continue
-
-                                # job_data = {
-                                #     "title": entry.title,
-                                #     "url": actual_url,  # Use converted URL
-                                #     "content": entry.get("summary", "")[:300],
-                                #     "source": "LinkedIn",
-                                #     "published_at": entry.get("published", ""),
-                                #     "type": "job_posting",
-                                #     "query_category": self._get_query_category(query, topic_queries)
-                                # }
-                                
-                                job_data = {
-                                    "title": entry.title,
-                                    "url": entry.link,
-                                    "content": entry.get("summary", "")[:300],
-                                    "source": "LinkedIn",
-                                    "published_at": entry.get("published", ""),
-                                    "type": "job_posting",
-                                    "query_category": self._get_query_category(query, topic_queries)
-                                }
-                                
-                            
-                                # Avoid duplicates by title
-                                if not any(job['title'] == job_data['title'] for job in all_jobs):
-                                    all_jobs.append(job_data)
-                            
-                            logger.info(f"Query found {len(feed.entries)} entries, kept {sum(1 for e in feed.entries[:12] if not any(st in e.title.lower() for st in skip_terms))}")
-                            
-                except asyncio.TimeoutError:
-                    logger.warning(f"Timeout for LinkedIn query: {query[:50]}...")
-                    continue
-                except Exception as e:
-                    logger.warning(f"Query failed: {query[:50]}... - {e}")
-                    continue
-            
-            
-
-            if all_jobs:
-                # Apply LLM categorization and scoring
-                categorized_jobs = await self.fast_batch_llm_check(all_jobs, keywords)  # Limit for speed
-                logger.info(f"LinkedIn after LLM categorization: {len(categorized_jobs)} jobs")
-                return categorized_jobs[:150]
-      
-            
-        except Exception as e:
-            logger.error(f"LinkedIn search failed: {e}")
-            return []
 
     def _get_query_category(self, query: str, topic_queries: dict) -> str:
         """Helper to categorize which topic query found the job"""
@@ -1775,119 +2218,216 @@ class EnergyNewsSearcher:
                     return category
         return "general"
 
-  
-    async def search_topic_specific(self, topic: str, num_results: int = 100, keywords: List[str] = None) -> List[Dict]:
-        """MAIN SEARCH METHOD - Handles both jobs and other topics"""
+
+    async def search_topic_specific(self, topic: str, num_results: int = 80, keywords: List[str] = None) -> List[Dict]:
+        """MAIN SEARCH - Focus on category distribution without top company emphasis"""
         try:
             if topic.lower() in ["hiring", "hiring_jobs", "jobs"]:
-                logger.info(f"🚀 STARTING JOB SEARCH with keywords: {keywords}")
+                logger.info(f"🚀 COMBINED SEARCH: Regular + Company-specific")
                 
-                linkedin_jobs, naukri_jobs = await asyncio.gather(
-                    self.search_linkedin_jobs(keywords),
-                    self.search_naukri_jobs_fast(keywords),
-                    
+                # Run ALL searches in parallel
+                linkedin_jobs, naukri_jobs, company_jobs = await asyncio.gather(
+                    self.search_linkedin_jobs_simple(keywords),
+                    self.search_naukri_jobs_simple(keywords),
+                    self.search_with_top_companies(),
                     return_exceptions=True
                 )
                 
-                results = [linkedin_jobs, naukri_jobs]
-                source_names = ["LinkedIn", "Naukri"]
-                
-                linkedin_jobs, naukri_jobs = results
-                
                 all_jobs = []
-                source_counts = {}
                 
-                for source_name, result in zip(["LinkedIn", "Naukri"], [linkedin_jobs, naukri_jobs]):
+                # Combine results
+                for source_name, result in zip(["LinkedIn", "Naukri", "CompanySearch"], 
+                                            [linkedin_jobs, naukri_jobs, company_jobs]):
                     if isinstance(result, list):
                         all_jobs.extend(result)
-                        source_counts[source_name] = len(result)
+                        logger.info(f"📊 {source_name}: {len(result)} jobs")
                     else:
-                        source_counts[source_name] = 0
-                        logger.error(f"{source_name} search failed: {result}")
+                        logger.error(f"{source_name} failed: {result}")
                 
-                logger.info(f"📊 COLLECTED: {len(all_jobs)} total jobs - {source_counts}")
-                all_jobs = self.deduplicate_jobs(all_jobs)
-                logger.info(f"📊 AFTER DEDUPLICATION: {len(all_jobs)} unique jobs - {source_counts}")
-
-
-                  # ============== CRITICAL FILTER: REMOVE "OTHER" CATEGORY JOBS ==============
-                logger.info("🔍 FILTERING OUT NON-ENGINEERING ('other') JOBS...")
-                engineering_jobs = []
-                other_jobs = []
+                logger.info(f"📊 TOTAL COLLECTED: {len(all_jobs)} jobs")
                 
+                # Remove duplicates
+                unique_jobs = []
+                seen = set()
                 for job in all_jobs:
-                    category = job.get('category', 'unknown')
-                    if category in ['electrical', 'civil', 'software']:
-                        engineering_jobs.append(job)
-                    else:
-                        other_jobs.append(job)
+                    title_key = job['title'].lower()[:100]
+                    if title_key not in seen:
+                        seen.add(title_key)
+                        unique_jobs.append(job)
                 
-                logger.info(f"📊 Engineering jobs: {len(engineering_jobs)} | Non-engineering (other): {len(other_jobs)}")
+                # ====== FOCUS ON CATEGORY DISTRIBUTION ======
+                # Categorize all jobs
+                electrical_jobs = [j for j in unique_jobs if j.get('category') == 'electrical']
+                civil_jobs = [j for j in unique_jobs if j.get('category') == 'civil']
+                software_jobs = [j for j in unique_jobs if j.get('category') == 'software']
+                other_jobs = [j for j in unique_jobs if j.get('category') == 'other']
                 
-                # Log some examples of filtered out jobs
-                if other_jobs:
-                    logger.info("❌ FILTERED OUT NON-ENGINEERING JOBS (sample):")
-                    for i, job in enumerate(other_jobs):  # Show first 5
-                        logger.info(f"   {i+1}. [{job.get('category', 'N/A')}] {job['title']}...")
+                logger.info(f"📊 CATEGORY DISTRIBUTION:")
+                logger.info(f"   Electrical: {len(electrical_jobs)}")
+                logger.info(f"   Civil: {len(civil_jobs)}")
+                logger.info(f"   Software: {len(software_jobs)}")
+                logger.info(f"   Other (filtered out): {len(other_jobs)}")
                 
-                # Use only engineering jobs for LLM filtering
-                filtered_jobs = engineering_jobs
+                # Sort each category by relevance score
+                electrical_jobs.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
+                civil_jobs.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
+                software_jobs.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
                 
-                # ============== END FILTER ==============
-                    
-                # ==== ADD DEBUG CODE HERE ==================================================================
-                # logger.info("🔍 DEBUG - BEFORE LLM FILTERING:")
-                # logger.info(f"   LinkedIn jobs: {len([j for j in all_jobs if j['source'] == 'LinkedIn'])}")
-                # logger.info(f"   Naukri jobs: {len([j for j in all_jobs if j['source'] == 'Naukri.com'])}")
+                # Target distribution (35 total)
+                target_electrical = 16
+                target_civil = 9
+                target_software = 10
                 
-                # # Check LLM categories and scores
-                # if all_jobs:
-                #     categories = {}
-                #     scores_by_source = {'LinkedIn': [], 'Naukri.com': []}
-                    
-                #     for job in all_jobs:
-                #         cat = job.get('category', 'unknown')
-                #         categories[cat] = categories.get(cat, 0) + 1
-                        
-                #         source = job.get('source', 'unknown')
-                #         score = job.get('combined_score', 0)
-                #         if source in scores_by_source:
-                #             scores_by_source[source].append(score)
-                    
-                #     logger.info(f"📊 LLM Categories: {categories}")
-                    
-                #     # Log score statistics
-                #     for source, scores in scores_by_source.items():
-                #         if scores:
-                #             avg_score = sum(scores) / len(scores)
-                #             high_scores = sum(1 for s in scores if s >= 0.5)
-                #             logger.info(f"📊 {source} Scores: Avg={avg_score:.2f}, ≥0.5={high_scores}/{len(scores)}")
+                # Take best from each category
+                final_jobs = []
+                final_jobs.extend(electrical_jobs[:target_electrical])
+                final_jobs.extend(civil_jobs[:target_civil])
+                final_jobs.extend(software_jobs[:target_software])
                 
-                # ==== END DEBUG CODE ====++++++++++++++++++++++++++++++++++++++++++++++++
+                # If we don't have enough, fill from remaining high-scoring jobs
+                if len(final_jobs) < 35:
+                    remaining = 35 - len(final_jobs)
+                    all_remaining = (electrical_jobs[target_electrical:] + 
+                                    civil_jobs[target_civil:] + 
+                                    software_jobs[target_software:])
+                    all_remaining.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
+                    final_jobs.extend(all_remaining[:remaining])
                 
-                if len(filtered_jobs) > 35:
-                        logger.info(f"🤖 Sending {len(filtered_jobs)} ENGINEERING jobs to LLM for filtering...")
-                        final_jobs = await self.llm_batch_filter_jobs(filtered_jobs, keywords=keywords, max_output_jobs=35)
-                else:
-                        final_jobs = filtered_jobs
-                        logger.warning(f"⚠️  Only {len(filtered_jobs)} engineering jobs found, using all")
-
+                # Final stats
+                logger.info(f"✅ FINAL SELECTION: {len(final_jobs)} jobs")
+                logger.info(f"📊 FINAL CATEGORY DISTRIBUTION:")
+                final_electrical = sum(1 for j in final_jobs if j.get('category') == 'electrical')
+                final_civil = sum(1 for j in final_jobs if j.get('category') == 'civil')
+                final_software = sum(1 for j in final_jobs if j.get('category') == 'software')
+                logger.info(f"   Electrical: {final_electrical}")
+                logger.info(f"   Civil: {final_civil}")
+                logger.info(f"   Software: {final_software}")
                 
-                final_source_count = {}
-                for job in final_jobs:
-                    final_source_count[job['source']] = final_source_count.get(job['source'], 0) + 1
-                
-                logger.info(f"✅ FINAL: {len(final_jobs)} curated jobs - {final_source_count}")
                 return final_jobs[:num_results]
+            
             else:
                 # For non-job topics, use the enhanced search
                 normalized_topic = topic.lower().replace(" ", "_")
                 async with EnhancedNewsSearcher() as searcher:
                     return await searcher.batch_process_topic_news(normalized_topic, keywords)
-            
+                
         except Exception as e:
             logger.error(f"Search failed: {e}")
             return []
+
+
+    # async def search_topic_specific(self, topic: str, num_results: int = 100, keywords: List[str] = None) -> List[Dict]:
+    #     """MAIN SEARCH METHOD - Handles both jobs and other topics"""
+    #     try:
+    #         if topic.lower() in ["hiring", "hiring_jobs", "jobs"]:
+    #             logger.info(f"🚀 STARTING JOB SEARCH with keywords: {keywords}")
+                
+    #             linkedin_jobs, naukri_jobs = await asyncio.gather(
+    #                 self.search_linkedin_jobs(keywords),
+    #                 self.search_naukri_jobs_fast(keywords),
+               
+    #                 return_exceptions=True
+    #             )
+                
+    #             results = [linkedin_jobs, naukri_jobs]
+    #             source_names = ["LinkedIn", "Naukri"]
+                
+    #             linkedin_jobs, naukri_jobs = results
+                
+    #             all_jobs = []
+    #             source_counts = {}
+                
+    #             for source_name, result in zip(["LinkedIn", "Naukri"], [linkedin_jobs, naukri_jobs]):
+    #                 if isinstance(result, list):
+    #                     all_jobs.extend(result)
+    #                     source_counts[source_name] = len(result)
+    #                 else:
+    #                     source_counts[source_name] = 0
+    #                     logger.error(f"{source_name} search failed: {result}")
+                
+    #             logger.info(f"📊 COLLECTED: {len(all_jobs)} total jobs - {source_counts}")
+    #             all_jobs = self.deduplicate_jobs(all_jobs)
+    #             logger.info(f"📊 AFTER DEDUPLICATION: {len(all_jobs)} unique jobs - {source_counts}")
+
+
+    #               # ============== CRITICAL FILTER: REMOVE "OTHER" CATEGORY JOBS ==============
+    #             logger.info("🔍 FILTERING OUT NON-ENGINEERING ('other') JOBS...")
+    #             engineering_jobs = []
+    #             other_jobs = []
+                
+    #             for job in all_jobs:
+    #                 category = job.get('category', 'unknown')
+    #                 if category in ['electrical', 'civil', 'software']:
+    #                     engineering_jobs.append(job)
+    #                 else:
+    #                     other_jobs.append(job)
+                
+    #             logger.info(f"📊 Engineering jobs: {len(engineering_jobs)} | Non-engineering (other): {len(other_jobs)}")
+                
+    #             # Log some examples of filtered out jobs
+    #             if other_jobs:
+    #                 logger.info("❌ FILTERED OUT NON-ENGINEERING JOBS (sample):")
+    #                 for i, job in enumerate(other_jobs):  # Show first 5
+    #                     logger.info(f"   {i+1}. [{job.get('category', 'N/A')}] {job['title']}...")
+                
+    #             # Use only engineering jobs for LLM filtering
+    #             filtered_jobs = engineering_jobs
+                
+    #             # ============== END FILTER ==============
+                    
+    #             # ==== ADD DEBUG CODE HERE ==================================================================
+    #             # logger.info("🔍 DEBUG - BEFORE LLM FILTERING:")
+    #             # logger.info(f"   LinkedIn jobs: {len([j for j in all_jobs if j['source'] == 'LinkedIn'])}")
+    #             # logger.info(f"   Naukri jobs: {len([j for j in all_jobs if j['source'] == 'Naukri.com'])}")
+                
+    #             # # Check LLM categories and scores
+    #             # if all_jobs:
+    #             #     categories = {}
+    #             #     scores_by_source = {'LinkedIn': [], 'Naukri.com': []}
+                    
+    #             #     for job in all_jobs:
+    #             #         cat = job.get('category', 'unknown')
+    #             #         categories[cat] = categories.get(cat, 0) + 1
+                        
+    #             #         source = job.get('source', 'unknown')
+    #             #         score = job.get('combined_score', 0)
+    #             #         if source in scores_by_source:
+    #             #             scores_by_source[source].append(score)
+                    
+    #             #     logger.info(f"📊 LLM Categories: {categories}")
+                    
+    #             #     # Log score statistics
+    #             #     for source, scores in scores_by_source.items():
+    #             #         if scores:
+    #             #             avg_score = sum(scores) / len(scores)
+    #             #             high_scores = sum(1 for s in scores if s >= 0.5)
+    #             #             logger.info(f"📊 {source} Scores: Avg={avg_score:.2f}, ≥0.5={high_scores}/{len(scores)}")
+                
+    #             # ==== END DEBUG CODE ====++++++++++++++++++++++++++++++++++++++++++++++++
+                
+    #             if len(filtered_jobs) > 35:
+    #                     logger.info(f"🤖 Sending {len(filtered_jobs)} ENGINEERING jobs to LLM for filtering...")
+    #                     final_jobs = await self.llm_batch_filter_jobs(filtered_jobs, keywords=keywords, max_output_jobs=35)
+    #             else:
+    #                     final_jobs = filtered_jobs
+    #                     logger.warning(f"⚠️  Only {len(filtered_jobs)} engineering jobs found, using all")
+
+                
+    #             final_source_count = {}
+    #             for job in final_jobs:
+    #                 final_source_count[job['source']] = final_source_count.get(job['source'], 0) + 1
+                
+    #             logger.info(f"✅ FINAL: {len(final_jobs)} curated jobs - {final_source_count}")
+    #             return final_jobs[:num_results]
+    #         else:
+    #             # For non-job topics, use the enhanced search
+    #             normalized_topic = topic.lower().replace(" ", "_")
+    #             async with EnhancedNewsSearcher() as searcher:
+    #                 return await searcher.batch_process_topic_news(normalized_topic, keywords)
+            
+    #     except Exception as e:
+    #         logger.error(f"Search failed: {e}")
+    #         return []
 
 
 
@@ -2178,7 +2718,7 @@ class EnhancedNewsSearcher(EnergyNewsSearcher):
             "(renewable energy India OR solar energy project India OR wind energy project India OR hydroelectric project India OR green hydrogen India) when:2d",
 
             # 6. PSU and private sector power companies
-            "(Tata OR Adani  OR JSW Energy OR RPSG OR NHPC OR L&T OR Torrent Power OR ReNew OR KEC OR STERLITE OR POWERGRID) project when:2d",
+            "(Tata OR Adani  OR JSW Energy OR RPSG OR NHPC OR L&T OR Torrent Power OR ReNew OR KEC OR STERLITE ) project when:2d",
 
             # 7. Government policy & investment announcements
             "(energy policy India OR government power scheme OR energy investment India OR budget power sector OR PLI scheme renewable) when:2d",
@@ -4128,101 +4668,630 @@ def validate_and_clean_url_standalone_job(url: str) -> str:
     
     # Return original URL if no conversion needed
     return url
+
 def generate_manual_job_newsletter(sources: List[Dict]) -> str:
-    """Generate job newsletter using ACTUAL LLM categories"""
-    # Clean URLs
+    """FIXED: Generate job newsletter with proper score handling"""
+    
+    # First, clean and validate all URLs
     for job in sources:
         job['url'] = validate_and_clean_url_standalone_job(job['url'])
+        # Ensure all required fields exist
+        if 'company_detected' not in job:
+            job['company_detected'] = job.get('company', 'Unknown')
+        if 'is_top_company' not in job:
+            job['is_top_company'] = False
+        if 'combined_score' not in job:
+            job['combined_score'] = job.get('relevance_score', 0.5)
     
-    # DEBUG: Log what categories we have
-    categories = {}
-    for job in sources:
+    # DEBUG: Log what we received with detailed scores
+    logger.info("📊 GENERATING NEWSLETTER WITH SOURCES - DETAILED ANALYSIS:")
+    categories_count = {}
+    top_companies_count = {}
+    score_distribution = {'0.0': 0, '0.1-0.3': 0, '0.3-0.5': 0, '0.5-0.7': 0, '0.7+': 0}
+    
+    for i, job in enumerate(sources):
         cat = job.get('category', 'unknown')
-        categories[cat] = categories.get(cat, 0) + 1
-    logger.info(f"📊 Newsletter input categories: {categories}")
+        categories_count[cat] = categories_count.get(cat, 0) + 1
+        
+        company = job.get('company_detected', 'Unknown')
+        if job.get('is_top_company', False):
+            top_companies_count[company] = top_companies_count.get(company, 0) + 1
+        
+        # Analyze score
+        score = job.get('combined_score', 0)
+        if score == 0:
+            score_distribution['0.0'] += 1
+        elif score < 0.3:
+            score_distribution['0.1-0.3'] += 1
+        elif score < 0.5:
+            score_distribution['0.3-0.5'] += 1
+        elif score < 0.7:
+            score_distribution['0.5-0.7'] += 1
+        else:
+            score_distribution['0.7+'] += 1
+        
+        # Log first 10 jobs for detailed analysis
+        if i < 10:
+            logger.info(f"  {i+1}. Cat: {cat}, Company: {company}, "
+                       f"Top: {job.get('is_top_company', False)}, "
+                       f"Score: {score:.2f}, "
+                       f"Title: {job['title'][:40]}...")
     
-    # Group jobs by their ACTUAL LLM categories
-    electrical_jobs = [j for j in sources if j.get('category') == 'electrical']
-    civil_jobs = [j for j in sources if j.get('category') == 'civil']
-    software_jobs = [j for j in sources if j.get('category') == 'software']
+    logger.info(f"📊 Input categories: {categories_count}")
+    logger.info(f"🏆 Top companies in input: {top_companies_count}")
+    logger.info(f"📈 Score distribution: {score_distribution}")
     
-    # DEBUG: Check if any jobs are missing categories
-    uncategorized = [j for j in sources if j.get('category') not in ['electrical', 'civil', 'software']]
-    if uncategorized:
-        logger.warning(f"⚠️ {len(uncategorized)} jobs have unexpected categories")
-        for job in uncategorized:
-            logger.info(f"   - {job.get('category', 'no-category')}: {job['title'][:50]}...")
+    # FIXED FILTERING: Handle 0.00 scores properly
+    quality_jobs = []
+    filtered_out_reasons = {'score': 0, 'resume': 0, 'no_category': 0}
     
-    logger.info(f"📊 Final grouping: Electrical={len(electrical_jobs)}, Civil={len(civil_jobs)}, Software={len(software_jobs)}")
+    for job in sources:
+        title = job['title'].lower()
+        
+        # 1. Skip obvious non-jobs
+        if 'resume' in title or 'cv' in title:
+            filtered_out_reasons['resume'] += 1
+            continue
+            
+        # 2. FIXED: Handle 0.00 scores - they might be valid jobs!
+        score = job.get('combined_score', 0)
+        
+        # If score is 0.00 but it's a top company or has proper category, keep it
+        if score == 0:
+            # Check if it's worth keeping
+            is_worth_keeping = (
+                job.get('is_top_company', False) or
+                job.get('category') in ['electrical', 'civil', 'software'] or
+                any(word in title for word in ['engineer', 'developer', 'manager'])
+            )
+            
+            if not is_worth_keeping:
+                filtered_out_reasons['score'] += 1
+                continue
+            else:
+                # Assign a default score for display
+                job['combined_score'] = 0.5 if job.get('is_top_company', False) else 0.4
+                logger.debug(f"Fixed 0.00 score for: {job['title'][:50]}...")
+        
+        # 3. Skip if no proper category
+        if job.get('category') not in ['electrical', 'civil', 'software']:
+            # Try to infer category from title
+            if any(word in title for word in ['electrical', 'power', 'transmission', 'solar', 'wind']):
+                job['category'] = 'electrical'
+            elif any(word in title for word in ['civil', 'construction', 'site', 'structural']):
+                job['category'] = 'civil'
+            elif any(word in title for word in ['software', 'developer', 'programmer', 'it engineer']):
+                job['category'] = 'software'
+            else:
+                filtered_out_reasons['no_category'] += 1
+                continue
+        
+        quality_jobs.append(job)
     
-    # Build newsletter
+    logger.info(f"📊 After filtering: {len(sources)} → {len(quality_jobs)} quality jobs")
+    logger.info(f"📉 Filtered out reasons: {filtered_out_reasons}")
+    
+    if len(quality_jobs) == 0:
+        logger.warning("⚠️ No quality jobs found after filtering! Checking if we can use any jobs...")
+        # Use all jobs but fix their scores
+        for job in sources:
+            if job.get('combined_score', 0) == 0:
+                job['combined_score'] = 0.5 if job.get('is_top_company', False) else 0.4
+            # Ensure category exists
+            if job.get('category') not in ['electrical', 'civil', 'software']:
+                title = job['title'].lower()
+                if any(word in title for word in ['electrical', 'power', 'transmission']):
+                    job['category'] = 'electrical'
+                elif any(word in title for word in ['civil', 'construction', 'site']):
+                    job['category'] = 'civil'
+                elif any(word in title for word in ['software', 'developer', 'programmer']):
+                    job['category'] = 'software'
+                else:
+                    job['category'] = 'other'
+        quality_jobs = sources
+        logger.info(f"⚠️ Using all {len(quality_jobs)} jobs with adjusted scores")
+    
+    # Group jobs by ACTUAL LLM categories
+    electrical_jobs = []
+    civil_jobs = []
+    software_jobs = []
+    
+    for job in quality_jobs:
+        category = job.get('category', 'other')
+        if category == 'electrical':
+            electrical_jobs.append(job)
+        elif category == 'civil':
+            civil_jobs.append(job)
+        elif category == 'software':
+            software_jobs.append(job)
+    
+    # Sort each category: TOP COMPANIES FIRST, then by score
+    def sort_with_top_companies_first(jobs):
+        return sorted(jobs, key=lambda x: (
+            not x.get('is_top_company', False),  # True (top company) comes before False
+            -x.get('combined_score', 0)  # Higher score first
+        ))
+    
+    electrical_jobs = sort_with_top_companies_first(electrical_jobs)
+    civil_jobs = sort_with_top_companies_first(civil_jobs)
+    software_jobs = sort_with_top_companies_first(software_jobs)
+    
+    # Count top companies in each category
+    top_electrical = sum(1 for j in electrical_jobs if j.get('is_top_company', False))
+    top_civil = sum(1 for j in civil_jobs if j.get('is_top_company', False))
+    top_software = sum(1 for j in software_jobs if j.get('is_top_company', False))
+    
+    logger.info(f"📊 Final counts: Electrical={len(electrical_jobs)} (Top: {top_electrical}), "
+                f"Civil={len(civil_jobs)} (Top: {top_civil}), "
+                f"Software={len(software_jobs)} (Top: {top_software})")
+    
+    # Log sample of each category
+    logger.info("📋 Sample jobs by category:")
+    logger.info("  Electrical (first 3):")
+    for i, job in enumerate(electrical_jobs[:3]):
+        logger.info(f"    {i+1}. {job['title'][:50]}... (Score: {job.get('combined_score', 0):.2f})")
+    logger.info("  Civil (first 3):")
+    for i, job in enumerate(civil_jobs[:3]):
+        logger.info(f"    {i+1}. {job['title'][:50]}... (Score: {job.get('combined_score', 0):.2f})")
+    logger.info("  Software (first 3):")
+    for i, job in enumerate(software_jobs[:3]):
+        logger.info(f"    {i+1}. {job['title'][:50]}... (Score: {job.get('combined_score', 0):.2f})")
+    
+    # Build newsletter content (same as before, but with fixed scores)
     content = ""
     
-    # Electrical Jobs Section
+    # ====== TOP COMPANIES HEADER ======
+    all_companies = {}
+    for job in quality_jobs:
+        company = job.get('company_detected', 'Unknown')
+        if company not in ['Unknown', 'Not Found', 'Not Specified']:
+            all_companies[company] = all_companies.get(company, 0) + 1
+    
+    if all_companies:
+        sorted_companies = sorted(all_companies.items(), key=lambda x: x[1], reverse=True)
+        display_companies = [company for company, count in sorted_companies[:8]]
+        total_jobs_display = sum(count for company, count in sorted_companies[:8])
+        
+        # content += f'''
+        # <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 15px 30px; border-radius: 12px; margin: 20px 30px; text-align: center;">
+        #     <h3 style="color: white; margin: 0; font-size: 18px; font-weight: bold;">
+        #         🏢 FEATURED COMPANIES ({total_jobs_display} Jobs)
+        #     </h3>
+        #     <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0; font-size: 14px;">
+        #         {', '.join(display_companies)}{'...' if len(all_companies) > 8 else ''}
+        #     </p>
+        # </div>
+        # '''
+    
+
     if electrical_jobs:
         content += '<div class="section-header electrical-header">⚡ ELECTRICAL & POWER JOBS</div>\n'
-        for job in electrical_jobs[:18]:  # Show up to 18
+        
+        if top_electrical > 0:
             content += f'''
-            <div class="tech-card">
+            <div style="color: #ff9800; font-size: 14px; margin: 10px 30px 5px 30px; font-weight: 600;">
+                🏆 {top_electrical} top company jobs in this section
+            </div>
+            '''
+        
+        for job in electrical_jobs[:16]:
+            # top_badge = " 🏆" if job.get('is_top_company', False) else ""
+            # company_text = ""
+            top_badge = ""
+            company_text = ""
+            
+            company = job.get('company_detected', '')
+            # if company and company not in ['Unknown', 'Not Found', 'Not Specified']:
+            #     company_text = f" • {company}"
+            
+            content += f'''
+            <div class="tech-card" style="{'border-left: 4px solid #ff9800; background: rgba(255, 152, 0, 0.05);' if job.get('is_top_company', False) else ''}">
                 <div class="tech-content-inner">
                     <a href="{job['url']}" class="tech-headline" target="_blank">
-                        ⚡ {safe_job_title(job["title"])}
+                        ⚡ {safe_job_title(job["title"])}{top_badge}{company_text}
                     </a>
                     <div class="tech-source">
                         <a href="{job['url']}" target="_blank">
                             📍 {job['source']} → Apply Now
                         </a>
+                        {'<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 10px; font-weight: bold;">TOP COMPANY</span>' if job.get('is_top_company', False) else ''}
                     </div>
                 </div>
             </div>\n'''
     
-    # Civil Jobs Section
+    # ====== CIVIL JOBS SECTION ======
     if civil_jobs:
         content += '<div class="section-header civil-header">🏗️ CIVIL & CONSTRUCTION JOBS</div>\n'
-        for job in civil_jobs[:12]:  # Show up to 12
+        
+        if top_civil > 0:
             content += f'''
-            <div class="tech-card">
+            <div style="color: #ff9800; font-size: 14px; margin: 10px 30px 5px 30px; font-weight: 600;">
+                🏆 {top_civil} top company jobs in this section
+            </div>
+            '''
+        
+        for job in civil_jobs[:10]:
+            # top_badge = " 🏆" if job.get('is_top_company', False) else ""
+            # company_text = ""
+            top_badge = ""
+            company_text=""
+            company = job.get('company_detected', '')
+            # if company and company not in ['Unknown', 'Not Found', 'Not Specified']:
+            #     company_text = f" • {company}"
+            
+            content += f'''
+            <div class="tech-card" style="{'border-left: 4px solid #ff9800; background: rgba(255, 152, 0, 0.05);' if job.get('is_top_company', False) else ''}">
                 <div class="tech-content-inner">
                     <a href="{job['url']}" class="tech-headline" target="_blank">
-                        🏗️ {safe_job_title(job["title"])}
+                        🏗️ {safe_job_title(job["title"])}{top_badge}{company_text}
                     </a>
                     <div class="tech-source">
                         <a href="{job['url']}" target="_blank">
                             📍 {job['source']} → Apply Now
                         </a>
+                        {'<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 10px; font-weight: bold;">TOP COMPANY</span>' if job.get('is_top_company', False) else ''}
                     </div>
                 </div>
             </div>\n'''
     
-    # Software Jobs Section
+    # ====== SOFTWARE JOBS SECTION ======
     if software_jobs:
         content += '<div class="section-header software-header">💻 SOFTWARE & IT JOBS</div>\n'
-        for job in software_jobs[:8]:  # Show up to 8
+        
+        if top_software > 0:
             content += f'''
-            <div class="tech-card">
+            <div style="color: #ff9800; font-size: 14px; margin: 10px 30px 5px 30px; font-weight: 600;">
+                🏆 {top_software} top company jobs in this section
+            </div>
+            '''
+        
+        for job in software_jobs[:9]:
+            # top_badge = " 🏆" if job.get('is_top_company', False) else ""
+            # company_text = ""
+            top_badge = ""
+            company_text=""
+            
+            company = job.get('company_detected', '')
+            # if company and company not in ['Unknown', 'Not Found', 'Not Specified']:
+            #     company_text = f" • {company}"
+            
+            content += f'''
+            <div class="tech-card" style="{'border-left: 4px solid #ff9800; background: rgba(255, 152, 0, 0.05);' if job.get('is_top_company', False) else ''}">
                 <div class="tech-content-inner">
                     <a href="{job['url']}" class="tech-headline" target="_blank">
-                        💻 {safe_job_title(job["title"])}
+                        💻 {safe_job_title(job["title"])}{top_badge}{company_text}
                     </a>
                     <div class="tech-source">
                         <a href="{job['url']}" target="_blank">
                             📍 {job['source']} → Apply Now
                         </a>
+                        {'<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 10px; font-weight: bold;">TOP COMPANY</span>' if job.get('is_top_company', False) else ''}
                     </div>
                 </div>
             </div>\n'''
-    else:
-        content += '<div class="section-header software-header">💻 SOFTWARE & IT JOBS</div>\n'
-        content += '''
-        <div class="tech-card">
-            <div class="tech-content-inner">
-                <div class="tech-headline" style="color: #666; font-style: italic;">
-                    💻 No software/IT jobs found in this batch. Check if LLM categorized any jobs as software.
-                </div>
+    
+    # ====== FOOTER WITH STATISTICS ======
+    total_jobs = len(electrical_jobs[:16]) + len(civil_jobs[:10]) + len(software_jobs[:9])
+    total_top = top_electrical + top_civil + top_software
+    
+    content += f'''
+    <div style="background: rgba(102, 126, 234, 0.1); padding: 15px 30px; border-radius: 12px; margin: 30px; text-align: center;">
+        <h4 style="color: #667eea; margin: 0 0 10px; font-size: 16px;">📊 Newsletter Summary</h4>
+        <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+            <div style="background: white; padding: 8px 15px; border-radius: 8px; border: 1px solid #ddd;">
+                <strong>Total Jobs:</strong> {total_jobs}
             </div>
-        </div>\n'''
+            <div style="background: white; padding: 8px 15px; border-radius: 8px; border: 1px solid #ddd;">
+                <strong>Top Companies:</strong> {total_top}
+            </div>
+            <div style="background: white; padding: 8px 15px; border-radius: 8px; border: 1px solid #ddd;">
+                <strong>Electrical:</strong> {len(electrical_jobs[:16])}
+            </div>
+            <div style="background: white; padding: 8px 15px; border-radius: 8px; border: 1px solid #ddd;">
+                <strong>Civil:</strong> {len(civil_jobs[:10])}
+            </div>
+            <div style="background: white; padding: 8px 15px; border-radius: 8px; border: 1px solid #ddd;">
+                <strong>Software:</strong> {len(software_jobs[:9])}
+            </div>
+        </div>
+    </div>
+    '''
     
     return content
+
+# def generate_manual_job_newsletter(sources: List[Dict]) -> str:
+#     """FIXED: Generate job newsletter with proper company handling"""
+    
+#     # First, clean and validate all URLs
+#     for job in sources:
+#         job['url'] = validate_and_clean_url_standalone_job(job['url'])
+#         # Ensure company field exists
+#         if 'company_detected' not in job:
+#             job['company_detected'] = job.get('company', 'Unknown')
+#         if 'is_top_company' not in job:
+#             job['is_top_company'] = False
+    
+#     # DEBUG: Log what we received
+#     logger.info("📊 GENERATING NEWSLETTER WITH SOURCES:")
+#     categories_count = {}
+#     top_companies_count = {}
+    
+#     for job in sources:
+#         cat = job.get('category', 'unknown')
+#         categories_count[cat] = categories_count.get(cat, 0) + 1
+        
+#         company = job.get('company_detected', 'Unknown')
+#         if job.get('is_top_company', False):
+#             top_companies_count[company] = top_companies_count.get(company, 0) + 1
+#         else:
+#             # Log if company is not "Unknown" but not marked as top
+#             if company != 'Unknown' and company != 'Not Found' and company != 'Not Specified':
+#                 logger.debug(f"Company '{company}' not marked as top company")
+    
+#     logger.info(f"📊 Input categories: {categories_count}")
+#     logger.info(f"🏆 Top companies in input: {top_companies_count}")
+#     logger.info(f"📋 Sample jobs (first 5):")
+#     for i, job in enumerate(sources[:5]):
+#         logger.info(f"  {i+1}. Cat: {job.get('category')}, Company: {job.get('company_detected')}, "
+#                    f"Top: {job.get('is_top_company')}, Score: {job.get('combined_score', 0):.2f}")
+    
+#     # FIXED FILTERING: Less aggressive filtering
+#     quality_jobs = []
+#     for job in sources:
+#         # Basic quality checks
+#         title = job['title']
+        
+#         # Skip obvious non-jobs
+#         if 'resume' in title.lower() or 'cv' in title.lower():
+#             continue
+            
+#         # Skip very low scores
+#         if job.get('combined_score', 0) < 0.3:
+#             continue
+            
+#         # Skip if no category (shouldn't happen but just in case)
+#         if job.get('category') not in ['electrical', 'civil', 'software']:
+#             continue
+            
+#         quality_jobs.append(job)
+    
+#     logger.info(f"📊 After filtering: {len(sources)} → {len(quality_jobs)} quality jobs")
+    
+#     if len(quality_jobs) == 0:
+#         logger.warning("⚠️ No quality jobs found! Using all jobs with adjustments...")
+#         # Use all jobs but with categorization
+#         quality_jobs = sources
+    
+#     # Group jobs by ACTUAL LLM categories
+#     electrical_jobs = []
+#     civil_jobs = []
+#     software_jobs = []
+    
+#     for job in quality_jobs:
+#         category = job.get('category', 'other')
+#         if category == 'electrical':
+#             electrical_jobs.append(job)
+#         elif category == 'civil':
+#             civil_jobs.append(job)
+#         elif category == 'software':
+#             software_jobs.append(job)
+#         else:
+#             # Try to categorize based on title if LLM failed
+#             title_lower = job['title'].lower()
+#             if any(word in title_lower for word in ['electrical', 'power', 'transmission', 'solar', 'wind']):
+#                 job['category'] = 'electrical'
+#                 electrical_jobs.append(job)
+#             elif any(word in title_lower for word in ['civil', 'construction', 'site', 'structural']):
+#                 job['category'] = 'civil'
+#                 civil_jobs.append(job)
+#             elif any(word in title_lower for word in ['software', 'developer', 'programmer', 'it engineer']):
+#                 job['category'] = 'software'
+#                 software_jobs.append(job)
+    
+#     # Sort each category: TOP COMPANIES FIRST, then by score
+#     def sort_with_top_companies_first(jobs):
+#         return sorted(jobs, key=lambda x: (
+#             not x.get('is_top_company', False),  # True (top company) comes before False
+#             -x.get('combined_score', 0)  # Higher score first
+#         ))
+    
+#     electrical_jobs = sort_with_top_companies_first(electrical_jobs)
+#     civil_jobs = sort_with_top_companies_first(civil_jobs)
+#     software_jobs = sort_with_top_companies_first(software_jobs)
+    
+#     # Count top companies in each category
+#     top_electrical = sum(1 for j in electrical_jobs if j.get('is_top_company', False))
+#     top_civil = sum(1 for j in civil_jobs if j.get('is_top_company', False))
+#     top_software = sum(1 for j in software_jobs if j.get('is_top_company', False))
+    
+#     logger.info(f"📊 Final counts: Electrical={len(electrical_jobs)} (Top: {top_electrical}), "
+#                 f"Civil={len(civil_jobs)} (Top: {top_civil}), "
+#                 f"Software={len(software_jobs)} (Top: {top_software})")
+    
+#     # Build newsletter content
+#     content = ""
+    
+#     # ====== TOP COMPANIES HEADER ======
+#     # Collect all companies (not just top ones) for display
+#     all_companies = {}
+#     for job in quality_jobs:
+#         company = job.get('company_detected', 'Unknown')
+#         if company not in ['Unknown', 'Not Found', 'Not Specified']:
+#             all_companies[company] = all_companies.get(company, 0) + 1
+    
+#     if all_companies:
+#         # Sort by count
+#         sorted_companies = sorted(all_companies.items(), key=lambda x: x[1], reverse=True)
+#         display_companies = [company for company, count in sorted_companies[:8]]
+#         total_jobs_display = sum(count for company, count in sorted_companies[:8])
+        
+#         content += f'''
+#         <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 15px 30px; border-radius: 12px; margin: 20px 30px; text-align: center;">
+#             <h3 style="color: white; margin: 0; font-size: 18px; font-weight: bold;">
+#                 🏢 FEATURED COMPANIES ({total_jobs_display} Jobs)
+#             </h3>
+#             <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0; font-size: 14px;">
+#                 {', '.join(display_companies)}{'...' if len(all_companies) > 8 else ''}
+#             </p>
+#         </div>
+#         '''
+    
+#     # ====== ELECTRICAL JOBS SECTION ======
+#     if electrical_jobs:
+#         content += '<div class="section-header electrical-header">⚡ ELECTRICAL & POWER JOBS</div>\n'
+        
+#         if top_electrical > 0:
+#             content += f'''
+#             <div style="color: #ff9800; font-size: 14px; margin: 10px 30px 5px 30px; font-weight: 600;">
+#                 🏆 {top_electrical} top company jobs in this section
+#             </div>
+#             '''
+        
+#         for job in electrical_jobs[:16]:  # Show up to 16 electrical jobs
+#             # Prepare display elements
+#             top_badge = " 🏆" if job.get('is_top_company', False) else ""
+#             company_text = ""
+            
+#             company = job.get('company_detected', '')
+#             if company and company not in ['Unknown', 'Not Found', 'Not Specified']:
+#                 company_text = f" • {company}"
+            
+#             content += f'''
+#             <div class="tech-card" style="{'border-left: 4px solid #ff9800; background: rgba(255, 152, 0, 0.05);' if job.get('is_top_company', False) else ''}">
+#                 <div class="tech-content-inner">
+#                     <a href="{job['url']}" class="tech-headline" target="_blank">
+#                         ⚡ {safe_job_title(job["title"])}{top_badge}{company_text}
+#                     </a>
+#                     <div class="tech-source">
+#                         <a href="{job['url']}" target="_blank">
+#                             📍 {job['source']} → Apply Now
+#                         </a>
+#                         {'<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 10px; font-weight: bold;">TOP COMPANY</span>' if job.get('is_top_company', False) else ''}
+#                     </div>
+#                 </div>
+#             </div>\n'''
+#     else:
+#         # Show message if no electrical jobs found
+#         content += '''
+#         <div class="section-header electrical-header">⚡ ELECTRICAL & POWER JOBS</div>
+#         <div style="padding: 20px 30px; text-align: center; color: #666;">
+#             <p>No electrical/power engineering jobs found in this batch.</p>
+#         </div>
+#         '''
+    
+#     # ====== CIVIL JOBS SECTION ======
+#     if civil_jobs:
+#         content += '<div class="section-header civil-header">🏗️ CIVIL & CONSTRUCTION JOBS</div>\n'
+        
+#         if top_civil > 0:
+#             content += f'''
+#             <div style="color: #ff9800; font-size: 14px; margin: 10px 30px 5px 30px; font-weight: 600;">
+#                 🏆 {top_civil} top company jobs in this section
+#             </div>
+#             '''
+        
+#         for job in civil_jobs[:10]:  # Show up to 10 civil jobs
+#             top_badge = " 🏆" if job.get('is_top_company', False) else ""
+#             company_text = ""
+            
+#             company = job.get('company_detected', '')
+#             if company and company not in ['Unknown', 'Not Found', 'Not Specified']:
+#                 company_text = f" • {company}"
+            
+#             content += f'''
+#             <div class="tech-card" style="{'border-left: 4px solid #ff9800; background: rgba(255, 152, 0, 0.05);' if job.get('is_top_company', False) else ''}">
+#                 <div class="tech-content-inner">
+#                     <a href="{job['url']}" class="tech-headline" target="_blank">
+#                         🏗️ {safe_job_title(job["title"])}{top_badge}{company_text}
+#                     </a>
+#                     <div class="tech-source">
+#                         <a href="{job['url']}" target="_blank">
+#                             📍 {job['source']} → Apply Now
+#                         </a>
+#                         {'<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 10px; font-weight: bold;">TOP COMPANY</span>' if job.get('is_top_company', False) else ''}
+#                     </div>
+#                 </div>
+#             </div>\n'''
+#     else:
+#         # Show message if no civil jobs found
+#         content += '''
+#         <div class="section-header civil-header">🏗️ CIVIL & CONSTRUCTION JOBS</div>
+#         <div style="padding: 20px 30px; text-align: center; color: #666;">
+#             <p>No civil/construction engineering jobs found in this batch.</p>
+#         </div>
+#         '''
+    
+#     # ====== SOFTWARE JOBS SECTION ======
+#     if software_jobs:
+#         content += '<div class="section-header software-header">💻 SOFTWARE & IT JOBS</div>\n'
+        
+#         if top_software > 0:
+#             content += f'''
+#             <div style="color: #ff9800; font-size: 14px; margin: 10px 30px 5px 30px; font-weight: 600;">
+#                 🏆 {top_software} top company jobs in this section
+#             </div>
+#             '''
+        
+#         for job in software_jobs[:9]:  # Show up to 9 software jobs
+#             top_badge = " 🏆" if job.get('is_top_company', False) else ""
+#             company_text = ""
+            
+#             company = job.get('company_detected', '')
+#             if company and company not in ['Unknown', 'Not Found', 'Not Specified']:
+#                 company_text = f" • {company}"
+            
+#             content += f'''
+#             <div class="tech-card" style="{'border-left: 4px solid #ff9800; background: rgba(255, 152, 0, 0.05);' if job.get('is_top_company', False) else ''}">
+#                 <div class="tech-content-inner">
+#                     <a href="{job['url']}" class="tech-headline" target="_blank">
+#                         💻 {safe_job_title(job["title"])}{top_badge}{company_text}
+#                     </a>
+#                     <div class="tech-source">
+#                         <a href="{job['url']}" target="_blank">
+#                             📍 {job['source']} → Apply Now
+#                         </a>
+#                         {'<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 10px; font-weight: bold;">TOP COMPANY</span>' if job.get('is_top_company', False) else ''}
+#                     </div>
+#                 </div>
+#             </div>\n'''
+#     else:
+#         # Show message if no software jobs found
+#         content += '''
+#         <div class="section-header software-header">💻 SOFTWARE & IT JOBS</div>
+#         <div style="padding: 20px 30px; text-align: center; color: #666;">
+#             <p>No software/IT engineering jobs found in this batch.</p>
+#         </div>
+#         '''
+    
+#     # ====== FOOTER WITH STATISTICS ======
+#     total_jobs = len(electrical_jobs[:16]) + len(civil_jobs[:10]) + len(software_jobs[:9])
+#     total_top = top_electrical + top_civil + top_software
+    
+#     content += f'''
+#     <div style="background: rgba(102, 126, 234, 0.1); padding: 15px 30px; border-radius: 12px; margin: 30px; text-align: center;">
+#         <h4 style="color: #667eea; margin: 0 0 10px; font-size: 16px;">📊 Newsletter Summary</h4>
+#         <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+#             <div style="background: white; padding: 8px 15px; border-radius: 8px; border: 1px solid #ddd;">
+#                 <strong>Total Jobs:</strong> {total_jobs}
+#             </div>
+#             <div style="background: white; padding: 8px 15px; border-radius: 8px; border: 1px solid #ddd;">
+#                 <strong>Top Companies:</strong> {total_top}
+#             </div>
+#             <div style="background: white; padding: 8px 15px; border-radius: 8px; border: 1px solid #ddd;">
+#                 <strong>Electrical:</strong> {len(electrical_jobs[:16])}
+#             </div>
+#             <div style="background: white; padding: 8px 15px; border-radius: 8px; border: 1px solid #ddd;">
+#                 <strong>Civil:</strong> {len(civil_jobs[:10])}
+#             </div>
+#             <div style="background: white; padding: 8px 15px; border-radius: 8px; border: 1px solid #ddd;">
+#                 <strong>Software:</strong> {len(software_jobs[:9])}
+#             </div>
+#         </div>
+#     </div>
+#     '''
+    
+#     return content
+
 
 def create_jobs_newsletter(topic: str, content: str, sources: List[Dict], publish_date: str):
     """Create jobs-specific newsletter - KEEP EXISTING STYLING"""
@@ -4418,6 +5487,43 @@ def create_jobs_newsletter(topic: str, content: str, sources: List[Dict], publis
             .software-header {{
                 background: linear-gradient(135deg, #5f27cd, #341f97) !important;
             }}
+
+            
+
+
+            /* Add these styles to the existing CSS */
+            .top-companies-header {{
+                margin: 20px 30px;
+            }}
+
+            .tech-card.top-company {{
+                border-left: 4px solid #ff9800 !important;
+                background: rgba(255, 152, 0, 0.05) !important;
+            }}
+
+            .tech-card.top-company:hover {{
+                box-shadow: 0 20px 40px rgba(255, 152, 0, 0.2) !important;
+            }}
+
+            .top-company-badge {{
+                background: #ff9800;
+                color: white;
+                padding: 2px 8px;
+                border-radius: 10px;
+                font-size: 11px;
+                font-weight: bold;
+                margin-left: 10px;
+                display: inline-block;
+            }}
+
+            .company-name {{
+                color: #ff9800;
+                font-weight: 600;
+                font-size: 14px;
+                margin-left: 5px;
+            }}
+
+
         </style>
     </head>
     <body>

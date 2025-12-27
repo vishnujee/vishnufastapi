@@ -153,6 +153,11 @@ BLOCKED_PATTERNS = [
     re.compile(r'\.log$', re.IGNORECASE),
     re.compile(r'db_dump', re.IGNORECASE),
     re.compile(r'adminer', re.IGNORECASE),
+    re.compile(r'phpunit', re.IGNORECASE),
+    re.compile(r'eval-stdin', re.IGNORECASE),
+    re.compile(r'boaform', re.IGNORECASE),
+    re.compile(r'xmlrpc\.php', re.IGNORECASE),
+    re.compile(r'vendor/', re.IGNORECASE),
 ]
 
 @app.middleware("http")

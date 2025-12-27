@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-BULLETPROOF Cleanup Script for Orphaned Files
-Runs every 15 minutes via cron
-"""
-
 import sys
 import os
 import time
