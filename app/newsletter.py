@@ -1339,73 +1339,107 @@ class EnergyNewsSearcher:
             # Prepare top companies list for prompt
             top_companies_str = "\n".join([f"- {company}" for company in self.top_companies_list[:50]])
             
+            
             prompt = f"""
-            **CRITICAL TASK**: Analyze this job posting for category AND detect if it's from a top company.
-            
-            JOB TITLE: {title}
-            DESCRIPTION: {content[:400]}
-            SOURCE: {source}
-            
-            **TOP 100 INDIAN COMPANIES TO CHECK**:
-            {top_companies_str}
-            
-            **CATEGORY RULES (MUST FOLLOW)**:
-            1. **SOFTWARE**: ONLY if role involves SOFTWARE DEVELOPMENT/CODING
-            - "Software Engineer", "Software Developer", "Programmer", "Full Stack Developer"
-            - NOT: "Electrical Engineer with IT skills", "Maintenance Engineer in IT department"
-            
-            2. **ELECTRICAL**: Power/Electrical engineering roles
-            - "Electrical Engineer", "Power Engineer", "Transmission Engineer", "Substation Engineer"
-            - Renewable energy engineering roles: "Solar Engineer", "Wind Engineer"
-            
-            3. **CIVIL**: Construction/Infrastructure roles
-            - "Civil Engineer", "Site Engineer", "Construction Engineer", "Structural Engineer"
-            
-            4. **OTHER**: Non-engineering or ambiguous roles
-            - Sales, HR, Marketing, Admin, Business Development
-            - Management roles without clear engineering focus
-            
-            **COMPANY DETECTION RULES**:
-            - Look for company name IN THE TITLE
-            - Must match EXACTLY or be very close variation of companies in list above
-            - Common patterns: "at [Company]", "- [Company]", "hiring for [Company]"
-            - If company is NOT in top list → is_top_company = false
-            - "LinkedIn India", "Naukri.com" are NOT top companies
-            
-            **CRITICAL EXAMPLES**:
-            - "Electrical Engineer at Adani Power" → Category: ELECTRICAL, Company: Adani Power, Top: YES
-            - "Software Developer at Infosys" → Category: SOFTWARE, Company: Infosys, Top: YES
-            - "Civil Site Engineer - L&T Construction" → Category: CIVIL, Company: L&T Construction, Top: YES
-            - "Electrical Maintenance Engineer - LinkedIn India" → Category: ELECTRICAL, Company: Not Found, Top: NO
-            - "HR Recruiter at TCS" → Category: OTHER, Company: TCS, Top: YES (but category is other)
-            
-            **SCORING**:
-            - Engineering role (electrical/civil/software): relevance_score = 0.7-1.0
-            - Top company bonus: +0.2 to relevance_score
-            - Non-engineering role: relevance_score = 0.3-0.6
-            
-            **RESPONSE (JSON ONLY)**:
-            {{
-                "category": "electrical/civil/software/other",
-                "company_detected": "EXACT COMPANY NAME or 'Not Found'",
-                "is_top_company": true/false,
-                "relevance_score": 0.0-1.0,
-                "confidence": 0.0-1.0,
-                "reasoning": "Brief explanation of category and company match"
-            }}
+                **CRITICAL TASK**: Analyze this job posting AND detect issues.
+                
+                JOB TITLE: {title}
+                DESCRIPTION: {content[:400]}
+                SOURCE: {source}
+                
+                **TOP 100 INDIAN COMPANIES TO CHECK**:
+                {top_companies_str}
+                
+                **REJECTION CRITERIA (MUST CHECK FIRST)**:
+                
+                1. **BULK POSTING INDICATORS (REJECT WITH 0.1 SCORE):**
+                - Contains numbers followed by "jobs" or "vacancies": "1596 Lnt Ece Job Vacancies"
+                - "Multiple openings", "Bulk hiring", "Mass recruitment"
+                - "Urgent requirement for 10+ engineers"
+                - Title contains: "jobs", "vacancies", "openings" with numbers
+                - Job search results pages (e.g., "Civil Engineer jobs in Champa")
+                - Multiple job listings (e.g., "22 Civil Engineer Site Engineer jobs")
+                - Any title with "jobs in [location]" pattern
+                - Any title with numbers followed by "jobs" (e.g., "15 jobs found", "10+ openings")
+
+                2. **REAL JOB vs BULK EXAMPLES:**
+                - GOOD: "Siemens hiring PCS 7 Domain Tester in Bengaluru" → REAL
+                - BAD: "Siemens Jobs - 500 Siemens Job Vacancies" → BULK
+                - GOOD: "Tata Consultancy Services hiring Senior Developer" → REAL  
+                - BAD: "Tata Jobs In Odisha - 197 Tata Job Vacancies" → BULK
+
+                3. **ACTION: If you see numbers + "Job Vacancies" in title → REJECT IMMEDIATELY**
+                
+                4. **PERSONAL PROFILE PATTERNS (REJECT IMMEDIATELY)**:
+                - Name followed by dash/hyphen: "Guru Naresh - Electrical Site Engineer"
+                - Contains personal pronouns: "I", "my", "me", "myself"
+                - "Looking for opportunities", "Open to work", "Seeking roles"
+                - Contains "| Ex-" or "Former" indicating personal career history
+                - Titles structured as "Personal Name - Role at Company" (e.g., "Justin Inkhiya - Junior Engineer at Sterling and Wilson")
+                
+                5. **SEARCH RESULTS PAGE (REJECT IMMEDIATELY)**:
+                - "jobs in [location]" pattern
+                - "Electrical Engineer jobs in Bangalore"
+                - Job aggregator pages (not direct postings)
+                
+                **ONLY IF NOT REJECTED ABOVE, PROCEED WITH ANALYSIS**:
+                
+                **CATEGORY RULES**:
+                1. **SOFTWARE**: ONLY if role involves SOFTWARE DEVELOPMENT/CODING
+                - "Software Engineer", "Software Developer", "Programmer", "Full Stack Developer"
+                
+                2. **ELECTRICAL**: Power/Electrical engineering roles
+                - "Electrical Engineer", "Power Engineer", "Transmission Engineer", "Substation Engineer"
+                
+                3. **CIVIL**: Construction/Infrastructure roles
+                - "Civil Engineer", "Site Engineer", "Construction Engineer", "Structural Engineer"
+                
+                4. **OTHER**: Non-engineering or ambiguous roles
+                
+                **COMPANY DETECTION RULES**:
+                - Look for company name IN THE TITLE
+                - Must match EXACTLY or be very close variation of companies in list above
+                - "LinkedIn India", "Naukri.com" are NOT top companies
+                
+                **SCORING ADJUSTMENTS**:
+                - Top company bonus: +0.2 to relevance_score
+                - Bulk posting detected: relevance_score = 0.1, is_bulk_posting = True
+                - Top company but bulk posting: STILL 0.1 score (bulk overrides company bonus)
+                - Engineering role (electrical/civil/software): relevance_score = 0.7-1.0
+                - Non-engineering role: relevance_score = 0.3-0.6
+                
+                **RESPONSE (JSON ONLY)**:
+                {{
+                    "category": "electrical/civil/software/other",
+                    "company_detected": "EXACT COMPANY NAME or 'Not Found'",
+                    "is_top_company": true/false,
+                    "is_bulk_posting": true/false,
+                    "is_personal_profile": true/false,
+                    "relevance_score": 0.0-1.0,
+                    "confidence": 0.0-1.0,
+                    "reasoning": "Brief explanation including rejection checks"
+                }}
             """
             
             response = model.generate_content(prompt)
             text = response.text.strip()
-            logger.debug(f"📄 Raw LLM response: {text}")
-            
+            logger.info(f"🔍 LLM RAW for '{title[:50]}...': {text[:200]}...")
+
             # Clean JSON response
             text = self._clean_json_response(text)
-            logger.debug(f"📄 Cleaned JSON: {text}")
-            
+            logger.info(f"🧹 CLEANED JSON ({source[:10]}): {text}")
+
             try:
                 result = json.loads(text)
-                
+                logger.info(f"📊 LLM PARSED [{source}] -> "
+                    f"Cat: {result.get('category', 'N/A')}, "
+                    f"Bulk: {result.get('is_bulk_posting', False)}, "
+                    f"Personal: {result.get('is_personal_profile', False)}, "
+                    f"TopCo: {result.get('is_top_company', False)}, "
+                    f"RelScore: {result.get('relevance_score', 0):.2f}, "
+                    f"Conf: {result.get('confidence', 0):.2f}, "
+                    f"Comp: {result.get('company_detected', 'N/A')[:20]}")
+
                 # Ensure category is lowercase
                 category = result.get("category", "other").lower()
                 result["category"] = category
@@ -1431,27 +1465,44 @@ class EnergyNewsSearcher:
                 
                 result["company_detected"] = company
                 
-                # Adjust scoring based on findings
+                # ⚠️⚠️⚠️ CRITICAL FIX STARTS HERE ⚠️⚠️⚠️
+                # Get base scores
                 relevance = float(result.get("relevance_score", 0.5))
+                confidence = float(result.get("confidence", 0.7))
+                is_bulk = result.get("is_bulk_posting", False)
+                is_personal = result.get("is_personal_profile", False)
+                is_top_company = result.get("is_top_company", False)
                 
-                # Apply top company bonus
-                if result["is_top_company"]:
+                # RULE 1: If bulk posting or personal profile -> VERY LOW SCORES
+                if is_bulk or is_personal:
+                    # Force low scores regardless of company
+                    relevance = 0.1
+                    confidence = 0.3  # Lower confidence for bulk/personal
+                    logger.info(f"🔴 BULK/PERSONAL DETECTED: relevance=0.1, confidence=0.3 for: {title[:50]}...")
+                
+                # RULE 2: Top company bonus ONLY if not bulk/personal
+                elif is_top_company:
                     relevance = min(1.0, relevance + 0.2)
-                    logger.info(f"✅ TOP COMPANY DETECTED: {company} - {title[:50]}...")
+                    logger.info(f"✅ TOP COMPANY BONUS: +0.2 to relevance = {relevance:.2f} for: {company}")
                 
-                # Penalize "other" category
-                if category == "other":
+                # RULE 3: Penalize "other" category (but not if already penalized for bulk/personal)
+                elif category == "other" and not (is_bulk or is_personal):
                     relevance = max(0.3, relevance - 0.2)
+                    logger.info(f"📉 'Other' category penalty: -0.2 to relevance = {relevance:.2f}")
                 
+                # Update the result with corrected scores
                 result["relevance_score"] = relevance
-                result["confidence"] = float(result.get("confidence", 0.7))
-                result["reasoning"] = result.get("reasoning", "No reasoning")
+                result["confidence"] = confidence
                 
-                # Calculate combined score
+                # Calculate combined score (bulk/personal will now have ~0.18 score)
                 result["combined_score"] = (
                     result["relevance_score"] * 0.6 +
                     result["confidence"] * 0.4
                 )
+                
+                # Log final scores for verification
+                logger.info(f"🎯 FINAL: Rel={relevance:.2f}, Conf={confidence:.2f}, Combined={result['combined_score']:.2f}, "
+                            f"Bulk={is_bulk}, Personal={is_personal}, TopCo={is_top_company}")
                 
                 return result
                 
@@ -1463,6 +1514,7 @@ class EnergyNewsSearcher:
         except Exception as e:
             logger.error(f"LLM analysis failed: {e}")
             return self._fallback_categorization(title, content)
+
 
 
     def _fallback_categorization(self, title: str, content: str) -> Dict:
@@ -1593,11 +1645,12 @@ class EnergyNewsSearcher:
         
         # TOP 20 COMPANIES SPECIFIC SEARCH
         top_companies_to_search = [
-            "Tata Power", "Adani Power", "L&T","Larsen & Toubro", "Torrent Power", "CESC",
-            "KEC International", "Afcons","Megha Engineering", "Sterlite Power","shapoorji pallonji",
+            "Tata Power", "Adani Power", "L&T", "Larsen & Toubro", "Torrent Power", "CESC",
+            "KEC International", "Afcons", "Megha Engineering", "Sterlite Power", "shapoorji pallonji",
             "TCS", "Infosys", "Wipro", "HCL", "Accenture",
             "RPSG", "Siemens", "ABB", "Schneider", "GE Power",
-            "Jindal", "Adani","Adani Green","Adani Electricity","Adani Transmission","Adani Solar", "JSW Energy", "ReNew", "Microsoft India"
+            "Jindal", "Adani", "Adani Green", "Adani Electricity", "Adani Transmission", "Adani Solar", 
+            "JSW Energy", "ReNew", "Microsoft"
         ]
         
         url = "https://news.google.com/rss/search"
@@ -1611,9 +1664,7 @@ class EnergyNewsSearcher:
                     # WALKIN    
                     f'site:naukri.com "{company}" walkin OR "walk in" OR "walk-in" when:3d',
                     f'site:linkedin.com "{company}" walkin OR "walk in" OR "walk-in" when:3d',
-                    
-           
-                    ]
+                ]
                 
                 for query in queries:
                     params = {
@@ -1629,6 +1680,7 @@ class EnergyNewsSearcher:
                             
                             for entry in feed.entries[:8]:
                                 title = entry.title
+                                entry_url = entry.link
                                 
                                 # Skip non-jobs
                                 if any(term in title.lower() for term in ['resume', 'cv', 'interview']):
@@ -1640,22 +1692,39 @@ class EnergyNewsSearcher:
                                     content=entry.get("summary", ""),
                                     source="LinkedIn" if "linkedin" in query else "Naukri.com"
                                 )
-                                
+
+                                # Get scores from analysis
+                                combined_score = analysis.get("combined_score", 0)
+                                relevance_score = analysis.get("relevance_score", 0.5)
+                                category = analysis.get("category", "other")
+                                company_detected = analysis.get("company_detected", "Unknown")
+                                is_top_company = analysis.get("is_top_company", False)
+
+                                # Filter low scores
+                                if combined_score < 0.5:
+                                    logger.info(f"⏭️  SKIP (score {combined_score:.2f} < 0.5): {title[:50]}...")
+                                    continue
+
+                                # Mark if this was a company-specific search
+                                searched_for_company = company is not None
+
                                 job_data = {
                                     "title": title,
-                                    "url": entry.link,
+                                    "url": entry_url,
                                     "content": entry.get("summary", "")[:200],
                                     "source": "LinkedIn" if "linkedin" in query else "Naukri.com",
                                     "published_at": entry.get("published", ""),
-                                    "company": analysis["company_detected"],
-                                    "is_top_company": analysis["is_top_company"],
-                                    "category": analysis["category"],
-                                    "relevance_score": analysis["relevance_score"],
-                                    "forced_company_search": True
+                                    "company": company_detected,
+                                    "is_top_company": is_top_company,
+                                    "category": category,
+                                    "relevance_score": relevance_score,
+                                    "combined_score": combined_score,
+                                    "searched_for_specific_company": searched_for_company,
+                                    "specific_company_searched": company
                                 }
                                 
-                                if not any(job['title'] == job_data['title'] for job in all_jobs):
-                                    all_jobs.append(job_data)
+                                all_jobs.append(job_data)
+                                logger.info(f"✅ Added job from {company}: {title[:50]}... (Score: {combined_score:.2f})")
                                     
             except Exception as e:
                 logger.warning(f"Company search failed for {company}: {e}")
@@ -1700,43 +1769,60 @@ class EnergyNewsSearcher:
                             
                             for entry in feed.entries[:15]:  # Get more entries
                                 title = entry.title
+                                entry_url = entry.link
                                 
                                 # Skip obvious non-jobs
                                 if 'resume' in title.lower() or 'interview tips' in title.lower():
                                     continue
                                 
                                 # REAL-TIME LLM ANALYSIS
+                                 # Analyze with enhanced LLM
                                 analysis = await self._analyze_job_with_llm(
-                                    title=title,
-                                    content=entry.get("summary", ""),
-                                    source="Naukri.com"
+                                title=title,
+                                content=entry.get("summary", ""),
+                                source="LinkedIn" if "linkedin" in query else "Naukri.com"
                                 )
-                                
-                                # Skip if not engineering or very low score
-                                if analysis["category"] == "other" and analysis["relevance_score"] < 0.3:
-                                    continue
-                                
+
+                                # Get scores from analysis
+                                combined_score = analysis.get("combined_score", 0)
+                                relevance_score = analysis.get("relevance_score", 0.5)
+                                category = analysis.get("category", "other")
+                                company_detected = analysis.get("company_detected", "Unknown")
+                                is_top_company = analysis.get("is_top_company", False)
+
+                                # ✅ FIXED: Use the SAME combined_score everywhere
+                                if combined_score < 0.5:
+                                    logger.info(f"⏭️  SKIP (score {combined_score:.2f} < 0.5): {title[:50]}...")
+                                    continue  # Skip this job entirely
+
+                                # If this was a company-specific search, mark it
+                                # searched_for_company = company_name is not None
+                                searched_for_company = False
+                                specific_company_searched = None
+
                                 job_data = {
                                     "title": title,
-                                    "url": entry.link,
+                                    "url": entry_url,
                                     "content": entry.get("summary", "")[:200],
-                                    "source": "Naukri.com",
+                                    "source": "LinkedIn" if "linkedin" in query else "Naukri.com",
                                     "published_at": entry.get("published", ""),
-                                    "type": "job_posting",
-                                    "company": analysis["company_detected"],
-                                    "is_top_company": analysis["is_top_company"],
-                                    "category": analysis["category"],
-                                    "relevance_score": analysis["relevance_score"],
-                                    "analysis_reasoning": analysis["reasoning"]
+                                    "company": company_detected,
+                                    "is_top_company": is_top_company,
+                                    "category": category,
+                                    "relevance_score": relevance_score,
+                                    "combined_score": combined_score,  # ✅ Use the actual score from analysis
+                                    "searched_for_specific_company": searched_for_company,
+                                    "specific_company_searched": specific_company_searched
                                 }
                                 
-                                # Simple deduplication
-                                if not any(job['title'] == job_data['title'] for job in all_jobs):
-                                    all_jobs.append(job_data)
-                                    
-                                    # Log if top company found
-                                    if analysis["is_top_company"]:
-                                        logger.info(f"🏢 TOP COMPANY: {analysis['company_detected']} - {title[:50]}...")
+                                # if not any(job['title'] == job_data['title'] for job in all_jobs):
+                                #     all_jobs.append(job_data)
+
+                                if is_top_company:
+                                    logger.info(f"✅ TOP COMPANY DETECTED: {company_detected} - {title[:50]}...")
+
+                                all_jobs.append(job_data)
+                                logger.debug(f"   ✅ Added job: {title[:50]}... (Score: {combined_score:.2f})")
                             
                             logger.info(f"Query found {len(feed.entries)} entries")
                                 
@@ -1786,41 +1872,59 @@ class EnergyNewsSearcher:
                             
                             for entry in feed.entries[:15]:
                                 title = entry.title
-                                
+                                entry_url = entry.link
                                 # Skip non-jobs
                                 if any(term in title.lower() for term in ['resume', 'cv', 'how to', 'career advice']):
                                     continue
                                 
                                 # REAL-TIME LLM ANALYSIS
+                                # Analyze with enhanced LLM
                                 analysis = await self._analyze_job_with_llm(
-                                    title=title,
-                                    content=entry.get("summary", ""),
-                                    source="LinkedIn"
+                                title=title,
+                                content=entry.get("summary", ""),
+                                source="LinkedIn" if "linkedin" in query else "Naukri.com"
                                 )
-                                
-                                # Skip non-engineering/low relevance
-                                if analysis["category"] == "other" and analysis["relevance_score"] < 0.3:
-                                    continue
-                                
+
+                                # Get scores from analysis
+                                combined_score = analysis.get("combined_score", 0)
+                                relevance_score = analysis.get("relevance_score", 0.5)
+                                category = analysis.get("category", "other")
+                                company_detected = analysis.get("company_detected", "Unknown")
+                                is_top_company = analysis.get("is_top_company", False)
+
+                                # ✅ FIXED: Use the SAME combined_score everywhere
+                                if combined_score < 0.5:
+                                    logger.info(f"⏭️  SKIP (score {combined_score:.2f} < 0.5): {title[:50]}...")
+                                    continue  # Skip this job entirely
+
+                                # If this was a company-specific search, mark it
+                                # searched_for_company = company_name is not None
+                                searched_for_company = False
+                                specific_company_searched = None
+
                                 job_data = {
                                     "title": title,
-                                    "url": entry.link,
-                                    "content": entry.get("summary", "")[:300],
-                                    "source": "LinkedIn",
+                                    "url": entry_url,
+                                    "content": entry.get("summary", "")[:200],
+                                    "source": "LinkedIn" if "linkedin" in query else "Naukri.com",
                                     "published_at": entry.get("published", ""),
-                                    "type": "job_posting",
-                                    "company": analysis["company_detected"],
-                                    "is_top_company": analysis["is_top_company"],
-                                    "category": analysis["category"],
-                                    "relevance_score": analysis["relevance_score"],
-                                    "analysis_reasoning": analysis["reasoning"]
+                                    "company": company_detected,
+                                    "is_top_company": is_top_company,
+                                    "category": category,
+                                    "relevance_score": relevance_score,
+                                    "combined_score": combined_score,  # ✅ Use the actual score from analysis
+                                    "searched_for_specific_company": searched_for_company,
+                                    "specific_company_searched": specific_company_searched
                                 }
                                 
-                                if not any(job['title'] == job_data['title'] for job in all_jobs):
-                                    all_jobs.append(job_data)
-                                    
-                                    if analysis["is_top_company"]:
-                                        logger.info(f"🏢 LINKEDIN TOP COMPANY: {analysis['company_detected']} - {title[:50]}...")
+                                # if not any(job['title'] == job_data['title'] for job in all_jobs):
+                                #     all_jobs.append(job_data)
+
+                                if is_top_company:
+                                    logger.info(f"✅ TOP COMPANY DETECTED: {company_detected} - {title[:50]}...")
+
+                                all_jobs.append(job_data)
+                                logger.debug(f"   ✅ Added job: {title[:50]}... (Score: {combined_score:.2f})")
                                 
                 except Exception as e:
                     logger.warning(f"LinkedIn query failed: {query} - {e}")
