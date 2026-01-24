@@ -3510,18 +3510,78 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (modeToggle && modeSelect && chatInput && modeLabel) {
         // Function to update UI based on toggle state
-        function updateModeUI() {
+        // function updateModeUI() {
 
+        //     if (modeToggle.checked) {
+        //         // Tone Selector ENABLED
+        //         chatInput.placeholder = "Ask anything (except Vishnu)... (Press Enter to send)";
+        //         modeLabel.innerHTML = 'Tone Selector <br> <span class="text-xs text-gray-500">General Mode</span>';
+        //         modeSelect.style.display = 'flex';
+        //     } else {
+        //         // Tone Selector DISABLED
+        //         chatInput.placeholder = "Ask anything about Vishnu... (Press Enter to send)";
+        //         modeLabel.innerHTML = 'Tone Selector <br> <span class="text-xs text-gray-500">Vishnu Mode</span>';
+        //         modeSelect.style.display = 'none';
+        //     }
+        // }
+
+        function updateModeUI() {
             if (modeToggle.checked) {
                 // Tone Selector ENABLED
                 chatInput.placeholder = "Ask anything (except Vishnu)... (Press Enter to send)";
                 modeLabel.innerHTML = 'Tone Selector <br> <span class="text-xs text-gray-500">General Mode</span>';
                 modeSelect.style.display = 'flex';
+
+                // ─── NEW: Change assistant name when toggle is ON ───────────────────────
+                const assistantNameEl = document.querySelector('.assistant-name') || 
+                                    document.querySelector('#chat-header .text-xl') || // fallback selector
+                                    document.querySelector('h2, .chat-title');         // more fallbacks
+
+                if (assistantNameEl) {
+                    const selectedMode = modeSelect.value || 'general';
+                    
+                    // You can customize names here
+                    const neutralNames = {
+                            general:     "Your AI Assistant",     // ← my #1 recommendation
+                            encyclopedia:"Fact Finder Assistant",
+                            creative:    "Creative Assistant",
+                            funny:       "Fun Assistant",
+                            baby:        "Little Star Helper",
+                            debate:      "Discussion Assistant",
+                            gate_coach:  "Study Assistant",
+                            default:     "Your AI Assistant"      // fallback
+                        };
+
+                    const newName = neutralNames[selectedMode] || neutralNames.default;
+                    
+                    // Smooth transition
+                    assistantNameEl.style.opacity = '0';
+                    setTimeout(() => {
+                        assistantNameEl.textContent = newName;
+                        assistantNameEl.style.opacity = '1';
+                    }, 150);
+                }
+                // ────────────────────────────────────────────────────────────────────────
+
             } else {
                 // Tone Selector DISABLED
                 chatInput.placeholder = "Ask anything about Vishnu... (Press Enter to send)";
                 modeLabel.innerHTML = 'Tone Selector <br> <span class="text-xs text-gray-500">Vishnu Mode</span>';
                 modeSelect.style.display = 'none';
+
+                // ─── NEW: Revert to original name when toggle is OFF ────────────────────
+                const assistantNameEl = document.querySelector('.assistant-name') || 
+                                    document.querySelector('#chat-header .text-xl') ||
+                                    document.querySelector('h2, .chat-title');
+
+                if (assistantNameEl) {
+                    assistantNameEl.style.opacity = '0';
+                    setTimeout(() => {
+                        assistantNameEl.textContent = "Vishnu AI Assistant";
+                        assistantNameEl.style.opacity = '1';
+                    }, 150);
+                }
+                // ────────────────────────────────────────────────────────────────────────
             }
         }
 

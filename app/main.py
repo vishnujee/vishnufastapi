@@ -1324,7 +1324,7 @@ def verify_embeddings(embeddings_list):
 
 # def get_llm():
 #     return ChatGoogleGenerativeAI(
-#         model="gemini-2.0-flash",
+#         model="gemini-2.5-flash",
 #         temperature=0.1,  # Lower for consistency
 #         max_tokens=768,   # Reduced from 2024
 #         timeout=8,        # Add timeout
@@ -1352,7 +1352,7 @@ def initialize_global_gemini_model():
                 start = time.time()
                 
                 genai.configure(api_key=GOOGLE_API_KEY)
-                _GEMINI_MODEL = genai.GenerativeModel('gemini-2.0-flash')
+                _GEMINI_MODEL = genai.GenerativeModel('gemini-2.5-flash')
                 
                 # Warm-up call
                 try:

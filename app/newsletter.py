@@ -99,7 +99,7 @@ def restore_full_urls(content: str, url_map: Dict[str, str]) -> str:
         content = content.replace(short_id, full_url)
     return content
 
-def get_gemini_model(model_name: str = "gemini-2.0-flash-lite"):
+def get_gemini_model(model_name: str = "gemini-2.5-flash-lite"):
     return genai.GenerativeModel(model_name)
 
 ist = pytz.timezone('Asia/Kolkata')
@@ -525,7 +525,7 @@ class EnergyNewsSearcher:
 # Details log before presenting to LLM
 #===============================================================
 
-            model = get_gemini_model("gemini-2.0-flash")
+            model = get_gemini_model("gemini-2.5-flash")
             
             # In the llm_batch_filter_jobs method, modify the prompt's SELECTION ALGORITHM section:
 
@@ -1169,7 +1169,7 @@ class EnergyNewsSearcher:
     # async def _analyze_job_with_llm(self, title: str, content: str, source: str) -> Dict:
     #     """FIXED LLM call - No aggressive software forcing, adds proper company detection"""
     #     try:
-    #         model = get_gemini_model("gemini-2.0-flash-lite")
+    #         model = get_gemini_model("gemini-2.5-flash-lite")
             
     #         # Prepare top companies list for prompt
     #         top_companies_str = "\n".join([f"- {company}" for company in self.top_companies_list[:50]])
@@ -1334,7 +1334,7 @@ class EnergyNewsSearcher:
     async def _analyze_job_with_llm(self, title: str, content: str, source: str) -> Dict:
         """FIXED LLM call - No aggressive software forcing, adds proper company detection"""
         try:
-            model = get_gemini_model("gemini-2.0-flash-lite")
+            model = get_gemini_model("gemini-2.5-flash-lite")
             
             # Prepare top companies list for prompt
             top_companies_str = "\n".join([f"- {company}" for company in self.top_companies_list[:50]])
@@ -2005,7 +2005,7 @@ class EnergyNewsSearcher:
     async def _llm_score_and_categorize_single_call(self, job_data: Dict, keywords: List[str] = None) -> Dict[str, Any]:
         """Single LLM call that does both scoring AND categorization - WITH PROFILE/BULK DETECTION"""
         try:
-            model = get_gemini_model("gemini-2.0-flash-lite")
+            model = get_gemini_model("gemini-2.5-flash-lite")
             
             title = job_data['title']
             source = job_data['source']
@@ -2887,7 +2887,7 @@ class EnhancedNewsSearcher(EnergyNewsSearcher):
             if len(all_news) <= max_output:
                 return all_news[:max_output]
                 
-            model = genai.GenerativeModel('gemini-2.0-flash-lite')
+            model = genai.GenerativeModel('gemini-2.5-flash-lite')
             
             # Separate Projects Today news
             projects_today_news = [news for news in all_news if news.get('source') == 'Projects Today']
@@ -3155,7 +3155,7 @@ async def generate_sports_newsletter_content(sources: List[Dict], topic: str) ->
     try:
         logger.info("🔧 STARTING COMPREHENSIVE DEBUGGING")
         
-        model = get_gemini_model("gemini-2.0-flash-lite")
+        model = get_gemini_model("gemini-2.5-flash-lite")
         
         # Step 1: Check initial sources
         logger.info(f"📥 INITIAL SOURCES: {len(sources)}")
@@ -3742,7 +3742,7 @@ async def generate_tech_newsletter_content(sources: List[Dict], topic: str) -> s
     try:
         logger.info("🔧 STARTING TECHNOLOGY DEBUGGING")
         
-        model = get_gemini_model("gemini-2.0-flash-lite")
+        model = get_gemini_model("gemini-2.5-flash-lite")
         
         # Step 1: Check initial sources
         logger.info(f"📥 INITIAL TECH SOURCES: {len(sources)}")
@@ -4336,7 +4336,7 @@ def create_tech_newsletter(topic: str, content: str, sources: List[Dict], publis
 async def generate_power_newsletter_content(sources: List[Dict], topic: str) -> str:
     """Generate power projects-specific newsletter content"""
     try:
-        model = get_gemini_model("gemini-2.0-flash-lite")
+        model = get_gemini_model("gemini-2.5-flash-lite")
         
         unique_sources = remove_duplicate_news(sources)
         logger.info(f"🔄 Unique power sources available: {len(unique_sources)}")
