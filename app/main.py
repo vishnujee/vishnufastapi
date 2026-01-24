@@ -4723,6 +4723,46 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
         logger.info("Running garbage collection")
         gc.collect()
         
+# @app.get("/videos")
+# async def list_videos():
+#     try:
+#         response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
+#         videos = []
+        
+#         if "Contents" in response:
+#             for obj in response["Contents"]:
+#                 key = obj["Key"]
+#                 if key.lower().endswith((".mp4", ".webm", ".ogg")):
+#                     try:
+#                         head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
+#                         metadata = head.get('Metadata', {})
+#                         content_type = head.get('ContentType', 'video/mp4')
+                        
+#                         # Extract video_id (filename part after prefix)
+#                         video_id = key[len(S3_PREFIX):]
+                        
+#                         # Direct S3 URL with #t=1 for preview frame
+#                         url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}#t=1"
+#                         logger.info(f"Direct URL for {key}: {url}")
+                        
+#                         videos.append({
+#                             "id": video_id,
+#                             "name": key.split('/')[-1],
+#                             "url": url,
+#                             "description": metadata.get('description', ''),
+#                             "type": content_type
+#                         })
+#                     except ClientError as e:
+#                         logger.error(f"Error processing {key}: {e}")
+#                         continue
+        
+#         return JSONResponse(content=videos)
+
+#     except Exception as e:
+#         logger.error(f"Error listing videos: {e}")
+#         raise HTTPException(status_code=500, detail="Failed to list videos")
+
+
 @app.get("/videos")
 async def list_videos():
     try:
@@ -4730,38 +4770,44 @@ async def list_videos():
         videos = []
         
         if "Contents" in response:
-            for obj in response["Contents"]:
+            # Collect + sort in one go
+            video_items = [
+                obj for obj in response["Contents"]
+                if obj["Key"].lower().endswith((".mp4", ".webm", ".ogg"))
+            ]
+            
+            # Sort newest first using LastModified
+            video_items.sort(key=lambda x: x["LastModified"], reverse=True)
+            
+            for obj in video_items:
                 key = obj["Key"]
-                if key.lower().endswith((".mp4", ".webm", ".ogg")):
-                    try:
-                        head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
-                        metadata = head.get('Metadata', {})
-                        content_type = head.get('ContentType', 'video/mp4')
-                        
-                        # Extract video_id (filename part after prefix)
-                        video_id = key[len(S3_PREFIX):]
-                        
-                        # Direct S3 URL with #t=1 for preview frame
-                        url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}#t=1"
-                        logger.info(f"Direct URL for {key}: {url}")
-                        
-                        videos.append({
-                            "id": video_id,
-                            "name": key.split('/')[-1],
-                            "url": url,
-                            "description": metadata.get('description', ''),
-                            "type": content_type
-                        })
-                    except ClientError as e:
-                        logger.error(f"Error processing {key}: {e}")
-                        continue
+                try:
+                    head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
+                    metadata = head.get('Metadata', {})
+                    content_type = head.get('ContentType', 'video/mp4')
+                    
+                    video_id = key[len(S3_PREFIX):]
+                    url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}#t=1"
+                    
+                    videos.append({
+                        "id": video_id,
+                        "name": key.split('/')[-1],
+                        "url": url,
+                        "description": metadata.get('description', ''),
+                        "type": content_type,
+                        # Optional: show upload date in frontend
+                        "uploaded": obj["LastModified"].strftime("%Y-%m-%d %H:%M")
+                    })
+                except ClientError as e:
+                    logger.error(f"Error processing {key}: {e}")
+                    continue
         
         return JSONResponse(content=videos)
 
     except Exception as e:
         logger.error(f"Error listing videos: {e}")
         raise HTTPException(status_code=500, detail="Failed to list videos")
-
+    
 @app.delete("/delete-video/{video_id}")
 async def delete_video(video_id: str, payload: Dict = Body(...)):
     """
@@ -4773,7 +4819,8 @@ async def delete_video(video_id: str, payload: Dict = Body(...)):
         password = payload.get("password", "")
         if not password:
             raise HTTPException(status_code=400, detail="Password required")
-        if hashlib.sha256(password.encode()).hexdigest() != CORRECT_PASSWORD_HASH:
+        if password != CORRECT_PASSWORD_HASH:
+        # if hashlib.sha256(password.encode()).hexdigest() != CORRECT_PASSWORD_HASH:
             raise HTTPException(status_code=401, detail="Incorrect password")
 
         video_key = f"{S3_PREFIX}{video_id}"
@@ -4804,7 +4851,8 @@ async def upload_video(
     """Upload a video to S3 under Amazingvideo/ prefix after password verification."""
     try:
         # Verify password
-        if hashlib.sha256(password.encode()).hexdigest() != CORRECT_PASSWORD_HASH:
+        # if hashlib.sha256(password.encode()).hexdigest() != CORRECT_PASSWORD_HASH:
+        if password != CORRECT_PASSWORD_HASH:
             raise HTTPException(status_code=401, detail="Incorrect password")
 
         # Validate video file

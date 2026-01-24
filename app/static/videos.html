@@ -175,7 +175,8 @@
           });
           const descElement = document.createElement('div');
           descElement.className = 'video-description p-4 text-sm text-gray-700 dark:text-gray-300';
-          descElement.textContent = video.description || 'No description';
+          // descElement.textContent = video.description || 'No description';
+          descElement.textContent = video.description?.trim() || video.name.split('.')[0].replace(/_/g, ' ').replace(/-/g, ' ');
           const deleteButton = document.createElement('button');
           // deleteButton.className = 'absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition';
           deleteButton.className = 'absolute top-2 right-2 p-0.4 text-xs text-white rounded-full hover:bg-red-700 transition';
