@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,41 +16,85 @@
   </script>
   <style>
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     .animate-fade-in {
       animation: fadeIn 0.5s ease-out;
     }
+
     .video-item:hover video {
       transform: scale(1.05);
       transition: transform 0.3s ease;
     }
+
     .no-scrollbar::-webkit-scrollbar {
       display: none;
     }
+
     .no-scrollbar {
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
+
+    .video-placeholder:hover {
+      background-color: rgba(0, 0, 0, 0.7);
+      transition: background-color 0.3s ease;
+    }
+
+    .video-error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 0.375rem;
+    }
+
+    .download-container {
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
+
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-  <button id="themeToggle" class="fixed top-4 right-4 p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition z-50" aria-label="Toggle theme">
-    <svg id="sunIcon" class="w-6 h-6 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-    <svg id="moonIcon" class="w-6 h-6 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+  <button id="themeToggle"
+    class="fixed top-4 right-4 p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition z-50"
+    aria-label="Toggle theme">
+    <svg id="sunIcon" class="w-6 h-6 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+    <svg id="moonIcon" class="w-6 h-6 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+    </svg>
   </button>
 
   <header class="py-8 text-center space-y-4">
-    <h1 class="py-2 text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
+    <h1
+      class="py-2 text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
       Amazing Fact Videos
     </h1>
     <p class="text-lg text-gray-600 dark:text-gray-400">
       Discover fascinating facts through stunning videos
     </p>
     <div class="flex justify-center gap-4">
-    <a href="/" onclick="event.preventDefault(); window.location.href = '/';" class="px-6 py-3 bg-cyan-500 text-white rounded-full hover:bg-gray-600 transition transform hover:scale-105">Home</a>
-      <button onclick="showUploadModal()" class="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition transform hover:scale-105">Add New Video</button>
+      <a href="/" onclick="event.preventDefault(); window.location.href = '/';"
+        class="px-6 py-3 bg-cyan-500 text-white rounded-full hover:bg-gray-600 transition transform hover:scale-105">Home</a>
+      <button onclick="showUploadModal()"
+        class="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition transform hover:scale-105">Add
+        New Video</button>
     </div>
   </header>
 
@@ -58,20 +103,31 @@
       <h2 class="text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Upload New Video</h2>
       <form id="videoUploadForm">
         <div class="mb-4">
-          <label for="uploadPassword" class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Password</label>
-          <input type="password" id="uploadPassword" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" required />
+          <label for="uploadPassword"
+            class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Password</label>
+          <input type="password" id="uploadPassword"
+            class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+            required />
         </div>
         <div class="mb-4">
-          <label for="videoFile" class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Video File</label>
-          <input type="file" id="videoFile" accept="video/mp4,video/webm,video/ogg" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100" required />
+          <label for="videoFile" class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Video
+            File</label>
+          <input type="file" id="videoFile" accept="video/mp4,video/webm,video/ogg"
+            class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
+            required />
         </div>
         <div class="mb-4">
-          <label for="videoDescription" class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Description</label>
-          <textarea id="videoDescription" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" rows="4" required></textarea>
+          <label for="videoDescription"
+            class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Description</label>
+          <textarea id="videoDescription"
+            class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+            rows="4" required></textarea>
         </div>
         <div class="flex justify-end gap-2">
-          <button type="button" onclick="closeUploadModal()" class="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-gray-100 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500">Cancel</button>
-          <input type="submit" value="Upload Video" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer" />
+          <button type="button" onclick="closeUploadModal()"
+            class="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-gray-100 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500">Cancel</button>
+          <input type="submit" value="Upload Video"
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer" />
         </div>
         <p id="passwordError" class="text-red-500 text-sm mt-2 hidden">Incorrect password</p>
         <p id="fileSizeError" class="text-red-500 text-sm mt-2 hidden">File size exceeds 50MB limit</p>
@@ -86,12 +142,17 @@
       <p class="mb-4 text-gray-700 dark:text-gray-300">Enter password to confirm deletion.</p>
       <form id="videoDeleteForm">
         <div class="mb-4">
-          <label for="deletePassword" class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Password</label>
-          <input type="password" id="deletePassword" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" required />
+          <label for="deletePassword"
+            class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Password</label>
+          <input type="password" id="deletePassword"
+            class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+            required />
         </div>
         <div class="flex justify-end gap-2">
-          <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-gray-100 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500">Cancel</button>
-          <input type="submit" value="Delete Video" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 cursor-pointer" />
+          <button type="button" onclick="closeDeleteModal()"
+            class="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-gray-100 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500">Cancel</button>
+          <input type="submit" value="Delete Video"
+            class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 cursor-pointer" />
         </div>
         <p id="deletePasswordError" class="text-red-500 text-sm mt-2 hidden">Incorrect password</p>
         <p id="deleteSuccessMessage" class="text-green-500 text-sm mt-2 hidden">Video deleted successfully!</p>
@@ -106,11 +167,11 @@
   </main>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       const themeToggle = document.getElementById('themeToggle');
       const sunIcon = document.getElementById('sunIcon');
       const moonIcon = document.getElementById('moonIcon');
-      
+
       function setTheme(isDark) {
         if (isDark) {
           document.documentElement.classList.add('dark');
@@ -124,30 +185,30 @@
           moonIcon.classList.remove('hidden');
         }
       }
-      
+
       const storedTheme = localStorage.getItem('theme');
       const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      
+
       if (storedTheme === 'dark' || (!storedTheme && systemPrefersDark)) {
         setTheme(true);
       } else {
         setTheme(false);
       }
-      
+
       themeToggle.addEventListener('click', () => {
         const isDark = document.documentElement.classList.contains('dark');
         setTheme(!isDark);
       });
-      
+
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
         if (!localStorage.getItem('theme')) {
           setTheme(e.matches);
         }
       });
-  
+
       fetchVideos();
     });
-  
+
     async function fetchVideos() {
       try {
         const response = await fetch('/videos');
@@ -155,34 +216,62 @@
         const videos = await response.json();
         const videoContainer = document.getElementById('videoContainer');
         videoContainer.innerHTML = '';
+
         videos.forEach(video => {
           const videoItem = document.createElement('div');
           videoItem.className = 'video-item bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg animate-fade-in text-center relative';
-          const videoElement = document.createElement('video');
-          videoElement.controls = true;
-          videoElement.preload = 'metadata';
-          videoElement.className = 'w-full h-64 object-cover';
-          videoElement.setAttribute('controlsList', 'nodownload');
-          const sourceElement = document.createElement('source');
-          sourceElement.src = video.url; // URL includes #t=1 from backend
-          sourceElement.type = video.type || 'video/mp4';
-          videoElement.appendChild(sourceElement);
-          videoElement.appendChild(document.createTextNode('Your browser does not support HTML5 video'));
-          videoElement.addEventListener('error', () => {
-            const descElement = videoItem.querySelector('.video-description');
-            descElement.innerHTML = `Error loading video: ${videoElement.error?.message || 'Unknown error'} (<a href="${sourceElement.src}" class="text-blue-500 underline">Source</a>)`;
-            descElement.className = 'video-description p-4 text-red-500';
+
+          // Create placeholder with format indicator
+          const placeholder = document.createElement('div');
+          placeholder.className = 'video-placeholder w-full h-64 bg-gray-800 flex items-center justify-center cursor-pointer';
+
+          // Check if browser supports MKV
+          const isMKV = video.name.toLowerCase().endsWith('.mkv');
+          const testVideo = document.createElement('video');
+          const canPlayMKV = testVideo.canPlayType('video/x-matroska') ||
+            testVideo.canPlayType('video/mkv') ||
+            testVideo.canPlayType('video/matroska');
+
+          placeholder.innerHTML = `
+        <div class="text-center p-4">
+          <svg class="w-12 h-12 mx-auto text-white opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        
+          ${isMKV ? `
+            <div class="mt-2">
+              <span class="inline-block px-2 py-1 text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded">
+                ${video.format} Format
+              </span>
+              ${!canPlayMKV ? '<p class="text-yellow-300 text-xs mt-1"></p>' : ''}
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+          placeholder.addEventListener('click', async function () {
+            this.remove();
+
+            // For MKV files, try to play but have fallback
+            if (isMKV) {
+              await handleMKVVideo(videoItem, video);
+            } else {
+              // Regular video handling
+              handleRegularVideo(videoItem, video);
+            }
           });
+
           const descElement = document.createElement('div');
           descElement.className = 'video-description p-4 text-sm text-gray-700 dark:text-gray-300';
-          // descElement.textContent = video.description || 'No description';
           descElement.textContent = video.description?.trim() || video.name.split('.')[0].replace(/_/g, ' ').replace(/-/g, ' ');
+
           const deleteButton = document.createElement('button');
-          // deleteButton.className = 'absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition';
-          deleteButton.className = 'absolute top-2 right-2 p-0.4 text-xs text-white rounded-full hover:bg-red-700 transition';
+          deleteButton.className = 'absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition text-xs';
           deleteButton.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
           deleteButton.onclick = () => showDeleteModal(video.id);
-          videoItem.appendChild(videoElement);
+
+          videoItem.appendChild(placeholder);
           videoItem.appendChild(descElement);
           videoItem.appendChild(deleteButton);
           videoContainer.appendChild(videoItem);
@@ -193,19 +282,334 @@
         videoContainer.innerHTML = '<p class="text-red-500 col-span-full text-center">Error loading videos. Please try again later.</p>';
       }
     }
-  
+
+    // Handle MKV videos with fallback
+    async function handleMKVVideo(videoItem, video) {
+      const videoElement = document.createElement('video');
+      videoElement.controls = true;
+      videoElement.className = 'w-full h-64 object-cover';
+      videoElement.setAttribute('controlsList', 'nodownload');
+
+      // Try multiple MIME types for MKV
+      const sourceElement = document.createElement('source');
+      sourceElement.src = video.url;
+
+      // Try different MIME types for better compatibility
+      const mimeTypes = [
+        'video/x-matroska',
+        'video/mkv',
+        'video/matroska',
+        'video/webm',  // Sometimes MKV can be played as WebM
+        'video/mp4'    // Some MKV files have compatible codecs
+      ];
+
+      // Test which MIME type the browser supports
+      const testVideo = document.createElement('video');
+      let supportedType = 'video/x-matroska'; // Default
+
+      for (const mime of mimeTypes) {
+        if (testVideo.canPlayType(mime)) {
+          supportedType = mime;
+          break;
+        }
+      }
+
+      sourceElement.type = supportedType;
+      videoElement.appendChild(sourceElement);
+
+      // Add error handling message
+      const errorMsg = document.createElement('div');
+      errorMsg.className = 'video-error hidden p-2 text-red-500 text-sm';
+      errorMsg.textContent = 'Video cannot be played. Try downloading instead.';
+
+      videoElement.appendChild(document.createTextNode('Your browser does not support this video format'));
+
+      // Insert video and error message
+      const descElement = videoItem.querySelector('.video-description');
+      videoItem.insertBefore(videoElement, descElement);
+      videoItem.insertBefore(errorMsg, descElement);
+
+      // Try to load and play
+      videoElement.load();
+
+      // Set timeout to detect playback failure
+      const playTimeout = setTimeout(() => {
+        if (videoElement.error || videoElement.networkState === videoElement.NETWORK_NO_SOURCE) {
+          showMKVDownloadOption(videoItem, videoElement, video);
+        }
+      }, 3000);
+
+      // Event listeners
+      videoElement.addEventListener('error', () => {
+        clearTimeout(playTimeout);
+        showMKVDownloadOption(videoItem, videoElement, video);
+      });
+
+      videoElement.addEventListener('loadeddata', () => {
+        clearTimeout(playTimeout);
+        // Try to play
+        videoElement.play().catch(e => {
+          // Autoplay blocked, but video is loaded
+          console.log('Autoplay blocked, but video is ready');
+        });
+      });
+
+      videoElement.addEventListener('canplay', () => {
+        clearTimeout(playTimeout);
+        // Video can play!
+        console.log('MKV can play!');
+      });
+    }
+
+    // Handle regular videos (MP4, WebM, etc.)
+    function handleRegularVideo(videoItem, video) {
+      const videoElement = document.createElement('video');
+      videoElement.controls = true;
+      videoElement.className = 'w-full h-64 object-cover';
+      videoElement.setAttribute('controlsList', 'nodownload');
+
+      const sourceElement = document.createElement('source');
+      sourceElement.src = video.url;
+      sourceElement.type = video.type;
+
+      videoElement.appendChild(sourceElement);
+      videoElement.appendChild(document.createTextNode('Your browser does not support HTML5 video'));
+
+      const descElement = videoItem.querySelector('.video-description');
+      videoItem.insertBefore(videoElement, descElement);
+
+      videoElement.load();
+      videoElement.play().catch(e => {
+        console.log('Autoplay prevented');
+      });
+    }
+
+    // Show download option for MKV
+    function showMKVDownloadOption(videoItem, videoElement, video) {
+      videoElement.style.display = 'none';
+
+      const downloadContainer = document.createElement('div');
+      downloadContainer.className = 'w-full h-64 flex flex-col items-center justify-center bg-gray-900 p-4';
+      downloadContainer.innerHTML = `
+    <svg class="w-16 h-16 text-yellow-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+    </svg>
+    <p class="text-white text-center mb-4">
+      <span class="font-semibold">${video.format}</span> format not supported for streaming
+    </p>
+    <div class="flex gap-3">
+      <a href="${video.raw_url}" 
+         download="${video.name}"
+         class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+        Download Video
+      </a>
+      <button onclick="retryPlayback(this, '${video.id}')" 
+              class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition">
+        Try Again
+      </button>
+    </div>
+    <p class="text-gray-400 text-xs mt-4">
+      Note: MKV files may require a media player like VLC
+    </p>
+  `;
+
+      const descElement = videoItem.querySelector('.video-description');
+      videoItem.insertBefore(downloadContainer, descElement);
+    }
+
+    // Retry playback function
+    window.retryPlayback = function (button, videoId) {
+      const videoItem = button.closest('.video-item');
+      const downloadContainer = button.closest('.download-container') || button.parentElement.parentElement;
+
+      // Find the original video data
+      const videos = Array.from(document.querySelectorAll('.video-item')).map(item => {
+        const name = item.querySelector('.video-description').textContent;
+        return { id: videoId, name: name };
+      });
+
+      const video = videos.find(v => v.id === videoId);
+      if (video) {
+        downloadContainer.remove();
+        handleMKVVideo(videoItem, video);
+      }
+    };
+
+
+    // async function fetchVideos() {
+    //   try {
+    //     const response = await fetch('/videos');
+    //     if (!response.ok) throw new Error('Failed to fetch videos');
+    //     const videos = await response.json();
+    //     const videoContainer = document.getElementById('videoContainer');
+    //     videoContainer.innerHTML = '';
+
+    //     videos.forEach(video => {
+    //       const videoItem = document.createElement('div');
+    //       videoItem.className = 'video-item bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg animate-fade-in text-center relative';
+
+    //       // Create a CLICKABLE placeholder
+    //       const placeholder = document.createElement('div');
+    //       placeholder.className = 'video-placeholder w-full h-64 bg-gray-800 flex items-center justify-center cursor-pointer';
+    //       placeholder.innerHTML = `
+    //     <div class="text-center">
+    //       <svg class="w-12 h-12 mx-auto text-white opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    //         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+    //         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    //       </svg>
+    //       <p class="text-gray-400 text-xs mt-1">Click to load video</p>
+    //       ${video.name.toLowerCase().endsWith('.mkv') ?
+    //           '<p class="text-yellow-400 text-xs mt-1">MKV format - may require download</p>' : ''}
+    //     </div>
+    //   `;
+
+    //       placeholder.addEventListener('click', function () {
+    //         this.remove();
+
+    //         const videoElement = document.createElement('video');
+    //         videoElement.controls = true;
+    //         videoElement.className = 'w-full h-64 object-cover';
+    //         videoElement.setAttribute('controlsList', 'nodownload');
+
+    //         // Special handling for MKV files
+    //         let sourceType = video.type;
+    //         let sourceUrl = video.url;
+
+    //         // If MKV and browser doesn't support it, offer download
+    //         if (video.name.toLowerCase().endsWith('.mkv')) {
+    //           const canPlayMKV = videoElement.canPlayType('video/x-matroska');
+    //           if (!canPlayMKV || canPlayMKV === '') {
+    //             // Show download option instead
+    //             videoItem.innerHTML = `
+    //           <div class="w-full h-64 flex flex-col items-center justify-center bg-gray-900">
+    //             <svg class="w-16 h-16 text-yellow-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    //               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+    //             </svg>
+    //             <p class="text-white mb-2">MKV format not supported in browser</p>
+    //             <a href="${video.url.replace('#t=1', '')}" 
+    //                download="${video.name}"
+    //                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+    //               Download Video
+    //             </a>
+    //           </div>
+    //         `;
+    //             return;
+    //           }
+    //         }
+
+    //         const sourceElement = document.createElement('source');
+    //         sourceElement.src = sourceUrl;
+    //         sourceElement.type = sourceType;
+
+    //         videoElement.appendChild(sourceElement);
+    //         videoElement.appendChild(document.createTextNode('Your browser does not support this video format'));
+
+    //         videoItem.insertBefore(videoElement, videoItem.querySelector('.video-description'));
+
+    //         videoElement.load();
+    //         videoElement.play().catch(e => {
+    //           console.log('Autoplay prevented:', e);
+
+    //           // If MKV fails to play, show download option
+    //           if (video.name.toLowerCase().endsWith('.mkv')) {
+    //             setTimeout(() => {
+    //               if (videoElement.error) {
+    //                 const downloadLink = document.createElement('a');
+    //                 downloadLink.href = video.url.replace('#t=1', '');
+    //                 downloadLink.download = video.name;
+    //                 downloadLink.className = 'mt-2 inline-block px-3 py-1 bg-red-600 text-white rounded text-sm';
+    //                 downloadLink.textContent = 'Download instead';
+
+    //                 const errorMsg = document.createElement('div');
+    //                 errorMsg.className = 'p-2 text-red-500 text-sm';
+    //                 errorMsg.innerHTML = 'Cannot play MKV. ' + downloadLink.outerHTML;
+
+    //                 videoElement.parentNode.replaceChild(errorMsg, videoElement);
+    //               }
+    //             }, 1000);
+    //           }
+    //         });
+    //       });
+
+    //       const descElement = document.createElement('div');
+    //       descElement.className = 'video-description p-4 text-sm text-gray-700 dark:text-gray-300';
+    //       descElement.textContent = video.description?.trim() || video.name.split('.')[0].replace(/_/g, ' ').replace(/-/g, ' ');
+
+    //       const deleteButton = document.createElement('button');
+    //       deleteButton.className = 'absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition text-xs';
+    //       deleteButton.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+    //       deleteButton.onclick = () => showDeleteModal(video.id);
+
+    //       videoItem.appendChild(placeholder);
+    //       videoItem.appendChild(descElement);
+    //       videoItem.appendChild(deleteButton);
+    //       videoContainer.appendChild(videoItem);
+    //     });
+    //   } catch (error) {
+    //     console.error('Error:', error);
+    //     const videoContainer = document.getElementById('videoContainer');
+    //     videoContainer.innerHTML = '<p class="text-red-500 col-span-full text-center">Error loading videos. Please try again later.</p>';
+    //   }
+    // }
+
+
+    // async function fetchVideos() {
+    //   try {
+    //     const response = await fetch('/videos');
+    //     if (!response.ok) throw new Error('Failed to fetch videos');
+    //     const videos = await response.json();
+    //     const videoContainer = document.getElementById('videoContainer');
+    //     videoContainer.innerHTML = '';
+    //     videos.forEach(video => {
+    //       const videoItem = document.createElement('div');
+    //       videoItem.className = 'video-item bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg animate-fade-in text-center relative';
+    //       const videoElement = document.createElement('video');
+    //       videoElement.controls = true;
+    //       videoElement.preload = 'metadata';
+    //       videoElement.className = 'w-full h-64 object-cover';
+    //       videoElement.setAttribute('controlsList', 'nodownload');
+    //       const sourceElement = document.createElement('source');
+    //       sourceElement.src = video.url; // URL includes #t=1 from backend
+    //       sourceElement.type = video.type || 'video/mp4';
+    //       videoElement.appendChild(sourceElement);
+    //       videoElement.appendChild(document.createTextNode('Your browser does not support HTML5 video'));
+    //       videoElement.addEventListener('error', () => {
+    //         const descElement = videoItem.querySelector('.video-description');
+    //         descElement.innerHTML = `Error loading video: ${videoElement.error?.message || 'Unknown error'} (<a href="${sourceElement.src}" class="text-blue-500 underline">Source</a>)`;
+    //         descElement.className = 'video-description p-4 text-red-500';
+    //       });
+    //       const descElement = document.createElement('div');
+    //       descElement.className = 'video-description p-4 text-sm text-gray-700 dark:text-gray-300';
+    //       descElement.textContent = video.description || 'No description';
+    //       const deleteButton = document.createElement('button');
+    //       // deleteButton.className = 'absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition';
+    //       deleteButton.className = 'absolute top-2 right-2 p-0.4 text-xs text-white rounded-full hover:bg-red-700 transition';
+    //       deleteButton.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+    //       deleteButton.onclick = () => showDeleteModal(video.id);
+    //       videoItem.appendChild(videoElement);
+    //       videoItem.appendChild(descElement);
+    //       videoItem.appendChild(deleteButton);
+    //       videoContainer.appendChild(videoItem);
+    //     });
+    //   } catch (error) {
+    //     console.error('Error:', error);
+    //     const videoContainer = document.getElementById('videoContainer');
+    //     videoContainer.innerHTML = '<p class="text-red-500 col-span-full text-center">Error loading videos. Please try again later.</p>';
+    //   }
+    // }
+
     function showUploadModal() {
       document.getElementById('uploadModal').classList.remove('hidden');
       document.getElementById('successMessage').classList.add('hidden');
       document.getElementById('passwordError').classList.add('hidden');
       document.getElementById('fileSizeError').classList.add('hidden');
     }
-    
+
     function closeUploadModal() {
       document.getElementById('uploadModal').classList.add('hidden');
       document.getElementById('videoUploadForm').reset();
     }
-  
+
     let currentVideoId = null;
     function showDeleteModal(videoId) {
       currentVideoId = videoId;
@@ -213,13 +617,13 @@
       document.getElementById('deleteSuccessMessage').classList.add('hidden');
       document.getElementById('deletePasswordError').classList.add('hidden');
     }
-    
+
     function closeDeleteModal() {
       document.getElementById('deleteModal').classList.add('hidden');
       document.getElementById('videoDeleteForm').reset();
       currentVideoId = null;
     }
-  
+
     document.getElementById('videoUploadForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const password = document.getElementById('uploadPassword').value;
@@ -265,7 +669,7 @@
         }
       }
     });
-  
+
     document.getElementById('videoDeleteForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const password = document.getElementById('deletePassword').value;
@@ -299,4 +703,5 @@
     });
   </script>
 </body>
+
 </html>

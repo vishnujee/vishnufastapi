@@ -4732,7 +4732,8 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
 #         if "Contents" in response:
 #             for obj in response["Contents"]:
 #                 key = obj["Key"]
-#                 if key.lower().endswith((".mp4", ".webm", ".ogg")):
+#                 # if key.lower().endswith((".mp4", ".webm", ".ogg")):
+#                 if key.lower().endswith((".mp4", ".webm", ".ogg", ".mkv", ".avi", ".mov")):
 #                     try:
 #                         head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
 #                         metadata = head.get('Metadata', {})
@@ -4762,48 +4763,242 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
 #         logger.error(f"Error listing videos: {e}")
 #         raise HTTPException(status_code=500, detail="Failed to list videos")
 
+# @app.get("/videos")
+# async def list_videos():
+#     try:
+#         response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
+#         videos = []
+        
+#         if "Contents" in response:
+#             video_items = [
+#                 obj for obj in response["Contents"]
+#                 if obj["Key"].lower().endswith((".mp4", ".webm", ".ogg", ".mkv", ".avi", ".mov"))
+#             ]
+            
+#             video_items.sort(key=lambda x: x["LastModified"], reverse=True)
+            
+#             for obj in video_items:
+#                 key = obj["Key"]
+#                 try:
+#                     head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
+#                     metadata = head.get('Metadata', {})
+                    
+#                     # Get filename and extension
+#                     filename = key.split('/')[-1]
+#                     ext = filename.lower().split('.')[-1]
+                    
+#                     # Manually set correct content types for each format
+#                     content_type_map = {
+#                         'mp4': 'video/mp4',
+#                         'webm': 'video/webm',
+#                         'ogg': 'video/ogg',
+#                         'mkv': 'video/x-matroska',  # Correct MIME for MKV
+#                         'avi': 'video/x-msvideo',
+#                         'mov': 'video/quicktime'
+#                     }
+                    
+#                     # Use mapped type, fallback to S3's type
+#                     content_type = content_type_map.get(ext, head.get('ContentType', 'video/mp4'))
+                    
+#                     video_id = key[len(S3_PREFIX):]
+#                     url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}#t=1"
+                    
+#                     videos.append({
+#                         "id": video_id,
+#                         "name": filename,
+#                         "url": url,
+#                         "description": metadata.get('description', ''),
+#                         "type": content_type,  # Use corrected type
+#                         "uploaded": obj["LastModified"].strftime("%Y-%m-%d %H:%M")
+#                     })
+#                 except ClientError as e:
+#                     logger.error(f"Error processing {key}: {e}")
+#                     continue
+        
+#         return JSONResponse(content=videos)
+#     except Exception as e:
+#         logger.error(f"Error listing videos: {e}")
+#         raise HTTPException(status_code=500, detail="Failed to list videos")
+
+
+# @app.get("/videos")
+# async def list_videos():
+#     try:
+#         response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
+#         videos = []
+        
+#         if "Contents" in response:
+#             video_items = [
+#                 obj for obj in response["Contents"]
+#                 if obj["Key"].lower().endswith((".mp4", ".webm", ".ogg", ".mkv", ".avi", ".mov"))
+#             ]
+            
+#             video_items.sort(key=lambda x: x["LastModified"], reverse=True)
+            
+#             for obj in video_items:
+#                 key = obj["Key"]
+#                 try:
+#                     head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
+#                     metadata = head.get('Metadata', {})
+                    
+#                     filename = key.split('/')[-1]
+#                     ext = filename.lower().split('.')[-1]
+                    
+#                     # Correct MIME types
+#                     content_type_map = {
+#                         'mp4': 'video/mp4',
+#                         'webm': 'video/webm',
+#                         'ogg': 'video/ogg',
+#                         'mkv': 'video/x-matroska',
+#                         'avi': 'video/x-msvideo',
+#                         'mov': 'video/quicktime'
+#                     }
+                    
+#                     content_type = content_type_map.get(ext, head.get('ContentType', 'video/mp4'))
+                    
+#                     video_id = key[len(S3_PREFIX):]
+                    
+#                     # ✅ CRITICAL FIX: Remove #t=1 for MKV files
+#                     # The fragment interferes with MKV playback
+#                     if ext == 'mkv':
+#                         url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}"
+#                     else:
+#                         url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}#t=1"
+                    
+#                     videos.append({
+#                         "id": video_id,
+#                         "name": filename,
+#                         "url": url,  # Clean URL for MKV
+#                         "raw_url": f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}",  # For download
+#                         "description": metadata.get('description', ''),
+#                         "type": content_type,
+#                         "format": ext.upper(),  # Add format info
+#                         "uploaded": obj["LastModified"].strftime("%Y-%m-%d %H:%M")
+#                     })
+#                 except ClientError as e:
+#                     logger.error(f"Error processing {key}: {e}")
+#                     continue
+        
+#         return JSONResponse(content=videos)
+#     except Exception as e:
+#         logger.error(f"Error listing videos: {e}")
+#         raise HTTPException(status_code=500, detail="Failed to list videos")
+
+# Add these imports at the top if not already there
+import json
+from datetime import datetime
+import hashlib
+
+# Constants for metadata
+METADATA_KEY = f"{S3_PREFIX}_videos_metadata.json"
+
+def load_video_metadata():
+    """Load video metadata from S3 JSON file"""
+    try:
+        response = s3_client.get_object(Bucket=BUCKET_NAME, Key=METADATA_KEY)
+        metadata_str = response['Body'].read().decode('utf-8')
+        return json.loads(metadata_str)
+    except s3_client.exceptions.NoSuchKey:
+        # Metadata file doesn't exist yet, create empty
+        logger.info("No metadata file found, creating empty")
+        return {}
+    except Exception as e:
+        logger.error(f"Error loading metadata: {e}")
+        return {}
+
+def save_video_metadata(metadata):
+    """Save video metadata to S3 JSON file"""
+    try:
+        s3_client.put_object(
+            Bucket=BUCKET_NAME,
+            Key=METADATA_KEY,
+            Body=json.dumps(metadata, indent=2),
+            ContentType='application/json'
+        )
+        logger.info(f"Saved metadata for {len(metadata)} videos")
+    except Exception as e:
+        logger.error(f"Failed to save metadata: {e}")
+
+def extract_video_id_from_key(s3_key: str) -> str:
+    """Extract video ID from S3 key"""
+    # Remove prefix and hash part
+    if s3_key.startswith(S3_PREFIX):
+        # Format: Amazingvideo/{hash}_{filename}
+        parts = s3_key[len(S3_PREFIX):].split('_', 1)
+        if len(parts) == 2:
+            # Return hash + filename as ID
+            return s3_key[len(S3_PREFIX):]
+    return s3_key  # Fallback
 
 @app.get("/videos")
 async def list_videos():
+    """Fast video listing with cached metadata"""
     try:
+        # Load metadata once (fast)
+        video_metadata = load_video_metadata()
+        
+        # Get video list from S3 (fast - single API call)
         response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
         videos = []
         
         if "Contents" in response:
-            # Collect + sort in one go
+            # Filter video files
             video_items = [
                 obj for obj in response["Contents"]
-                if obj["Key"].lower().endswith((".mp4", ".webm", ".ogg"))
+                if obj["Key"].lower().endswith((".mp4", ".webm", ".ogg", ".mkv", ".avi", ".mov"))
             ]
             
-            # Sort newest first using LastModified
+            # Sort newest first
             video_items.sort(key=lambda x: x["LastModified"], reverse=True)
             
             for obj in video_items:
                 key = obj["Key"]
-                try:
-                    head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
-                    metadata = head.get('Metadata', {})
-                    content_type = head.get('ContentType', 'video/mp4')
-                    
-                    video_id = key[len(S3_PREFIX):]
-                    url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}#t=1"
-                    
-                    videos.append({
-                        "id": video_id,
-                        "name": key.split('/')[-1],
-                        "url": url,
-                        "description": metadata.get('description', ''),
-                        "type": content_type,
-                        # Optional: show upload date in frontend
-                        "uploaded": obj["LastModified"].strftime("%Y-%m-%d %H:%M")
-                    })
-                except ClientError as e:
-                    logger.error(f"Error processing {key}: {e}")
-                    continue
+                filename = key.split('/')[-1]
+                ext = filename.lower().split('.')[-1]
+                
+                # Extract video ID
+                video_id = key[len(S3_PREFIX):] if key.startswith(S3_PREFIX) else key
+                
+                # Get metadata from our cache
+                metadata = video_metadata.get(video_id, {})
+                
+                # Use stored description or fallback to filename
+                description = metadata.get('description', '')
+                if not description:
+                    # Clean up filename for display
+                    name_without_ext = filename.rsplit('.', 1)[0]
+                    if '_' in name_without_ext:
+                        name_without_ext = name_without_ext.split('_', 1)[1]
+                    description = name_without_ext.replace('_', ' ').replace('-', ' ')
+                
+                # Determine content type
+                content_type_map = {
+                    'mp4': 'video/mp4',
+                    'webm': 'video/webm',
+                    'ogg': 'video/ogg',
+                    'mkv': 'video/x-matroska',
+                    'avi': 'video/x-msvideo',
+                    'mov': 'video/quicktime'
+                }
+                
+                url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}"
+                
+                videos.append({
+                    "id": video_id,
+                    "name": filename,
+                    "url": url,
+                    "raw_url": url,
+                    "description": description,
+                    "type": content_type_map.get(ext, 'video/mp4'),
+                    "format": ext.upper(),
+                    "size": obj.get('Size', 0),
+                    "uploaded": obj["LastModified"].strftime("%Y-%m-%d %H:%M"),
+                    "has_description": bool(description and description.strip())
+                })
         
+        logger.info(f"📊 Listed {len(videos)} videos (using metadata cache)")
         return JSONResponse(content=videos)
-
+        
     except Exception as e:
         logger.error(f"Error listing videos: {e}")
         raise HTTPException(status_code=500, detail="Failed to list videos")
@@ -4842,29 +5037,33 @@ async def delete_video(video_id: str, payload: Dict = Body(...)):
         logger.error(f"Error deleting video {video_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Deletion failed: {str(e)}")
 
+
+
 @app.post("/upload-video")
 async def upload_video(
     video_file: UploadFile = File(...),
     password: str = Form(...),
     description: str = Form(...)
 ):
-    """Upload a video to S3 under Amazingvideo/ prefix after password verification."""
+    """Upload a video to S3 with metadata support."""
     try:
         # Verify password
-        # if hashlib.sha256(password.encode()).hexdigest() != CORRECT_PASSWORD_HASH:
         if password != CORRECT_PASSWORD_HASH:
             raise HTTPException(status_code=401, detail="Incorrect password")
-
+        
         # Validate video file
         video_content = await video_file.read()
         video_filename = video_file.filename
-        if not video_filename.lower().endswith((".mp4", ".webm", ".ogg")):
+        
+        # Allow more formats
+        allowed_extensions = (".mp4", ".webm", ".ogg", ".mkv", ".avi", ".mov")
+        if not video_filename.lower().endswith(allowed_extensions):
             raise HTTPException(
                 status_code=400,
-                detail="Only MP4, WebM, or OGG videos are supported"
+                detail=f"Only {', '.join(ext.upper() for ext in allowed_extensions)} videos are supported"
             )
-
-        # Generate unique S3 key with hash prefix to prevent duplicates
+        
+        # Generate unique S3 key
         file_hash = hashlib.md5(video_content).hexdigest()
         s3_key = f"{S3_PREFIX}{file_hash}_{video_filename}"
         
@@ -4874,30 +5073,38 @@ async def upload_video(
             Key=s3_key,
             Body=video_content,
             Metadata={'description': description},
-            ContentType=video_file.content_type
+            ContentType=video_file.content_type or 'video/mp4'
         )
         logger.info(f"Uploaded video to S3: {s3_key}")
-
-        # Generate presigned URL for immediate access
-        url = s3_client.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": BUCKET_NAME, "Key": s3_key},
-            ExpiresIn=36000  # 10 hours
-        )
-
+        
+        # Update metadata cache
+        video_metadata = load_video_metadata()
+        video_id = s3_key[len(S3_PREFIX):]
+        
+        video_metadata[video_id] = {
+            "description": description,
+            "original_filename": video_filename,
+            "uploaded_at": datetime.now().isoformat(),
+            "size": len(video_content)
+        }
+        
+        save_video_metadata(video_metadata)
+        logger.info(f"Updated metadata for: {video_id}")
+        
+        # Return response
         return JSONResponse(content={
             "message": "Video uploaded successfully",
             "name": video_filename,
-            "url": url,
-            "description": description
+            "id": video_id,
+            "description": description,
+            "metadata_updated": True
         })
-
+        
     except HTTPException:
-        raise  # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         logger.error(f"Error uploading video: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 def remove_background_rembg(image_bytes):
