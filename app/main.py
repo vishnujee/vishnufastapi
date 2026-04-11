@@ -77,8 +77,22 @@ init()
 load_dotenv()
 from fastapi.middleware.gzip import GZipMiddleware
 
-
 from datetime import datetime
+# ######
+
+
+# Set cache directories BEFORE any imports that might load models
+os.environ["TRANSFORMERS_CACHE"] = "/home/ec2-user/.cache/huggingface"
+os.environ["HF_HOME"] = "/home/ec2-user/.cache/huggingface"
+os.environ["CHROMA_CACHE"] = "/home/ec2-user/.cache/chroma"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+# Create cache directories if they don't exist
+os.makedirs("/home/ec2-user/.cache/huggingface", exist_ok=True)
+os.makedirs("/home/ec2-user/.cache/chroma", exist_ok=True)
+
+
+
 
 app = FastAPI()
 
@@ -1092,42 +1106,29 @@ def run_comprehensive_content_audit():
 
 def initialize_vectorstore():
     try:
-        logger.info("🚀 Initializing ChromaDB with HuggingFace embeddings...")
+        # Set cache environment variables
+        os.environ["TRANSFORMERS_CACHE"] = "/home/ec2-user/.cache/huggingface"
+        os.environ["HF_HOME"] = "/home/ec2-user/.cache/huggingface"
         
-        # Use HuggingFace embeddings instead of OpenAI
+        # Use your HFEmbeddings (already correct)
         embeddings = HFEmbeddings()
         
-        # Define persist directory
+        # Use persistent directory with proper path
         persist_dir = "./chroma_db"
         os.makedirs(persist_dir, exist_ok=True)
         
-        # Check if ChromaDB already exists and has data
-        collection_exists = False
-        documents_count = 0
+        # Check if exists first (avoid re-adding documents)
+        existing_vectorstore = Chroma(
+            collection_name="vishnu_ai_docs",
+            embedding_function=embeddings,
+            persist_directory=persist_dir
+        )
         
-        try:
-            existing_vectorstore = Chroma(
-                collection_name="vishnu_ai_docs",
-                embedding_function=embeddings,
-                persist_directory=persist_dir
-            )
-            
-            documents_count = existing_vectorstore._collection.count()
-            collection_exists = documents_count > 0
-            
-            if collection_exists:
-                logger.info(f"📚 Existing ChromaDB found with {documents_count} documents")
-                return existing_vectorstore, embeddings
-            else:
-                logger.info("📭 ChromaDB exists but is empty, will recreate...")
-                
-        except Exception as e:
-            logger.info(f"🆕 No existing ChromaDB found: {e}")
-            collection_exists = False
+        if existing_vectorstore._collection.count() > 0:
+            logger.info(f"✅ Using existing ChromaDB with {existing_vectorstore._collection.count()} documents")
+            return existing_vectorstore, embeddings
         
-        # If we reach here, need to create new ChromaDB
-        logger.info("📦 Creating new ChromaDB collection...")
-        
+        # Only create new if empty
         vectorstore = Chroma(
             collection_name="vishnu_ai_docs",
             embedding_function=embeddings,
