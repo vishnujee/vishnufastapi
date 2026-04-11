@@ -302,9 +302,9 @@ else:
 
 # PDF_S3_KEY = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"  # Ensure case consistency
 # PDF_URL = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/resume.pdf"
-PDF_URL_TABULAR = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/3.pdf"  # Your main PDF with tables
-PDF_URL_NONTABULAR_1= "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/1.pdf"
-PDF_URL_NONTABULAR_2 = "https://vishnufastapi.s3.ap-south-1.amazonaws.com/daily_pdfs/2.pdf"
+PDF_URL_TABULAR = "https://durgasaptsati.s3.ap-south-1.amazonaws.com/pdfjoinfiles/3.pdf"  # Your main PDF with tables
+PDF_URL_NONTABULAR_1= "https://durgasaptsati.s3.ap-south-1.amazonaws.com/pdfjoinfiles/1.pdf"
+PDF_URL_NONTABULAR_2 = "https://durgasaptsati.s3.ap-south-1.amazonaws.com/pdfjoinfiles/2.pdf"
 # List of all non-tabular PDFs
 NONTABULAR_PDFS = [PDF_URL_NONTABULAR_1, PDF_URL_NONTABULAR_2]
 # NONTABULAR_PDFS = [PDF_URL_NONTABULAR_1]
