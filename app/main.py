@@ -46,7 +46,7 @@ from langchain.chains.combine_documents import create_stuff_documents_chain    #
 
 from langchain_core.prompts import ChatPromptTemplate
 
-# from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer
 import threading
 #### for openai
 # from langchain_openai import OpenAIEmbeddings
@@ -204,21 +204,21 @@ async def add_security_headers(request: Request, call_next):
 # ------------------------------------------------------------------
 # 1. Load the HF model once (thread-safe, CPU-only)
 # ------------------------------------------------------------------
-# _HF_MODEL_LOCK = threading.Lock()
-# _HF_MODEL: Optional[SentenceTransformer] = None
+_HF_MODEL_LOCK = threading.Lock()
+_HF_MODEL: Optional[SentenceTransformer] = None
 
-# def get_hf_model() -> SentenceTransformer:
-#     """Lazy-load the model the first time it is needed."""
-#     global _HF_MODEL
-#     with _HF_MODEL_LOCK:
-#         if _HF_MODEL is None:
-#             logger.info("Loading HuggingFace model sentence-transformers/all-MiniLM-L6-v2…")
-#             _HF_MODEL = SentenceTransformer(
-#                 "sentence-transformers/all-MiniLM-L6-v2",
-#                 device="cpu"
-#             )
-#             logger.info("HF model loaded (384-dim).")
-#         return _HF_MODEL
+def get_hf_model() -> SentenceTransformer:
+    """Lazy-load the model the first time it is needed."""
+    global _HF_MODEL
+    with _HF_MODEL_LOCK:
+        if _HF_MODEL is None:
+            logger.info("Loading HuggingFace model sentence-transformers/all-MiniLM-L6-v2…")
+            _HF_MODEL = SentenceTransformer(
+                "sentence-transformers/all-MiniLM-L6-v2",
+                device="cpu"
+            )
+            logger.info("HF model loaded (384-dim).")
+        return _HF_MODEL
 
 # ------------------------------------------------------------------
 # 2. LangChain-compatible wrapper
