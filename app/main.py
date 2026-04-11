@@ -1431,42 +1431,42 @@ async def startup_event():
 
 
 
-# @app.get("/", response_class=HTMLResponse)
-# async def serve_index():
+@app.get("/", response_class=HTMLResponse)
+async def serve_index():
    
+    index_path = os.path.join(static_dir, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+# Option 1: Replace homepage with eurja.html
+# @app.get("/", response_class=HTMLResponse)
+# async def serve_homepage():
+#     """Serve eurja.html as the main homepage"""
+#     eurja_path = os.path.join(static_dir, "eurja.html")
+#     if not os.path.exists(eurja_path):
+#         # Fallback to index.html if eurja.html doesn't exist
+#         index_path = os.path.join(static_dir, "index.html")
+#         with open(index_path, "r", encoding="utf-8") as f:
+#             return HTMLResponse(content=f.read())
+    
+#     with open(eurja_path, "r", encoding="utf-8") as f:
+#         return HTMLResponse(content=f.read())
+
+# # Keep index.html accessible via /developer route
+# @app.get("/developer", response_class=HTMLResponse)
+# async def serve_developer_page():
+#     """Serve the developer/productivity page (original index.html)"""
 #     index_path = os.path.join(static_dir, "index.html")
 #     with open(index_path, "r", encoding="utf-8") as f:
 #         return HTMLResponse(content=f.read())
 
-# Option 1: Replace homepage with eurja.html
-@app.get("/", response_class=HTMLResponse)
-async def serve_homepage():
-    """Serve eurja.html as the main homepage"""
-    eurja_path = os.path.join(static_dir, "eurja.html")
-    if not os.path.exists(eurja_path):
-        # Fallback to index.html if eurja.html doesn't exist
-        index_path = os.path.join(static_dir, "index.html")
-        with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    
-    with open(eurja_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
-
-# Keep index.html accessible via /developer route
-@app.get("/developer", response_class=HTMLResponse)
-async def serve_developer_page():
-    """Serve the developer/productivity page (original index.html)"""
-    index_path = os.path.join(static_dir, "index.html")
-    with open(index_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
-
-# Optional: Also keep /index route as alternative
-@app.get("/index", response_class=HTMLResponse)
-async def serve_index_alt():
-    """Alternative route to access index.html"""
-    index_path = os.path.join(static_dir, "index.html")
-    with open(index_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+# # Optional: Also keep /index route as alternative
+# @app.get("/index", response_class=HTMLResponse)
+# async def serve_index_alt():
+#     """Alternative route to access index.html"""
+#     index_path = os.path.join(static_dir, "index.html")
+#     with open(index_path, "r", encoding="utf-8") as f:
+#         return HTMLResponse(content=f.read())
 
     
 # @app.on_event("shutdown")
