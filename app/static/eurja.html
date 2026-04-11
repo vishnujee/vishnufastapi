@@ -1,0 +1,2742 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Electricity Theft Penalty Calculator |  Dynamic Prorated Slabs | Dynamic Appliances | PDF Export</title>
+
+
+  <!-- Basic Meta -->
+  <meta name="description" content="Calculate electricity bill penalty with dynamic prorated slabs. Includes full appliance survey, late payment charges, and accurate bill estimation.">
+  <meta name="keywords" content="electricity penalty calculator, electricity bill penalty, prorated slab calculator, late payment charges, appliance survey, electricity bill estimator">
+   <meta name="author" content="Vishnu Kumar">
+  
+  <!-- Favicon (recommended) -->
+  <link rel="icon" href="/dp.jpg" type="image/jpeg">
+  
+  <!-- Open Graph / Facebook + WhatsApp + LinkedIn -->
+  <meta property="og:title" content="Electricity Penalty Calculator - Prorated Slabs & Appliance Survey">
+  <meta property="og:description" content="Easily calculate electricity penalty with dynamic prorated slabs. Full appliance survey included. Accurate & user-friendly tool.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://eurja.online/"> 
+  <meta property="og:image" content="https://eurja.online/dp.jpg"> 
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Electricity Penalty Calculator Preview">
+  <meta property="og:site_name" content="Electricity Penalty Calculator">
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Electricity Penalty Calculator - Dynamic Prorated Slabs">
+  <meta name="twitter:description" content="Calculate electricity bill penalties instantly with prorated slabs and complete appliance survey.">
+  <meta name="twitter:image" content="https://eurja.online/dp.jpg">
+
+  <!-- WhatsApp Specific (helps with mobile sharing) -->
+  <meta property="og:image:secure_url" content="https://eurja.online/dp.jpg">
+  <meta name="format-detection" content="telephone=no">
+
+  <!-- Additional SEO -->
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#f97316">
+
+  <!-- Scripts & Styles -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f8fafc;
+    }
+
+    .tab-active {
+      border-bottom: 4px solid #f97316;
+      color: #f97316;
+      font-weight: 600;
+      background: #fffaf5;
+    }
+
+    .appliance-table-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      width: 100%;
+    }
+
+    .appliance-table-container table {
+      width: 100%;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 768px) {
+      .appliance-table-container {
+        overflow-x: scroll;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-color: #ad03f0c9 #e5e7eb;
+        scrollbar-width: auto;
+      }
+
+      .appliance-table-container table {
+        min-width: 383px;
+      }
+
+      .appliance-table-container th,
+      .appliance-table-container td {
+        padding: 8px 6px;
+        font-size: 16px;
+      }
+    }
+
+    @media (min-width: 769px) {
+      .appliance-table-container {
+        overflow-x: visible;
+      }
+
+      .appliance-table-container table {
+        min-width: auto;
+        white-space: normal;
+      }
+
+      .appliance-table-container th,
+      .appliance-table-container td {
+        white-space: normal;
+      }
+    }
+
+    .appliance-table-container th {
+      position: sticky;
+      top: 0;
+      background: #f3f4f6;
+      z-index: 10;
+    }
+
+    .prorate-badge {
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .delete-appliance {
+      cursor: pointer;
+      color: #dc2626;
+      transition: 0.1s;
+    }
+
+    .delete-appliance:hover {
+      color: #b91c1c;
+      transform: scale(1.1);
+    }
+
+    @media print {
+      body {
+        background: white;
+      }
+
+      .delete-appliance,
+      button,
+      .bg-blue-700 {
+        display: none !important;
+      }
+
+      .appliance-table-container {
+        page-break-inside: avoid;
+      }
+
+      .grid,
+      .bg-white {
+        page-break-inside: avoid;
+      }
+    }
+
+    .dom-fixed-charge-section {
+      display: block;
+    }
+
+    .dom-fixed-charge-section.hidden-by-load {
+      display: none;
+    }
+
+    .misuse-card {
+      transition: all 0.3s ease;
+    }
+
+    .misuse-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-explore {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 28px;
+        font-size: 16px;
+        font-weight: 600;
+        border-radius: 30px;
+        cursor: pointer;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin: 20px 0;
+    }
+    
+    .btn-explore:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    .explore-btn {
+        display: inline-block;
+        background: #3b82f6;
+        color: white;
+        text-decoration: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: background 0.3s ease;
+    }
+    
+    .explore-btn:hover {
+        background: #2563eb;
+    }
+  </style>
+</head>
+
+<body class="bg-gradient-to-br from-gray-50 to-orange-50/30">
+  <div class="max-w-7xl mx-auto p-4 md:p-6" id="mainContainer">
+    <div class="text-center mb-6">
+      <div class="text-center py-6">
+        <h1 style="text-align: center; line-height: 3rem;"
+          class="text-4xl font-extrabold mb-3 bg-gradient-to-r from-cyan-500 via-red-500 to-blue-500 bg-clip-text text-transparent animate-pulse tracking-wide drop-shadow-lg">
+          Electricity Penalty Assessment 💥
+        </h1>
+
+        <p class="text-gray-600 text-lg animate-fade-in">
+          by <span class="font-semibold text-gray-800">Vishnu Kumar</span> |
+          <span class="text-cyan-600 font-medium">Dynamic Appliances</span> +
+          <span class="text-red-500 font-medium">PDF Export</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- TABS: 7 categories (added Misuse of Tariff) -->
+    <div class="flex flex-wrap gap-0 border-b border-gray-200 mb-8 bg-white rounded-t-2xl px-1 overflow-x-auto">
+      <button onclick="showTab(0)" class="tab-active px-4 py-3 text-sm md:text-md font-semibold" id="tab0"><i
+          class="fas fa-home mr-1"></i>DOMESTIC</button>
+      <button onclick="showTab(1)" class="px-4 py-3 text-sm md:text-md font-semibold text-gray-600" id="tab1"><i
+          class="fas fa-building mr-1"></i>LT-GP(Commercial)</button>
+      <button onclick="showTab(2)" class="px-4 py-3 text-sm md:text-md font-semibold text-gray-600" id="tab2"><i
+          class="fas fa-charging-station mr-1"></i>DOM-COM (Misuse Tariff)</button>
+      <button onclick="showTab(6)" class="px-4 py-3 text-sm md:text-md font-semibold text-gray-600" id="tab6"><i
+          class="fas fa-gavel mr-1"></i>Irrigation -Misuse of Tariff</button>
+      <button onclick="showTab(3)" class="px-4 py-3 text-sm md:text-md font-semibold text-gray-600" id="tab3"><i
+          class="fas fa-tractor mr-1"></i>Irrigation Pumping</button>
+      <button onclick="showTab(4)" class="px-4 py-3 text-sm md:text-md font-semibold text-gray-600" id="tab4"><i
+          class="fas fa-seedling mr-1"></i>Allied Agri Act(AAA)</button>
+      <button onclick="showTab(5)" class="px-4 py-3 text-sm md:text-md font-semibold text-gray-600" id="tab5"><i
+          class="fas fa-industry mr-1"></i>Alied Agro-Industrial</button>
+
+    </div>
+
+    <!-- ================= LDHF DOM ================= -->
+    <div id="content0">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+          <h2 class="text-2xl font-bold text-orange-700 mb-4">Domestic</h2>
+          <div class="bg-amber-50 p-4 rounded-xl mb-4"><label class="font-semibold">Assessment Days</label>
+            <input style="margin-left: 15px;" id="assessmentDaysDOM" type="number" step="any" value="365"
+              oninput="updateDaysDOM()" class="w-20 border rounded-lg px-3 py-2">
+            <span class="prorate-badge ml-2">Months: <span id="prorateFactorDOM">12.167</span></span>
+          </div>
+          <div><label>Detected Load (kW)</label><input id="detectedLoadDOM" class="w-full bg-gray-100 rounded-xl p-3"
+              readonly></div>
+          <table class="w-full mt-4">
+            <thead class="bg-orange-100">
+              <tr>
+                <th style="text-align: left;">Monthly Slab</th>
+                <th>Prorated Units</th>
+                <th>Rate</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody id="domSlabBody"></tbody>
+          </table>
+          <div class="bg-gray-50 p-4 rounded-xl mt-4 space-y-2">
+            <div class="flex justify-between"><span>Total Units</span><span id="totalUnitsDOM"
+                class="font-bold">0</span></div>
+            <div class="flex justify-between"><span>Energy Charge</span><span id="ecDOM">0</span></div>
+            <div class="flex justify-between items-center"><span><label class="flex items-center gap-2"><input
+                    type="checkbox" id="tempSupplyDOM" onchange="updateDomGPBills()"> <span
+                    class="text-sm font-medium">Temporary Supply (+10% of EC)</span></label></span><span
+                id="tempSurchargeDOM" class="text-orange-600 font-semibold">₹0</span></div>
+            <div class="flex justify-between"><span>ED @4%</span><span id="edDOM">0</span></div>
+            <div class="flex justify-between"><span>Fixed Charge (₹/kW/month)</span><input style="text-align: right;"
+                id="fcRateDOM" type="number" value="20" oninput="updateDomGPBills()" class="w-14 border rounded"></div>
+            <div class="flex justify-between"><span>Fixed Charge Total</span><span id="fcTotalDOM">0</span></div>
+            <div class="flex justify-between text-xl font-bold"><span>TOTAL BILL</span><span id="totalBillDOM"
+                class="text-orange-600">0</span></div>
+            <div class="flex justify-between text-xl font-bold"><span>TOTAL ASSESSMENT</span><span id="assessmentDOM"
+                class="text-orange-600">0</span></div>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-xl p-2">
+          <div class="flex justify-between">
+            <h2 class="font-bold text-orange-700 text-xl">🔌 Appliances</h2><button onclick="resetAppliances('DOM')"
+              class="bg-red-500 text-white px-3 py-1 rounded text-sm"><i class="fas fa-undo-alt"></i> Reset</button>
+          </div>
+          <div class="appliance-table-container mt-3">
+            <table class="w-full text-xs" id="applianceDOM">
+              <thead class="bg-gray-100">
+                <tr style="font-size: medium;">
+                  <th>Appliance</th>
+                  <th>No.</th>
+                  <th>Watt</th>
+                  <th>Days</th>
+                  <th>Hrs/Day</th>
+                  <th>LF</th>
+                  <th>Units</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="domTbody"></tbody>
+            </table>
+          </div>
+          <button onclick="addAppliance('DOM')" class="bg-green-600 text-white w-full py-2 rounded-lg mt-5"><i
+              class="fas fa-plus-circle"></i> Add Appliance</button>
+          <div class="mt-4 bg-orange-50 p-3 rounded">
+            <div>📐 Load: <span id="assessLoadDOM">0</span> </div>
+            <div>📅 Units: <span id="assessUnitsDOM">0.00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-8 bg-white rounded-3xl shadow-xl p-8">
+        <div class="flex flex-col md:flex-row gap-4 text-center">
+          <div class="flex-1 bg-orange-50 p-4 rounded-xl">
+            <div class="text-sm font-semibold">🔁 Twice Bill (×2)</div>
+            <div id="twiceDOM" class="text-3xl md:text-4xl font-bold text-orange-600">0</div>
+          </div>
+          <div class="flex-1 bg-white border-2 border-orange-200 p-4 rounded-xl">
+            <label class="text-sm font-semibold block">Deduction (₹)</label>
+            <input id="deductDOM" type="number" value="0" oninput="updateDomGPBills()"
+              class="w-full border-2 border-orange-400 rounded-lg py-2 text-center text-lg font-bold">
+          </div>
+          <div class="flex-1 bg-gradient-to-r from-orange-500 to-red-600 text-white p-4 rounded-xl">
+            <div class="text-sm font-semibold">TOTAL ASSESSMENT</div>
+            <div id="bigAssessmentDOM" class="text-3xl md:text-5xl font-bold">0</div>
+          </div>
+        </div>
+        <div class="text-right mt-6"><button onclick="checkAndDownload(0)"
+            class="bg-blue-700 text-white px-6 py-3 rounded-xl"><i class="fas fa-file-pdf mr-2"></i> Download
+            PDF</button></div>
+      </div>
+      <div class="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg text-sm leading-relaxed">
+        <div class="font-semibold mb-1">📌 Deduction Instruction:</div>
+        <p>
+          If assessment is done in <b>April 2026</b> and <b>March 2026 bill</b> is available, <br>
+          then take <b>Electricity Charges (EC), Electricity Duty (ED), and Fixed Charges (FC)</b>
+          from <b>April 2025 to March 2026</b> (last billed 12 months).
+        </p>
+        <p class="mt-2">
+          👉 If assessment period is <b>1 year</b>, select months accordingly as per the assessment period.<br>
+          👉 Select billing months strictly based on the assessment period. <br>
+          👉 Put summation of EC, ED & FC in Deduction.
+        </p>
+      </div>
+    </div>
+
+    <!-- ================= LDHF LTGP ================= -->
+    <div id="content1" class="hidden">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+          <h2 class="text-2xl font-bold text-orange-700">LT-General Purpose</h2>
+          <div class="bg-amber-50 p-4 rounded"><label>Assessment Days</label>
+            <input style="margin-left: 15px;text-align: center;" id="assessmentDaysGP" type="number" step="any"
+              value="365" oninput="updateDaysGP()" class="w-20 border rounded">
+            <span class="prorate-badge ml-2">Months:
+              <span id="prorateFactorGP">12.167</span></span>
+          </div>
+          <div><label>Detected Load (kW)</label><input id="detectedLoadGP" class="w-full bg-gray-100 rounded p-3"
+              readonly></div>
+          <table class="w-full mt-4">
+            <thead class="bg-orange-100">
+              <tr>
+                <th style="text-align: left;">Monthly Slab</th>
+                <th>Prorated Units</th>
+                <th>Rate</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody id="gpSlabBody"></tbody>
+          </table>
+          <div class="bg-gray-50 p-4 rounded mt-4">
+            <div class="flex justify-between"><span>Total Units</span><span id="totalUnitsGP">0</span></div>
+            <div class="flex justify-between"><span>Energy Charge</span><span id="ecGP">0</span></div>
+            <div class="flex justify-between items-center"><span><label class="flex items-center gap-2"><input
+                    type="checkbox" id="tempSupplyGP" onchange="updateDomGPBills()"> <span class="text-sm">Temporary
+                    Supply (+10% EC)</span></label></span><span id="tempSurchargeGP" class="text-orange-600">₹0</span>
+            </div>
+            <div class="flex justify-between"><span>ED 4%</span><span id="edGP">0</span></div>
+            <div class="flex justify-between"><span>Fixed Charge (₹/kW/month)</span><input style="text-align: right;"
+                id="fcRateGP" type="number" value="30" oninput="updateDomGPBills()" class="w-14 border rounded"></div>
+            <div class="flex justify-between"><span>Fixed Total</span><span id="fcTotalGP">0</span></div>
+            <div class="flex justify-between text-xl font-bold"><span>Total Bill</span><span id="totalBillGP">0</span>
+            </div>
+            <div class="flex justify-between text-xl font-bold"><span>Total Assessment</span><span
+                id="bigAssessmentGP">0</span>
+            </div>
+
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-xl p-5">
+          <div class="flex justify-between">
+            <h3 class="font-bold">Appliances</h3><button onclick="resetAppliances('GP')"
+              class="bg-red-500 text-white px-2 py-1 rounded text-xs">Reset</button>
+          </div>
+          <div class="appliance-table-container">
+            <table class="w-full text-xs" id="applianceGP">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th>Appliance</th>
+                  <th>No.</th>
+                  <th>Watt</th>
+                  <th>Days</th>
+                  <th>Hrs</th>
+                  <th>LF</th>
+                  <th>Units</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="gpTbody"></tbody>
+            </table>
+          </div><button onclick="addAppliance('GP')" class="bg-green-600 text-white w-full py-2 rounded mt-5"><i
+              class="fas fa-plus"></i> Add</button>
+          <div class="mt-3 bg-orange-50 p-3 rounded">
+            <div>Load: <span id="assessLoadGP">0</span> </div>
+            <div>Units: <span id="assessUnitsGP">0.00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-8 bg-white p-8 rounded-3xl shadow">
+        <div class="flex flex-col md:flex-row gap-4 text-center">
+          <div class="flex-1 bg-orange-50 p-4 rounded-xl">
+            <div class="text-sm font-semibold">🔁 Twice Bill (×2)</div>
+            <div id="twiceGP" class="text-3xl md:text-4xl font-bold text-orange-600">0</div>
+          </div>
+          <div class="flex-1 bg-white border-2 border-orange-200 p-4 rounded-xl">
+            <label class="text-sm font-semibold block">Deduction (₹)</label>
+            <input id="deductGP" type="number" value="0" oninput="updateDomGPBills()"
+              class="w-full border-2 border-orange-400 rounded-lg py-2 text-center text-lg font-bold">
+          </div>
+          <div class="flex-1 bg-gradient-to-r from-orange-500 to-red-600 text-white p-4 rounded-xl">
+            <div class="text-sm font-semibold">TOTAL ASSESSMENT</div>
+            <div id="assessmentGP" class="text-3xl md:text-5xl font-bold">0</div>
+          </div>
+        </div>
+        <div class="text-right mt-5"><button onclick="checkAndDownload(1)"
+            class="bg-blue-700 text-white px-5 py-2 rounded-lg"><i class="fas fa-file-pdf"></i> Download PDF</button>
+        </div>
+        <div class="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg text-sm leading-relaxed">
+          <div class="font-semibold mb-1">📌 Deduction Instruction:</div>
+          <p>
+            If assessment is done in <b>April 2026</b> and <b>March 2026 bill</b> is available, <br>
+            then take <b>Electricity Charges (EC), Electricity Duty (ED), and Fixed Charges (FC)</b>
+            from <b>April 2025 to March 2026</b> (last billed 12 months).
+          </p>
+          <p class="mt-2">
+            👉 If assessment period is <b>1 year</b>, select months accordingly as per the assessment period.<br>
+            👉 Select billing months strictly based on the assessment period. <br>
+            👉 Put summation of EC, ED & FC in Deduction.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= COM-DOM ================= -->
+    <div id="content2" class="hidden">
+      <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6">
+        <h2 class="text-xl md:text-2xl font-bold text-blue-700">Domestic-GP/Commercial</h2>
+        <p class="text-gray-600 mt-2">Consumer took connection of <span class="font-semibold text-green-600">Domestic
+            Category</span> but using for <span class="font-semibold text-orange-600">LTGP(Commercial)</span> purposes.
+        </p>
+
+        <div class="bg-amber-50 p-3 md:p-4 rounded mb-4">
+          <label class="font-medium">Assessment Days</label>
+          <input style="text-align: center; margin-left: 5px;" id="assessmentDaysCOM" type="number" value="365"
+            oninput="updateDaysCOM()" class="w-20 border rounded px-2 py-1 md:py-2">
+          <span class="prorate-badge ml-2">Months: <span id="prorateFactorCOM">12.167</span></span>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 mb-4">
+          <div>
+            <label class="text-sm font-medium block mb-1">Total Consumption (a) kWh (preceding period)</label>
+            <input id="a" type="number" value="" oninput="calcComDom()" class="w-full border rounded-lg p-2 md:p-3">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+
+          <!-- ========== COMMERCIAL LOAD SECTION ========== -->
+          <div class="border rounded-2xl p-3 md:p-4">
+            <div class="flex justify-between items-center mb-3">
+              <h3 style="font-size: 20px;" class="font-bold text-blue-600 md:text-base">🏢 Commercial Load</h3>
+              <button onclick="resetComAppliances()"
+                class="bg-red-500 text-white px-2 py-1 rounded text-xs">Reset</button>
+            </div>
+
+            <div class="appliance-table-container" style="max-height: none; overflow-y: visible;">
+              <table class="w-full text-xs">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th class="px-1 text-lg text-center py-2 text-left">Appliance</th>
+                    <th class="px-1 text-lg text-center md:px-0 py-2 text-center">No.</th>
+                    <th class="px-1 text-lg text-center md:px-0 py-2 text-center">Watt</th>
+                    <th class="px-1 text-lg text-center md:px-0 py-2 text-center">Load(W)</th>
+                    <th class="px-1 text-lg text-center md:px-2 py-2 text-center"></th>
+                  </tr>
+                </thead>
+                <tbody style="text-align: center;" id="comTbody"></tbody>
+              </table>
+            </div>
+
+            <button onclick="addComAppliance()" class="bg-green-600 text-white w-full py-2 rounded text-sm mt-3">
+              <i class="fas fa-plus"></i> Add Commercial
+            </button>
+
+            <div class="mt-3 bg-blue-50 p-2 rounded">
+              <span class="text-sm">Commercial Load: </span><span id="comLoadKW" class="font-bold text-sm">0</span>
+              <span class="text-xs">kW</span>
+            </div>
+
+            <!-- Slab table for Commercial -->
+            <div class="mt-4">
+              <h4 class="font-semibold text-xs md:text-sm mb-2 text-blue-700">📊 Slab-wise Breakdown</h4>
+              <div class="bg-white rounded-lg border overflow-x-auto">
+                <table class="w-full text-xs md:text-sm min-w-[300px]">
+                  <thead class="bg-blue-50">
+                    <tr>
+                      <th class="px-2 md:px-3 py-2 text-left">Slab</th>
+                      <th class="px-2 md:px-3 py-2 text-right">Prorated</th>
+                      <th class="px-2 md:px-3 py-2 text-right">Rate</th>
+                      <th class="px-2 md:px-3 py-2 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody id="comSlabBody">
+                    <tr>
+                      <td colspan="4" class="text-center py-2 text-gray-500 text-xs">Enter values to see slab breakdown
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========== DOMESTIC LOAD SECTION ========== -->
+          <div class="border rounded-2xl p-3 md:p-4">
+            <div class="flex justify-between items-center mb-3">
+              <h3 style="font-size: 20px;" class="font-bold text-green-600 text-sm md:text-base">🏠 Domestic Load</h3>
+              <button onclick="resetDomAppliances()"
+                class="bg-red-500 text-white px-2 py-1 rounded text-xs">Reset</button>
+            </div>
+
+            <div class="appliance-table-container" style="max-height: none; overflow-y: visible;">
+              <table class="w-full text-xs">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th class="px-1 text-lg text-center md:px-2 py-2 text-left">Appliance</th>
+                    <th class="px-1 text-lg text-center md:px-0 py-2 text-center">No.</th>
+                    <th class="px-1 text-lg text-center md:px-0 py-2 text-center">Watt</th>
+                    <th class="px-1 text-lg text-center md:px-0 py-2 text-center">Load(W)</th>
+                    <th class="px-1 text-lg text-center md:px-2 py-2 text-center"></th>
+                  </tr>
+                </thead>
+                <tbody style="text-align: center;" id="domComTbody"></tbody>
+              </table>
+            </div>
+
+            <button onclick="addDomAppliance()" class="bg-green-600 text-white w-full py-2 rounded text-sm mt-3">
+              <i class="fas fa-plus"></i> Add Domestic
+            </button>
+
+            <div class="mt-3 bg-green-50 p-2 rounded">
+              <span class="text-sm">Domestic Load: </span><span id="domLoadKW" class="font-bold text-sm">0</span> <span
+                class="text-xs">kW</span>
+            </div>
+
+            <!-- User Input Fields for Domestic Assessment -->
+            <div class="mt-4 bg-white border rounded-lg p-3">
+              <h4 class="font-semibold text-sm mb-3 text-green-700">📝 Domestic Inputs</h4>
+
+              <div class="space-y-3">
+                <div>
+                  <label class="text-xs font-medium block mb-1">Billed Electricity Charges of Assessment Period
+                    (₹)</label>
+                  <input type="number" id="domBilledEC" value="0" oninput="calcComDom()"
+                    class="w-full border rounded-lg px-3 py-2 text-sm">
+                </div>
+
+                <div id="domFixedChargeSection" class="dom-fixed-charge-section">
+                  <label class="text-xs font-medium block mb-1">Fixed Charge of Assessment Period (₹)</label>
+                  <input type="number" id="domBilledFC" value="0" oninput="calcComDom()"
+                    class="w-full border rounded-lg px-3 py-2 text-sm">
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+        <div class="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg text-sm leading-relaxed">
+          <div class="font-semibold mb-1">📌 <b style="font: size 20px;">Domestic Inputs Instruction:</b></div>
+          <p>
+            If assessment is done in <b>April 2026</b> and <b>March 2026 bill</b> is available, <br>
+            then take <b>Electricity Charges (EC) and Fixed Charges (FC)</b>
+            from <b>April 2025 to March 2026</b> (last billed 12 months).
+          </p>
+          <p class="mt-2">
+            👉 If assessment period is <b>1 year</b>, select months accordingly as per the assessment period.<br>
+            👉 Select billing months strictly based on the assessment period. <br>
+
+          </p>
+        </div>
+
+        <div class="bg-blue-50 p-3 my-4 text-center rounded-lg">
+          <span class="text-sm md:text-base">U = a × (b/Total) = </span>
+          <span id="uComVal" class="font-bold text-lg md:text-xl">0</span>
+          <span class="text-sm md:text-base"> kWh</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-gray-50 p-3 md:p-4 rounded">
+            <h4 class="font-bold text-lg md:text-base">Commercial Bill</h4>
+            <div id="comBillDetail" class="text-lg md:text-md"></div>
+            <div style="display: none;" class="font-bold mt-2 text-lg md:text-base">Total COM: ₹<span
+                id="comTotal">0</span></div>
+          </div>
+          <div class="bg-gray-50 p-3 md:p-4 rounded">
+            <h4 class="font-bold text-lg md:text-base">Domestic Bill</h4>
+            <div id="domBillDetail" class="text-lg md:text-md"></div>
+            <div style="display: none;" class="font-bold mt-2 text-lg md:text-base">Total DOM: ₹<span
+                id="domTotal">0</span></div>
+          </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-orange-500 to-red-600 text-white p-4 md:p-6 text-center rounded-2xl mt-6">
+          <div class="text-base md:text-2xl font-semibold">Assessment = (2 × Commercial) − Domestic</div>
+          <div id="finalAssessment" class="text-3xl md:text-6xl font-black mt-2">0.00</div>
+        </div>
+
+        <div class="text-right mt-5">
+          <button onclick="checkAndDownload(2)"
+            class="bg-blue-700 text-white px-4 md:px-5 py-2 rounded-lg text-sm md:text-base">
+            <i class="fas fa-file-pdf"></i> Download PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= AGRI PUMP ================= -->
+    <div id="content3" class="hidden">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+          <h2 class="text-2xl font-bold text-green-700">Irrigation Pumping (₹1.5/unit)</h2>
+          <div class="bg-amber-50 p-4 rounded"><label>Assessment Days</label>
+            <input style="margin-left: 15px;text-align: center;" id="assessmentDaysAGRI" type="number" value="365"
+              oninput="updateDaysAGRI()" class="w-20 border rounded">
+            <span class="prorate-badge ml-2">Months: <span id="prorateFactorAGRI">12.167</span></span>
+          </div>
+          <div><label>Detected Load (kW)</label><input id="detectedLoadAGRI" class="w-full bg-gray-100 rounded p-3"
+              readonly></div>
+          <div class="bg-gray-50 p-4 rounded mt-4">
+            <div class="flex justify-between"><span>Rate</span><span>₹1.50/kWh</span></div>
+            <div class="flex justify-between"><span>Total Units</span><span id="totalUnitsAGRI">0</span></div>
+            <div class="flex justify-between"><span>Energy Charge</span><span id="ecAGRI">0</span></div>
+            <div class="flex justify-between items-center"><span><label class="flex items-center gap-2"><input
+                    type="checkbox" id="tempSupplyAGRI" onchange="updateAgri()"> Temporary Supply (+10%
+                  EC)</label></span><span id="tempSurchargeAGRI" class="text-orange-600">₹0</span></div>
+            <div class="flex justify-between"><span>ED @2%</span><span id="edAGRI">0</span></div>
+            <div class="flex justify-between"><span>Fixed Charge (₹20 + ₹10/extra kW)</span><span id="fcDetailAGRI"
+                class="text-sm"></span></div>
+            <div class="flex justify-between"><span>Fixed Charge Total</span><span id="fcTotalAGRI">0</span></div>
+            <div class="flex justify-between text-xl font-bold"><span>TOTAL BILL</span><span id="totalBillAGRI">0</span>
+            </div>
+
+          </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl">
+          <div class="flex justify-between">
+            <h2 class="font-bold text-green-700 text-xl">🔌 Appliances</h2><button onclick="resetAppliances('AGRI')"
+              class="bg-red-500 text-white px-2 py-1 rounded text-xs">Reset</button>
+          </div>
+          <div class="appliance-table-container">
+            <table class="w-full text-base" id="applianceAGRI">
+              <thead>
+                <tr>
+                  <th>Appliance</th>
+                  <th>No.</th>
+                  <th>Watt</th>
+                  <th>Days</th>
+                  <th>Hrs</th>
+                  <th>LF</th>
+                  <th>Units</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="agriTbody"></tbody>
+            </table>
+          </div><button onclick="addAppliance('AGRI')" class="bg-green-600 text-white w-full py-2 rounded mt-5"><i
+              class="fas fa-plus"></i> Add</button>
+          <div class="mt-3 bg-green-50 p-3 rounded">
+            <div>Load: <span id="assessLoadAGRI">0</span> </div>
+            <div>Units: <span id="assessUnitsAGRI">0.00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-8 bg-white p-8 rounded-3xl shadow">
+        <div class="flex flex-col md:flex-row gap-4 text-center">
+          <div class="flex-1 bg-orange-50 p-4 rounded-xl">
+            <div class="text-sm font-semibold">🔁 Twice Bill</div>
+            <div id="twiceAGRI" class="text-3xl md:text-4xl font-bold text-orange-600">0</div>
+          </div>
+          <div class="flex-1 bg-white border-2 border-orange-200 p-4 rounded-xl">
+            <label class="text-sm font-semibold block">Deduction (₹)</label>
+            <input id="deductAGRI" type="number" value="0" oninput="updateAgri()"
+              class="w-full border-2 border-orange-400 rounded-lg py-2 text-center text-lg font-bold">
+          </div>
+          <div class="flex-1 bg-gradient-to-r from-orange-500 to-red-600 text-white p-4 rounded-xl">
+            <div class="text-sm font-semibold">TOTAL ASSESSMENT</div>
+            <div id="assessmentAGRI" class="text-3xl md:text-5xl font-bold">0</div>
+          </div>
+        </div>
+        <div class="text-right mt-5"><button onclick="checkAndDownload(3)"
+            class="bg-blue-700 text-white px-5 py-2 rounded-lg"><i class="fas fa-file-pdf"></i> Download PDF</button>
+        </div>
+      </div>
+      <div class="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg text-sm leading-relaxed">
+        <div class="font-semibold mb-1">📌 Deduction Instruction:</div>
+        <p>
+          If assessment is done in <b>April 2026</b> and <b>March 2026 bill</b> is available, <br>
+          then take <b>Electricity Charges (EC), Electricity Duty (ED), and Fixed Charges (FC)</b>
+          from <b>April 2025 to March 2026</b> (last billed 12 months).
+        </p>
+        <p class="mt-2">
+          👉 If assessment period is <b>1 year</b>, select months accordingly as per the assessment period.<br>
+          👉 Select billing months strictly based on the assessment period. <br>
+          👉 Put summation of EC, ED & FC in Deduction.
+        </p>
+      </div>
+    </div>
+
+    <!-- ================= ALLIED AGRI ================= -->
+    <div id="content4" class="hidden">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+          <h2 class="text-2xl font-bold text-emerald-700">Allied Agri (₹1.6/unit)</h2>
+          <div class="bg-amber-50 p-4 rounded"><label>Assessment Days</label>
+            <input style="margin-left: 15px;text-align: center;" id="assessmentDaysALLIED" type="number" value="365"
+              oninput="updateDaysALLIED()" class="w-20 border rounded">
+            <span class="prorate-badge ml-2">Months:
+              <span id="prorateFactorALLIED">12.167</span></span>
+          </div>
+          <div><label>Load (kW)</label><input id="detectedLoadALLIED" class="w-full bg-gray-100 rounded p-3" readonly>
+          </div>
+          <div class="bg-gray-50 p-4 rounded mt-4">
+            <div class="flex justify-between"><span>Rate</span><span>₹1.60/kWh</span></div>
+            <div class="flex justify-between"><span>Units</span><span id="totalUnitsALLIED">0</span></div>
+            <div class="flex justify-between"><span>Energy Charge</span><span id="ecALLIED">0</span></div>
+            <div class="flex justify-between items-center"><span><label class="flex items-center gap-2"><input
+                    type="checkbox" id="tempSupplyALLIED" onchange="updateAllied()"> Temporary Supply (+10%
+                  EC)</label></span><span id="tempSurchargeALLIED" class="text-orange-600">₹0</span></div>
+            <div class="flex justify-between"><span>ED 4%</span><span id="edALLIED">0</span></div>
+            <div class="flex justify-between"><span>Fixed Charge (₹20 + ₹10/extra)</span><span
+                id="fcDetailALLIED"></span></div>
+            <div class="flex justify-between"><span>Fixed Total</span><span id="fcTotalALLIED">0</span></div>
+            <div class="flex justify-between font-bold"><span>Total Bill</span><span id="totalBillALLIED">0</span></div>
+          </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl">
+          <div class="flex justify-between">
+            <h2 class="font-bold text-orange-700 text-xl">🔌 Appliances</h2><button onclick="resetAppliances('ALLIED')"
+              class="bg-red-500 text-white px-2 py-1 rounded text-xs">Reset</button>
+          </div>
+          <div class="appliance-table-container">
+            <table class="w-full text-base" id="applianceALLIED">
+              <thead>
+                <tr>
+                  <th>Appliance</th>
+                  <th>No.</th>
+                  <th>Watt</th>
+                  <th>Days</th>
+                  <th>Hrs</th>
+                  <th>LF</th>
+                  <th>Units</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="alliedTbody"></tbody>
+            </table>
+          </div><button onclick="addAppliance('ALLIED')" class="bg-green-600 text-white w-full py-2 rounded mt-5"><i
+              class="fas fa-plus"></i> Add</button>
+          <div class="mt-3 bg-emerald-50 p-3 rounded">
+            <div>Load: <span id="assessLoadALLIED">0</span> </div>
+            <div>Units: <span id="assessUnitsALLIED">0.00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-8 bg-white p-8 rounded-3xl shadow">
+        <div class="flex flex-col md:flex-row gap-4 text-center">
+          <div class="flex-1 bg-orange-50 p-4 rounded-xl">
+            <div class="text-sm font-semibold">🔁 Twice Bill</div>
+            <div id="twiceALLIED" class="text-3xl md:text-4xl font-bold text-orange-600">0</div>
+          </div>
+          <div class="flex-1 bg-white border-2 border-orange-200 p-4 rounded-xl">
+            <label class="text-sm font-semibold block">Deduction (₹)</label>
+            <input id="deductALLIED" type="number" value="0" oninput="updateAllied()"
+              class="w-full border-2 border-orange-400 rounded-lg py-2 text-center text-lg font-bold">
+          </div>
+          <div class="flex-1 bg-gradient-to-r from-orange-500 to-red-600 text-white p-4 rounded-xl">
+            <div class="text-sm font-semibold">TOTAL ASSESSMENT</div>
+            <div id="assessmentALLIED" class="text-3xl md:text-5xl font-bold">0</div>
+          </div>
+        </div>
+        <div class="text-right mt-5"><button onclick="checkAndDownload(4)"
+            class="bg-blue-700 text-white px-5 py-2 rounded-lg"><i class="fas fa-file-pdf"></i> Download PDF</button>
+        </div>
+      </div>
+      <div class="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg text-sm leading-relaxed">
+        <div class="font-semibold mb-1">📌 Deduction Instruction:</div>
+        <p>
+          If assessment is done in <b>April 2026</b> and <b>March 2026 bill</b> is available, <br>
+          then take <b>Electricity Charges (EC), Electricity Duty (ED), and Fixed Charges (FC)</b>
+          from <b>April 2025 to March 2026</b> (last billed 12 months).
+        </p>
+        <p class="mt-2">
+          👉 If assessment period is <b>1 year</b>, select months accordingly as per the assessment period.<br>
+          👉 Select billing months strictly based on the assessment period. <br>
+          👉 Put summation of EC, ED & FC in Deduction.
+        </p>
+      </div>
+    </div>
+
+    <!-- ================= AGRO INDUSTRIAL ================= -->
+    <div id="content5" class="hidden">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+          <h2 class="text-2xl font-bold text-purple-700">Agro-Industrial (₹3.1/unit)</h2>
+          <div class="bg-amber-50 p-4 rounded"><label>Assessment Days</label>
+            <input style="margin-left: 15px;text-align: center;" id="assessmentDaysAGRO" type="number" value="365"
+              oninput="updateDaysAGRO()" class="w-20 border rounded">
+            <span class="prorate-badge ml-2">Months:
+              <span id="prorateFactorAGRO">12.167</span></span>
+          </div>
+          <div><label>Load (kW)</label><input id="detectedLoadAGRO" class="w-full bg-gray-100 rounded p-3" readonly>
+          </div>
+          <div class="bg-gray-50 p-4 rounded mt-4">
+            <div class="flex justify-between"><span>Rate</span><span>₹3.10/kWh</span></div>
+            <div class="flex justify-between"><span>Units</span><span id="totalUnitsAGRO">0</span></div>
+            <div class="flex justify-between"><span>Energy Charge</span><span id="ecAGRO">0</span></div>
+            <div class="flex justify-between items-center"><span><label class="flex items-center gap-2"><input
+                    type="checkbox" id="tempSupplyAGRO" onchange="updateAgro()"> Temporary Supply (+10%
+                  EC)</label></span><span id="tempSurchargeAGRO" class="text-orange-600">₹0</span></div>
+            <div class="flex justify-between"><span>ED 4%</span><span id="edAGRO">0</span></div>
+            <div class="flex justify-between"><span>Fixed Charge (₹80 + ₹50/extra kW)</span><span
+                id="fcDetailAGRO"></span></div>
+            <div class="flex justify-between"><span>Fixed Total</span><span id="fcTotalAGRO">0</span></div>
+            <div class="flex justify-between font-bold"><span>Total Bill</span><span id="totalBillAGRO">0</span></div>
+          </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl">
+          <div class="flex justify-between">
+            <h2 class="font-bold text-orange-700 text-xl">🔌 Appliances</h2><button onclick="resetAppliances('AGRO')"
+              class="bg-red-500 text-white px-2 py-1 rounded text-xs">Reset</button>
+          </div>
+          <div class="appliance-table-container">
+            <table class="w-full text-base" id="applianceAGRO">
+              <thead>
+                <tr>
+                  <th>Appliance</th>
+                  <th>No.</th>
+                  <th>Watt</th>
+                  <th>Days</th>
+                  <th>Hrs</th>
+                  <th>LF</th>
+                  <th>Units</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="agroTbody"></tbody>
+            </table>
+          </div><button onclick="addAppliance('AGRO')" class="bg-green-600 text-white w-full py-2 rounded mt-5"><i
+              class="fas fa-plus"></i> Add</button>
+          <div class="mt-3 bg-purple-50 p-3 rounded">
+            <div>Load: <span id="assessLoadAGRO">0</span> </div>
+            <div>Units: <span id="assessUnitsAGRO">0.00</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-8 bg-white p-8 rounded-3xl shadow">
+        <div class="flex flex-col md:flex-row gap-4 text-center">
+          <div class="flex-1 bg-orange-50 p-4 rounded-xl">
+            <div class="text-sm font-semibold">🔁 Twice Bill</div>
+            <div id="twiceAGRO" class="text-3xl md:text-4xl font-bold text-orange-600">0</div>
+          </div>
+          <div class="flex-1 bg-white border-2 border-orange-200 p-4 rounded-xl">
+            <label class="text-sm font-semibold block">Deduction (₹)</label>
+            <input id="deductAGRO" type="number" value="0" oninput="updateAgro()"
+              class="w-full border-2 border-orange-400 rounded-lg py-2 text-center text-lg font-bold">
+          </div>
+          <div class="flex-1 bg-gradient-to-r from-orange-500 to-red-600 text-white p-4 rounded-xl">
+            <div class="text-sm font-semibold">TOTAL ASSESSMENT</div>
+            <div id="assessmentAGRO" class="text-3xl md:text-5xl font-bold">0</div>
+          </div>
+        </div>
+        <div class="text-right mt-5"><button onclick="checkAndDownload(5)"
+            class="bg-blue-700 text-white px-5 py-2 rounded-lg"><i class="fas fa-file-pdf"></i> Download PDF</button>
+        </div>
+      </div>
+      <div class="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg text-sm leading-relaxed">
+        <div class="font-semibold mb-1">📌 Deduction Instruction:</div>
+        <p>
+          If assessment is done in <b>April 2026</b> and <b>March 2026 bill</b> is available, <br>
+          then take <b>Electricity Charges (EC), Electricity Duty (ED), and Fixed Charges (FC)</b>
+          from <b>April 2025 to March 2026</b> (last billed 12 months).
+        </p>
+        <p class="mt-2">
+          👉 If assessment period is <b>1 year</b>, select months accordingly as per the assessment period.<br>
+          👉 Select billing months strictly based on the assessment period. <br>
+          👉 Put summation of EC, ED & FC in Deduction.
+        </p>
+      </div>
+    </div>
+
+    <!-- ================= MISUSE OF TARIFF (UNAUTHORIZED USE) ================= -->
+    <div id="content6" class="hidden">
+      <div class="bg-white rounded-2xl shadow-xl p-6">
+        <div class="text-center mb-6">
+          <!-- <div class="inline-block bg-red-100 rounded-full p-3 mb-3">
+            <i class="fas fa-gavel text-red-600 text-3xl"></i>
+          </div> -->
+          <h2 class="text-2xl font-bold text-red-700">Misuse of Tariff</h2>
+          <p class="text-gray-600 mt-2">Consumer took connection of <span
+              class="font-semibold text-green-600">Agricultural Category</span> but using for <span
+              class="font-semibold text-orange-600">DOM/LTGP(Commercial)/Alied Agro-Industrial</span> purposes</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8" style="margin-left: -22px; margin-right: -22px;">
+          <!-- Left Column - Connection & Actual Usage -->
+          <div class="border-2 border-red-200 rounded-xl p-5 bg-red-50/30">
+            <div class="flex items-center gap-2 mb-4">
+              <i class="fas fa-plug text-red-600 text-xl"></i>
+              <h3 class="text-xl font-bold text-red-700">Connection & Usage Details</h3>
+            </div>
+
+            <div class="bg-amber-50 p-4 rounded-xl mb-4">
+              <label class="font-semibold block mb-2">Assessment Days</label>
+              <input id="assessmentDaysMISUSE" min="0" max="366" type="number" step="any" value="365" oninput="updateMisuseAssessment()"
+                class="w-32 border rounded-lg px-3 py-2">
+              <span class="prorate-badge ml-2">Months: <span id="prorateFactorMISUSE">12.167</span></span>
+            </div>
+
+            <!-- Assessment Days, before Connection Taken Under selector -->
+            <div class="mb-4">
+              <label class="font-semibold block mb-2 text-blue-700">📊 Total Consumption (a) kWh (Assessment Period)</label>
+              <input type="number" id="totalConsumptionMISUSE" value="0" oninput="updateMisuseAssessment()"
+                class="w-full border-2 border-blue-300 rounded-lg px-4 py-3 bg-white">
+              <!-- <p class="text-xs text-gray-500 mt-1">Total billed consumption from last 12 months (as per electricity
+                bill)</p> -->
+            </div>
+
+            <!-- Connection Taken Under Selector -->
+            <div class="mb-4">
+              <label class="font-semibold block mb-2 text-green-700">🌾 Connection Taken Under</label>
+              <select id="connectionTypeSelect" onchange="updateMisuseAssessment()"
+                class="w-full border-2 border-green-300 rounded-lg px-4 py-3 bg-white">
+                <option value="AGRI">🚜 Irrigation Pumping (₹1.50/kWh, ED@2%)</option>
+                <option value="ALLIED">🌱 Allied Agri Act - AAA (₹1.60/kWh, ED@4%)</option>
+              </select>
+            </div>
+
+            <!-- Type of Misuse Selector -->
+            <div class="mb-4">
+              <label class="font-semibold block mb-2 text-red-700">⚠️ Type of Misuse (Actual Usage)</label>
+              <select id="misuseType" onchange="updateMisuseAssessment()"
+                class="w-full border-2 border-red-300 rounded-lg px-4 py-3 bg-white">
+                <option value="DOM">🏠 LDHF-DOM (Domestic) - Slab rates ₹2.9-6.1/unit</option>
+                <option value="GP">🏢 LDHF-LTGP (Commercial) - Slab rates ₹5.9-7.6/unit</option>
+                <option value="AGRO">🏭 Agro-Industrial - ₹3.10/unit, ED@4%</option>
+                <option value="ALLIED">🌾 Allied Agri (AAA) - ₹1.60/unit, ED@4%</option>
+              </select>
+            </div>
+
+            <div class="bg-white rounded-xl p-4 mb-4" style="margin-left: -21px;margin-right: -21px; margin-top: 10px;padding-left: 2px;padding-right: 2px;">
+              <div class="flex justify-between items-center mb-3">
+                <h4 class="font-bold text-gray-700">📋 Load-wise Breakdown</h4>
+              </div>
+
+              <!-- Two load sections like COM-DOM -->
+              <div class="mb-4">
+                <label class="font-semibold block mb-2 text-red-700">⚠️ Actual Usage Detected Load</label>
+                <div class="appliance-table-container">
+                  <table class="w-full text-xs" id="applianceMISUSE">
+                    <thead class="bg-gray-100">
+                      <tr style="font-size: 15px;text-align: center;">
+                        <th style="text-align: left;">Appliance</th>
+                        <th style="text-align: left;">No.</th>
+                        <th>Watt</th>
+                        <th>Load(W)</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="misuseTbody"></tbody>
+                  </table>
+                </div>
+                <button onclick="addMisuseAppliance()"
+                  class="bg-green-600 text-white w-full py-2 rounded-lg mt-2 text-sm">
+                  <i class="fas fa-plus-circle"></i> Add Appliance
+                </button>
+                <div class="mt-3 bg-red-50 p-3 rounded">
+                  <div>📐 Detected Load: <span id="assessLoadMISUSE">0</span> (<span id="assessLoadMISUSE_kW">0</span>
+                    kW)</div>
+                  <div>📅 Estimated Units (Assessment Period): <span id="assessUnitsMISUSE">0.00</span> kWh</div>
+                </div>
+                <div class="mt-2 bg-red-50 p-2 rounded">
+                  <span class="text-sm">Actual Usage Load: </span><span id="actualLoadKW" class="font-bold">0</span> kW
+                </div>
+              </div>
+
+              <div>
+                <label class="font-semibold block mb-2 text-green-700">🌾 Authorized Connection Load </label>
+                <div class="appliance-table-container">
+                  <table class="w-full text-xs" id="applianceAuthorizedMISUSE">
+                    <thead class="bg-gray-100">
+                      <tr style="font-size: 15px; text-align: left;">
+                        <th>Appliance</th>
+                        <th>No.</th>
+                        <th>Watt</th>
+                        <th style="text-align: right;">Load(W)</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="authorizedTbody"></tbody>
+                  </table>
+                </div>
+                <button onclick="addAuthorizedAppliance()"
+                  class="bg-green-600 text-white w-full py-2 rounded-lg mt-2 text-sm">
+                  <i class="fas fa-plus-circle"></i> Add Authorized Appliance
+                </button>
+                <div class="mt-2 bg-green-50 p-2 rounded">
+                  <span class="text-sm">Authorized Load: </span><span id="authorizedLoadKW" class="font-bold">0</span>
+                  kW
+                </div>
+              </div>
+            </div>
+
+
+
+
+
+          </div>
+
+          <!-- Right Column - Bill Calculation & Penalty -->
+          <div class="border-2 border-orange-200 rounded-xl p-5 bg-orange-50/30">
+            <div class="flex items-center gap-2 mb-4">
+              <i class="fas fa-calculator text-orange-600 text-xl"></i>
+              <h3 class="text-xl font-bold text-orange-700">Penalty Calculation</h3>
+            </div>
+
+            <!-- Tariff Information -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+              <div class="bg-green-100 p-4 rounded-xl text-center" id="connectionInfoBox">
+                <div class="text-sm text-green-600 mb-1">Connection Taken Under</div>
+                <div class="font-bold text-green-800" id="connectionTypeDisplay">Irrigation Pumping</div>
+                <div class="text-xs text-green-600" id="connectionRateDisplay">₹1.50/kWh | ED@2%</div>
+              </div>
+              <div class="bg-red-100 p-4 rounded-xl text-center">
+                <div class="text-sm text-red-600 mb-1">Actually Used As</div>
+                <div class="font-bold text-red-800" id="actualType">LDHF-DOM (Domestic)</div>
+                <div class="text-xs text-red-600" id="actualRate">Slab-based ₹2.9-6.1/unit</div>
+              </div>
+            </div>
+
+            <!-- Bill as per Actual Usage (Misuse Tariff) -->
+            <div class="bg-white rounded-xl p-4 mb-4" style="margin-left: -20px;margin-right: -20px; margin-top: 10px; padding-left: 5px; padding-right: 5px;">
+              <h4 class="font-bold text-red-700 mb-3">📊 Bill as per Actual Usage</h4>
+              <div id="actualBillDetails" class="space-y-2 text-sm">
+
+              </div>
+              <div class="border-t-2 border-red-200 mt-3 pt-3 flex justify-between font-bold">
+                <span>Total Bill (Actual Tariff):</span>
+                <span id="actualTotalBill" class="text-red-600 text-xl">₹0</span>
+              </div>
+            </div>
+
+
+            <div class="bg-white border rounded-lg p-4 mb-4" style="margin-left: -21px; margin-right: -21px; margin-top: 10px; padding-left: 5px; padding-right: 5px;">
+              <h4 class="font-semibold text-md mb-3 text-green-700">📝 Domestic Billed Amount</h4>
+              <div class="space-y-3">
+                <div>
+                  <label class="text-sm font-medium block mb-1">Billed Electricity Charges of Assessment Period
+                    (₹)</label>
+                  <input type="number" id="billedEC_MISUSE" value="0" oninput="updateMisuseAssessment()"
+                    class="w-full border rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                  <label class="text-sm font-medium block mb-1">Fixed Charge of Assessment Period (₹)</label>
+                  <input type="number" id="billedFC_MISUSE" value="0" oninput="updateMisuseAssessment()"
+                    class="w-full border rounded-lg px-3 py-2 text-sm">
+                </div>
+              </div>
+              <!-- <div class="mt-3 text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                📌 Use billed EC, ED & FC of Assessment Period.
+              </div> -->
+            </div>
+
+            <!-- Bill as per Authorized Tariff NOT REQUIRED..ITS HIDDEN NOW -->
+            <div style="display: none;" class="bg-white rounded-xl p-4 mb-4">
+              <h4 class="font-bold text-green-700 mb-3">🌾 Bill as per Authorized Connection</h4>
+              <div id="authorizedBillDetails" class="space-y-2 text-sm">
+
+              </div>
+              <div class="border-t-2 border-green-200 mt-3 pt-3 flex justify-between font-bold">
+                <span>Total Bill (Authorized Tariff):</span>
+                <span id="authorizedTotalBill" class="text-green-600 text-xl">₹0</span>
+              </div>
+            </div>
+
+            <!-- Penalty Assessment -->
+            <!-- <div class="bg-gradient-to-r from-red-500 to-orange-600 rounded-xl p-5 text-black"> -->
+            <div class="bg-gradient-to-r from-red-500 to-orange-600 rounded-xl p-5 text-black"
+              style="background: #75fff8 !important;margin-left: -20px; margin-right: -20px;padding-left: 5px; padding-right: 5px;">
+              <div class="text-center mb-3">
+                <!-- <i class="fas fa-exclamation-triangle text-2xl"></i> -->
+                <h4 class="font-bold text-lg mt-1">Penalty Assessment</h4>
+              </div>
+              <div class="space-y-2 text-sm" style="margin-left: -5px; margin-right: -5px; padding-left: 10px; padding-right: 10px;">
+                <div class="flex justify-between">
+                  <span>Bill as per Actual Usage (A):</span>
+                  <span id="penaltyActual" class="font-bold">₹0</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Assessed Domestic Bill (B):</span>
+                  <span id="penaltyAuthorized" class="font-bold">₹0</span>
+                </div>
+                <div class="flex justify-between border-t border-white/30 pt-2 mt-2 hidden">
+                  <span>Difference (Extra Charged):</span>
+                  <span id="penaltyDifference" class="font-bold">₹0</span>
+                </div>
+                <div class="flex justify-between text-lg font-bold border-t-2 border-white/50 pt-3 mt-2">
+                  <span>Total Penalty <br> (2 × A) - B:</span>
+                  <span id="totalPenalty" class="text-2xl">₹0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Deduction Input -->
+            <!-- <div class="mt-4 bg-white border-2 border-orange-300 p-4 rounded-xl">
+              <label class="font-semibold block mb-2 text-gray-700">Deduction (Amount already paid - EC + ED +
+                FC)</label>
+              <input type="number" id="deductMISUSE" value="0" oninput="updateMisuseAssessment()"
+                class="w-full border-2 border-orange-400 rounded-lg py-3 text-center text-lg font-bold">
+              <div class="text-xs text-gray-500 mt-2">Enter the total amount already billed and paid for the assessment
+                period</div>
+            </div> -->
+
+            <!-- Final Assessment -->
+            <div class="mt-4 bg-gradient-to-r from-red-100 to-blue-100 rounded-xl p-5 text-black text-center" style="margin-left: -20px; margin-right: -20px;">
+              <div class="text-sm font-semibold">FINAL ASSESSMENT AMOUNT</div>
+              <div id="finalMisuseAssessment" class="text-4xl md:text-5xl font-black mt-2">₹0</div>
+              <!-- <div class="text-xs mt-2">(Penalty × 2) − Deduction</div> -->
+            </div>
+
+            <!-- <div class="text-right mt-6">
+              <button onclick="checkAndDownload(6)" class="bg-blue-700 text-white px-6 py-3 rounded-xl">
+                <i class="fas fa-file-pdf mr-2"></i> Download PDF
+              </button>
+            </div> -->
+          </div>
+        </div>
+        <div class="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg text-sm leading-relaxed" style="margin-left: -22px;margin-right: -22px;margin-top: 28px;">
+          <div class="font-semibold mb-1">📌 Deduction Instruction:</div>
+          <p>
+            If assessment is done in <b>April 2026</b> and <b>March 2026 bill</b> is available, <br>
+            then take <b>Electricity Charges (EC), Electricity Duty (ED), and Fixed Charges (FC)</b>
+            from <b>April 2025 to March 2026</b> (last billed 12 months).
+          </p>
+          <p class="mt-2">
+            👉 If assessment period is <b>1 year</b>, select months accordingly as per the assessment period.<br>
+            👉 Select billing months strictly based on the assessment period. <br>
+
+          </p>
+        </div>
+
+
+
+
+
+      </div>
+    </div>
+<button onclick="window.location.href='/developer'" class="btn-explore">
+    <span>✨</span> Explore Developer & Productivity Tools <span>→</span>
+</button>
+
+  </div>
+
+  <script>
+    // ======================= DATA STORES =======================
+    let appData = { DOM: [], GP: [], AGRI: [], ALLIED: [], AGRO: [], MISUSE: [] };
+    let comApps = [], domApps = [];
+
+    // Extended default appliance list for DOM, GP and also for COM-DOM categories
+    const extendedDefaultList = [
+      { name: "LED", no: 0, watt: 9, days: 365, hours: 24, lf: 0.3 },
+      { name: "FAN", no: 0, watt: 70, days: 365, hours: 24, lf: 0.3 },
+      { name: "TV", no: 0, watt: 250, days: 365, hours: 24, lf: 0.3 },
+      { name: "WATER PUMP", no: 0, watt: 746, days: 365, hours: 24, lf: 0.3 },
+      { name: "Mixer/GRINDER", no: 0, watt: 750, days: 365, hours: 24, lf: 0.3 },
+      { name: "AC", no: 0, watt: 1500, days: 365, hours: 24, lf: 0.3 },
+      { name: "INDUCTION", no: 0, watt: 2000, days: 365, hours: 24, lf: 0.3 },
+      { name: "GEYSER", no: 0, watt: 2000, days: 365, hours: 24, lf: 0.3 },
+      { name: "WASH MACHINE", no: 0, watt: 1020, days: 365, hours: 24, lf: 0.3 },
+      { name: "OVEN", no: 0, watt: 1000, days: 365, hours: 24, lf: 0.3 },
+      { name: "T FAN/EX FAN", no: 0, watt: 120, days: 365, hours: 24, lf: 0.3 },
+      { name: "FREEZE", no: 0, watt: 250, days: 365, hours: 24, lf: 0.3 },
+      { name: "ANGLE GRINDER", no: 0, watt: 1000, days: 365, hours: 24, lf: 0.3 },
+      { name: "Electric Cutter", no: 0, watt: 1500, days: 365, hours: 24, lf: 0.3 }
+    ];
+
+    const defaultPresets = {
+      DOM: JSON.parse(JSON.stringify(extendedDefaultList.map(item => ({ ...item, lf: 0.1 })))),
+      GP: JSON.parse(JSON.stringify(extendedDefaultList.map(item => ({ ...item, lf: 0.3 })))),
+      AGRI: [{ name: "Pump", no: 0, watt: 2238, days: 365, hours: 24, lf: 0.15 }],
+      ALLIED: [{ name: "Motor", no: 0, watt: 2238, days: 365, hours: 24, lf: 0.2 }],
+      AGRO: [
+        { name: "Grinder", no: 0, watt: 1500, days: 365, hours: 24, lf: 0.3 },
+        { name: "Motor", no: 0, watt: 2238, days: 365, hours: 24, lf: 0.3 }
+      ],
+      MISUSE: JSON.parse(JSON.stringify(extendedDefaultList.map(item => ({ ...item, lf: 0.3 }))))
+    };
+
+    function initData() {
+      for (let k of ['DOM', 'GP', 'AGRI', 'ALLIED', 'AGRO', 'MISUSE']) {
+        appData[k] = JSON.parse(JSON.stringify(defaultPresets[k] || []));
+      }
+
+      comApps = [
+        { name: "LED", no: 0, watt: 9 },
+        { name: "FAN", no: 0, watt: 70 },
+        { name: "AC", no: 0, watt: 1500 },
+        { name: "COMPUTER", no: 0, watt: 300 },
+        { name: "PRINTER", no: 0, watt: 50 },
+        { name: "INDUCTION", no: 0, watt: 2000 },
+        { name: "AIR COMPRESSOR", no: 0, watt: 1500 },
+        { name: "WELDING MACHINE", no: 0, watt: 3000 },
+        { name: "GRINDER", no: 0, watt: 750 },
+        { name: "WATER PUMP (1HP)", no: 0, watt: 746 },
+        { name: "DRILL MACHINE", no: 0, watt: 650 },
+      ];
+      domApps = [
+        { name: "LED", no: 0, watt: 9 },
+        { name: "FAN", no: 0, watt: 70 },
+        { name: "TV", no: 0, watt: 125 },
+        { name: "WATER PUMP", no: 0, watt: 746 },
+        { name: "Mixer/GRINDER", no: 0, watt: 750 },
+        { name: "AC", no: 0, watt: 1500 },
+        { name: "INDUCTION", no: 0, watt: 2000 },
+        { name: "GEYSER", no: 0, watt: 2000 },
+        { name: "WASH MACHINE", no: 0, watt: 1020 },
+        { name: "OVEN", no: 0, watt: 1000 },
+        { name: "FREEZE", no: 0, watt: 250 }
+      ];
+      authorizedApps = JSON.parse(JSON.stringify(defaultAuthorizedList));
+    }
+
+    function renderTable(type, tbodyId, loadSpan, unitsSpan) {
+      let tbody = document.getElementById(tbodyId);
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      // SPECIAL CASE: For MISUSE type - Simplified table (only Load calculation)
+      if (type === 'MISUSE') {
+        appData[type].forEach((app, idx) => {
+          let row = tbody.insertRow();
+          row.innerHTML = `
+        <td><input type="text" value="${app.name}" class="w-28 border rounded p-1 text-sm" onchange="updateAppField('${type}',${idx},'name',this.value)"></td>
+        <td><input type="number" value="${app.no}" min="0" class="w-14 text-center border rounded text-sm" onchange="updateAppField('${type}',${idx},'no',parseFloat(this.value)||0)"></td>
+        <td><input type="number" value="${app.watt}" min="0" class="w-14 text-center border rounded text-sm" onchange="updateAppField('${type}',${idx},'watt',parseFloat(this.value)||0)"></td>
+        <td class="text-center font-mono text-sm">${(app.no * app.watt).toFixed(0)} W</td>
+        <td><i class="fas fa-trash-alt delete-appliance" onclick="deleteApp('${type}',${idx})"></i></td>
+      `;
+        });
+
+        // Calculate ONLY load (not units)
+        let totalW = 0;
+        appData[type].forEach((app) => {
+          totalW += app.no * app.watt;
+        });
+
+        // Update elements - CHECK IF THEY EXIST FIRST
+        let loadSpanEl = document.getElementById(loadSpan);
+        let unitsSpanEl = document.getElementById(unitsSpan);
+        let loadKWEl = document.getElementById(`assessLoad${type}_kW`);
+
+        if (loadSpanEl) loadSpanEl.innerText = Math.round(totalW) + " W";
+        if (unitsSpanEl) unitsSpanEl.innerText = "0";
+        if (loadKWEl) loadKWEl.innerText = (totalW / 1000).toFixed(3);
+
+        // Force update of misuse assessment
+        updateMisuseAssessment();
+        return;
+      }
+
+      // ORIGINAL CODE for all other types (DOM, GP, AGRI, ALLIED, AGRO)
+      let globalDays = parseFloat(document.getElementById(`assessmentDays${type}`)?.value) || 365;
+
+      appData[type].forEach((app, idx) => {
+        let row = tbody.insertRow();
+        row.innerHTML = `
+      <td><input type="text" value="${app.name}" class="w-28 border rounded p-1 text-sm" onchange="updateAppField('${type}',${idx},'name',this.value)"></td>
+      <td><input type="number" value="${app.no}" min="0" class="w-14 text-center border rounded text-sm" onchange="updateAppField('${type}',${idx},'no',parseFloat(this.value)||0)"></td>
+      <td><input type="number" value="${app.watt}" min="0" class="w-14 text-center border rounded text-sm" onchange="updateAppField('${type}',${idx},'watt',parseFloat(this.value)||0)"></td>
+      <td><input type="number" value="${app.days}" min="0" class="w-14 text-center border rounded text-sm" onchange="updateAppField('${type}',${idx},'days',parseFloat(this.value)||0)"></td>
+      <td><input type="number" step="0.1" value="${app.hours}" class="w-12 text-center border rounded text-sm" onchange="updateAppField('${type}',${idx},'hours',parseFloat(this.value)||0)"></td>
+      <td><input type="number" step="0.01" value="${app.lf}" min="0" max="1" class="w-14 text-center border rounded text-sm" onchange="updateAppField('${type}',${idx},'lf',parseFloat(this.value)||0)"></td>
+      <td style="font-family: monospace; font-size: 16px;" id="unit_${type}_${idx}">0.00</td>
+      <td><i class="fas fa-trash-alt delete-appliance" onclick="deleteApp('${type}',${idx})"></i></td>
+    `;
+      });
+
+      recalcAppliance(type, loadSpan, unitsSpan);
+    }
+
+    function recalcAppliance(type, loadSpan, unitsSpan) {
+      // For MISUSE type, only calculate load, no units
+      if (type === 'MISUSE') {
+        let totalW = 0;
+        appData[type].forEach((app) => {
+          totalW += app.no * app.watt;
+        });
+
+        let loadSpanEl = document.getElementById(loadSpan);
+        let unitsSpanEl = document.getElementById(unitsSpan);
+        let loadKWEl = document.getElementById(`assessLoad${type}_kW`);
+
+        if (loadSpanEl) loadSpanEl.innerText = Math.round(totalW) + " W";
+        if (unitsSpanEl) unitsSpanEl.innerText = "0";
+        if (loadKWEl) loadKWEl.innerText = (totalW / 1000).toFixed(3);
+
+        updateMisuseAssessment();
+        return;
+      }
+
+      // Original code for other types...
+      let totalW = 0, totalU = 0;
+      let globalDays = parseFloat(document.getElementById(`assessmentDays${type}`)?.value) || 365;
+
+      appData[type].forEach((app, idx) => {
+        let load = app.no * app.watt;
+        let days = app.days || globalDays;
+        let units = (load * days * app.hours * app.lf) / 1000;
+        totalW += load;
+        totalU += units;
+
+        let unitCell = document.getElementById(`unit_${type}_${idx}`);
+        if (unitCell) unitCell.innerText = units.toFixed(3);
+      });
+
+      let loadSpanEl = document.getElementById(loadSpan);
+      let unitsSpanEl = document.getElementById(unitsSpan);
+
+      if (loadSpanEl) loadSpanEl.innerText = Math.round(totalW) + " W";
+      if (unitsSpanEl) unitsSpanEl.innerText = totalU.toFixed(3);
+
+      if (type == 'DOM' || type == 'GP') updateDomGPBills();
+      else if (type == 'AGRI') updateAgri();
+      else if (type == 'ALLIED') updateAllied();
+      else if (type == 'AGRO') updateAgro();
+      else if (type == 'MISUSE') updateMisuseAssessment();
+    }
+
+    function updateAppField(type, idx, field, val) {
+      appData[type][idx][field] = val;
+      renderTable(type, `${type.toLowerCase()}Tbody`, `assessLoad${type}`, `assessUnits${type}`);
+    }
+
+    function deleteApp(type, idx) {
+      appData[type].splice(idx, 1);
+      renderTable(type, `${type.toLowerCase()}Tbody`, `assessLoad${type}`, `assessUnits${type}`);
+    }
+
+    function addAppliance(type) {
+      let lf = 0.1;
+      if (type === 'GP') lf = 0.3;
+      else if (type === 'AGRI') lf = 0.15;
+      else if (type === 'ALLIED') lf = 0.2;
+      else if (type === 'AGRO') lf = 0.3;
+      else if (type === 'MISUSE') lf = 1; // Not used, but keep for consistency
+
+      let newApp = {
+        name: "New",
+        no: 0,
+        watt: 1,
+        days: 365,
+        hours: 24,
+        lf: lf
+      };
+
+      // For MISUSE, days/hours/lf are not displayed but kept in data
+      appData[type].push(newApp);
+      renderTable(type, `${type.toLowerCase()}Tbody`, `assessLoad${type}`, `assessUnits${type}`);
+    }
+
+    function resetAppliances(type) {
+      appData[type] = JSON.parse(JSON.stringify(defaultPresets[type] || []));
+      renderTable(type, `${type.toLowerCase()}Tbody`, `assessLoad${type}`, `assessUnits${type}`);
+    }
+
+    function daysToMonths(d) {
+      let m = d / 30;
+      return m > 12 ? 12 : m;
+    }
+
+    function calculateProrated(units, months, rates, limits) {
+      let prorated = limits.map(l => l * months);
+      let remaining = units, slabs = [], amounts = [];
+
+      for (let i = 0; i < prorated.length; i++) {
+        let prev = prorated[i - 1] || 0;
+        let slab = Math.min(remaining, prorated[i] - prev);
+        if (slab < 0) slab = 0;
+        slabs.push(slab);
+        amounts.push(slab * rates[i]);
+        remaining -= slab;
+        if (remaining < 0) remaining = 0;
+      }
+      slabs.push(remaining);
+      amounts.push(remaining * rates[rates.length - 1]);
+
+      return {
+        slabs,
+        amounts,
+        totalEC: amounts.reduce((a, b) => a + b, 0)
+      };
+    }
+
+    // ==================== MISUSE OF TARIFF FUNCTIONS ====================
+
+
+
+    let authorizedApps = []; // For Misuse tab authorized load
+
+
+    const defaultAuthorizedList = [
+      { name: "Irrigation Pump", no: 0, watt: 2238 }
+    ];
+
+
+
+    function renderAuthorizedTable() {
+      let tbody = document.getElementById('authorizedTbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      authorizedApps.forEach((app, idx) => {
+        let row = tbody.insertRow();
+        row.innerHTML = `
+      <td><input type="text" value="${app.name}" class="w-28 border rounded p-1 text-base" onchange="updateAuthorizedApp(${idx},'name',this.value)"></td>
+      <td><input type="number" value="${app.no}" min="0" class="w-14 text-center border rounded text-base" onchange="updateAuthorizedApp(${idx},'no',parseFloat(this.value)||0)"></td>
+      <td><input type="number" value="${app.watt}" min="0" class="w-14 text-center border rounded text-base" onchange="updateAuthorizedApp(${idx},'watt',parseFloat(this.value)||0)"></td>
+      <td class="text-center text-sm">${(app.no * app.watt).toFixed(0)} W</td>
+      <td><i class="fas fa-trash-alt delete-appliance" onclick="deleteAuthorizedApp(${idx})"></i></td>
+    `;
+      });
+      updateMisuseAssessment();
+    }
+
+    function updateAuthorizedApp(idx, field, val) {
+      authorizedApps[idx][field] = val;
+      renderAuthorizedTable();
+    }
+
+    function deleteAuthorizedApp(idx) {
+      authorizedApps.splice(idx, 1);
+      renderAuthorizedTable();
+    }
+
+    function addAuthorizedAppliance() {
+      authorizedApps.push({ name: "New", no: 0, watt: 1 });
+      renderAuthorizedTable();
+    }
+
+    function updateMisuseAssessment() {
+      // Get basic values
+      let days = parseFloat(document.getElementById('assessmentDaysMISUSE').value) || 365;
+      let months = daysToMonths(days);
+      document.getElementById('prorateFactorMISUSE').innerText = months.toFixed(3);
+
+      // Get loads
+      let actualLoadW = appData['MISUSE'].reduce((sum, app) => sum + (app.no * app.watt), 0);
+      let authorizedLoadW = authorizedApps.reduce((sum, app) => sum + (app.no * app.watt), 0);
+      let actualLoadKW = actualLoadW / 1000;
+      let authorizedLoadKW = authorizedLoadW / 1000;
+      let totalLoadKW = actualLoadKW + authorizedLoadKW;
+
+      document.getElementById('actualLoadKW').innerText = actualLoadKW.toFixed(3);
+      document.getElementById('authorizedLoadKW').innerText = authorizedLoadKW.toFixed(3);
+
+      // Get total consumption and billed amounts
+      let totalConsumption = parseFloat(document.getElementById('totalConsumptionMISUSE').value) || 0;
+      let billedEC = parseFloat(document.getElementById('billedEC_MISUSE').value) || 0;
+      let billedFC = parseFloat(document.getElementById('billedFC_MISUSE').value) || 0;
+
+      // Get connection and misuse types
+      let connectionType = document.getElementById('connectionTypeSelect').value;
+      let misuseType = document.getElementById('misuseType').value;
+
+      // ========== VALIDATION: CHECK IF CONNECTION MATCHES MISUSE (NO PENALTY) ==========
+      let isSameCategory = false;
+      let connectionName = connectionType === 'AGRI' ? 'Irrigation Pumping' : 'Allied Agri Act (AAA)';
+      let misuseName = '';
+
+      if (misuseType === 'DOM') misuseName = 'LDHF-DOM (Domestic)';
+      else if (misuseType === 'GP') misuseName = 'LDHF-LTGP (Commercial)';
+      else if (misuseType === 'AGRO') misuseName = 'Agro-Industrial';
+      else if (misuseType === 'ALLIED') misuseName = 'Allied Agri Act (AAA)';
+      else if (misuseType === 'AGRI') misuseName = 'Irrigation Pumping';
+
+      // Check if both are same agricultural categories
+      // ONLY block penalty when connection type EXACTLY matches misuse type
+      // Irrigation Pumping (AGRI) vs Allied Agri (ALLIED) are DIFFERENT - Penalty applies
+      if (connectionType === misuseType) {
+        isSameCategory = true;
+      }
+
+
+
+
+      // If same category, show warning and return zero penalty
+      if (isSameCategory) {
+        // Show warning message
+        let warningDiv = document.getElementById('misuseWarning');
+        if (!warningDiv) {
+          warningDiv = document.createElement('div');
+          warningDiv.id = 'misuseWarning';
+          warningDiv.className = 'bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded';
+          let targetDiv = document.querySelector('#content6 .grid.grid-cols-1');
+          if (targetDiv) {
+            targetDiv.parentNode.insertBefore(warningDiv, targetDiv);
+          }
+        }
+        alert(`⚠️ NO PENALTY APPLICABLE!\n\nConnection Type: ${connectionName}\nActual Usage Type: ${misuseName}\n\nBoth are agricultural categories. No tariff misuse detected.`);
+        warningDiv.innerHTML = `
+      <div class="flex items-center">
+        <i class="fas fa-info-circle mr-2 text-yellow-600"></i>
+        <span class="font-bold">⚠️ No Penalty Applicable!</span>
+        <span class="ml-2">Connection Type (${connectionName}) matches the Actual Usage Type (${misuseName}). No tariff misuse detected.</span>
+      </div>
+      
+    `;
+
+        // Set all values to zero
+        document.getElementById('actualTotalBill').innerHTML = '₹0';
+        document.getElementById('authorizedTotalBill').innerHTML = '₹0';
+        document.getElementById('penaltyActual').innerHTML = '₹0';
+        document.getElementById('penaltyAuthorized').innerHTML = '₹0';
+        document.getElementById('penaltyDifference').innerHTML = '₹0';
+        document.getElementById('totalPenalty').innerHTML = '₹0';
+        document.getElementById('finalMisuseAssessment').innerHTML = '₹0';
+        document.getElementById('actualBillDetails').innerHTML = '<div class="text-yellow-600 text-center py-2">⚠️ No misuse detected - Both categories are agricultural/same</div>';
+        document.getElementById('authorizedBillDetails').innerHTML = '<div class="text-green-600 text-center py-2">✓ Same category - No penalty applicable</div>';
+
+        // Update tariff info box colors to yellow
+        let connectionBox = document.getElementById('connectionInfoBox');
+        let actualBox = document.querySelector('#content6 .bg-red-100');
+        if (connectionBox) {
+          connectionBox.classList.remove('bg-green-100');
+          connectionBox.classList.add('bg-yellow-100');
+        }
+        if (actualBox) {
+          actualBox.classList.remove('bg-red-100');
+          actualBox.classList.add('bg-yellow-100');
+        }
+        return;
+      } else {
+        // Remove warning if exists
+        let warningDiv = document.getElementById('misuseWarning');
+        if (warningDiv) warningDiv.remove();
+
+        // Reset box colors
+        let connectionBox = document.getElementById('connectionInfoBox');
+        let actualBox = document.querySelector('#content6 .bg-red-100');
+        if (connectionBox) {
+          connectionBox.classList.remove('bg-yellow-100');
+          connectionBox.classList.add('bg-green-100');
+        }
+        if (actualBox) {
+          actualBox.classList.remove('bg-yellow-100');
+          actualBox.classList.add('bg-red-100');
+        }
+      }
+
+      // Update display texts
+      let connectionNames = { AGRI: 'Irrigation Pumping', ALLIED: 'Allied Agri Act (AAA)' };
+      let connectionRates = { AGRI: '₹1.50/kWh | ED@2%', ALLIED: '₹1.60/kWh | ED@4%' };
+      document.getElementById('connectionTypeDisplay').innerText = connectionNames[connectionType];
+      document.getElementById('connectionRateDisplay').innerText = connectionRates[connectionType];
+
+
+      let actualNames = {
+        DOM: 'LDHF-DOM (Domestic)',
+        GP: 'LDHF-LTGP (Commercial)',
+        AGRO: 'Agro-Industrial',
+        ALLIED: 'Allied Agri Act (AAA)'
+      };
+      let actualRateTexts = {
+        DOM: 'Slab-based ₹2.9-6.1/unit',
+        GP: 'Slab-based ₹5.9-7.6/unit',
+        AGRO: 'Flat rate ₹3.10/unit + ED@4%',
+        ALLIED: 'Flat rate ₹1.60/unit + ED@4%'
+      };
+      document.getElementById('actualType').innerText = actualNames[misuseType] || misuseType;
+      document.getElementById('actualRate').innerText = actualRateTexts[misuseType] || '';
+
+
+      // Calculate U for Actual Usage (using proportion method like COM-DOM)
+      let uActual = totalLoadKW > 0 ? totalConsumption * (actualLoadKW / totalLoadKW) : 0;
+      let uAuthorized = totalLoadKW > 0 ? totalConsumption * (authorizedLoadKW / totalLoadKW) : 0;
+
+      // ========== CALCULATE ACTUAL USAGE BILL ==========
+      let slabConfig, fcRateActual, edRateActual, ecActual, edActual, fcActual, totalActual;
+
+      if (misuseType == 'DOM') {
+        slabConfig = { rates: [2.9, 4.7, 5.7, 6.1], limits: [50, 200, 400] };
+        fcRateActual = 20;
+        edRateActual = 0.04;
+        let resActual = calculateProrated(uActual, months, slabConfig.rates, slabConfig.limits);
+        ecActual = resActual.totalEC;
+        edActual = ecActual * edRateActual;
+        fcActual = Math.ceil(actualLoadKW) * fcRateActual * months;
+        totalActual = ecActual + edActual + fcActual;
+      }
+      else if (misuseType == 'GP') {
+        slabConfig = { rates: [5.9, 7.0, 7.6], limits: [100, 300] };
+        fcRateActual = 30;
+        edRateActual = 0.04;
+        let resActual = calculateProrated(uActual, months, slabConfig.rates, slabConfig.limits);
+        ecActual = resActual.totalEC;
+        edActual = ecActual * edRateActual;
+        fcActual = Math.ceil(actualLoadKW) * fcRateActual * months;
+        totalActual = ecActual + edActual + fcActual;
+      }
+      else if (misuseType == 'AGRO') {
+        // Flat rate calculation for Agro-Industrial
+        ecActual = uActual * 3.10;
+        edRateActual = 0.04;
+        edActual = ecActual * edRateActual;
+        let extraKW = Math.max(0, Math.ceil(actualLoadKW) - 1);
+        let fcMonthly = 80 + (extraKW * 50);
+        fcActual = fcMonthly * months;
+        totalActual = ecActual + edActual + fcActual;
+      }
+      else if (misuseType == 'ALLIED') {
+        // Flat rate calculation for Allied Agri (₹1.60/unit)
+        ecActual = uActual * 1.60;
+        edRateActual = 0.04;
+        edActual = ecActual * edRateActual;
+        let extraKW = Math.max(0, Math.ceil(actualLoadKW) - 1);
+        let fcMonthly = 20 + (extraKW * 10);
+        fcActual = fcMonthly * months;
+        totalActual = ecActual + edActual + fcActual;
+      }
+
+      // ========== CALCULATE AUTHORIZED BILL (Based on connection type) ==========
+      let rateAuthorized = connectionType == 'AGRI' ? 1.5 : 1.6;
+      let edRateAuthorized = connectionType == 'AGRI' ? 0.02 : 0.04;
+
+      let ecAuthorized = uAuthorized * rateAuthorized;
+      let edAuthorized = ecAuthorized * edRateAuthorized;
+      let extraKWAuthorized = Math.max(0, Math.ceil(authorizedLoadKW) - 1);
+      let fcMonthlyAuthorized = 20 + (extraKWAuthorized * 10);
+      let fcAuthorized = fcMonthlyAuthorized * months;
+      let totalAuthorized = ecAuthorized + edAuthorized + fcAuthorized;
+
+      // ========== CALCULATE ASSESSED BILL (Using billed amounts proportion method) ==========
+      let proportion = totalLoadKW > 0 ? (actualLoadKW / totalLoadKW) : 0;
+      let assessedEC = proportion * billedEC;
+      // let assessedED = assessedEC * 0.04;
+      let assessedED = assessedEC * edRateAuthorized; // Use authorized ED rate for assessment
+      let assessedFC = billedFC * proportion;
+      let totalAssessed = assessedEC + assessedED + assessedFC;
+
+      // ========== DISPLAY ACTUAL BILL DETAILS ==========
+      if (misuseType == 'AGRO') {
+        document.getElementById('actualBillDetails').innerHTML = `
+      <div class="flex justify-between"><span>U (Allocated Units):</span><span class="font-bold">${uActual.toFixed(2)} kWh</span></div>
+      <div class="flex justify-between"><span>Energy Charge (₹3.10/unit):</span><span>₹${ecActual.toFixed(2)}</span></div>
+      <div class="flex justify-between"><span>ED @4%:</span><span>₹${edActual.toFixed(2)}</span></div>
+      <div class="flex justify-between"><span>Fixed Charge (₹80 + ₹50/extra kW):</span><span>₹${fcActual.toFixed(2)}</span></div>
+    `;
+      }
+      else if (misuseType == 'ALLIED') {
+        document.getElementById('actualBillDetails').innerHTML = `
+      <div class="flex justify-between"><span>U (Allocated Units):</span><span class="font-bold">${uActual.toFixed(2)} kWh</span></div>
+      <div class="flex justify-between"><span>Energy Charge (₹1.60/unit):</span><span>₹${ecActual.toFixed(2)}</span></div>
+      <div class="flex justify-between"><span>ED @4%:</span><span>₹${edActual.toFixed(2)}</span></div>
+      <div class="flex justify-between"><span>Fixed Charge (₹20 + ₹10/extra kW):</span><span>₹${fcActual.toFixed(2)}</span></div>
+    `;
+      }
+      else {
+        document.getElementById('actualBillDetails').innerHTML = `
+      <div class="flex justify-between"><span>U (Allocated Units):</span><span class="font-bold">${uActual.toFixed(2)} kWh</span></div>
+      <div class="flex justify-between"><span>Energy Charge:</span><span>₹${ecActual.toFixed(2)}</span></div>
+      <div class="flex justify-between"><span>ED @4%:</span><span>₹${edActual.toFixed(2)}</span></div>
+      <div class="flex justify-between"><span>Fixed Charge (₹${fcRateActual}/kW/month):</span><span>₹${fcActual.toFixed(2)}</span></div>
+    `;
+      }
+      document.getElementById('actualTotalBill').innerHTML = `₹${totalActual.toFixed(2)}`;
+
+      // ========== DISPLAY AUTHORIZED BILL DETAILS ==========
+      document.getElementById('authorizedBillDetails').innerHTML = `
+    <div class="flex justify-between"><span>U (Allocated Units):</span><span class="font-bold">${uAuthorized.toFixed(2)} kWh</span></div>
+    <div class="flex justify-between"><span>Energy Charge (₹${rateAuthorized}/unit):</span><span>₹${ecAuthorized.toFixed(2)}</span></div>
+    <div class="flex justify-between"><span>ED @${edRateAuthorized * 100}%:</span><span>₹${edAuthorized.toFixed(2)}</span></div>
+    <div class="flex justify-between"><span>Fixed Charge (₹20 + ₹10×${extraKWAuthorized}):</span><span>₹${fcAuthorized.toFixed(2)}</span></div>
+  `;
+      document.getElementById('authorizedTotalBill').innerHTML = `₹${totalAuthorized.toFixed(2)}`;
+
+      // ========== DISPLAY ASSESSED BILL (Proportion Method) ==========
+      let assessedHtml = `
+    <div class="bg-blue-50 rounded-lg p-3 mb-4 -ml-5 -mr-5">
+      <h4 class="font-bold text-blue-700 mb-2">📋 Assessed Domestic Bill (Proportionate Value)</h4>
+      <div class="flex justify-between text-sm"><span>Proportion Factor:</span><span class="font-bold">${(proportion * 100).toFixed(2)}%</span></div>
+      <div class="flex justify-between text-sm"><span>Assessed Energy Charge:</span><span>₹${assessedEC.toFixed(2)}</span></div>
+      <div class="flex justify-between text-sm"><span>Assessed ED @${edRateAuthorized * 100}%:</span><span>₹${assessedED.toFixed(2)}</span></div>
+      <div class="flex justify-between text-sm"><span>Assessed Fixed Charge:</span><span>₹${assessedFC.toFixed(2)}</span></div>
+      <div class="flex justify-between font-bold mt-2 pt-2 border-t"><span>Assessed Domestic Bill:</span><span class="text-blue-700">₹${totalAssessed.toFixed(2)}</span></div>
+    </div>
+  `;
+
+
+
+
+      // Insert/update assessed bill HTML
+      let penaltyDiv = document.querySelector('#content6 .bg-gradient-to-r.from-red-500');
+      if (penaltyDiv && !document.getElementById('assessedBillInserted')) {
+        let assessedDiv = document.createElement('div');
+        assessedDiv.id = 'assessedBillInserted';
+        assessedDiv.innerHTML = assessedHtml;
+        penaltyDiv.parentNode.insertBefore(assessedDiv, penaltyDiv);
+      } else if (document.getElementById('assessedBillInserted')) {
+        document.getElementById('assessedBillInserted').innerHTML = assessedHtml;
+      }
+
+      // ========== PENALTY CALCULATION ==========
+      let difference = totalActual - totalAssessed;
+      let penalty = (2 * totalActual) - totalAssessed;
+      let finalAssessment = penalty;
+
+      document.getElementById('penaltyActual').innerHTML = `₹${totalActual.toFixed(2)}`;
+      document.getElementById('penaltyAuthorized').innerHTML = `₹${totalAssessed.toFixed(2)}`;
+      document.getElementById('penaltyDifference').innerHTML = `₹${difference.toFixed(2)}`;
+      document.getElementById('totalPenalty').innerHTML = `₹${penalty.toFixed(2)}`;
+      document.getElementById('finalMisuseAssessment').innerHTML = `₹${finalAssessment.toFixed(2)}`;
+    }
+
+    function updateDaysMISUSE() {
+      let days = document.getElementById('assessmentDaysMISUSE').value;
+      if (days === '') return;
+      let daysNum = parseFloat(days);
+      if (isNaN(daysNum)) return;
+      let months = daysToMonths(daysNum);
+      document.getElementById('prorateFactorMISUSE').innerText = months.toFixed(3);
+      appData['MISUSE'].forEach(a => a.days = daysNum);
+      renderTable('MISUSE', 'misuseTbody', 'assessLoadMISUSE', 'assessUnitsMISUSE');
+    }
+
+    function addMisuseAppliance() {
+      appData['MISUSE'].push({
+        name: "New",
+        no: 0,
+        watt: 1,
+        days: 365,
+        hours: 24,
+        lf: 0.3
+      });
+      renderTable('MISUSE', 'misuseTbody', 'assessLoadMISUSE', 'assessUnitsMISUSE');
+    }
+
+    function resetMisuseAppliances() {
+      appData['MISUSE'] = JSON.parse(JSON.stringify(defaultPresets['MISUSE']));
+      renderTable('MISUSE', 'misuseTbody', 'assessLoadMISUSE', 'assessUnitsMISUSE');
+    }
+
+    function updateDomGPBills() {
+      ['DOM', 'GP'].forEach(type => {
+        let days = parseFloat(document.getElementById(`assessmentDays${type}`).value) || 365;
+        let months = daysToMonths(days);
+        let units = parseFloat(document.getElementById(`assessUnits${type}`).innerText) || 0;
+
+        let slabConfig = type == 'DOM'
+          ? { rates: [2.9, 4.7, 5.7, 6.1], limits: [50, 200, 400], labels: ['0-50', '51-200', '201-400', 'Above 400'] }
+          : { rates: [5.9, 7.0, 7.6], limits: [100, 300], labels: ['0-100', '101-300', 'Above 300'] };
+
+        let res = calculateProrated(units, months, slabConfig.rates, slabConfig.limits);
+
+        let tbody = type == 'DOM' ? document.getElementById('domSlabBody') : document.getElementById('gpSlabBody');
+        if (tbody) {
+          tbody.innerHTML = '';
+          for (let i = 0; i < res.slabs.length; i++) {
+            let slabLabel = slabConfig.labels[i] || `Slab ${i + 1}`;
+            let rate = slabConfig.rates[Math.min(i, slabConfig.rates.length - 1)];
+
+            tbody.innerHTML += `
+          <tr class="border-b border-gray-200">
+            <td class="px-3 py-2 text-sm font-medium text-gray-700">${slabLabel}</td>
+            <td class="px-3 py-2 text-sm text-center text-gray-600">${res.slabs[i].toFixed(2)}</td>
+            <td class="px-3 py-2 text-sm text-center text-gray-600">₹${rate.toFixed(2)}</td>
+            <td class="px-3 py-2 text-sm text-center font-semibold text-orange-600">₹${res.amounts[i].toFixed(2)}</td>
+           </tr>
+        `;
+          }
+        }
+        let ec = res.totalEC;
+        let tempSurcharge = 0;
+        if (document.getElementById(`tempSupply${type}`).checked) {
+          tempSurcharge = ec * 0.10;
+          ec += tempSurcharge;
+        }
+
+        document.getElementById(`totalUnits${type}`).innerText = units.toFixed(2);
+        document.getElementById(`ec${type}`).innerText = ec.toFixed(2);
+        document.getElementById(`tempSurcharge${type}`).innerText = `₹${tempSurcharge.toFixed(2)}`;
+
+        let ed = (tempSurcharge + res.totalEC) * 0.04;
+        document.getElementById(`ed${type}`).innerText = ed.toFixed(2);
+
+        let loadKW = (parseFloat(document.getElementById(`assessLoad${type}`).innerText) || 0) / 1000;
+        let ceilLoad = Math.ceil(loadKW);
+        let fcRate = parseFloat(document.getElementById(`fcRate${type}`).value) || (type == 'DOM' ? 20 : 30);
+        let fcTotal = ceilLoad * fcRate * months;
+        document.getElementById(`fcTotal${type}`).innerText = fcTotal.toFixed(2);
+
+        let total = ec + ed + fcTotal;
+        document.getElementById(`totalBill${type}`).innerText = total.toFixed(2);
+        document.getElementById(`twice${type}`).innerText = (total * 2).toFixed(2);
+
+        let deduct = parseFloat(document.getElementById(`deduct${type}`).value) || 0;
+        document.getElementById(`assessment${type}`).innerText = (total * 2 - deduct).toFixed(2);
+        document.getElementById(`detectedLoad${type}`).value = loadKW.toFixed(3);
+        if (type === 'DOM') {
+          document.getElementById('bigAssessmentDOM').innerText = (total * 2 - deduct).toFixed(2);
+        }
+        if (type === 'GP') {
+          document.getElementById('bigAssessmentGP').innerText = (total * 2 - deduct).toFixed(2);
+        }
+        document.getElementById(`prorateFactor${type}`).innerText = months.toFixed(3);
+      });
+    }
+
+    function updateDaysDOM() {
+      let days = document.getElementById('assessmentDaysDOM').value;
+      if (days === '') return;
+      let daysNum = parseFloat(days);
+      if (isNaN(daysNum)) return;
+      let months = daysToMonths(daysNum);
+      document.getElementById('prorateFactorDOM').innerText = months.toFixed(3);
+      appData['DOM'].forEach(a => a.days = daysNum);
+      renderTable('DOM', 'domTbody', 'assessLoadDOM', 'assessUnitsDOM');
+    }
+
+    function updateDaysGP() {
+      let days = document.getElementById('assessmentDaysGP').value;
+      if (days === '') return;
+      let daysNum = parseFloat(days);
+      if (isNaN(daysNum)) return;
+      let months = daysToMonths(daysNum);
+      document.getElementById('prorateFactorGP').innerText = months.toFixed(3);
+      appData['GP'].forEach(a => a.days = daysNum);
+      renderTable('GP', 'gpTbody', 'assessLoadGP', 'assessUnitsGP');
+    }
+
+    function renderComDom() {
+      let comBody = document.getElementById('comTbody');
+      comBody.innerHTML = '';
+      comApps.forEach((app, idx) => {
+        let row = comBody.insertRow();
+        row.innerHTML = `
+                <td><input type="text" value="${app.name}" class="w-28 border rounded p-1 text-xs" onchange="updateComApp(${idx},'name',this.value)"></td>
+                <td><input type="number" value="${app.no}" min="0" class="w-12 text-center border rounded" onchange="updateComApp(${idx},'no',parseFloat(this.value)||0)"></td>
+                <td><input type="number" value="${app.watt}" class="w-16 text-center border rounded" onchange="updateComApp(${idx},'watt',parseFloat(this.value)||0)"></td>
+                <td class="com-load-val">${app.no * app.watt}</td>
+                <td><i class="fas fa-trash-alt delete-appliance" onclick="deleteComApp(${idx})"></i></td>
+            `;
+      });
+
+      let domBody = document.getElementById('domComTbody');
+      domBody.innerHTML = '';
+      domApps.forEach((app, idx) => {
+        let row = domBody.insertRow();
+        row.innerHTML = `
+                <td><input type="text" value="${app.name}" class="w-28 border rounded p-1 text-xs" onchange="updateDomApp(${idx},'name',this.value)"></td>
+                <td><input type="number" value="${app.no}" min="0" class="w-14 text-center border rounded" onchange="updateDomApp(${idx},'no',parseFloat(this.value)||0)"></td>
+                <td><input type="number" value="${app.watt}" class="w-16 text-center border rounded" onchange="updateDomApp(${idx},'watt',parseFloat(this.value)||0)"></td>
+                <td class="dom-load-val">${app.no * app.watt}</td>
+                <td><i class="fas fa-trash-alt delete-appliance" onclick="deleteDomApp(${idx})"></i></td>
+            `;
+      });
+      calcComDom();
+      toggleDomFixedChargeVisibility();
+    }
+
+    function updateComApp(idx, field, val) {
+      comApps[idx][field] = val;
+      renderComDom();
+    }
+
+    function updateDomApp(idx, field, val) {
+      domApps[idx][field] = val;
+      renderComDom();
+      toggleDomFixedChargeVisibility();
+    }
+
+    function addComAppliance() {
+      comApps.push({ name: "New", no: 0, watt: 1 });
+      renderComDom();
+    }
+
+    function addDomAppliance() {
+      domApps.push({ name: "New", no: 0, watt: 1 });
+      renderComDom();
+      toggleDomFixedChargeVisibility()
+    }
+
+    function deleteComApp(idx) {
+      comApps.splice(idx, 1);
+      renderComDom();
+    }
+
+    function deleteDomApp(idx) {
+      domApps.splice(idx, 1);
+      renderComDom();
+      toggleDomFixedChargeVisibility();
+    }
+
+    function resetComAppliances() {
+      comApps = [
+        { name: "LED", no: 0, watt: 9 },
+        { name: "FAN", no: 0, watt: 70 }
+      ];
+      renderComDom();
+    }
+
+    function resetDomAppliances() {
+      domApps = [
+        { name: "LED", no: 0, watt: 9 },
+        { name: "FAN", no: 0, watt: 70 }
+      ];
+      renderComDom();
+      toggleDomFixedChargeVisibility();
+    }
+
+    function calcComDom() {
+      let comLoadW = comApps.reduce((s, a) => s + (a.no * a.watt), 0);
+      let domLoadW = domApps.reduce((s, a) => s + (a.no * a.watt), 0);
+      let b_kw = comLoadW / 1000, d_kw = domLoadW / 1000, c_kw = b_kw + d_kw;
+      let a = parseFloat(document.getElementById('a').value) || 0;
+      let days = parseFloat(document.getElementById('assessmentDaysCOM').value) || 365;
+      let months = daysToMonths(days);
+
+      document.getElementById('prorateFactorCOM').innerText = months.toFixed(3);
+
+      let uCom = c_kw > 0 ? a * (b_kw / c_kw) : 0;
+      let uDom = c_kw > 0 ? a * (d_kw / c_kw) : 0;
+
+      document.getElementById('uComVal').innerText = uCom.toFixed(2);
+      document.getElementById('comLoadKW').innerText = b_kw.toFixed(3);
+      document.getElementById('domLoadKW').innerText = d_kw.toFixed(3);
+
+      let comSlabConfig = { rates: [5.9, 7.0, 7.6], limits: [100, 300], labels: ['0-100', '101-300', 'Above 300'] };
+      let comRes = calculateProrated(uCom, months, comSlabConfig.rates, comSlabConfig.limits);
+
+      let comSlabBody = document.getElementById('comSlabBody');
+      if (comSlabBody) {
+        comSlabBody.innerHTML = '';
+        if (uCom > 0) {
+          for (let i = 0; i < comRes.slabs.length; i++) {
+            let slabLabel = comSlabConfig.labels[i];
+            let rate = comSlabConfig.rates[Math.min(i, comSlabConfig.rates.length - 1)];
+            comSlabBody.innerHTML += `
+            <tr class="border-b border-gray-200">
+              <td class="px-3 py-2 text-sm">${slabLabel}</td>
+              <td class="px-3 py-2 text-sm text-right">${comRes.slabs[i].toFixed(2)}</td>
+              <td class="px-3 py-2 text-sm text-right">₹${rate.toFixed(2)}</td>
+              <td class="px-3 py-2 text-sm text-right font-semibold">₹${comRes.amounts[i].toFixed(2)}</td>
+              </tr>
+          `;
+          }
+        } else {
+          comSlabBody.innerHTML = '<tr><td colspan="4" class="text-center py-2 text-gray-500">Enter values to see slab breakdown</td></tr>';
+        }
+      }
+
+      let domBilledEC = parseFloat(document.getElementById('domBilledEC').value) || 0;
+      let domBilledFC = parseFloat(document.getElementById('domBilledFC').value) || 0;
+
+      let proportion = c_kw > 0 ? (b_kw / c_kw) : 0;
+      let assessedEC = proportion * domBilledEC;
+      let assessedED = assessedEC * 0.04;
+      let assessedFC = domBilledFC * proportion;
+      let domTotal = assessedEC + assessedED + assessedFC;
+
+      let domSlabBody = document.getElementById('comDomSlabBody');
+      if (domSlabBody) {
+        domSlabBody.innerHTML = `
+        <tr class="border-b border-gray-200 bg-green-50">
+          <td colspan="4" class="px-3 py-3 text-center font-semibold text-green-700">
+            📊 Domestic Bill Calculation (Proportion Method)
+            </td>
+          </tr>
+        <tr class="border-b border-gray-200">
+          <td class="px-3 py-2 text-sm font-medium">Proportion Factor (Domestic/Total Load)</td>
+          <td class="px-3 py-2 text-sm text-right" colspan="3">${proportion.toFixed(6)}</td>
+          </tr>
+        <tr class="border-b border-gray-200">
+          <td class="px-3 py-2 text-sm font-medium">Assessed Energy Charge</td>
+          <td class="px-3 py-2 text-sm text-right" colspan="3">₹${assessedEC.toFixed(2)}</td>
+          </tr>
+        <tr class="border-b border-gray-200">
+          <td class="px-3 py-2 text-sm font-medium">Assessed ED @4%</td>
+          <td class="px-3 py-2 text-sm text-right" colspan="3">₹${assessedED.toFixed(2)}</td>
+          </tr>
+        <tr class="border-b border-gray-200">
+          <td class="px-3 py-2 text-sm font-medium">Assessed Fixed Charge</td>
+          <td class="px-3 py-2 text-sm text-right" colspan="3">₹${assessedFC.toFixed(2)}</td>
+          </tr>
+        <tr class="bg-green-100">
+          <td class="px-3 py-2 text-sm font-bold">Domestic Bill Total</td>
+          <td class="px-3 py-2 text-sm text-right font-bold text-green-700" colspan="3">₹${domTotal.toFixed(2)}</td>
+          </tr>
+      `;
+      }
+
+      let comFixed = Math.ceil(b_kw) * 30 * months;
+      let comTotal = comRes.totalEC + (comRes.totalEC * 0.04) + comFixed;
+
+      document.getElementById('comTotal').innerText = comTotal.toFixed(2);
+      document.getElementById('domTotal').innerText = domTotal.toFixed(2);
+
+      let final = (2 * comTotal) - domTotal;
+      document.getElementById('finalAssessment').innerText = final.toFixed(2);
+
+      let comHtml = `
+      <div class="space-y-1">
+        <div class="flex justify-between text-base"><span>Energy Charge:</span><span class="font-semibold">₹${comRes.totalEC.toFixed(2)}</span></div>
+        <div class="flex justify-between text-base"><span>ED @4%:</span><span>₹${(comRes.totalEC * 0.04).toFixed(2)}</span></div>
+        <div class="flex justify-between text-base"><span>Fixed Charge (₹30/kW/month):</span><span>₹${comFixed.toFixed(2)}</span></div>
+        <div class="flex justify-between font-bold border-t pt-2 mt-2 text-lg"><span>Commercial Total:</span><span class="text-orange-600">₹${comTotal.toFixed(2)}</span></div>
+      </div>
+    `;
+
+      let domHtml = `
+      <div class="space-y-1">
+        <div class="flex justify-between text-base"><span>Assessed Energy Charge:</span><span class="font-semibold">₹${assessedEC.toFixed(2)}</span></div>
+        <div class="flex justify-between text-base"><span>Assessed ED @4%:</span><span>₹${assessedED.toFixed(2)}</span></div>
+        <div class="flex justify-between text-base"><span>Assessed Fixed Charge:</span><span>₹${assessedFC.toFixed(2)}</span></div>
+        <div class="flex justify-between font-bold border-t pt-2 mt-2 text-lg"><span>Domestic Total:</span><span class="text-green-600">₹${domTotal.toFixed(2)}</span></div>
+        <div class="text-xs text-gray-500 mt-2 text-base">Proportion: ${(proportion * 100).toFixed(2)}%</div>
+      </div>
+    `;
+
+      document.getElementById('comBillDetail').innerHTML = comHtml;
+      document.getElementById('domBillDetail').innerHTML = domHtml;
+    }
+
+    function toggleDomFixedChargeVisibility() {
+      // Function kept for compatibility
+    }
+
+    function updateDaysCOM() {
+      calcComDom();
+    }
+
+    function calcFixedChargeAgri(loadKW, months) {
+      let ceilKW = Math.ceil(loadKW);
+      let extra = Math.max(0, ceilKW - 1);
+      let monthly = 20 + (extra * 10);
+      let total = monthly * months;
+      return { monthly, total, ceilKW };
+    }
+
+    function calcFixedChargeAgro(loadKW, months) {
+      let ceilKW = Math.ceil(loadKW);
+      let extra = Math.max(0, ceilKW - 1);
+      let monthly = 80 + (extra * 50);
+      return { monthly, total: monthly * months, ceilKW };
+    }
+
+    function updateAgri() {
+      let type = 'AGRI';
+      let days = parseFloat(document.getElementById(`assessmentDays${type}`).value) || 365;
+      let months = daysToMonths(days);
+      let units = parseFloat(document.getElementById(`assessUnits${type}`).innerText) || 0;
+      let loadKW = (parseFloat(document.getElementById(`assessLoad${type}`).innerText) || 0) / 1000;
+
+      let ec = units * 1.5;
+      let tempSurcharge = 0;
+      if (document.getElementById(`tempSupply${type}`).checked) {
+        tempSurcharge = ec * 0.10;
+        ec += tempSurcharge;
+      }
+
+      let ed = ((units * 1.5) + tempSurcharge) * 0.02;
+      let { monthly, total: fc, ceilKW } = calcFixedChargeAgri(loadKW, months);
+
+      document.getElementById(`totalUnits${type}`).innerText = units.toFixed(2);
+      document.getElementById(`ec${type}`).innerText = ec.toFixed(2);
+      document.getElementById(`tempSurcharge${type}`).innerText = `₹${tempSurcharge.toFixed(2)}`;
+      document.getElementById(`ed${type}`).innerText = ed.toFixed(2);
+      document.getElementById(`fcTotal${type}`).innerText = fc.toFixed(2);
+      document.getElementById(`fcDetail${type}`).innerHTML = `₹20 + ₹10×${ceilKW - 1} = ₹${monthly} monthly`;
+
+      let total = ec + ed + fc;
+      document.getElementById(`totalBill${type}`).innerText = total.toFixed(2);
+      document.getElementById(`detectedLoad${type}`).value = loadKW.toFixed(3);
+      document.getElementById(`prorateFactor${type}`).innerText = months.toFixed(3);
+
+      let twice = total * 2;
+      let deduct = parseFloat(document.getElementById(`deduct${type}`).value) || 0;
+      document.getElementById(`twice${type}`).innerText = twice.toFixed(2);
+      document.getElementById(`assessment${type}`).innerText = (twice - deduct).toFixed(2);
+    }
+
+    function updateAllied() {
+      let type = 'ALLIED';
+      let days = parseFloat(document.getElementById(`assessmentDays${type}`).value) || 365;
+      let months = daysToMonths(days);
+      let units = parseFloat(document.getElementById(`assessUnits${type}`).innerText) || 0;
+      let loadKW = (parseFloat(document.getElementById(`assessLoad${type}`).innerText) || 0) / 1000;
+
+      let ec = units * 1.6;
+      let tempSurcharge = 0;
+      if (document.getElementById(`tempSupply${type}`).checked) {
+        tempSurcharge = ec * 0.10;
+        ec += tempSurcharge;
+      }
+
+      let ed = ((units * 1.6) + tempSurcharge) * 0.04;
+      let { monthly, total: fc, ceilKW } = calcFixedChargeAgri(loadKW, months);
+
+      document.getElementById(`totalUnits${type}`).innerText = units.toFixed(2);
+      document.getElementById(`ec${type}`).innerText = ec.toFixed(2);
+      document.getElementById(`tempSurcharge${type}`).innerText = `₹${tempSurcharge.toFixed(2)}`;
+      document.getElementById(`ed${type}`).innerText = ed.toFixed(2);
+      document.getElementById(`fcTotal${type}`).innerText = fc.toFixed(2);
+      document.getElementById(`fcDetail${type}`).innerHTML = `₹20 + ₹10×${ceilKW - 1} = ₹${monthly} monthly`;
+
+      let total = ec + ed + fc;
+      document.getElementById(`totalBill${type}`).innerText = total.toFixed(2);
+      document.getElementById(`detectedLoad${type}`).value = loadKW.toFixed(3);
+      document.getElementById(`prorateFactor${type}`).innerText = months.toFixed(3);
+
+      let twice = total * 2;
+      let deduct = parseFloat(document.getElementById(`deduct${type}`).value) || 0;
+      document.getElementById(`twice${type}`).innerText = twice.toFixed(2);
+      document.getElementById(`assessment${type}`).innerText = (twice - deduct).toFixed(2);
+    }
+
+    function updateAgro() {
+      let type = 'AGRO';
+      let days = parseFloat(document.getElementById(`assessmentDays${type}`).value) || 365;
+      let months = daysToMonths(days);
+      let units = parseFloat(document.getElementById(`assessUnits${type}`).innerText) || 0;
+      let loadKW = (parseFloat(document.getElementById(`assessLoad${type}`).innerText) || 0) / 1000;
+
+      let ec = units * 3.1;
+      let tempSurcharge = 0;
+      if (document.getElementById(`tempSupply${type}`).checked) {
+        tempSurcharge = ec * 0.10;
+        ec += tempSurcharge;
+      }
+
+      let ed = ((units * 3.1) + tempSurcharge) * 0.04;
+      let { monthly, total: fc, ceilKW } = calcFixedChargeAgro(loadKW, months);
+
+      document.getElementById(`totalUnits${type}`).innerText = units.toFixed(2);
+      document.getElementById(`ec${type}`).innerText = ec.toFixed(2);
+      document.getElementById(`tempSurcharge${type}`).innerText = `₹${tempSurcharge.toFixed(2)}`;
+      document.getElementById(`ed${type}`).innerText = ed.toFixed(2);
+      document.getElementById(`fcTotal${type}`).innerText = fc.toFixed(2);
+      document.getElementById(`fcDetail${type}`).innerHTML = `₹80 + ₹50×${ceilKW - 1} = ₹${monthly} monthly`;
+
+      let total = ec + ed + fc;
+      document.getElementById(`totalBill${type}`).innerText = total.toFixed(2);
+      document.getElementById(`detectedLoad${type}`).value = loadKW.toFixed(3);
+      document.getElementById(`prorateFactor${type}`).innerText = months.toFixed(3);
+
+      let twice = total * 2;
+      let deduct = parseFloat(document.getElementById(`deduct${type}`).value) || 0;
+      document.getElementById(`twice${type}`).innerText = twice.toFixed(2);
+      document.getElementById(`assessment${type}`).innerText = (twice - deduct).toFixed(2);
+    }
+
+    function updateDaysAGRI() {
+      let days = document.getElementById('assessmentDaysAGRI').value;
+      if (days === '') return;
+      let daysNum = parseFloat(days);
+      if (isNaN(daysNum)) return;
+      let months = daysToMonths(daysNum);
+      document.getElementById('prorateFactorAGRI').innerText = months.toFixed(3);
+      appData['AGRI'].forEach(a => a.days = daysNum);
+      renderTable('AGRI', 'agriTbody', 'assessLoadAGRI', 'assessUnitsAGRI');
+    }
+
+    function updateDaysALLIED() {
+      let days = document.getElementById('assessmentDaysALLIED').value;
+      if (days === '') return;
+      let daysNum = parseFloat(days);
+      if (isNaN(daysNum)) return;
+      let months = daysToMonths(daysNum);
+      document.getElementById('prorateFactorALLIED').innerText = months.toFixed(3);
+      appData['ALLIED'].forEach(a => a.days = daysNum);
+      renderTable('ALLIED', 'alliedTbody', 'assessLoadALLIED', 'assessUnitsALLIED');
+    }
+
+    function updateDaysAGRO() {
+      let days = document.getElementById('assessmentDaysAGRO').value;
+      if (days === '') return;
+      let daysNum = parseFloat(days);
+      if (isNaN(daysNum)) return;
+      let months = daysToMonths(daysNum);
+      document.getElementById('prorateFactorAGRO').innerText = months.toFixed(3);
+      appData['AGRO'].forEach(a => a.days = daysNum);
+      renderTable('AGRO', 'agroTbody', 'assessLoadAGRO', 'assessUnitsAGRO');
+    }
+
+    function showTab(n) {
+      for (let i = 0; i <= 6; i++) {
+        document.getElementById(`content${i}`).classList.add('hidden');
+        document.getElementById(`tab${i}`).classList.remove('tab-active');
+      }
+      document.getElementById(`content${n}`).classList.remove('hidden');
+      document.getElementById(`tab${n}`).classList.add('tab-active');
+
+      if (n == 0 || n == 1) updateDomGPBills();
+      if (n == 2) calcComDom();
+      if (n == 3) updateAgri();
+      if (n == 4) updateAllied();
+      if (n == 5) updateAgro();
+      if (n == 6) updateMisuseAssessment();
+    }
+
+    function downloadPDF(tabId) {
+      if (tabId == 0 || tabId == 1) updateDomGPBills();
+      if (tabId == 2) {
+        calcComDom();
+        setTimeout(() => calcComDom(), 50);
+        setTimeout(() => calcComDom(), 100);
+      }
+      if (tabId == 3) updateAgri();
+      if (tabId == 4) updateAllied();
+      if (tabId == 5) updateAgro();
+      if (tabId == 6) updateMisuseAssessment();
+
+      let tabNames = ['LDHF-DOM', 'LDHF-LTGP', 'COM-DOM', 'Irrigation_Pumping', 'Allied_Agri', 'Agro_Industrial', 'Misuse_of_Tariff'];
+      let tabName = tabNames[tabId];
+
+      let now = new Date();
+      let dateStr = now.toLocaleDateString('en-IN');
+      let timeStr = now.toLocaleTimeString('en-IN');
+
+      let doc = document.createElement('div');
+      doc.style.width = '100%';
+      doc.style.maxWidth = '800px';
+      doc.style.margin = '0';
+      doc.style.padding = '0';
+      doc.style.backgroundColor = '#ffffff';
+      doc.style.fontFamily = 'Arial, sans-serif';
+
+      let resetStyle = document.createElement('style');
+      resetStyle.textContent = '*{margin:0!important;padding:0!important;box-sizing:border-box!important;} body, div, h1, h2, h3, h4, p, table { margin:0!important; padding:0!important; }';
+      doc.appendChild(resetStyle);
+
+      let wrapper = document.createElement('div');
+      wrapper.style.padding = '15px';
+      wrapper.style.margin = '0';
+      wrapper.style.width = '100%';
+      wrapper.style.boxSizing = 'border-box';
+
+      let header = document.createElement('div');
+      header.style.textAlign = 'center';
+      header.style.marginBottom = '10px';
+      header.style.padding = '15px';
+      header.style.fontFamily = 'verdana';
+      header.style.fontWeight = 'bold';
+      header.style.background = 'linear-gradient(135deg, #ede9fe, #f5d0fe, #fbcfe8)';
+      header.style.color = '#4c1d95';
+      header.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+      header.style.borderRadius = '8px';
+      header.innerHTML = `
+    <h1 style="font-size: 24px; margin: 0 0 8px 0;">Electricity Penalty Assessment</h1>
+    <p style="font-size: 14px; margin: 0;">${tabName}</p>
+    <p style="font-size: 11px; margin: 8px 0 0 0;">Generated on: ${dateStr} at ${timeStr}</p>
+  `;
+      wrapper.appendChild(header);
+
+      // For Misuse of Tariff tab
+      if (tabId === 6) {
+        let days = document.getElementById('assessmentDaysMISUSE').value;
+        let months = document.getElementById('prorateFactorMISUSE').innerText;
+        let units = document.getElementById('assessUnitsMISUSE').innerText;
+        let loadKW = document.getElementById('assessLoadMISUSE_kW').innerText;
+        let connectionType = document.getElementById('connectionTypeSelect').value;
+        let misuseType = document.getElementById('misuseType').value;
+        let connectionName = connectionType == 'AGRI' ? 'Irrigation Pumping' : 'Allied Agri Act (AAA)';
+        let actualTypeName = misuseType == 'DOM' ? 'LDHF-DOM (Domestic)' : 'LDHF-LTGP (Commercial)';
+
+        // Get calculated values
+        let actualTotal = document.getElementById('actualTotalBill').innerText;
+        let authorizedTotal = document.getElementById('authorizedTotalBill').innerText;
+        let penalty = document.getElementById('totalPenalty').innerText;
+        let deduction = document.getElementById('deductMISUSE').value || '0';
+        let finalAssessment = document.getElementById('finalMisuseAssessment').innerText;
+
+        let misuseHTML = `
+          <div style="background:#fef2f2;border:2px solid #dc2626;border-radius:10px;padding:20px;margin-bottom:20px;">
+            <h2 style="color:#dc2626;font-size:18px;margin-bottom:15px;">⚠️ Misuse of Tariff Assessment</h2>
+            <div style="margin-bottom:15px;">
+              <p><strong>Assessment Period:</strong> ${days} Days (${months} Months)</p>
+              <p><strong>Total Units Consumed:</strong> ${units} kWh</p>
+              <p><strong>Detected Load:</strong> ${loadKW} kW</p>
+              <p><strong>Connection Taken As:</strong> ${connectionName}</p>
+              <p><strong>Actually Used As:</strong> ${actualTypeName}</p>
+            </div>
+            
+            <div style="background:white;border-radius:8px;padding:15px;margin:15px 0;">
+              <h3 style="font-weight:bold;margin-bottom:10px;">Bill as per Actual Usage (Misuse Tariff)</h3>
+              <div id="pdfActualDetails"></div>
+              <div style="border-top:1px solid #ccc;margin-top:10px;padding-top:10px;font-weight:bold;">Total: ${actualTotal}</div>
+            </div>
+            
+            <div style="background:white;border-radius:8px;padding:15px;margin:15px 0;">
+              <h3 style="font-weight:bold;margin-bottom:10px;">Bill as per Authorized Connection</h3>
+              <div id="pdfAuthorizedDetails"></div>
+              <div style="border-top:1px solid #ccc;margin-top:10px;padding-top:10px;font-weight:bold;">Total: ${authorizedTotal}</div>
+            </div>
+            
+            <div style="background:linear-gradient(135deg,#dc2626,#ea580c);color:white;border-radius:8px;padding:15px;margin:15px 0;">
+              <h3 style="font-weight:bold;margin-bottom:10px;">Penalty Calculation</h3>
+              <p>Difference (Actual − Authorized): ${actualTotal} − ${authorizedTotal} = ${penalty.replace('₹', '₹')}</p>
+              <p>Penalty (2 × Difference) = ${penalty}</p>
+              <p>Deduction = ₹${deduction}</p>
+              <div style="border-top:1px solid white;margin-top:10px;padding-top:10px;font-size:18px;font-weight:bold;">Final Assessment = ${finalAssessment}</div>
+            </div>
+          </div>
+        `;
+        wrapper.innerHTML += misuseHTML;
+
+        // Add appliance table
+        let appliances = appData['MISUSE'];
+        if (appliances && appliances.length > 0) {
+          let appTable = '<h3 style="font-size:14px;font-weight:bold;margin:15px 0 10px 0;">🔌 Appliances Found During Inspection</h3><table style="width:100%;border-collapse:collapse;font-size:10px;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">Appliance</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">Qty</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">Watt</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">Hrs/Day</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">LF</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">Units</th></tr></thead><tbody>';
+          appliances.forEach(app => {
+            let unitsVal = (app.no * app.watt * (app.days || days) * app.hours * app.lf) / 1000;
+            appTable += `<tr><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${app.name}</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${app.no}</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${app.watt}</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${app.hours}</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${app.lf}</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${unitsVal.toFixed(2)}</td></tr>`;
+          });
+          appTable += '</tbody></table>';
+          wrapper.innerHTML += appTable;
+        }
+      }
+      // For other tabs (keeping existing logic)
+      else if (tabId === 0 || tabId === 1) {
+        let type = tabId === 0 ? 'DOM' : 'GP';
+        let days = document.getElementById(`assessmentDays${type}`).value;
+        let months = document.getElementById(`prorateFactor${type}`).innerText;
+        let detectedLoad = document.getElementById(`detectedLoad${type}`).value;
+
+        let infoCard = document.createElement('div');
+        infoCard.style.backgroundColor = '#f8fafc';
+        infoCard.style.border = '1px solid #f97316';
+        infoCard.style.borderRadius = '8px';
+        infoCard.style.padding = '15px';
+        infoCard.style.marginBottom = '20px';
+        infoCard.innerHTML = `
+      <h3 style="font-size: 16px; font-weight: bold; margin: 0 0 10px 0; color: #f97316;">📋 Assessment Details</h3>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Assessment Period:</span><span style="font-weight: bold;">${days} Days (${months} Months)</span></div>
+      <div style="display: flex; justify-content: space-between;"><span>Detected Load:</span><span style="font-weight: bold;">${detectedLoad} kW</span></div>
+    `;
+        wrapper.appendChild(infoCard);
+
+        let slabTable = document.createElement('table');
+        slabTable.style.width = '100%';
+        slabTable.style.borderCollapse = 'collapse';
+        slabTable.style.marginBottom = '20px';
+        slabTable.style.fontSize = '11px';
+
+        let thead = document.createElement('thead');
+        let headerRow = document.createElement('tr');
+        headerRow.style.backgroundColor = '#f3f4f6';
+        ['Monthly Slab', 'Prorated Units', 'Rate (₹)', 'Amount (₹)'].forEach(text => {
+          let th = document.createElement('th');
+          th.textContent = text;
+          th.style.padding = '10px';
+          th.style.border = '1px solid #e5e7eb';
+          th.style.textAlign = 'center';
+          th.style.fontWeight = 'bold';
+          th.style.verticalAlign = 'middle';
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        slabTable.appendChild(thead);
+
+        let tbody = document.createElement('tbody');
+        let slabBody = tabId === 0 ? document.getElementById('domSlabBody') : document.getElementById('gpSlabBody');
+        if (slabBody) {
+          let rows = slabBody.querySelectorAll('tr');
+          rows.forEach(row => {
+            let cells = row.querySelectorAll('td');
+            if (cells.length > 0) {
+              let tr = document.createElement('tr');
+              cells.forEach(cell => {
+                let td = document.createElement('td');
+                td.textContent = cell.innerText.trim();
+                td.style.padding = '8px';
+                td.style.border = '1px solid #e5e7eb';
+                td.style.textAlign = 'center';
+                td.style.verticalAlign = 'middle';
+                tr.appendChild(td);
+              });
+              tbody.appendChild(tr);
+            }
+          });
+        }
+        slabTable.appendChild(tbody);
+        wrapper.appendChild(slabTable);
+
+        let totalUnits = document.getElementById(`totalUnits${type}`).innerText;
+        let ec = document.getElementById(`ec${type}`).innerText;
+        let tempSurcharge = document.getElementById(`tempSurcharge${type}`).innerText;
+        let ed = document.getElementById(`ed${type}`).innerText;
+        let fcTotal = document.getElementById(`fcTotal${type}`).innerText;
+        let totalBill = document.getElementById(`totalBill${type}`).innerText;
+
+        let billCard = document.createElement('div');
+        billCard.style.backgroundColor = '#f8fafc';
+        billCard.style.border = '1px solid #e5e7eb';
+        billCard.style.borderRadius = '8px';
+        billCard.style.padding = '15px';
+        billCard.style.marginBottom = '20px';
+        billCard.innerHTML = `
+      <h3 style="font-size: 16px; font-weight: bold; margin: 0 0 10px 0; color: #f97316;">💰 Bill Calculation</h3>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Total Units:</span><span style="font-weight: bold;">${totalUnits} kWh</span></div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Energy Charge:</span><span style="font-weight: bold;">₹${ec}</span></div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Temporary Surcharge:</span><span style="font-weight: bold;">${tempSurcharge}</span></div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>ED @4%:</span><span style="font-weight: bold;">₹${ed}</span></div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Fixed Charge Total:</span><span style="font-weight: bold;">₹${fcTotal}</span></div>
+      <div style="border-top: 1px solid #e5e7eb; margin: 8px 0; padding-top: 8px; display: flex; justify-content: space-between;"><span style="font-weight: bold;">Total Bill:</span><span style="font-weight: bold; color: #f97316;">₹${totalBill}</span></div>
+    `;
+        wrapper.appendChild(billCard);
+
+        let twiceBill = document.getElementById(`twice${type}`).innerText;
+        let deduction = document.getElementById(`deduct${type}`).value || '0';
+        let assessment = document.getElementById(`assessment${type}`).innerText;
+
+        let penaltyCard = document.createElement('div');
+        penaltyCard.style.backgroundColor = '#fef3c7';
+        penaltyCard.style.border = '2px solid #f97316';
+        penaltyCard.style.borderRadius = '8px';
+        penaltyCard.style.padding = '15px';
+        penaltyCard.style.marginBottom = '20px';
+        penaltyCard.innerHTML = `
+      <h3 style="font-size: 16px; font-weight: bold; margin: 0 0 10px 0; color: #f97316;">⚖️ Penalty Assessment</h3>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Twice the Bill (2 × Total Bill):</span><span style="font-weight: bold;">₹${twiceBill}</span></div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span>Deduction:</span><span style="font-weight: bold;">₹${deduction}</span></div>
+      <div style="border-top: 2px solid #f97316; margin: 10px 0; padding-top: 10px; display: flex; justify-content: space-between;"><span style="font-size: 14px; font-weight: bold;">Total Assessment Amount:</span><span style="font-size: 18px; font-weight: bold; color: #dc2626;">₹${assessment}</span></div>
+    `;
+        wrapper.appendChild(penaltyCard);
+
+        let appliances = appData[type];
+        if (appliances && appliances.length > 0) {
+          let appHeader = document.createElement('h3');
+          appHeader.style.fontSize = '16px';
+          appHeader.style.fontWeight = 'bold';
+          appHeader.style.margin = '20px 0 10px 0';
+          appHeader.style.color = '#f97316';
+          appHeader.innerHTML = '🔌 Appliances Summary';
+          wrapper.appendChild(appHeader);
+
+          let appTable = document.createElement('table');
+          appTable.style.width = '100%';
+          appTable.style.borderCollapse = 'collapse';
+          appTable.style.fontSize = '10px';
+
+          let appThead = document.createElement('thead');
+          let appHeaderRow = document.createElement('tr');
+          appHeaderRow.style.backgroundColor = '#f3f4f6';
+          ['Appliance', 'Qty', 'Watt', 'Days', 'Hrs/Day', 'LF', 'Units (kWh)'].forEach(text => {
+            let th = document.createElement('th');
+            th.textContent = text;
+            th.style.padding = '8px';
+            th.style.border = '1px solid #e5e7eb';
+            th.style.textAlign = 'center';
+            th.style.fontWeight = 'bold';
+            th.style.verticalAlign = 'middle';
+            appHeaderRow.appendChild(th);
+          });
+          appThead.appendChild(appHeaderRow);
+          appTable.appendChild(appThead);
+
+          let appTbody = document.createElement('tbody');
+          appliances.forEach(app => {
+            let units = (app.no * app.watt * (app.days || days) * app.hours * app.lf) / 1000;
+            let tr = document.createElement('tr');
+            [app.name, app.no, app.watt, (app.days || days), app.hours, app.lf, units.toFixed(2)].forEach(val => {
+              let td = document.createElement('td');
+              td.textContent = val;
+              td.style.padding = '6px';
+              td.style.border = '1px solid #e5e7eb';
+              td.style.textAlign = 'center';
+              td.style.verticalAlign = 'middle';
+              tr.appendChild(td);
+            });
+            appTbody.appendChild(tr);
+          });
+          appTable.appendChild(appTbody);
+          wrapper.appendChild(appTable);
+        }
+      }
+      else if (tabId === 2) {
+        // COM-DOM PDF generation
+        let days = document.getElementById('assessmentDaysCOM')?.value || '365';
+        let monthsNum = daysToMonths(parseFloat(days));
+        let months = monthsNum.toFixed(3);
+        let a = parseFloat(document.getElementById('a')?.value) || 0;
+        let comLoadW = comApps.reduce((s, a) => s + (a.no * a.watt), 0);
+        let domLoadW = domApps.reduce((s, a) => s + (a.no * a.watt), 0);
+        let comLoadKW = comLoadW / 1000;
+        let domLoadKW = domLoadW / 1000;
+        let totalLoadKW = comLoadKW + domLoadKW;
+        let uCom = totalLoadKW > 0 ? a * (comLoadKW / totalLoadKW) : 0;
+
+        let comSlabConfig = { rates: [5.9, 7.0, 7.6], limits: [100, 300], labels: ['0-100', '101-300', 'Above 300'] };
+        let comRes = calculateProrated(uCom, monthsNum, comSlabConfig.rates, comSlabConfig.limits);
+        let comED = comRes.totalEC * 0.04;
+        let comFixed = Math.ceil(comLoadKW) * 30 * monthsNum;
+        let comTotal = comRes.totalEC + comED + comFixed;
+
+        let domBilledEC = parseFloat(document.getElementById('domBilledEC')?.value) || 0;
+        let domBilledFC = parseFloat(document.getElementById('domBilledFC')?.value) || 0;
+        let proportion = totalLoadKW > 0 ? (comLoadKW / totalLoadKW) : 0;
+        let assessedEC = proportion * domBilledEC;
+        let assessedED = assessedEC * 0.04;
+        let assessedFC = domBilledFC * proportion;
+        let domTotal = assessedEC + assessedED + assessedFC;
+
+        let finalAssessment = (2 * comTotal) - domTotal;
+
+        let comHtml = `
+          <div style="background:#f8fafc;border:2px solid #f97316;border-radius:10px;padding:16px;margin-bottom:18px;">
+            <h3 style="font-size:18px;font-weight:bold;margin-bottom:12px;color:#f97316;text-align:center;">COM-DOM Assessment</h3>
+            <div><strong>Assessment Period:</strong> ${days} Days (${months} Months)</div>
+            <div><strong>Total Consumption (a):</strong> ${a.toFixed(2)} kWh</div>
+            <div><strong>Commercial Load:</strong> ${comLoadKW.toFixed(3)} kW</div>
+            <div><strong>Domestic Load:</strong> ${domLoadKW.toFixed(3)} kW</div>
+            <div style="background:#fefce8;padding:12px;border-radius:8px;margin:16px 0;text-align:center;"><strong>U = a × (b/Total) = ${uCom.toFixed(2)} kWh</strong></div>
+            <div><strong>Commercial Bill Total:</strong> ₹${comTotal.toFixed(2)}</div>
+            <div><strong>Domestic Bill Total:</strong> ₹${domTotal.toFixed(2)}</div>
+            <div style="background:linear-gradient(135deg,#f97316,#dc2626);color:white;padding:18px;border-radius:10px;text-align:center;margin-top:18px;">
+              <div>Final Assessment (2×Commercial − Domestic)</div>
+              <div style="font-size:28px;font-weight:bold;">₹${finalAssessment.toFixed(2)}</div>
+            </div>
+          </div>
+        `;
+        wrapper.innerHTML += comHtml;
+
+        let footer = document.createElement('div');
+        footer.style.textAlign = 'center';
+        footer.style.marginTop = '30px';
+        footer.style.padding = '15px';
+        footer.style.borderTop = '1px solid #000000';
+        footer.style.fontSize = '10px';
+        footer.style.color = '#000000';
+
+        // Static content
+        footer.innerHTML = `
+  <p>This is a computer-generated document. Valid for assessment purposes only.</p>
+  <p>Electricity Theft Penalty Assessment Tool © ${new Date().getFullYear()} | by Vishnu Kumar</p>
+`;
+
+        //  multiple <p> using loop
+        for (let i = 0; i < 15; i++) {
+          let p = document.createElement('p');
+          p.textContent = '.......................';
+          footer.appendChild(p);
+        }
+
+        // Append footer to wrapper
+        wrapper.appendChild(footer);
+
+        // Append wrapper to doc
+        doc.appendChild(wrapper);
+
+      }
+      else if (tabId === 3 || tabId === 4 || tabId === 5) {
+        let typeMap = { 3: 'AGRI', 4: 'ALLIED', 5: 'AGRO' };
+        let type = typeMap[tabId];
+        let rates = { 3: '1.50', 4: '1.60', 5: '3.10' };
+        let titles = { 3: 'Irrigation Pumping', 4: 'Allied Agri (AAA)', 5: 'Agro-Industrial' };
+
+        let days = document.getElementById(`assessmentDays${type}`).value;
+        let months = document.getElementById(`prorateFactor${type}`).innerText;
+        let detectedLoad = document.getElementById(`detectedLoad${type}`).value;
+        let totalUnits = document.getElementById(`totalUnits${type}`).innerText;
+        let ec = document.getElementById(`ec${type}`).innerText;
+        let ed = document.getElementById(`ed${type}`).innerText;
+        let fcTotal = document.getElementById(`fcTotal${type}`).innerText;
+        let totalBill = document.getElementById(`totalBill${type}`).innerText;
+        let twiceBill = document.getElementById(`twice${type}`).innerText;
+        let deduction = document.getElementById(`deduct${type}`).value || '0';
+        let assessment = document.getElementById(`assessment${type}`).innerText;
+
+        let mainCard = `
+          <div style="background:#f8fafc;border:2px solid #f97316;border-radius:8px;padding:20px;margin-bottom:20px;">
+            <h3 style="font-size:18px;font-weight:bold;margin-bottom:15px;color:#f97316;text-align:center;">${titles[tabId]} - Assessment</h3>
+            <div><strong>Rate:</strong> ₹${rates[tabId]}/kWh</div>
+            <div><strong>Assessment Period:</strong> ${days} Days (${months} Months)</div>
+            <div><strong>Detected Load:</strong> ${detectedLoad} kW</div>
+            <div><strong>Total Units:</strong> ${totalUnits} kWh</div>
+            <div><strong>Energy Charge:</strong> ₹${ec}</div>
+            <div><strong>ED ${tabId === 3 ? '@2%' : '@4%'}:</strong> ₹${ed}</div>
+            <div><strong>Fixed Charge Total:</strong> ₹${fcTotal}</div>
+            <div><strong>Total Bill:</strong> ₹${totalBill}</div>
+            <div><strong>Twice the Bill:</strong> ₹${twiceBill}</div>
+            <div><strong>Deduction:</strong> ₹${deduction}</div>
+            <div style="background:#fef3c7;padding:12px;border-radius:8px;margin-top:15px;"><strong>Total Assessment:</strong> ₹${assessment}</div>
+          </div>
+        `;
+        wrapper.innerHTML += mainCard;
+
+        let appliances = appData[type];
+        if (appliances && appliances.length > 0) {
+          let appTable = '<h3 style="font-size:14px;font-weight:bold;margin:20px 0 10px 0;">🔌 Appliances Details</h3><table style="width:100%;border-collapse:collapse;font-size:10px;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">Appliance</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">Qty</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">Watt</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">Days</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">Hrs/Day</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">LF</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:center;">Units</th></tr></thead><tbody>';
+          appliances.forEach(app => {
+            let unitsVal = (app.no * app.watt * (app.days || days) * app.hours * app.lf) / 1000;
+            appTable += `<tr><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${app.name}</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${app.no}</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${app.watt}</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${app.days || days}</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${app.hours}</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${app.lf}</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:center;">${unitsVal.toFixed(2)}</td></tr>`;
+          });
+          appTable += '</tbody></table>';
+          wrapper.innerHTML += appTable;
+        }
+      }
+
+      let footer = document.createElement('div');
+      footer.style.textAlign = 'center';
+      footer.style.marginTop = '30px';
+      footer.style.padding = '15px';
+      footer.style.borderTop = '1px solid #000000';
+      footer.style.fontSize = '10px';
+      footer.style.color = '#000000';
+      footer.innerHTML = `
+    <p>This is a computer-generated document. Valid for assessment purposes only.</p>
+    <p>Electricity Theft Penalty Assessment Tool © ${new Date().getFullYear()} | by Vishnu Kumar</p>
+  `;
+      wrapper.appendChild(footer);
+      doc.appendChild(wrapper);
+
+      let loadingDiv = document.createElement('div');
+      loadingDiv.style.position = 'fixed';
+      loadingDiv.style.top = '50%';
+      loadingDiv.style.left = '50%';
+      loadingDiv.style.transform = 'translate(-50%, -50%)';
+      loadingDiv.style.backgroundColor = 'rgba(0,0,0,0.8)';
+      loadingDiv.style.color = 'white';
+      loadingDiv.style.padding = '15px 25px';
+      loadingDiv.style.borderRadius = '8px';
+      loadingDiv.style.zIndex = '9999';
+      loadingDiv.style.fontSize = '14px';
+      loadingDiv.innerHTML = '📄 Generating PDF... Please wait...';
+      document.body.appendChild(loadingDiv);
+
+      let opt = {
+        margin: [5, 5, 5, 5],
+        filename: `Electricity_Penalty_${tabName.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 3,
+          useCORS: true,
+          letterRendering: true,
+          dpi: 300,
+          logging: false,
+          windowWidth: 1200
+        },
+        jsPDF: {
+          unit: 'mm',
+          format: 'a4',
+          orientation: 'portrait',
+          compress: false
+        }
+      };
+
+      html2pdf().set(opt).from(doc).save().then(() => {
+        loadingDiv.remove();
+      }).catch(error => {
+        console.error('PDF error:', error);
+        loadingDiv.innerHTML = '❌ Error generating PDF. Please try again.';
+        setTimeout(() => loadingDiv.remove(), 2000);
+      });
+    }
+
+    function isMobileDevice() {
+      return window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    }
+
+    function checkAndDownload(tabId) {
+      if (isMobileDevice()) {
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000;';
+
+        const popup = document.createElement('div');
+        popup.style.cssText = 'background:white;border-radius:16px;padding:24px;max-width:320px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.2);font-family:sans-serif;';
+
+        popup.innerHTML = `
+          <div style="font-size:48px;margin-bottom:12px;">📱</div>
+          <h3 style="font-size:20px;font-weight:bold;margin-bottom:12px;color:#333;">Desktop Only Feature</h3>
+          <p style="color:#666;margin-bottom:20px;line-height:1.5;">PDF download is only available on Desktop/Laptop devices.</p>
+          <p style="color:#999;margin-bottom:24px;font-size:14px;">Please use a computer for this feature.</p>
+          <button id="closePopupBtn" style="background:#f97316;color:white;border:none;padding:10px 24px;border-radius:8px;font-size:16px;cursor:pointer;font-weight:bold;">Close</button>
+        `;
+
+        modal.appendChild(popup);
+        document.body.appendChild(modal);
+
+        document.getElementById('closePopupBtn').onclick = function () {
+          modal.remove();
+        };
+
+        modal.onclick = function (e) {
+          if (e.target === modal) modal.remove();
+        };
+
+        return false;
+      }
+      downloadPDF(tabId);
+    }
+
+    window.onload = () => {
+      try {
+        initData();
+        renderTable('DOM', 'domTbody', 'assessLoadDOM', 'assessUnitsDOM');
+        renderTable('GP', 'gpTbody', 'assessLoadGP', 'assessUnitsGP');
+        renderTable('AGRI', 'agriTbody', 'assessLoadAGRI', 'assessUnitsAGRI');
+        renderTable('ALLIED', 'alliedTbody', 'assessLoadALLIED', 'assessUnitsALLIED');
+        renderTable('AGRO', 'agroTbody', 'assessLoadAGRO', 'assessUnitsAGRO');
+        renderTable('MISUSE', 'misuseTbody', 'assessLoadMISUSE', 'assessUnitsMISUSE');
+        renderComDom();
+        updateDomGPBills();
+        showTab(0);
+      } catch (e) {
+        console.error('Initialization error:', e);
+      }
+    };
+  </script>
+</body>
+
+</html>
