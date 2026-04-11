@@ -34,7 +34,8 @@ load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Global shared session for Gemini (will be created once and reused)
-_gemini_session: aiohttp.ClientSession | None = None
+# _gemini_session: aiohttp.ClientSession | None = None
+_gemini_session = None
 
 def validate_and_clean_url_standalone(url: str) -> str:
     """Standalone version of URL validation for use outside classes"""
