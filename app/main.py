@@ -39,10 +39,12 @@ from concurrent.futures import ThreadPoolExecutor
 # from fireworks.client import Fireworks
 # from langchain_openai import ChatOpenAI  # For OpenAI-compatible LLM
 import google.generativeai as genai
+# from google import genai
 # from langchain_google_genai import ChatGoogleGenerativeAI
 # from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
-from langchain.chains.combine_documents import create_stuff_documents_chain    #### for aws
+# from langchain.chains.combine_documents import create_stuff_documents_chain    #### for aws
+from langchain.chains.combine_documents.stuff import create_stuff_documents_chain
 
 from langchain_core.prompts import ChatPromptTemplate
 
