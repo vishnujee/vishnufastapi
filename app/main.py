@@ -2387,7 +2387,6 @@ async def get_cleanup_logs(request: Request):
     check_auth(request)
     
     try:
-        # log_path = "/home/ubuntu/cron_cleanup.log"
         log_path = "/home/ec2-user/vishnufastapi/cleanup_cron.log"
         if not os.path.exists(log_path):
             return {
@@ -2404,21 +2403,45 @@ async def get_cleanup_logs(request: Request):
         stat = os.stat(log_path)
         last_updated = stat.st_mtime
         
-        # Get all lines and reverse to show newest first
+        # Get all lines
         lines = log_content.strip().split('\n')
-        lines_reversed = list(reversed(lines))  # ✅ NEWEST AT TOP
         
-        # Get recent entries (first 10 lines after reversal - which are the newest)
+        # ✅ REVERSE to show newest FIRST
+        lines_reversed = list(reversed(lines))
+        
+        # Recent entries - first 10 from reversed list (newest)
         recent_entries = lines_reversed[:10] if lines_reversed else []
+        
+        # Count total runs (look for "Starting scheduled cleanup")
+        total_runs = len([line for line in lines if "Starting scheduled cleanup" in line])
+        
+        # Calculate next run based on IST
+        from datetime import datetime, timedelta
+        import pytz  # You may need to install: pip install pytz
+        
+        ist = pytz.timezone('Asia/Kolkata')
+        now_ist = datetime.now(ist)
+        
+        # Next run calculation (every 30 minutes)
+        minutes = now_ist.minute
+        if minutes < 30:
+            next_minutes = 30 - minutes
+        else:
+            next_minutes = 60 - minutes
+        
+        next_run = now_ist + timedelta(minutes=next_minutes)
         
         return {
             "logs": "\n".join(lines_reversed),  # ✅ NEWEST FIRST
             "last_updated": last_updated,
             "file_size": f"{stat.st_size / 1024:.2f} KB",
             "line_count": len(lines),
-            "recent_entries": recent_entries,
-            "total_runs": len([line for line in lines if "Starting scheduled cleanup" in line])
+            "recent_entries": recent_entries,  # ✅ NEWEST FIRST
+            "total_runs": total_runs,
+            "next_run_ist": next_run.strftime("%H:%M:%S"),
+            "current_time_ist": now_ist.strftime("%Y-%m-%d %H:%M:%S")
         }
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading logs: {str(e)}")
 @app.get("/cleanup-logs-page")
