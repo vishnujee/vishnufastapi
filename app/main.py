@@ -2677,12 +2677,14 @@ async def get_cleanup_status(request: Request):
     
     try:
         current_time = time.time()
+        
+        # Use your actual directory variables
         directories = {
-            'uploads': BASE_DIR / "app" / "temp_processing" / "uploads",
-            'output': BASE_DIR / "app" / "temp_processing" / "output", 
-            'estimation': BASE_DIR / "app" / "temp_processing" / "estimation",
-            'word': BASE_DIR / "app" / "temp_processing" / "word",
-            'temp_processing': BASE_DIR / "app" / "temp_processing"
+            'uploads': UPLOAD_DIR,
+            'output': OUTPUT_DIR,
+            'estimation': ESTIMATION_DIR,
+            'word': PDFTOWORD,
+            'temp_processing': TEMP_DIR
         }
         
         stats = {
@@ -2700,6 +2702,7 @@ async def get_cleanup_status(request: Request):
                 total_files = 0
                 old_files = 0
                 total_size = 0
+                file_list = []  # For debugging
                 
                 try:
                     for file_path in dir_path.iterdir():
@@ -2707,30 +2710,57 @@ async def get_cleanup_status(request: Request):
                             total_files += 1
                             file_stat = file_path.stat()
                             total_size += file_stat.st_size
-                            if file_stat.st_mtime < (current_time - 900):
+                            file_list.append(file_path.name)
+                            
+                            # Check if file is older than 15 minutes
+                            most_recent = max(
+                                file_stat.st_mtime,
+                                file_stat.st_ctime,
+                                file_stat.st_atime
+                            )
+                            if most_recent < (current_time - 900):  # 15 minutes
                                 old_files += 1
+                    
+                    stats["directories"][dir_name] = {
+                        "total_files": total_files,
+                        "old_files": old_files,
+                        "total_size": total_size,
+                        "exists": True,
+                        "files": file_list[:10],  # First 10 files for debugging
+                        "path": str(dir_path)  # Show actual path
+                    }
+                    
+                    stats["total_files"] += total_files
+                    stats["old_files"] += old_files
+                    stats["total_size"] += total_size
+                    
                 except Exception as e:
                     logger.error(f"Error scanning directory {dir_name}: {str(e)}")
-                
-                stats["directories"][dir_name] = {
-                    "total_files": total_files,
-                    "old_files": old_files,
-                    "total_size": total_size,
-                    "exists": True
-                }
-                
-                stats["total_files"] += total_files
-                stats["old_files"] += old_files
-                stats["total_size"] += total_size
+                    stats["directories"][dir_name] = {
+                        "total_files": 0,
+                        "old_files": 0,
+                        "total_size": 0,
+                        "exists": True,
+                        "error": str(e)
+                    }
             else:
                 stats["directories"][dir_name] = {
                     "total_files": 0,
                     "old_files": 0,
                     "total_size": 0,
-                    "exists": False
+                    "exists": False,
+                    "path": str(dir_path)
                 }
         
+        # Add debug info
+        stats["debug"] = {
+            "base_path": str(TEMP_DIR.parent),
+            "temp_dir_exists": TEMP_DIR.exists(),
+            "temp_dir_path": str(TEMP_DIR)
+        }
+        
         return stats
+        
     except Exception as e:
         logger.error(f"Cleanup status check failed: {e}")
         return {"error": str(e)}
