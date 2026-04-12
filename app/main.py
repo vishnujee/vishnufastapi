@@ -2386,7 +2386,8 @@ async def get_cleanup_logs(request: Request):
     check_auth(request)
     
     try:
-        log_path = "/home/ubuntu/cron_cleanup.log"
+        # log_path = "/home/ubuntu/cron_cleanup.log"
+        log_path = "/home/ec2-user/vishnufastapi/cleanup_cron.log"
         if not os.path.exists(log_path):
             return {
                 "logs": "No logs found yet. Cronjob may not have run.",
@@ -2757,8 +2758,10 @@ async def login_page():
         return HTMLResponse(content=f.read())
 
 
-BASE_DIR = Path("/home/ubuntu/vishnufastapi")
-BACKEND_LOG_PATH = BASE_DIR / "backend.log"
+# BASE_DIR = Path("/home/ubuntu/vishnufastapi")
+BASE_DIR = Path('/home/ec2-user/vishnufastapi/app/temp_processing')
+# BACKEND_LOG_PATH = BASE_DIR / "backend.log"
+BACKEND_LOG_PATH = Path("/home/ec2-user/vishnufastapi/app.log")
 
 @app.get("/backend-logs")
 async def get_backend_logs(request: Request):
