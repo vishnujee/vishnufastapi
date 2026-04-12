@@ -710,6 +710,8 @@ class ChromaDBRetriever(BaseRetriever):
     def _get_relevant_documents(self, query: str, *, run_manager = None) -> List[Document]:
         try:
             start_time = time.time()
+            logger.info(f"\n🔍 CHROMADB SEARCH - Query: '{query[:200]}...'")
+            logger.info(f"📊 Search params: k={self.search_kwargs.get('k', 10)}")
             
             # ✅ ONLY RETRIEVAL - no business logic
             docs_with_scores = self.vectorstore.similarity_search_with_score(
@@ -725,6 +727,15 @@ class ChromaDBRetriever(BaseRetriever):
             
             retrieval_time = time.time() - start_time
             logger.info(f"⚡ ChromaDB retrieval: {retrieval_time:.3f}s for {len(docs)} docs")
+            logger.info(f"⚡ ChromaDB retrieval completed in {retrieval_time:.3f}s")
+            logger.info(f"📚 Retrieved {len(docs)} documents from ChromaDB")
+
+             # Log each document's basic info
+            for idx, doc in enumerate(docs, 1):
+                logger.info(f"  📄 Doc {idx}: Source={doc.metadata.get('source', 'Unknown')[:50]}, Score={doc.metadata.get('score', 'N/A'):.4f}, Length={len(doc.page_content)} chars")
+         
+            # ✅ CALL THE LOGGING FUNCTION FOR FULL DETAILS
+            log_retrieved_documents(docs, query, "chromadb_raw")
             
             
             return docs  # ✅ Return raw retrieved docs
@@ -2883,6 +2894,69 @@ CHAT_MODES = {
 
 }
 
+########################## logger ##########################
+# Add after your existing log_embedding_process function (around line 400)
+
+def log_retrieved_documents(docs: List[Document], query: str, stage: str = "retrieved"):
+    """Log all retrieved documents from ChromaDB with full content"""
+    logger.info(f"\n{'='*100}")
+    logger.info(f"📚 CHROMADB RETRIEVAL - {stage.upper()} - Query: '{query[:200]}...'")
+    logger.info(f"{'='*100}")
+    logger.info(f"Total documents retrieved: {len(docs)}")
+    
+    for idx, doc in enumerate(docs, 1):
+        logger.info(f"\n{'─'*80}")
+        logger.info(f"📄 DOCUMENT #{idx}")
+        logger.info(f"{'─'*80}")
+        logger.info(f"🎯 Source: {doc.metadata.get('source', 'Unknown')}")
+        logger.info(f"📄 Page: {doc.metadata.get('page_num', 'N/A')}")
+        logger.info(f"📊 Score: {doc.metadata.get('score', 'N/A')}")
+        logger.info(f"📑 Content Type: {doc.metadata.get('content_type', 'N/A')}")
+        logger.info(f"🔢 Chunk: {doc.metadata.get('chunk_num', 'N/A')}/{doc.metadata.get('total_chunks_page', 'N/A')}")
+        logger.info(f"📏 Content Length: {len(doc.page_content)} characters")
+        logger.info(f"\n📝 FULL CONTENT:\n{doc.page_content}")
+        logger.info(f"{'─'*80}")
+    
+    logger.info(f"\n{'='*100}\n")
+
+def log_llm_response(query: str, response: str, mode: str, timings: dict, docs_count: int = 0):
+    """Log complete LLM response with metadata"""
+    logger.info(f"\n{'='*100}")
+    logger.info(f"🤖 LLM RESPONSE - Mode: {mode}")
+    logger.info(f"{'='*100}")
+    logger.info(f"📝 User Query: {query}")
+    logger.info(f"📊 Context Docs Used: {docs_count}")
+    logger.info(f"⏱️  Timings: {timings}")
+    logger.info(f"\n{'─'*80}")
+    logger.info(f"💬 LLM FULL RESPONSE:")
+    logger.info(f"{'─'*80}")
+    logger.info(f"{response}")
+    logger.info(f"{'─'*80}")
+    logger.info(f"📏 Response Length: {len(response)} characters")
+    logger.info(f"📊 Response Words: {len(response.split())} words")
+    logger.info(f"{'='*100}\n")
+
+def log_final_documents_after_processing(docs: List[Document], query: str):
+    """Log documents after post-processing and filtering"""
+    logger.info(f"\n{'='*100}")
+    logger.info(f"🔧 POST-PROCESSED DOCUMENTS (After filtering) - Query: '{query[:100]}...'")
+    logger.info(f"{'='*100}")
+    logger.info(f"Final documents count: {len(docs)}")
+    
+    for idx, doc in enumerate(docs, 1):
+        logger.info(f"\n{'─'*80}")
+        logger.info(f"📄 FINAL DOC #{idx}")
+        logger.info(f"{'─'*80}")
+        logger.info(f"🎯 Source: {doc.metadata.get('source', 'Unknown')}")
+        logger.info(f"📊 Priority: {doc.metadata.get('priority', 'normal')}")
+        logger.info(f"📑 Content Type: {doc.metadata.get('content_type', 'N/A')}")
+        logger.info(f"📏 Content Length: {len(doc.page_content)} characters")
+        logger.info(f"\n📝 CONTENT PREVIEW (first 1000 chars):\n{doc.page_content[:1000]}")
+        if len(doc.page_content) > 1000:
+            logger.info(f"... (truncated, total {len(doc.page_content)} chars)")
+        logger.info(f"{'─'*80}")
+    
+    logger.info(f"\n{'='*100}\n")
 ##################################### Streamed response #####################
 @app.post("/chat")
 async def chat(query: str = Form(...), mode: str = Form(None), history: str = Form(None)):
@@ -2946,6 +3020,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
 
                 generation_config = genai.types.GenerationConfig(
                     max_output_tokens=3000,
+                    timeout=35.0
                 )
                 
                 connection_start = time.time()                  
@@ -2953,7 +3028,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     messages, 
                     stream=True,
                     generation_config=generation_config,
-                    request_options={'timeout': 15}
+                    request_options={'timeout': 35}
                 )
                 connection_time = time.time() - connection_start
             
@@ -3022,9 +3097,12 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     'timings': timings
                 })
                 yield f"data: {completion_data}\n\n"
+                 # ✅ LOG MODE-SPECIFIC RESPONSE
+                log_llm_response(query, full_response, mode, timings, 0)
             else:
                 # RAG-based streaming
-                logger.info("🔄 RAG PATH")
+            
+                logger.info("🔄 RAG PATH - Starting document retrieval")
                 # yield f"data: {json.dumps({'chunk': '🔍 Searching knowledge base...', 'status': 'searching'})}\n\n"
                 yield f"data: {json.dumps({'chunk': '🧠 GENERATING RESPONSE....', 'status': 'generating', 'prominent': True})}\n\n"
                 def build_optimized_prompt(query, processed_docs, conversation_history):
@@ -3032,6 +3110,8 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                         """You are Vishnu AI Assistant — a friendly but funny assistant.
 
                     **CORE BEHAVIOR:**
+                    - NEVER repeat or copy the context/DOC_X content verbatim.
+                    - Use the context to answer, but write in YOUR OWN words", not like a robot.
                     - Provide accurate, clear, **human-like answers in a better representation** with professional tone
                     - Never mention 'documents', 'context', 'references' or similar
                     - For non-Vishnu questions: humorously suggest Tone Selector
@@ -3112,6 +3192,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     retrieval_end = time.time()
                     timings["retrieval_time"] = retrieval_end - retrieval_start
                     logger.info(f"✅ RETRIEVAL COMPLETE - Documents: {len(raw_docs)} | Time: {timings['retrieval_time']:.2f}s")
+                    log_retrieved_documents(raw_docs, query, "raw_from_chromadb")
                     
                     # 🚀 STREAM PROGRESS UPDATE
                     # yield f"data: {json.dumps({'chunk': f'📚 Found {len(raw_docs)} relevant documents...', 'status': 'processing'})}\n\n"
@@ -3129,6 +3210,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 processing_end = time.time()
                 timings["processing_time"] = processing_end - processing_start
                 logger.info(f"✅ PROCESSING COMPLETE - Final docs: {len(processed_docs)} | Time: {timings['processing_time']:.2f}s")
+                log_final_documents_after_processing(processed_docs, query)
 
                 if not processed_docs:
                     # No docs found - immediate response
@@ -3155,13 +3237,13 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                         connection_start = time.time()  
 
                         generation_config=genai.types.GenerationConfig(
-                                max_output_tokens=2500
+                                max_output_tokens=8192
                             )
                         response = GEMINI_MODEL.generate_content(
                             optimized_prompt, 
                             stream=True,
                             generation_config=generation_config,
-                            request_options={'timeout': 15}
+                            request_options={'timeout': 25}
                         )
                         connection_time = time.time() - connection_start    
 
@@ -3225,7 +3307,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                         timings["chunk_count"] = chunk_count
                         
                         logger.info(f"✅ GENERATION COMPLETE - Chunks: {chunk_count} | Ouput Chars: {total_chars} | Total Generation Time: {timings['generation_time']:.2f}s | Speed: {total_chars/timings['generation_time']:.1f} chars/sec")
-                        
+                        log_llm_response(query, full_response, "rag", timings, len(processed_docs))
                         # Send completion with all metadata
                         completion_data = json.dumps({
                             'chunk': '', 
