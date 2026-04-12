@@ -1370,14 +1370,15 @@ def initialize_global_gemini_model():
 
 
                 # _GEMINI_MODEL = genai.GenerativeModel('gemini-2.5-flash')
-                _GEMINI_MODEL = genai.GenerativeModel('gemini-3-flash-preview')
+                # _GEMINI_MODEL = genai.GenerativeModel('gemini-3-flash-preview')
 
                     # ✅ USE ONE OF THESE AVAILABLE MODELS
                 # Option 1: Fastest (recommended for chat)
-                # _GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.0-flash')
+                _GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.0-flash')
                 
                 # Option 2: Newer model
                 # _GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.5-flash')
+                # _GEMINI_MODEL = genai.GenerativeModel('gemini-flash-latest')
                 
         
                 
