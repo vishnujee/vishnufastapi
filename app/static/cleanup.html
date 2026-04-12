@@ -569,32 +569,33 @@
                 let totalSizeBytes = 0;
                 filesData = {};
 
+                // ✅ CORRECT: Use REAL data from server
                 for (const [dirName, dirData] of Object.entries(statusData.directories || {})) {
                     filesData[dirName] = [];
 
-                    const fileCount = dirData.total_files || 0;
-                    const oldFileCount = dirData.old_files || 0;
+                    // ✅ Use the files array from the server if available
+                    const files = dirData.files || [];
 
-                    totalFiles += fileCount;
-                    oldFiles += oldFileCount;
-
-                    for (let i = 0; i < fileCount; i++) {
-                        const isOld = i < oldFileCount;
-                        const fileSize = Math.random() * 1024 * 1024 * 5;
-                        const fileAge = isOld ? 900 + Math.random() * 3600 : Math.random() * 900;
+                    for (const file of files) {
+                        const fileSize = file.size || 0;
+                        const fileModified = file.modified || Date.now() / 1000;
+                        const fileAge = (Date.now() / 1000) - fileModified;
+                        const isOld = fileAge > 900;
 
                         filesData[dirName].push({
-                            name: `file_${i + 1}${getFileExtension(dirName)}`,
+                            name: file.name,
                             size: fileSize,
                             age: fileAge,
-                            path: `${dirName}/file_${i + 1}`,
-                            modified: Date.now() / 1000 - fileAge
+                            path: file.path || `${dirName}/${file.name}`,
+                            modified: fileModified
                         });
 
+                        totalFiles++;
+                        if (isOld) oldFiles++;
                         totalSizeBytes += fileSize;
                     }
 
-                    addLog(`Found ${fileCount} files in ${dirName} (${oldFileCount} old)`, 'info');
+                    addLog(`Found ${files.length} real files in ${dirName}`, 'info');
                 }
 
                 updateStatistics(totalFiles, oldFiles, totalSizeBytes);
@@ -603,8 +604,8 @@
                 updateCronUI(cronData);
                 updateBackendLogsUI(backendData);
 
-                showStatus(`Loaded ${totalFiles} files across ${Object.keys(statusData.directories || {}).length} directories`, 'success');
-                addLog(`File scan completed: ${totalFiles} files found, ${oldFiles} older than 15 minutes`, 'success');
+                showStatus(`Loaded ${totalFiles} real files across ${Object.keys(statusData.directories || {}).length} directories`, 'success');
+                addLog(`✅ File scan completed: ${totalFiles} real files found, ${oldFiles} older than 15 minutes`, 'success');
 
                 document.getElementById('lastUpdated').textContent = `Last updated: ${new Date().toLocaleString()}`;
 
@@ -616,7 +617,6 @@
                 btn.disabled = false;
             }
         }
-
         // Helper function to get file extensions
         function getFileExtension(dirName) {
             const extensions = {
