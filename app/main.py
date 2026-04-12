@@ -1366,7 +1366,8 @@ def initialize_global_gemini_model():
                 start = time.time()
                 
                 genai.configure(api_key=GOOGLE_API_KEY)
-                _GEMINI_MODEL = genai.GenerativeModel('gemini-2.5-flash')
+                # _GEMINI_MODEL = genai.GenerativeModel('gemini-2.5-flash')
+                _GEMINI_MODEL = genai.GenerativeModel('gemini-3-flash-preview')
                 
                 # Warm-up call
                 try:
