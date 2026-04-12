@@ -736,7 +736,7 @@ class ChromaDBRetriever(BaseRetriever):
                 logger.info(f"  📄 Doc {idx}: Source={doc.metadata.get('source', 'Unknown')[:50]}, Score={doc.metadata.get('score', 'N/A'):.4f}, Length={len(doc.page_content)} chars")
          
             # ✅ CALL THE LOGGING FUNCTION FOR FULL DETAILS
-            log_retrieved_documents(docs, query, "chromadb_raw")
+            # log_retrieved_documents(docs, query, "chromadb_raw")
             
             
             return docs  # ✅ Return raw retrieved docs
@@ -3151,28 +3151,6 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     ]
 
 
-                    # prompt_parts = [
-                    #     "SYSTEM: You are Vishnu AI Assistant — a friendly but funny assistant. "
-                    #     "Provide accurate, clear, human-like answers in a better representation with professional tone. "
-                    #     "Never mention or refer to 'documents', 'context', 'references', 'provided information', or anything similar in your response. "
-                    #     "If the user's question is not about Vishnu, then in a light funny style tell them to pick a Tone Selector. "
-
-                        
-                    #     "Add light Indian humor naturally when it fits (like 'as easy as making Maggi'). "
-                    #     "Keep humor after the main answer, on a new line, ending with an emoji.\n\n"
-
-                    #     "📋 **STRICT TABLE FORMATTING RULES:**\n"
-                    #     "1. Create a table **only when the data is naturally tabular** (e.g., work experience, educational information, comparisons, or other structured data).\n"
-                    #     "2. ALWAYS use proper Markdown table syntax with pipes | and dashes ---\n"
-                    #     "3. Table headers MUST be in this exact format: | Column1 | Column2 | Column3 | Column4 |\n"
-                    #     "4. Header separator MUST be: | --- | --- | --- | --- |\n"
-                    #     "5. Keep tables simple - MAX 4 columns\n"
-                    #     "6. Wrap long text in table cells (don't let it overflow)\n"
-                    #     "7. Align columns properly\n"
-                    #     "8. If the user says 'no table' or 'point-wise', override all table rules and respond in bullet or numbered list format.\n\n" 
-                        
-                    # ]
-
                     
 
                                         
@@ -3217,7 +3195,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                     retrieval_end = time.time()
                     timings["retrieval_time"] = retrieval_end - retrieval_start
                     logger.info(f"✅ RETRIEVAL COMPLETE - Documents: {len(raw_docs)} | Time: {timings['retrieval_time']:.2f}s")
-                    log_retrieved_documents(raw_docs, query, "raw_from_chromadb")
+                    # log_retrieved_documents(raw_docs, query, "raw_from_chromadb")
                     
                     # 🚀 STREAM PROGRESS UPDATE
                     # yield f"data: {json.dumps({'chunk': f'📚 Found {len(raw_docs)} relevant documents...', 'status': 'processing'})}\n\n"
@@ -3235,7 +3213,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                 processing_end = time.time()
                 timings["processing_time"] = processing_end - processing_start
                 logger.info(f"✅ PROCESSING COMPLETE - Final docs: {len(processed_docs)} | Time: {timings['processing_time']:.2f}s")
-                log_final_documents_after_processing(processed_docs, query)
+                # log_final_documents_after_processing(processed_docs, query)
 
                 if not processed_docs:
                     # No docs found - immediate response
@@ -3333,7 +3311,7 @@ async def chat(query: str = Form(...), mode: str = Form(None), history: str = Fo
                         timings["chunk_count"] = chunk_count
                         
                         logger.info(f"✅ GENERATION COMPLETE - Chunks: {chunk_count} | Ouput Chars: {total_chars} | Total Generation Time: {timings['generation_time']:.2f}s | Speed: {total_chars/timings['generation_time']:.1f} chars/sec")
-                        log_llm_response(query, full_response, "rag", timings, len(processed_docs))
+                        # log_llm_response(query, full_response, "rag", timings, len(processed_docs))
                         # Send completion with all metadata
                         completion_data = json.dumps({
                             'chunk': '', 
