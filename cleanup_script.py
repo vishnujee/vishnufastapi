@@ -37,7 +37,7 @@ def cleanup_orphaned_files():
     """Clean up FILES older than 30 minutes from ALL directories"""
     try:
         current_time = time.time()
-        orphan_age_seconds = 1800  # 30 minutes
+        orphan_age_seconds = 360  # 6 minutes
         
         # ✅ ALL directories that need cleaning
         directories_to_clean = [
