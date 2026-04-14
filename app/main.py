@@ -4781,6 +4781,36 @@ async def get_payment_receipt(amount: float = 0, method: str = "upi"):
     })
 
 
+#########  mandatory for razorpay
+@app.get("/terms", response_class=HTMLResponse)
+async def terms_page():
+    """Terms & Conditions page"""
+    terms_path = os.path.join(static_dir, "terms.html")
+    if os.path.exists(terms_path):
+        with open(terms_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content=TERMS_HTML)
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_page():
+    """Privacy Policy page"""
+    privacy_path = os.path.join(static_dir, "privacy.html")
+    if os.path.exists(privacy_path):
+        with open(privacy_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content=PRIVACY_HTML)
+
+@app.get("/refund-policy", response_class=HTMLResponse)
+async def refund_page():
+    """Refund & Cancellation Policy page"""
+    refund_path = os.path.join(static_dir, "refund.html")
+    if os.path.exists(refund_path):
+        with open(refund_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content=REFUND_HTML)
+
+##########
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080) 
