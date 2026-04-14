@@ -40,6 +40,20 @@
             .card {
                 border-radius: 0 !important;
             }
+
+            input,
+            textarea,
+            select,
+            .form-control {
+                font-size: 16px !important;
+            }
+
+            input:focus,
+            textarea:focus,
+            select:focus,
+            .form-control:focus {
+                font-size: 16px !important;
+            }
         }
 
         .card {
@@ -91,6 +105,7 @@
         .form-control:focus {
             border-color: #667eea;
             box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            outline: none;
         }
 
         .btn {
@@ -212,17 +227,16 @@
             }
 
             .form-control {
-                font-size: 14px;
+                font-size: 16px !important;
             }
-        }
 
-        @media (max-width: 768px) {
             .card-header {
                 padding: 12px 15px !important;
             }
 
             .card-header h3 {
                 font-size: 1.5rem !important;
+                justify-content: center;
             }
 
             .card-header small {
@@ -272,6 +286,36 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* Selected device highlight */
+        #peers-list .list-group-item.selected {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border-color: #667eea !important;
+            border-width: 2px !important;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        #peers-list .list-group-item .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border: none;
+        }
+
+        #peers-list .list-group-item .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            color: white;
+        }
+
+        /* Keep warning section stable - ONLY THESE TWO RULES */
+        .alert-warning {
+            transition: none !important;
+            animation: none !important;
+        }
+
+        #sleep-warning {
+            transition: none !important;
+            animation: none !important;
+        }
     </style>
 </head>
 
@@ -282,19 +326,30 @@
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
 
                     <!-- Title -->
-                    <a style="margin-top: 10px;margin-bottom: 10px; background: #fdfffd;" href="/" class="btn btn-light btn-primary">
-                        <i class="fas fa-arrow-left"></i> Homepage
-                    </a>
-                    <h3 class="mb-2 mb-md-0">
-                        <i class="fas fa-exchange-alt"></i> P2P File Transfer
-                    </h3>
+                    <div
+                        class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2 mb-3">
 
+                        <!-- Back Button -->
+                        <a href="/" class="btn btn-light d-inline-flex align-items-center gap-2 px-3 py-2"
+                            style="border:1px solid #e0e0e0; background:#ffffff;">
+                            <i class="fas fa-arrow-left"></i>
+                            <span>Homepage</span>
+                        </a>
+
+                        <!-- Title -->
+                        <h3 class="mb-0 d-flex align-items-center gap-2 mx-auto" style="font-weight:600;">
+                            <i class="fas fa-exchange-alt text-primary"></i>
+                            <span>P2P File Transfer</span>
+                        </h3>
+
+                    </div>
                     <!-- Button -->
 
                 </div>
 
                 <!-- Subtitle -->
-                <small class="d-block mt-2"b style="font-size: 16px;">
+                <small class="d-block mt-2" b
+                    style="font-size: 19px; text-align: center; margin-left: 0px;margin-right: 0px;">
                     Direct device-to-device File transfer (same network) - No server storage!
                 </small>
             </div>
@@ -320,6 +375,8 @@
                         <div id="connection-status" class="connection-status" style="display:none;"></div>
                     </div>
 
+
+
                     <div class="col-md-6" id="peers-container" style="display:none;">
                         <h5><i class="fas fa-users"></i> Available Devices:</h5>
                         <div id="peers-list" class="mb-3" style="max-height: 200px; overflow-y: auto;"></div>
@@ -328,7 +385,7 @@
                             <hr>
                             <h5><i class="fas fa-file-upload"></i> Send Files</h5>
                             <div class="form-group">
-                                <label><i class="fas fa-folder-open"></i> Select Files (max 10GB each):</label>
+                                <!-- <label><i class="fas fa-folder-open"></i> Select Files (max 10GB each):</label> -->
                                 <input type="file" id="file-input" class="form-control" multiple>
                                 <small class="text-muted">Hold Ctrl/Cmd to select multiple files</small>
                             </div>
@@ -355,6 +412,12 @@
                                     <span id="transfer-speed" class="text-muted"></span>
                                 </div>
                                 <div id="time-remaining" class="text-muted small mt-1"></div>
+
+                                <!--  THE WARNING BOX -->
+                                <div id="sleep-warning" class="alert alert-warning small mt-2"
+                                    style="display:none; background:#fff3cd; padding:8px;">
+                                    <i class="fas fa-mobile-alt"></i> ⏰ Keep screen ON - Otherwise Transfer will cancel.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -375,6 +438,18 @@
                 <span>Creating ZIP file...</span>
             </div>
         </div>
+
+        <div class="alert alert-warning mt-3" style="background: #e2e0e6; border-left: 4px solid #ffc107;">
+
+            <strong>📌 Tips for File Transfer:</strong>
+            <ul style="font-size: 14px;" class="mb-0 mt-2">
+                <li>📶 Both devices must be on <strong>SAME WiFi network or mobile hotspot</strong></li>
+                <li>🔋 Keep screens <strong>ON</strong> during transfer.</li>
+
+                <li>🚫 Transfer will FAIL if any device locks/sleeps</li>
+            </ul>
+        </div>
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -472,6 +547,77 @@
             return input.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
         }
 
+
+
+        // Helper function to warning message if transfer is greater than 30 sec
+        let sleepWarningTimeout = null;
+        let warningAlreadyShown = false;
+        let isTransferActive = false;  // ✅ NEW - Track if transfer is active
+
+        function startSleepWarning() {
+            // Clear any existing timer first
+            if (sleepWarningTimeout !== null) {
+                clearTimeout(sleepWarningTimeout);
+                sleepWarningTimeout = null;
+            }
+
+            // ✅ FIRST - Make the warning VISIBLE
+            const warning = document.getElementById('sleep-warning');
+            if (warning) {
+                warning.style.display = 'block';  // ← ADD THIS LINE
+                warning.style.backgroundColor = '#fff3cd';
+                warning.style.borderLeft = '4px solid #ffc107';
+            }
+
+            // If transfer was just cancelled, wait a bit before allowing new warning
+            if (isTransferActive === true) {
+                console.log('⚠️ Transfer already active, skipping');
+                return;
+            }
+
+            console.log('⚠️ startSleepWarning() called - Starting new transfer');
+
+            isTransferActive = true;
+            warningAlreadyShown = false;
+
+            // Clear the timer and reset for new warning
+            if (sleepWarningTimeout !== null) {
+                clearTimeout(sleepWarningTimeout);
+            }
+
+            sleepWarningTimeout = setTimeout(() => {
+                console.log('⚠️ 5 seconds passed - highlighting warning now');
+                const warning = document.getElementById('sleep-warning');
+                if (warning && !warningAlreadyShown && isTransferActive === true) {
+                    // Change color to highlight (more noticeable)
+                    warning.style.backgroundColor = '#ffe6b3';
+                    warning.style.borderLeft = '4px solid #ff6b00';
+                    warningAlreadyShown = true;
+                }
+            }, 5000);
+        }
+        function stopSleepWarning() {
+            console.log('🛑 stopSleepWarning() called - Transfer ended');
+
+            // Clear timer if exists
+            if (sleepWarningTimeout !== null) {
+                clearTimeout(sleepWarningTimeout);
+                sleepWarningTimeout = null;
+            }
+
+            // ✅ Hide the warning when transfer ends
+            const warning = document.getElementById('sleep-warning');
+            if (warning) {
+                warning.style.display = 'none';
+            }
+
+            // Reset transfer active flag
+            isTransferActive = false;
+            warningAlreadyShown = false;
+        }
+
+        // Helper function to warning message if transfer is greater than 30 sec
+
         // ==================== WEBSOCKET CONNECTION ====================
         function connectWebSocket() {
             if (STATE.isConnecting || STATE.isConnected) {
@@ -561,15 +707,52 @@
                 const peerItem = document.createElement('div');
                 peerItem.className = 'list-group-item d-flex justify-content-between align-items-center';
                 peerItem.innerHTML = `<div><i class="fas fa-mobile-alt"></i> <strong>${peerId}</strong> <span class="badge bg-success ms-2">Online</span></div>
-                <button class="btn btn-sm btn-primary" onclick="initiateConnection('${peerId}')"><i class="fas fa-plug"></i> Connect</button>`;
+                <button class="btn btn-sm btn-primary" onclick="initiateConnection('${peerId}')"><i class="fas fa-plug"></i> Select Device</button>`;
                 peersList.appendChild(peerItem);
             });
         }
 
         // ==================== WEBRTC CONNECTION ====================
+
         function initiateConnection(peerId) {
-            if (STATE.isConnectingToPeer) { showAlert('Already connecting...', 'warning'); return; }
-            if (STATE.dataChannel && STATE.dataChannel.readyState === 'open') { showAlert('Already connected!', 'warning'); return; }
+            if (STATE.isConnectingToPeer) {
+                showAlert('Already connecting...', 'warning');
+                return;
+            }
+            if (STATE.dataChannel && STATE.dataChannel.readyState === 'open') {
+                showAlert('Already connected!', 'warning');
+                return;
+            }
+
+            // ✅ CLEAR previous selection highlight
+            document.querySelectorAll('#peers-list .list-group-item').forEach(item => {
+                item.style.background = '';
+                item.style.borderColor = '#e0e0e0';
+                const btn = item.querySelector('button');
+                if (btn) {
+                    btn.innerHTML = '<i class="fas fa-plug"></i> Select Device';
+                    btn.className = 'btn btn-sm btn-primary';
+                }
+            });
+
+            // ✅ HIGHLIGHT selected device
+            const peerItems = document.querySelectorAll('#peers-list .list-group-item');
+            for (let item of peerItems) {
+                if (item.textContent.includes(peerId)) {
+                    item.style.background = '#e8f0fe';
+                    item.style.borderColor = '#667eea';
+                    item.style.borderWidth = '2px';
+                    const btn = item.querySelector('button');
+                    if (btn) {
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connecting...';
+                        btn.className = 'btn btn-sm btn-warning';
+                        btn.disabled = true;
+                    }
+                    break;
+                }
+            }
+
+
 
             STATE.isConnectingToPeer = true;
             STATE.peerId = peerId;
@@ -596,6 +779,23 @@
                 if (STATE.rtcPeer.connectionState === 'failed') {
                     clearTimeout(connectionTimeout);
                     showAlert('Connection failed. Try same WiFi network.', 'danger');
+
+                    // ✅ RESET the button on failure
+                    const peerItems = document.querySelectorAll('#peers-list .list-group-item');
+                    for (let item of peerItems) {
+                        if (item.textContent.includes(STATE.peerId)) {
+                            const btn = item.querySelector('button');
+                            if (btn) {
+                                btn.innerHTML = '<i class="fas fa-plug"></i> Select Device';
+                                btn.className = 'btn btn-sm btn-primary';
+                                btn.disabled = false;
+                            }
+                            item.style.background = '';
+                            item.style.borderColor = '#e0e0e0';
+                            break;
+                        }
+                    }
+
                     cleanupConnection();
                     STATE.isConnectingToPeer = false;
                 } else if (STATE.rtcPeer.connectionState === 'connected') {
@@ -678,6 +878,22 @@
                 document.getElementById('transfer-section').style.display = 'block';
                 document.getElementById('cancel-btn').style.display = 'inline-block';
                 document.getElementById('file-input').disabled = false;
+
+                // ✅ UPDATE the selected device button to show "Connected" status
+                const peerItems = document.querySelectorAll('#peers-list .list-group-item');
+                for (let item of peerItems) {
+                    if (item.textContent.includes(STATE.peerId)) {
+                        const btn = item.querySelector('button');
+                        if (btn) {
+                            btn.innerHTML = '<i class="fas fa-check-circle"></i> Connected';
+                            btn.className = 'btn btn-sm btn-success';
+                            btn.disabled = false;
+                            btn.onclick = null; // Remove click handler
+                        }
+                        break;
+                    }
+                }
+
                 const statusEl = document.getElementById('connection-status');
                 statusEl.innerHTML = `<span class="status-indicator status-online"></span> ✅ Connected to ${STATE.peerId}! Ready to transfer files.`;
             };
@@ -698,6 +914,7 @@
 
         // ==================== FILE TRANSFER FUNCTIONS ====================
         async function sendFiles() {
+            startSleepWarning();
             if (!STATE.dataChannel || STATE.dataChannel.readyState !== 'open') {
                 showAlert('❌ Not connected to a peer. Click "Connect" first.', 'warning');
                 return;
@@ -784,12 +1001,16 @@
             }
         }
 
-        function cancelTransfer() {
+        function cancelTransfer(isRemoteCancel = false) {
             STATE.isTransferCancelled = true;
+
             if (STATE.dataChannel && STATE.dataChannel.readyState === 'open') {
                 STATE.dataChannel.send(JSON.stringify({ type: 'cancel_transfer' }));
             }
-            showAlert('Transfer cancelled', 'warning');
+
+            showAlert(isRemoteCancel ? '❌ Sender cancelled transfer' : '❌ Transfer cancelled', 'warning');
+
+            // Reset UI elements
             document.getElementById('cancel-btn').style.display = 'none';
             document.getElementById('send-btn').disabled = false;
             document.getElementById('progress-bar').style.width = '0%';
@@ -797,8 +1018,37 @@
             document.getElementById('progress-text').textContent = '0%';
             document.getElementById('transfer-speed').innerHTML = '';
             document.getElementById('time-remaining').innerHTML = '';
-        }
+            document.getElementById('file-info').innerHTML = '';
 
+            // Hide transfer info only
+            const transferInfo = document.getElementById('transfer-info');
+            if (transferInfo) {
+                transferInfo.style.display = 'none';
+            }
+
+            // ✅ Hide warning on cancel
+            const warning = document.getElementById('sleep-warning');
+            if (warning) {
+                warning.style.display = 'none';
+                warning.style.backgroundColor = '#fff3cd';
+                warning.style.borderLeft = '4px solid #ffc107';
+            }
+
+            // Clear timeout
+            if (sleepWarningTimeout !== null) {
+                clearTimeout(sleepWarningTimeout);
+                sleepWarningTimeout = null;
+            }
+
+            // Reset flags
+            isTransferActive = false;
+            warningAlreadyShown = false;
+
+            // Reload the page after cancel
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        }
         // ==================== FILE RECEPTION ====================
         function handleDataMessage(event) {
             if (typeof event.data === 'string') {
@@ -806,7 +1056,12 @@
                     const data = JSON.parse(event.data);
                     if (data.type === 'file_metadata') handleFileMetadata(data);
                     else if (data.type === 'file_end') finalizeFileReception();
-                    else if (data.type === 'cancel_transfer') { cancelTransfer(true); showAlert('Sender cancelled transfer', 'warning'); }
+                    else if (data.type === 'cancel_transfer') {
+                        // ✅ ADD THIS LINE - Stop warning if sender cancels
+                        stopSleepWarning();
+                        cancelTransfer(true);
+                        showAlert('Sender cancelled transfer', 'warning');
+                    }
                 } catch (e) { console.error('Parse error:', e); }
             } else if (event.data instanceof ArrayBuffer) {
                 handleBinaryData(event.data);
@@ -814,6 +1069,9 @@
         }
 
         function handleFileMetadata(data) {
+            if (!isTransferActive) {
+                startSleepWarning();
+            }
             STATE.reception.metadata = data;
             STATE.reception.buffers = [];
             STATE.reception.bytesReceived = 0;
@@ -844,6 +1102,9 @@
         }
 
         function finalizeFileReception() {
+            // ✅ Remove this line - don't call stopSleepWarning here
+            // stopSleepWarning();
+
             if (!STATE.reception.metadata) return;
             const { file_name, file_size, current_index, total_files, mime_type } = STATE.reception.metadata;
             const totalLength = STATE.reception.buffers.reduce((total, arr) => total + arr.length, 0);
@@ -866,7 +1127,20 @@
             STATE.reception.buffers = [];
             STATE.reception.metadata = null;
             STATE.reception.bytesReceived = 0;
-            setTimeout(() => { if (!STATE.reception.metadata) document.getElementById('transfer-info').style.display = 'none'; }, 2000);
+
+            // ✅ Hide transfer info smoothly
+            const transferInfo = document.getElementById('transfer-info');
+            if (transferInfo) {
+                setTimeout(() => {
+                    if (!STATE.reception.metadata) {
+                        transferInfo.style.opacity = '0';
+                        setTimeout(() => {
+                            transferInfo.style.display = 'none';
+                            transferInfo.style.opacity = '1';
+                        }, 200);
+                    }
+                }, 2000);
+            }
         }
 
         // function downloadAllFiles() {

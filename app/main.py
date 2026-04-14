@@ -1651,11 +1651,11 @@ def verify_session_token(token: str) -> bool:
     return False
 
 def check_auth(request: Request):
-    """Mobile-optimized authentication"""
+    """Mobile-optimized authentication - NO BYPASS"""
     # Try multiple ways to get the token
     token = None
     
-    # 1. Check query parameter (PRIMARY for mobile)
+    # 1. Check query parameter
     token = request.query_params.get("token")
     
     # 2. Check Authorization header
@@ -1664,20 +1664,11 @@ def check_auth(request: Request):
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.replace("Bearer ", "")
     
-    # 3. Check cookies (least reliable on mobile)
+    # 3. Check cookies
     if not token:
         token = request.cookies.get("session_token")
     
-    # 4. Special mobile handling - if we have a mobile flag but no token yet
-    user_agent = request.headers.get("user-agent", "").lower()
-    is_mobile = any(term in user_agent for term in ['mobile', 'android', 'iphone', 'ipad'])
-    
-    if is_mobile and not token:
-        # For mobile, we might be in a redirect chain - allow access to cleanup page
-        # The JavaScript will handle authentication
-        logger.info(f"Mobile access to {request.url.path} - allowing page load")
-        return True
-    
+    # NO MOBILE BYPASS - Always validate token
     if not token or not verify_session_token(token):
         raise HTTPException(
             status_code=401, 

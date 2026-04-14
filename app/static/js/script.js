@@ -3577,7 +3577,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (assistantNameEl) {
                     assistantNameEl.style.opacity = '0';
                     setTimeout(() => {
-                        assistantNameEl.textContent = "Vishnu AI Assistant";
+                        assistantNameEl.textContent = "Talk to Vishnu";
                         assistantNameEl.style.opacity = '1';
                     }, 150);
                 }
