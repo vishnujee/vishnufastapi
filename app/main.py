@@ -1397,8 +1397,145 @@ def initialize_global_gemini_model():
 
 
 
-# Initialize immediately when module loads
+# websocket_connections = set()  # Track active WebSocket connections for real-time updates
 
+
+
+# Add this after your existing imports and before @app.on_event("startup")
+# ==================== P2P WebSocket Manager ====================
+
+from fastapi.templating import Jinja2Templates
+templates = Jinja2Templates(directory="templates")
+
+
+# Add these imports at the top of your app.py if not already present
+from fastapi import WebSocket, WebSocketDisconnect
+from typing import Dict
+import asyncio
+import json
+
+# ==================== P2P WebSocket Manager ====================
+class P2PConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, WebSocket] = {}
+        self.peer_metadata: Dict[str, Dict] = {}
+
+    async def connect(self, client_id: str, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections[client_id] = websocket
+        self.peer_metadata[client_id] = {"last_seen": datetime.now()}
+        logger.info(f"✅ P2P WebSocket connected: {client_id}")
+        await self.broadcast_peers()
+
+    def disconnect(self, client_id: str):
+        if client_id in self.active_connections:
+            del self.active_connections[client_id]
+        if client_id in self.peer_metadata:
+            del self.peer_metadata[client_id]
+        logger.info(f"❌ P2P WebSocket disconnected: {client_id}")
+        asyncio.create_task(self.broadcast_peers())
+
+    async def send_message(self, message: dict, to: str):
+        if to in self.active_connections:
+            try:
+                await self.active_connections[to].send_json(message)
+                logger.info(f"📤 Sent {message.get('type')} from {message.get('from', 'unknown')} to {to}")
+                self.peer_metadata[to]["last_seen"] = datetime.now()
+            except Exception as e:
+                logger.error(f"Error sending message to {to}: {e}")
+                self.disconnect(to)
+
+    async def broadcast_peers(self):
+        peers = list(self.active_connections.keys())
+        logger.info(f"📡 Broadcasting peers: {peers}")
+        for client_id, connection in list(self.active_connections.items()):
+            try:
+                await connection.send_json({"type": "peers", "peers": peers})
+            except Exception as e:
+                logger.error(f"Error broadcasting to {client_id}: {e}")
+                self.disconnect(client_id)
+
+p2p_manager = P2PConnectionManager()
+
+
+# ==================== WEBSOCKET ENDPOINT - FIXED VERSION ====================
+@app.websocket("/ws/{client_id}")
+async def p2p_websocket_endpoint(websocket: WebSocket, client_id: str):
+    """WebSocket endpoint for P2P signaling - CRITICAL FIX for message forwarding"""
+    await p2p_manager.connect(client_id, websocket)
+    try:
+        while True:
+            # Receive message from client
+            data = await websocket.receive_text()
+            message_data = json.loads(data)
+            
+            logger.info(f"📨 Received from {client_id}: {message_data.get('type', 'unknown')}")
+            
+            # Handle heartbeat
+            if message_data.get("type") == "heartbeat":
+                await websocket.send_json({"type": "pong"})
+                
+            # 🔥 CRITICAL FIX: Forward signaling messages to target peer
+            elif "to" in message_data and "message" in message_data:
+                target = message_data["to"]
+                msg = message_data["message"]
+                
+                # Add sender info to message if not present
+                if "from" not in msg:
+                    msg["from"] = client_id
+                
+                logger.info(f"🔄 Forwarding {msg.get('type')} from {client_id} to {target}")
+                
+                # Send to target peer if connected
+                if target in p2p_manager.active_connections:
+                    await p2p_manager.active_connections[target].send_json(msg)
+                    logger.info(f"✅ Forwarded successfully to {target}")
+                else:
+                    logger.warning(f"⚠️ Target {target} not found in active connections")
+                    await websocket.send_json({
+                        "type": "error", 
+                        "message": f"Peer {target} not connected"
+                    })
+                    
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected: {client_id}")
+        p2p_manager.disconnect(client_id)
+    except Exception as e:
+        logger.error(f"WebSocket error for {client_id}: {e}")
+        p2p_manager.disconnect(client_id)
+
+@app.get("/test-websocket")
+async def test_websocket():
+    """Test endpoint to check WebSocket connections"""
+    return {
+        "active_connections": list(p2p_manager.active_connections.keys()),
+        "total_connections": len(p2p_manager.active_connections),
+        "status": "running"
+    }
+
+@app.get("/p2p", response_class=HTMLResponse)
+async def p2p_transfer_page(request: Request):
+    """P2P File Transfer page"""
+    p2p_path = os.path.join(static_dir, "p2p_transfer.html")
+    if os.path.exists(p2p_path):
+        with open(p2p_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    else:
+        # Fallback to template
+        return templates.TemplateResponse("p2p_transfer.html", {"request": request})
+
+
+
+
+
+
+
+# @app.get("/p2p", response_class=HTMLResponse)
+# async def p2p_transfer_page():
+#     p2p_path = os.path.join(static_dir, "p2p.html")
+
+#     with open(p2p_path, "r", encoding="utf-8") as f:
+#         return HTMLResponse(content=f.read())
 
 
 ######################################
@@ -1406,6 +1543,8 @@ def initialize_global_gemini_model():
 retriever = None
 llm = None
 thread_pool = ThreadPoolExecutor(max_workers=4)
+
+
 
 
 # ====================== Startup Event ======================
@@ -1469,6 +1608,8 @@ async def serve_index():
     index_path = os.path.join(static_dir, "index.html")
     with open(index_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+
+
 
 
 
