@@ -3,7 +3,14 @@ from fastapi.responses import HTMLResponse, StreamingResponse,JSONResponse,Redir
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import platform
-from datetime import datetime, timezone  
+import razorpay
+import hmac
+import hashlib
+
+
+from datetime import datetime, timedelta
+import pytz  # You may need to install: pip install pytz
+
 import subprocess
 import uuid
 import os
@@ -78,7 +85,7 @@ init()
 load_dotenv()
 from fastapi.middleware.gzip import GZipMiddleware
 
-from datetime import datetime
+
 # ######
 
 
@@ -1822,9 +1829,7 @@ async def get_cleanup_logs(request: Request):
         total_runs = len([line for line in lines if "Starting scheduled cleanup" in line])
         
         # Calculate next run based on IST
-        from datetime import datetime, timedelta
-        import pytz  # You may need to install: pip install pytz
-        
+     
         ist = pytz.timezone('Asia/Kolkata')
         now_ist = datetime.now(ist)
         
@@ -4298,7 +4303,7 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
         
 
 import json
-from datetime import datetime
+
 import hashlib
 
 # Constants for metadata
@@ -4583,10 +4588,8 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
 #====================== RAZORPAY PAYMENT ===========
 #==================================================
 
-import razorpay
-import hmac
-import hashlib
-from datetime import datetime
+
+        
 
 # Initialize Razorpay
 client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
@@ -4739,18 +4742,26 @@ async def razorpay_webhook(request: Request):
 
 @app.get("/api/payment-receipt")
 async def get_payment_receipt(amount: float = 0, method: str = "upi"):
-    """Generate payment receipt with greeting and message"""
+    """
+    Generate payment receipt with automatic greeting and message
+    """
     
-    # Determine greeting based on time of day
-    current_hour = datetime.now().hour
-    if current_hour < 12:
+    # ✅ FIX: Use India timezone (IST)
+    india_tz = pytz.timezone('Asia/Kolkata')
+    now_ist = datetime.now(india_tz)
+    current_hour = now_ist.hour
+    
+    # Determine greeting based on India time
+    if 5 <= current_hour < 12:
         greeting = "Good Morning! 🌅"
-    elif current_hour < 17:
+    elif 12 <= current_hour < 17:
         greeting = "Good Afternoon! ☀️"
-    else:
+    elif 17 <= current_hour < 21:
         greeting = "Good Evening! 🌙"
+    else:
+        greeting = "Good Night! 🌟"
     
-    # Generate personalized messages
+    # Generate personalized messages based on amount
     if amount <= 100:
         message = f"Thank you for supporting us with ₹{amount}! Your contribution helps us serve you better. 🙏"
     elif amount <= 500:
@@ -4774,7 +4785,8 @@ async def get_payment_receipt(amount: float = 0, method: str = "upi"):
         "message": message,
         "amount": amount,
         "method": method_emoji.get(method, method),
-        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        "timestamp": now_ist.strftime('%Y-%m-%d %H:%M:%S'),  # ✅ Use IST
+        "timezone": "IST"  # Optional: show timezone for clarity
     })
 
 
