@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Successful</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .success-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 550px;
+            width: 100%;
+            padding: 40px 30px;
+            text-align: center;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .checkmark {
+            display: inline-block;
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border-radius: 50%;
+            position: relative;
+            animation: pulse 0.6s ease-out 0.2s both;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .checkmark::after {
+            content: "✓";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 50px;
+            color: white;
+            font-weight: bold;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .success-message {
+            color: #666;
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .transaction-details {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #666;
+            font-weight: 600;
+            font-size: 13px;
+            min-width: 140px;
+        }
+
+        .detail-value {
+            color: #333;
+            font-weight: 500;
+            font-size: 12px;
+            word-break: break-all;
+            text-align: right;
+            max-width: 60%;
+            font-family: monospace;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            margin-left: 8px;
+        }
+
+        .utr-badge {
+            background: #28a745;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: left;
+        }
+
+        .info-box p {
+            color: #004085;
+            font-size: 12px;
+            line-height: 1.5;
+            margin: 5px 0;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(108, 117, 125, 0.4);
+        }
+
+        .footer-text {
+            color: #999;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 600px) {
+            .success-container {
+                padding: 25px 20px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            .action-buttons {
+                flex-direction: column;
+            }
+            .checkmark {
+                width: 60px;
+                height: 60px;
+            }
+            .checkmark::after {
+                font-size: 40px;
+            }
+            .detail-label {
+                min-width: 100px;
+                font-size: 11px;
+            }
+            .detail-value {
+                font-size: 10px;
+                max-width: 55%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div class="checkmark"></div>
+        
+        <h1 id="greeting">Thank You! 🎉</h1>
+        
+        <div class="success-message">
+            <p id="dynamic-message">Loading receipt...</p>
+        </div>
+
+        <div class="transaction-details">
+            <!-- Razorpay Order ID -->
+            <div class="detail-row" id="orderRow" style="display: none;">
+                <span class="detail-label">Razorpay Order ID <span class="badge">Reference</span></span>
+                <span class="detail-value" id="order-id">-</span>
+            </div>
+            
+            <!-- Razorpay Payment ID -->
+            <div class="detail-row" id="paymentRow" style="display: none;">
+                <span class="detail-label">Razorpay Payment ID <span class="badge">Reference</span></span>
+                <span class="detail-value" id="payment-id">-</span>
+            </div>
+            
+            <!-- UPI Transaction ID (UTR) - Real bank transaction ID -->
+            <div class="detail-row" id="utrRow" style="display: none;">
+                <span class="detail-label">UPI Transaction ID (UTR) <span class="badge utr-badge">Bank Reference</span></span>
+                <span class="detail-value" id="utr-id">-</span>
+            </div>
+            
+            <!-- Amount -->
+            <div class="detail-row">
+                <span class="detail-label">Amount</span>
+                <span class="detail-value" id="amount-paid">₹0</span>
+            </div>
+            
+            <!-- Date & Time -->
+            <div class="detail-row">
+                <span class="detail-label">Date & Time</span>
+                <span class="detail-value" id="timestamp">Just now</span>
+            </div>
+            
+            <!-- Payment Method -->
+            <div class="detail-row">
+                <span class="detail-label">Payment Method</span>
+                <span class="detail-value" id="method">-</span>
+            </div>
+        </div>
+
+        <!-- Informational Note -->
+        <div class="info-box">
+            <p>📝 <strong>Understanding Your Transaction IDs:</strong></p>
+            <p>• <strong>Razorpay IDs</strong> (Order ID & Payment ID) - Our system reference numbers</p>
+            <p>• <strong>UPI Transaction ID (UTR)</strong> - The actual bank transaction ID from Google Pay/PhonePe</p>
+            <p>• For any disputes, please share the UPI Transaction ID (UTR)</p>
+        </div>
+
+        <div class="action-buttons">
+            <a href="/" class="btn btn-primary">← Back to Home</a>
+            <button class="btn btn-secondary" onclick="window.print()">🖨️ Print Receipt</button>
+        </div>
+
+        <div class="footer-text">
+            <p>If you have any queries, please contact <strong>Admin</strong></p>
+            <p style="margin-top: 10px;">© 2025 All Rights Reserved</p>
+        </div>
+    </div>
+
+    <script>
+        async function loadReceipt() {
+            try {
+                // Get URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                const method = urlParams.get('method') || 'razorpay';
+                const amount = urlParams.get('amount') || 0;
+                const payment_id = urlParams.get('payment_id');
+                const order_id = urlParams.get('order_id');
+                
+                console.log('=== Payment Success Page Loaded ===');
+                console.log('Payment ID from URL:', payment_id);
+                console.log('Order ID from URL:', order_id);
+                console.log('Amount:', amount);
+                
+                // Display Razorpay IDs immediately from URL
+                if (order_id && order_id !== 'null' && order_id !== 'undefined') {
+                    document.getElementById('order-id').textContent = order_id;
+                    document.getElementById('orderRow').style.display = 'flex';
+                    console.log('✅ Displayed Order ID:', order_id);
+                }
+                
+                if (payment_id && payment_id !== 'null' && payment_id !== 'undefined') {
+                    document.getElementById('payment-id').textContent = payment_id;
+                    document.getElementById('paymentRow').style.display = 'flex';
+                    console.log('✅ Displayed Payment ID:', payment_id);
+                }
+                
+                // Fetch receipt data from backend
+                console.log('📡 Fetching receipt from backend...');
+                const receiptResponse = await fetch(`/api/payment-receipt?amount=${amount}&method=${method}`);
+                const receiptData = await receiptResponse.json();
+                
+                if (receiptData && receiptData.success) {
+                    document.getElementById('greeting').textContent = receiptData.greeting;
+                    document.getElementById('dynamic-message').innerHTML = receiptData.message;
+                    document.getElementById('amount-paid').textContent = `₹${receiptData.amount}`;
+                    document.getElementById('timestamp').textContent = receiptData.timestamp;
+                    document.getElementById('method').textContent = receiptData.method;
+                    console.log('✅ Receipt loaded successfully');
+                }
+                
+                // 🔥 CRITICAL: Fetch UPI Transaction ID (UTR) from Razorpay
+                if (payment_id && payment_id !== 'null') {
+                    console.log('🔍 Fetching UPI Transaction ID for payment:', payment_id);
+                    
+                    try {
+                        const paymentDetailsResponse = await fetch(`/api/get-payment-details/${payment_id}`);
+                        const paymentDetails = await paymentDetailsResponse.json();
+                        
+                        console.log('Payment Details from Razorpay:', paymentDetails);
+                        
+                        if (paymentDetails.success && paymentDetails.utr) {
+                            // Display the real UPI Transaction ID
+                            document.getElementById('utr-id').textContent = paymentDetails.utr;
+                            document.getElementById('utrRow').style.display = 'flex';
+                            console.log('✅ Displayed UPI Transaction ID (UTR):', paymentDetails.utr);
+                        } else if (paymentDetails.success) {
+                            console.log('⚠️ No UTR available for this payment yet');
+                            // Show message that UTR will appear soon
+                            document.getElementById('utr-id').textContent = 'Processing (will appear shortly)';
+                            document.getElementById('utrRow').style.display = 'flex';
+                        } else {
+                            console.warn('⚠️ Could not fetch UTR:', paymentDetails.error);
+                        }
+                    } catch (utrError) {
+                        console.error('❌ Error fetching UTR:', utrError);
+                        // Don't show UTR row if error
+                    }
+                } else {
+                    console.log('⚠️ No payment_id available to fetch UTR');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error loading receipt:', error);
+                // Emergency fallback
+                const urlParams = new URLSearchParams(window.location.search);
+                const amount = urlParams.get('amount') || 0;
+                document.getElementById('dynamic-message').innerHTML = `Payment of ₹${amount} completed successfully! Thank you for your support! 🙏`;
+                document.getElementById('amount-paid').textContent = `₹${amount}`;
+                document.getElementById('timestamp').textContent = new Date().toLocaleString();
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', loadReceipt);
+    </script>
+</body>
+</html>

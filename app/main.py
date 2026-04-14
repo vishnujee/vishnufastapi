@@ -283,6 +283,8 @@ AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
 USE_S3 = all([BUCKET_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY])
 CORRECT_PASSWORD_HASH = os.getenv("CORRECT_PASSWORD_HASH")
 CLEANUP_DASHBOARD_PASSWORD = os.getenv("CLEANUP_DASHBOARD_PASSWORD")
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
 
 
 
@@ -4294,168 +4296,7 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
         logger.info("Running garbage collection")
         gc.collect()
         
-# @app.get("/videos")
-# async def list_videos():
-#     try:
-#         response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
-#         videos = []
-        
-#         if "Contents" in response:
-#             for obj in response["Contents"]:
-#                 key = obj["Key"]
-#                 # if key.lower().endswith((".mp4", ".webm", ".ogg")):
-#                 if key.lower().endswith((".mp4", ".webm", ".ogg", ".mkv", ".avi", ".mov")):
-#                     try:
-#                         head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
-#                         metadata = head.get('Metadata', {})
-#                         content_type = head.get('ContentType', 'video/mp4')
-                        
-#                         # Extract video_id (filename part after prefix)
-#                         video_id = key[len(S3_PREFIX):]
-                        
-#                         # Direct S3 URL with #t=1 for preview frame
-#                         url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}#t=1"
-#                         logger.info(f"Direct URL for {key}: {url}")
-                        
-#                         videos.append({
-#                             "id": video_id,
-#                             "name": key.split('/')[-1],
-#                             "url": url,
-#                             "description": metadata.get('description', ''),
-#                             "type": content_type
-#                         })
-#                     except ClientError as e:
-#                         logger.error(f"Error processing {key}: {e}")
-#                         continue
-        
-#         return JSONResponse(content=videos)
 
-#     except Exception as e:
-#         logger.error(f"Error listing videos: {e}")
-#         raise HTTPException(status_code=500, detail="Failed to list videos")
-
-# @app.get("/videos")
-# async def list_videos():
-#     try:
-#         response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
-#         videos = []
-        
-#         if "Contents" in response:
-#             video_items = [
-#                 obj for obj in response["Contents"]
-#                 if obj["Key"].lower().endswith((".mp4", ".webm", ".ogg", ".mkv", ".avi", ".mov"))
-#             ]
-            
-#             video_items.sort(key=lambda x: x["LastModified"], reverse=True)
-            
-#             for obj in video_items:
-#                 key = obj["Key"]
-#                 try:
-#                     head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
-#                     metadata = head.get('Metadata', {})
-                    
-#                     # Get filename and extension
-#                     filename = key.split('/')[-1]
-#                     ext = filename.lower().split('.')[-1]
-                    
-#                     # Manually set correct content types for each format
-#                     content_type_map = {
-#                         'mp4': 'video/mp4',
-#                         'webm': 'video/webm',
-#                         'ogg': 'video/ogg',
-#                         'mkv': 'video/x-matroska',  # Correct MIME for MKV
-#                         'avi': 'video/x-msvideo',
-#                         'mov': 'video/quicktime'
-#                     }
-                    
-#                     # Use mapped type, fallback to S3's type
-#                     content_type = content_type_map.get(ext, head.get('ContentType', 'video/mp4'))
-                    
-#                     video_id = key[len(S3_PREFIX):]
-#                     url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}#t=1"
-                    
-#                     videos.append({
-#                         "id": video_id,
-#                         "name": filename,
-#                         "url": url,
-#                         "description": metadata.get('description', ''),
-#                         "type": content_type,  # Use corrected type
-#                         "uploaded": obj["LastModified"].strftime("%Y-%m-%d %H:%M")
-#                     })
-#                 except ClientError as e:
-#                     logger.error(f"Error processing {key}: {e}")
-#                     continue
-        
-#         return JSONResponse(content=videos)
-#     except Exception as e:
-#         logger.error(f"Error listing videos: {e}")
-#         raise HTTPException(status_code=500, detail="Failed to list videos")
-
-
-# @app.get("/videos")
-# async def list_videos():
-#     try:
-#         response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
-#         videos = []
-        
-#         if "Contents" in response:
-#             video_items = [
-#                 obj for obj in response["Contents"]
-#                 if obj["Key"].lower().endswith((".mp4", ".webm", ".ogg", ".mkv", ".avi", ".mov"))
-#             ]
-            
-#             video_items.sort(key=lambda x: x["LastModified"], reverse=True)
-            
-#             for obj in video_items:
-#                 key = obj["Key"]
-#                 try:
-#                     head = s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
-#                     metadata = head.get('Metadata', {})
-                    
-#                     filename = key.split('/')[-1]
-#                     ext = filename.lower().split('.')[-1]
-                    
-#                     # Correct MIME types
-#                     content_type_map = {
-#                         'mp4': 'video/mp4',
-#                         'webm': 'video/webm',
-#                         'ogg': 'video/ogg',
-#                         'mkv': 'video/x-matroska',
-#                         'avi': 'video/x-msvideo',
-#                         'mov': 'video/quicktime'
-#                     }
-                    
-#                     content_type = content_type_map.get(ext, head.get('ContentType', 'video/mp4'))
-                    
-#                     video_id = key[len(S3_PREFIX):]
-                    
-#                     # ✅ CRITICAL FIX: Remove #t=1 for MKV files
-#                     # The fragment interferes with MKV playback
-#                     if ext == 'mkv':
-#                         url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}"
-#                     else:
-#                         url = f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}#t=1"
-                    
-#                     videos.append({
-#                         "id": video_id,
-#                         "name": filename,
-#                         "url": url,  # Clean URL for MKV
-#                         "raw_url": f"https://{BUCKET_NAME}.s3.ap-south-1.amazonaws.com/{key}",  # For download
-#                         "description": metadata.get('description', ''),
-#                         "type": content_type,
-#                         "format": ext.upper(),  # Add format info
-#                         "uploaded": obj["LastModified"].strftime("%Y-%m-%d %H:%M")
-#                     })
-#                 except ClientError as e:
-#                     logger.error(f"Error processing {key}: {e}")
-#                     continue
-        
-#         return JSONResponse(content=videos)
-#     except Exception as e:
-#         logger.error(f"Error listing videos: {e}")
-#         raise HTTPException(status_code=500, detail="Failed to list videos")
-
-# Add these imports at the top if not already there
 import json
 from datetime import datetime
 import hashlib
@@ -4736,6 +4577,205 @@ async def remove_background_endpoint(file: UploadFile = File(...)):
             cleanup_local_files()
         logger.info("Running garbage collection")
         gc.collect()
+
+
+#===================================================
+#====================== RAZORPAY PAYMENT ===========
+#==================================================
+
+import razorpay
+import hmac
+import hashlib
+from datetime import datetime
+
+# Initialize Razorpay
+client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+
+# Store pending payments (use Redis in production)
+pending_payments = {}
+
+@app.get("/payment", response_class=HTMLResponse)
+async def serve_payment():
+    """Serve payment page"""
+    payment_path = os.path.join(static_dir, "payment.html")
+    with open(payment_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+@app.get("/payment-success", response_class=HTMLResponse)
+async def serve_payment_success():
+    """Serve payment success page"""
+    success_path = os.path.join(static_dir, "payment-success.html")
+    with open(success_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+@app.post("/create-razorpay-order")
+async def create_razorpay_order(request: Request):
+    """Create Razorpay order for payment"""
+    try:
+        data = await request.json()
+        amount = float(data.get("amount", 0))
+        
+        logger.info(f"📝 Creating Razorpay order for amount: ₹{amount}")
+        
+        if amount <= 0:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": "Invalid amount"}
+            )
+        
+        # Convert to paise (Razorpay expects amount in smallest currency unit)
+        amount_in_paise = int(amount * 100)
+        
+        # Create order
+        order_data = {
+            "amount": amount_in_paise,
+            "currency": "INR",
+            "payment_capture": 1,  # Auto capture
+            "receipt": f"receipt_{int(time.time())}",
+            "notes": {
+                "payment_for": "Website Services",
+                "customer": "Guest User"
+            }
+        }
+        
+        order = client.order.create(data=order_data)
+        
+        logger.info(f"✅ Order created successfully: {order['id']}")
+        
+        # Log what we're sending back
+        response_data = {
+            "success": True,
+            "order_id": order["id"],
+            "amount": amount_in_paise,
+            "currency": "INR",
+            "key": RAZORPAY_KEY_ID
+        }
+        
+        logger.info(f"📤 Sending response: {response_data}")
+        
+        return JSONResponse(response_data)
+        
+    except Exception as e:
+        logger.error(f"❌ Razorpay order creation error: {e}")
+        logger.error(traceback.format_exc())
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+@app.get("/api/get-payment-details/{payment_id}")
+async def get_payment_details(payment_id: str):
+    """Fetch payment details including UPI transaction ID from Razorpay"""
+    try:
+        # Fetch payment details from Razorpay
+        payment = client.payment.fetch(payment_id)
+        
+        # Extract UPI transaction ID (UTR)
+        utr = None
+        if payment.get('method') == 'upi':
+            # UTR is available in acquirer_data for UPI payments
+            acquirer_data = payment.get('acquirer_data', {})
+            utr = acquirer_data.get('upi_transaction_id') or acquirer_data.get('rrn')
+        
+        return JSONResponse({
+            "success": True,
+            "payment_id": payment.get('id'),
+            "order_id": payment.get('order_id'),
+            "amount": payment.get('amount', 0) / 100,
+            "status": payment.get('status'),
+            "method": payment.get('method'),
+            "utr": utr,  # UPI Transaction ID
+            "bank_reference": payment.get('bank_reference'),
+            "created_at": datetime.fromtimestamp(payment.get('created_at', 0)).strftime('%Y-%m-%d %H:%M:%S')
+        })
+    except Exception as e:
+        logger.error(f"Error fetching payment details: {e}")
+        return JSONResponse({
+            "success": False,
+            "error": str(e)
+        }, status_code=404)
+
+@app.post("/razorpay-webhook")
+async def razorpay_webhook(request: Request):
+    """Verify payment webhook from Razorpay"""
+    try:
+        body = await request.body()
+        signature = request.headers.get('X-Razorpay-Signature')
+        
+        # Verify signature
+        expected_signature = hmac.new(
+            RAZORPAY_KEY_SECRET.encode(),
+            body,
+            hashlib.sha256
+        ).hexdigest()
+        
+        if signature == expected_signature:
+            webhook_data = json.loads(body)
+            
+            # Extract payment details
+            if webhook_data.get('event') == 'payment.captured':
+                payment_entity = webhook_data.get('payload', {}).get('payment', {}).get('entity', {})
+                payment_id = payment_entity.get('id')
+                order_id = payment_entity.get('order_id')
+                amount = payment_entity.get('amount', 0) / 100
+                
+                # Store payment record
+                pending_payments[payment_id] = {
+                    'paid': True,
+                    'order_id': order_id,
+                    'amount': amount,
+                    'timestamp': datetime.now().isoformat()
+                }
+                
+                logger.info(f"✅ Payment verified: {payment_id} for ₹{amount}")
+            
+            return JSONResponse({"status": "success"})
+        
+        return JSONResponse({"status": "failed"}, status_code=400)
+        
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return JSONResponse({"status": "error"}, status_code=500)
+
+@app.get("/api/payment-receipt")
+async def get_payment_receipt(amount: float = 0, method: str = "upi"):
+    """Generate payment receipt with greeting and message"""
+    
+    # Determine greeting based on time of day
+    current_hour = datetime.now().hour
+    if current_hour < 12:
+        greeting = "Good Morning! 🌅"
+    elif current_hour < 17:
+        greeting = "Good Afternoon! ☀️"
+    else:
+        greeting = "Good Evening! 🌙"
+    
+    # Generate personalized messages
+    if amount <= 100:
+        message = f"Thank you for supporting us with ₹{amount}! Your contribution helps us serve you better. 🙏"
+    elif amount <= 500:
+        message = f"We deeply appreciate your ₹{amount} payment! Your trust means everything to us. 💖"
+    elif amount <= 1000:
+        message = f"Amazing! Thank you for the ₹{amount} payment. You're helping us grow and improve. 🚀"
+    else:
+        message = f"Wow! Thank you for the generous ₹{amount} contribution. You're truly amazing! 🌟"
+    
+    # Payment method emoji
+    method_emoji = {
+        'razorpay': '💳 Razorpay',
+        'upi': '📱 UPI',
+        'card': '💳 Card',
+        'wallet': '🏦 Wallet'
+    }
+    
+    return JSONResponse({
+        "success": True,
+        "greeting": greeting,
+        "message": message,
+        "amount": amount,
+        "method": method_emoji.get(method, method),
+        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
 
 
 if __name__ == "__main__":

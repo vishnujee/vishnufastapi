@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Payment - Fast Checkout</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+
+        .payment-container {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 32px 24px;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+
+        .amount-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 24px;
+            color: white;
+        }
+
+        .amount-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .amount-value {
+            font-size: 48px;
+            font-weight: bold;
+        }
+
+        .amount-input-group {
+            margin-bottom: 24px;
+        }
+
+        .amount-input-group label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .amount-input-group input {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 18px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .amount-input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .pay-button {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .pay-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(40, 167, 69, 0.3);
+        }
+
+        .pay-button:disabled {
+            opacity: 0.6;
+            transform: none;
+            cursor: not-allowed;
+        }
+
+        .info-note {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 12px;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .back-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            .payment-container {
+                padding: 24px 20px;
+            }
+
+            .amount-value {
+                font-size: 36px;
+            }
+        }
+    </style>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+
+<body>
+    <div class="payment-container">
+        <h1>💳 Quick Payment</h1>
+        <div class="subtitle">Secure & Instant</div>
+
+        <div id="errorMessage" class="error-message"></div>
+
+        <div class="amount-card">
+            <div class="amount-label">Total Amount</div>
+            <div class="amount-value">₹<span id="displayAmount">100</span></div>
+        </div>
+
+        <div class="amount-input-group">
+            <label>Enter Amount (₹)</label>
+            <input type="number" id="amount" placeholder="Enter amount" min="1" step="1" value="100">
+        </div>
+
+        <button class="pay-button" id="payButton" onclick="processPayment()">
+            Pay Now →
+        </button>
+
+        <div class="info-note">
+            🔒 100% Secure Payment • Instant Confirmation
+        </div>
+
+        <div class="back-link">
+            <a href="/">← Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        // Update display amount
+        const amountInput = document.getElementById('amount');
+        const displayAmount = document.getElementById('displayAmount');
+        const errorDiv = document.getElementById('errorMessage');
+
+        amountInput.addEventListener('input', function () {
+            displayAmount.textContent = this.value || 0;
+            // Hide error when user changes amount
+            errorDiv.style.display = 'none';
+        });
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        async function processPayment() {
+            const amount = amountInput.value;
+
+            if (!amount || amount <= 0) {
+                showError('Please enter a valid amount');
+                return;
+            }
+
+            if (amount < 10) {
+                showError('Minimum payment amount is ₹10');
+                return;
+            }
+
+            const button = document.getElementById('payButton');
+            const originalText = button.textContent;
+            button.textContent = '⏳ Creating order...';
+            button.disabled = true;
+
+            try {
+                // Create Razorpay order
+                const response = await fetch('/create-razorpay-order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ amount: parseFloat(amount) })
+                });
+
+                const orderData = await response.json();
+
+                if (!orderData.success) {
+                    throw new Error(orderData.error || 'Failed to create order');
+                }
+
+                // Razorpay options
+                const options = {
+                    "key": orderData.key,
+                    "amount": orderData.amount,
+                    "currency": orderData.currency,
+                    "name": "Vishnu Kumar",
+                    "description": `Payment of ₹${amount}`,
+                    "order_id": orderData.order_id,
+                    "image": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+
+                    // Prefill user details (user can edit)
+                    "prefill": {
+                        "name": "",
+                        "email": "",
+                        "contact": ""
+                    },
+
+                    "notes": {
+                        "address": "Online Payment"
+                    },
+
+                    "theme": {
+                        "color": "#667eea",
+                        "hide_topbar": false
+                    },
+
+                    "modal": {
+                        "ondismiss": function () {
+                            button.textContent = originalText;
+                            button.disabled = false;
+                        }
+                    },
+
+                    "handler": function (response) {
+                        const params = new URLSearchParams({
+                            method: 'razorpay',
+                            amount: amount,
+                            payment_id: response.razorpay_payment_id,  // ✅ This is critical
+                            order_id: response.razorpay_order_id
+                        });
+                        window.location.href = `/payment-success?${params.toString()}`;
+                    }
+                };
+
+                const rzp = new Razorpay(options);
+
+                // Handle payment failure
+                rzp.on('payment.failed', function (response) {
+                    console.error('Payment failed:', response.error);
+                    showError('Payment failed: ' + (response.error.description || 'Please try again'));
+                    button.textContent = originalText;
+                    button.disabled = false;
+                });
+
+                // Open payment modal
+                rzp.open();
+
+            } catch (error) {
+                console.error('Payment error:', error);
+                showError('Payment failed: ' + error.message);
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+    </script>
+</body>
+
+</html>
