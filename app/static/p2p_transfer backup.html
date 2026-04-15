@@ -335,7 +335,7 @@
             /* Smooth scrolling on iOS */
         }
 
-        /*  add a subtle shadow to indicate scrollable content */
+        /* Optional: add a subtle shadow to indicate scrollable content */
         @media (max-width: 768px) {
             #received-files {
                 max-height: 350px;
@@ -345,7 +345,7 @@
             }
         }
 
-        /* Custom scrollbar colors - color theme */
+        /* Custom scrollbar colors - matches your purple theme */
         #received-files::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -430,17 +430,6 @@
         min-height: 150px;
     }
 }
-
-/* Receiving progress bar custom styles */
-#receiving-progress-container .progress {
-    height: 25px;
-    background-color: #e9ecef;
-}
-#receiving-progress-bar {
-    transition: width 0.2s ease;
-    line-height: 25px;
-    font-size: 12px;
-}
     </style>
 </head>
 
@@ -508,21 +497,6 @@
                         <div id="received-files-section" style="display:none;" class="mt-4">
                             <hr>
                             <h5><i class="fas fa-download"></i> Received Files:</h5>
-                            <!-- RECEIVING PROGRESS BAR - ADDED ABOVE RECEIVED FILES SECTION -->
-                            <div id="receiving-progress-container" style="display:none;" class="mb-3">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <small><i class="fas fa-download text-info"></i> Receiving: <span id="receiving-filename" class="fw-bold">---</span></small>
-                                    <small><span id="receiving-percent">0%</span></small>
-                                </div>
-                                <div class="progress" style="height: 25px;">
-                                    <div id="receiving-progress-bar" class="progress-bar bg-info" role="progressbar" style="width: 0%;">0%</div>
-                                </div>
-                                <div class="d-flex justify-content-between mt-1">
-                                    <small id="receiving-speed" class="text-muted"></small>
-                                    <small id="receiving-timeleft" class="text-muted"></small>
-                                </div>
-                            </div>
-                            <!-- END OF RECEIVING PROGRESS BAR -->
                             <div id="received-files"></div>
                             <button id="download-all-btn" class="btn btn-secondary mt-2" onclick="downloadAllFiles()"
                                 style="display:none;">
@@ -694,7 +668,7 @@
         // Helper function to warning message if transfer is greater than 30 sec
         let sleepWarningTimeout = null;
         let warningAlreadyShown = false;
-        let isTransferActive = false;  // 
+        let isTransferActive = false;  // ✅ NEW - Track if transfer is active
 
         function startSleepWarning() {
             // Clear any existing timer first
@@ -703,7 +677,7 @@
                 sleepWarningTimeout = null;
             }
 
-            // FIRST - Make the warning VISIBLE
+            // ✅ FIRST - Make the warning VISIBLE
             const warning = document.getElementById('sleep-warning');
             if (warning) {
                 warning.style.display = 'block';  // ← ADD THIS LINE
@@ -747,7 +721,7 @@
                 sleepWarningTimeout = null;
             }
 
-            //  Hide the warning when transfer ends
+            // ✅ Hide the warning when transfer ends
             const warning = document.getElementById('sleep-warning');
             if (warning) {
                 warning.style.display = 'none';
@@ -866,7 +840,7 @@
                 return;
             }
 
-            //  CLEAR previous selection highlight
+            // ✅ CLEAR previous selection highlight
             document.querySelectorAll('#peers-list .list-group-item').forEach(item => {
                 item.style.background = '';
                 item.style.borderColor = '#e0e0e0';
@@ -877,7 +851,7 @@
                 }
             });
 
-            //  HIGHLIGHT selected device
+            // ✅ HIGHLIGHT selected device
             const peerItems = document.querySelectorAll('#peers-list .list-group-item');
             for (let item of peerItems) {
                 if (item.textContent.includes(peerId)) {
@@ -922,7 +896,7 @@
                     clearTimeout(connectionTimeout);
                     showAlert('Connection failed. Try same WiFi network.', 'danger');
 
-                    //  RESET the button on failure
+                    // ✅ RESET the button on failure
                     const peerItems = document.querySelectorAll('#peers-list .list-group-item');
                     for (let item of peerItems) {
                         if (item.textContent.includes(STATE.peerId)) {
@@ -1021,7 +995,7 @@
                 document.getElementById('cancel-btn').style.display = 'inline-block';
                 document.getElementById('file-input').disabled = false;
 
-                //  UPDATE the selected device button to show "Connected" status
+                // ✅ UPDATE the selected device button to show "Connected" status
                 const peerItems = document.querySelectorAll('#peers-list .list-group-item');
                 for (let item of peerItems) {
                     if (item.textContent.includes(STATE.peerId)) {
@@ -1144,10 +1118,6 @@
         }
 
         function cancelTransfer(isRemoteCancel = false) {
-            // Hide receiving progress bar if visible
-            const progressContainer = document.getElementById('receiving-progress-container');
-            if (progressContainer) progressContainer.style.display = 'none';
-            
             STATE.isTransferCancelled = true;
 
             if (STATE.dataChannel && STATE.dataChannel.readyState === 'open') {
@@ -1172,7 +1142,7 @@
                 transferInfo.style.display = 'none';
             }
 
-            //  Hide warning on cancel
+            // ✅ Hide warning on cancel
             const warning = document.getElementById('sleep-warning');
             if (warning) {
                 warning.style.display = 'none';
@@ -1203,7 +1173,7 @@
                     if (data.type === 'file_metadata') handleFileMetadata(data);
                     else if (data.type === 'file_end') finalizeFileReception();
                     else if (data.type === 'cancel_transfer') {
-                        //  THIS LINE - Stop warning if sender cancels
+                        // ✅ ADD THIS LINE - Stop warning if sender cancels
                         stopSleepWarning();
                         cancelTransfer(true);
                         showAlert('Sender cancelled transfer', 'warning');
@@ -1219,18 +1189,6 @@
         }
 
         function handleFileMetadata(data) {
-            // Show receiving progress bar
-            const progressContainer = document.getElementById('receiving-progress-container');
-            if (progressContainer) {
-                progressContainer.style.display = 'block';
-                document.getElementById('receiving-filename').textContent = data.file_name;
-                document.getElementById('receiving-percent').textContent = '0%';
-                document.getElementById('receiving-progress-bar').style.width = '0%';
-                document.getElementById('receiving-progress-bar').textContent = '0%';
-                document.getElementById('receiving-speed').innerHTML = '';
-                document.getElementById('receiving-timeleft').innerHTML = '';
-            }
-            
             if (!isTransferActive) {
                 startSleepWarning();
             }
@@ -1250,40 +1208,24 @@
                 STATE.reception.buffers.push(chunkData);
                 STATE.reception.bytesReceived += chunkData.byteLength;
                 const receivedPercent = STATE.reception.bytesReceived / STATE.reception.metadata.file_size;
-                
-                // Update receiving progress bar
-                const percent = Math.round(receivedPercent * 100);
-                const progressBar = document.getElementById('receiving-progress-bar');
-                const percentSpan = document.getElementById('receiving-percent');
-                if (progressBar) {
-                    progressBar.style.width = `${percent}%`;
-                    progressBar.textContent = `${percent}%`;
-                }
-                if (percentSpan) percentSpan.textContent = `${percent}%`;
-                
+                updateProgress(receivedPercent, STATE.reception.metadata.current_index, STATE.reception.metadata.total_files);
                 const elapsed = (Date.now() - STATE.reception.startTime) / 1000;
                 if (elapsed > 0) {
                     const speed = STATE.reception.bytesReceived / elapsed;
-                    const speedSpan = document.getElementById('receiving-speed');
-                    if (speedSpan) speedSpan.innerHTML = `<i class="fas fa-tachometer-alt"></i> ${formatSpeed(speed)}`;
-                    
+                    document.getElementById('transfer-speed').innerHTML = `<i class="fas fa-tachometer-alt"></i> Speed: ${formatSpeed(speed)}`;
                     const remainingBytes = STATE.reception.metadata.file_size - STATE.reception.bytesReceived;
                     const remainingTime = remainingBytes / speed;
-                    const timeSpan = document.getElementById('receiving-timeleft');
-                    if (timeSpan && remainingTime > 0 && remainingTime < 3600) {
-                        timeSpan.innerHTML = `<i class="fas fa-clock"></i> ${Math.round(remainingTime)}s`;
+                    if (remainingTime > 0 && remainingTime < 3600) {
+                        document.getElementById('time-remaining').innerHTML = `<i class="fas fa-clock"></i> Time left: ${Math.round(remainingTime)}s`;
                     }
                 }
-                
-                updateProgress(receivedPercent, STATE.reception.metadata.current_index, STATE.reception.metadata.total_files);
             }
         }
 
         function finalizeFileReception() {
-            // Hide receiving progress bar when file is complete
-            const progressContainer = document.getElementById('receiving-progress-container');
-            if (progressContainer) progressContainer.style.display = 'none';
-            
+            // ✅ Remove this line - don't call stopSleepWarning here
+            // stopSleepWarning();
+
             if (!STATE.reception.metadata) return;
             const { file_name, file_size, current_index, total_files, mime_type } = STATE.reception.metadata;
             const totalLength = STATE.reception.buffers.reduce((total, arr) => total + arr.length, 0);
@@ -1466,7 +1408,7 @@
                 receivedSection.classList.remove('incoming-notification');
             }, 3000);
 
-            //  Play beep sound (uncomment if there is sound file)
+            // Optional: Play beep sound (uncomment if you have sound file)
             // new Audio('/static/beep.mp3').play().catch(e => console.log('no sound'));
         }
     </script>
