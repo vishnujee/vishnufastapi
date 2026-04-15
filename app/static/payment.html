@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <title>Payment - Fast Checkout</title>
     <style>
         * {
@@ -170,6 +171,157 @@
                 font-size: 36px;
             }
         }
+
+        /* crypto */
+        /* crypto modal - improved visibility */
+        .crypto-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        .crypto-modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 20px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .crypto-close {
+            position: absolute;
+            right: 16px;
+            top: 12px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .crypto-close:hover {
+            color: #333;
+        }
+
+        .crypto-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .crypto-option {
+            padding: 14px;
+            margin: 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .crypto-option:hover {
+            border-color: #f7931a;
+            background: #fff8f0;
+        }
+
+        #btcOption i {
+            color: #f7931a;
+            font-size: 20px;
+            margin-right: 10px;
+        }
+
+        #usdtOption i {
+            color: #26a17b;
+            font-size: 18px;
+            margin-right: 10px;
+        }
+
+        #cryptoDetails {
+            margin-top: 20px;
+        }
+
+        #qrCode {
+            width: 180px;
+            height: 180px;
+            margin: 15px auto;
+            display: block;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 10px;
+            background: white;
+        }
+
+        #walletAddress {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-family: monospace;
+            word-break: break-all;
+            margin: 15px 0;
+        }
+
+        #copyAddressBtn {
+            background: #f7931a;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        #copyAddressBtn:hover {
+            background: #e6860e;
+        }
+
+        .crypto-modal-content h2 {
+            margin-bottom: 10px;
+            font-size: 22px;
+        }
+
+        .crypto-donate-btn {
+            background: linear-gradient(135deg, #f7931a 0%, #ffd700 100%);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .crypto-donate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(247, 147, 26, 0.4);
+        }
+
+        .crypto-donate-btn:active {
+            transform: translateY(0);
+        }
+
+        .crypto-donate-btn i {
+            font-size: 20px;
+        }
     </style>
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
@@ -194,6 +346,14 @@
         <button class="pay-button" id="payButton" onclick="processPayment()">
             Pay Now →
         </button>
+        <div style="text-align: center; margin: 15px 0; position: relative;">
+    <div style="border-top: 1px solid #e0e0e0; position: absolute; top: 50%; width: 100%;"></div>
+    <span style="background: white; padding: 0 15px; position: relative; font-size: 14px; color: #999;">OR</span>
+</div>
+        <button id="cryptoBtn" class="crypto-donate-btn" style="margin-top: 25px;"
+            onclick="document.getElementById('cryptoModal').style.display='block'">
+            <i class="fab fa-bitcoin"></i> <i class="fab fa-ethereum"></i> Donate with Crypto
+        </button>
 
         <div class="info-note">
             🔒 100% Secure Payment • Instant Confirmation
@@ -201,6 +361,37 @@
 
         <div class="back-link">
             <a href="/">← Back to Home</a>
+        </div>
+    </div>
+
+    <!-- crypto payment -->
+
+    <div id="cryptoModal" class="crypto-modal">
+        <div class="crypto-modal-content">
+            <span class="crypto-close">&times;</span>
+            <h2>Send Crypto Donation</h2>
+            <div class="crypto-options" id="cryptoOptions">
+                <div class="crypto-option" id="btcOption">
+                    <i class="fab fa-bitcoin"></i> Bitcoin (BTC-BEP20)
+                </div>
+                <div class="crypto-option" id="usdtOption">
+                    <i class="fas fa-dollar-sign"></i> USDT (BEP20)
+                </div>
+            </div>
+            <div id="cryptoDetails" style="display:none;">
+                <img id="qrCode" src="" alt="QR Code" style="width: 200px; margin: 15px auto; display: block;">
+                <p style="font-weight: bold; margin: 10px 0 5px;">Wallet Address:</p>
+                <p id="walletAddress"
+                    style="background: #f5f5f5; padding: 10px; border-radius: 8px; font-size: 12px; word-break: break-all;">
+                </p>
+                <button id="copyAddressBtn"
+                    style="background: #f7931a; color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; margin-top: 10px; cursor: pointer;">Copy
+                    Address</button>
+                <p style="font-size: 12px; color: #666; margin-top: 15px;">
+                    <i class="fas fa-info-circle"></i> Send only BTC to Bitcoin(BEP20) address, USDT (BEP20) to USDT
+                    address
+                </p>
+            </div>
         </div>
     </div>
 
@@ -322,6 +513,66 @@
                 button.disabled = false;
             }
         }
+
+        //  ############### crypto pay,emt
+        // ############### crypto payment ###############
+        const WALLETS = {
+            btc: "0xb1301092f1f405469AB4b9F0853880C4B620B3dD",
+            usdt: "0xb1301092f1f405469AB4b9F0853880C4B620B3dD"
+        };
+
+        // Open modal
+        document.getElementById('cryptoBtn').onclick = function () {
+            document.getElementById('cryptoModal').style.display = 'block';
+        };
+
+        // Close modal on X click
+        document.querySelector('.crypto-close').onclick = function () {
+            document.getElementById('cryptoModal').style.display = 'none';
+            document.getElementById('cryptoOptions').style.display = 'block';
+            document.getElementById('cryptoDetails').style.display = 'none';
+        };
+
+        // Close modal when clicking outside
+        window.onclick = function (event) {
+            const modal = document.getElementById('cryptoModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+                document.getElementById('cryptoOptions').style.display = 'block';
+                document.getElementById('cryptoDetails').style.display = 'none';
+            }
+        };
+
+        // BTC option
+        document.getElementById('btcOption').onclick = function () {
+            showCryptoDetails(WALLETS.btc, 'Bitcoin');
+        };
+
+        // USDT option
+        document.getElementById('usdtOption').onclick = function () {
+            showCryptoDetails(WALLETS.usdt, 'USDT (TRC20)');
+        };
+
+        function showCryptoDetails(address, currency) {
+            document.getElementById('cryptoOptions').style.display = 'none';
+            document.getElementById('cryptoDetails').style.display = 'block';
+
+            // Use MANUAL QR images from your server
+            if (currency === 'Bitcoin') {
+                document.getElementById('qrCode').src = '/static/images/bitcoin.jpeg';
+            } else {
+                document.getElementById('qrCode').src = '/static/images/usdt.jpeg';
+            }
+
+            document.getElementById('walletAddress').innerText = address;
+        }
+
+        // Copy address
+        document.getElementById('copyAddressBtn').onclick = function () {
+            const address = document.getElementById('walletAddress').innerText;
+            navigator.clipboard.writeText(address);
+            alert('Address copied to clipboard!');
+        };
     </script>
 </body>
 
