@@ -170,11 +170,6 @@
             padding: 12px 20px;
         }
 
-        #received-files {
-            max-height: 500px;
-            overflow-y: auto;
-            padding: 10px;
-        }
 
         .file-card {
             background: #f8f9fa;
@@ -316,6 +311,125 @@
             transition: none !important;
             animation: none !important;
         }
+
+        /* Incoming file notification pulse */
+        @keyframes pulse-notify {
+            0% {
+                background-color: #fff3cd;
+            }
+
+            100% {
+                background-color: #ffe6b3;
+            }
+        }
+
+        .incoming-notification {
+            animation: pulse-notify 1s ease-in-out 3;
+        }
+
+        /* Ensure received files container has scrollbar on mobile */
+        #received-files {
+            max-height: 400px;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch;
+            /* Smooth scrolling on iOS */
+        }
+
+        /* Optional: add a subtle shadow to indicate scrollable content */
+        @media (max-width: 768px) {
+            #received-files {
+                max-height: 350px;
+                border: 1px solid #e0e0e0;
+                border-radius: 10px;
+                padding: 10px;
+            }
+        }
+
+        /* Custom scrollbar colors - matches your purple theme */
+        #received-files::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        #received-files::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        #received-files::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #012ef7 0%, #db0202 100%);
+            border-radius: 10px;
+        }
+
+        #received-files::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #1a03ee 0%, #ee0404 100%);
+        }
+
+        /* For Firefox */
+        #received-files {
+            scrollbar-width: thin;
+            scrollbar-color: #764ba2 #f1f1f1;
+        }
+        /* Fix long filename wrapping in received files */
+.file-card {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.file-card .d-flex {
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.file-card .d-flex > div:first-child {
+    flex: 1;
+    min-width: 0; /* Allows shrinking below content size */
+    overflow: hidden;
+}
+
+.file-card strong {
+    display: block;
+    word-break: break-word;
+    white-space: normal;
+    line-height: 1.4;
+}
+
+/* For mobile devices */
+@media (max-width: 768px) {
+    .file-card .d-flex {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .file-card .btn {
+        align-self: flex-start;
+        margin-top: 8px;
+    }
+}
+
+/* Increase received files container height */
+#received-files {
+    max-height: 500px;  /* Increased from 400px to 500px */
+    min-height: 200px;  /* Minimum height even when empty */
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Even taller on desktop */
+@media (min-width: 768px) {
+    #received-files {
+        max-height: 600px;  /* Taller on desktop/laptop */
+    }
+}
+
+/* Mobile specific */
+@media (max-width: 768px) {
+    #received-files {
+        max-height: 450px;  /* Good height for mobile */
+        min-height: 150px;
+    }
+}
     </style>
 </head>
 
@@ -380,6 +494,15 @@
                     <div class="col-md-6" id="peers-container" style="display:none;">
                         <h5><i class="fas fa-users"></i> Available Devices:</h5>
                         <div id="peers-list" class="mb-3" style="max-height: 200px; overflow-y: auto;"></div>
+                        <div id="received-files-section" style="display:none;" class="mt-4">
+                            <hr>
+                            <h5><i class="fas fa-download"></i> Received Files:</h5>
+                            <div id="received-files"></div>
+                            <button id="download-all-btn" class="btn btn-secondary mt-2" onclick="downloadAllFiles()"
+                                style="display:none;">
+                                <i class="fas fa-download"></i> Download All Files
+                            </button>
+                        </div>
 
                         <div id="transfer-section" style="display:none;">
                             <hr>
@@ -423,15 +546,7 @@
                     </div>
                 </div>
 
-                <div id="received-files-section" style="display:none;" class="mt-4">
-                    <hr>
-                    <h5><i class="fas fa-download"></i> Received Files:</h5>
-                    <div id="received-files"></div>
-                    <button id="download-all-btn" class="btn btn-secondary mt-2" onclick="downloadAllFiles()"
-                        style="display:none;">
-                        <i class="fas fa-download"></i> Download All Files
-                    </button>
-                </div>
+
             </div>
             <div id="download-progress" class="download-progress" style="display:none;">
                 <div class="spinner"></div>
@@ -501,7 +616,8 @@
                 buffers: [],
                 metadata: null,
                 bytesReceived: 0,
-                startTime: null
+                startTime: null,
+                lastProgressUpdate: 0
             },
             receivedFiles: [],
             heartbeatInterval: null,
@@ -1061,6 +1177,10 @@
                         stopSleepWarning();
                         cancelTransfer(true);
                         showAlert('Sender cancelled transfer', 'warning');
+                    } else if (data.type === 'transfer_failed') {
+                        showAlert(`❌ Transfer failed: ${data.reason || 'Connection lost'}`, 'danger');
+                        stopSleepWarning();
+                        isTransferActive = false;
                     }
                 } catch (e) { console.error('Parse error:', e); }
             } else if (event.data instanceof ArrayBuffer) {
@@ -1077,6 +1197,7 @@
             STATE.reception.bytesReceived = 0;
             STATE.reception.startTime = Date.now();
             showAlert(`📥 Receiving: ${data.file_name} (${formatFileSize(data.file_size)})`, 'info');
+            showIncomingNotification(data.file_name);
             document.getElementById('transfer-info').style.display = 'block';
             updateProgress(0, data.current_index, data.total_files);
         }
@@ -1120,10 +1241,30 @@
             const previewHtml = isImage ? `<div class="mt-2"><img src="${url}" class="img-fluid rounded" style="max-height: 150px;"></div>` : '';
             const transferTime = (Date.now() - STATE.reception.startTime) / 1000;
             card.innerHTML = `<div class="d-flex justify-content-between align-items-start"><div><i class="fas fa-file"></i> <strong>${file_name}</strong><div class="small text-muted mt-1">${formatFileSize(file_size)} • Received in ${transferTime.toFixed(1)}s</div></div><a href="${url}" download="${file_name}" class="btn btn-sm btn-primary"><i class="fas fa-download"></i> Download</a></div>${previewHtml}`;
-            document.getElementById('received-files').appendChild(card);
+            // document.getElementById('received-files').appendChild(card);
+            const container = document.getElementById('received-files');
+            container.insertBefore(card, container.firstChild);  // Adds to TOP instead of bottom
             document.getElementById('received-files-section').style.display = 'block';
             if (STATE.receivedFiles.length > 0) document.getElementById('download-all-btn').style.display = 'inline-block';
-            showAlert(`✅ File ${current_index}/${total_files} received: ${file_name}`, 'success');
+            // showAlert(`✅ File ${current_index}/${total_files} received: ${file_name}`, 'success');
+            // Show completion message
+            if (current_index === total_files) {
+                // Create a prominent alert at the top of main screen
+                const mainAlert = document.createElement('div');
+                mainAlert.className = 'alert alert-success text-center mb-3';
+                mainAlert.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-size: 16px; font-weight: bold;';
+                mainAlert.innerHTML = `<i class="fas fa-check-circle"></i> ✅ ALL ${total_files} file(s) received successfully!`;
+                document.body.insertBefore(mainAlert, document.body.firstChild);
+
+                // Auto remove after 5 seconds
+                setTimeout(() => mainAlert.remove(), 5000);
+
+                // Also show in regular alert box
+                showAlert(`✅ ALL ${total_files} file(s) received successfully!`, 'success');
+            } else {
+                showAlert(`✅ File ${current_index}/${total_files} received: ${file_name}`, 'success');
+            }
+
             STATE.reception.buffers = [];
             STATE.reception.metadata = null;
             STATE.reception.bytesReceived = 0;
@@ -1249,6 +1390,27 @@
         });
 
         document.getElementById('client-id').value = 'Device-' + Math.floor(Math.random() * 1000);
+
+
+
+        // receiver notofication
+        function showIncomingNotification(filename) {
+            const receivedSection = document.getElementById('received-files-section');
+            const receivedContainer = document.getElementById('received-files');
+
+            // Make section visible and highlight it
+            receivedSection.style.display = 'block';
+            receivedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Add temporary highlight to show activity
+            receivedSection.classList.add('incoming-notification');
+            setTimeout(() => {
+                receivedSection.classList.remove('incoming-notification');
+            }, 3000);
+
+            // Optional: Play beep sound (uncomment if you have sound file)
+            // new Audio('/static/beep.mp3').play().catch(e => console.log('no sound'));
+        }
     </script>
 </body>
 
