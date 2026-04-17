@@ -146,6 +146,46 @@ function getProgressStage(stage) {
 }
 
 
+// validate file server side common code
+// async function validatePDFBeforeProcessing(file) {
+//     console.log("validate file in validatePDFBeforeProcessing(file)");
+
+//     const formData = new FormData();
+//     formData.append('file', file);
+
+//     try {
+//         const response = await fetch('/validate_pdf_before_client', {
+//             method: 'POST',
+//             body: formData
+//         });
+
+//         const result = await response.json();
+
+//         if (!result.valid) {
+//             alert(`⚠️ Security Check Failed: ${result.reason}\n\nPlease use a different PDF file.`);
+//             return false;
+//         }
+
+//         // Optional: Warn about large PDFs
+//         if (result.page_count > 100) {
+//             const proceed = confirm(
+//                 `This PDF has ${result.page_count} pages.\n` +
+//                 `Client-side processing may be slow.\n\n` +
+//                 `Continue anyway?`
+//             );
+//             if (!proceed) return false;
+//         }
+
+//         return true;
+
+//     } catch (error) {
+//         console.warn('Validation server unavailable, proceeding with client processing');
+//         return true; // Fallback to client-only
+//     }
+// }
+
+
+
 // Updated server compression estimation with progress
 
 async function computeServerCompressionSizesTwoStep() {
@@ -1464,7 +1504,14 @@ async function mergePDFsClientSide() {
     const progressText = document.getElementById('progress-text-mergeForm');
     const submitButton = document.getElementById('merge-submit-btn');
 
-    // Validation
+
+    // // server side validatioin
+    // for (const file of fileInput.files) {
+    //     const isValid = await validatePDFBeforeProcessing(file);
+    //     if (!isValid) return;
+    // }
+
+    // Validation client side with better error handling
     if (!fileInput || !fileInput.files || fileInput.files.length < 2) {
         alert('Please select at least 2 PDF files.');
         return;
@@ -3248,7 +3295,7 @@ if (!document.querySelector('#fun-chat-styles')) {
 
 
 // Global error handler for navigation
-window.addEventListener('error', function(e) {
+window.addEventListener('error', function (e) {
     if (e.target && e.target.tagName === 'A') {
         console.warn('Navigation error prevented:', e);
         e.preventDefault();
@@ -3257,12 +3304,12 @@ window.addEventListener('error', function(e) {
 });
 
 // Handle promise rejections
-window.addEventListener('unhandledrejection', function(e) {
+window.addEventListener('unhandledrejection', function (e) {
     console.warn('Unhandled promise rejection:', e.reason);
 });
 
 // Safe navigation handler
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     const target = e.target.closest('a');
     if (target && target.getAttribute('href') === '#') {
         e.preventDefault();
@@ -3362,7 +3409,7 @@ function showTool(toolId, event = null) {
 //     document.querySelectorAll('.tool-section').forEach(section => {
 //         section.style.display = 'none';
 //     });
-    
+
 
 //     // Show selected section
 //     const toolSection = document.getElementById(toolId);
@@ -3408,7 +3455,7 @@ function showTool(toolId, event = null) {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function () {
-    
+
 
 
     // Show last used tool or chat by default
@@ -3533,27 +3580,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 modeSelect.style.display = 'flex';
 
                 // ─── NEW: Change assistant name when toggle is ON ───────────────────────
-                const assistantNameEl = document.querySelector('.assistant-name') || 
-                                    document.querySelector('#chat-header .text-xl') || // fallback selector
-                                    document.querySelector('h2, .chat-title');         // more fallbacks
+                const assistantNameEl = document.querySelector('.assistant-name') ||
+                    document.querySelector('#chat-header .text-xl') || // fallback selector
+                    document.querySelector('h2, .chat-title');         // more fallbacks
 
                 if (assistantNameEl) {
                     const selectedMode = modeSelect.value || 'general';
-                    
+
                     // You can customize names here
                     const neutralNames = {
-                            general:     "Your AI Assistant",     // ← my #1 recommendation
-                            encyclopedia:"Fact Finder Assistant",
-                            creative:    "Creative Assistant",
-                            funny:       "Fun Assistant",
-                            baby:        "Little Star Helper",
-                            debate:      "Discussion Assistant",
-                            gate_coach:  "Study Assistant",
-                            default:     "Your AI Assistant"      // fallback
-                        };
+                        general: "Your AI Assistant",     // ← my #1 recommendation
+                        encyclopedia: "Fact Finder Assistant",
+                        creative: "Creative Assistant",
+                        funny: "Fun Assistant",
+                        baby: "Little Star Helper",
+                        debate: "Discussion Assistant",
+                        gate_coach: "Study Assistant",
+                        default: "Your AI Assistant"      // fallback
+                    };
 
                     const newName = neutralNames[selectedMode] || neutralNames.default;
-                    
+
                     // Smooth transition
                     assistantNameEl.style.opacity = '0';
                     setTimeout(() => {
@@ -3570,9 +3617,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 modeSelect.style.display = 'none';
 
                 // ─── NEW: Revert to original name when toggle is OFF ────────────────────
-                const assistantNameEl = document.querySelector('.assistant-name') || 
-                                    document.querySelector('#chat-header .text-xl') ||
-                                    document.querySelector('h2, .chat-title');
+                const assistantNameEl = document.querySelector('.assistant-name') ||
+                    document.querySelector('#chat-header .text-xl') ||
+                    document.querySelector('h2, .chat-title');
 
                 if (assistantNameEl) {
                     assistantNameEl.style.opacity = '0';
@@ -3875,15 +3922,15 @@ async function generateNewsletter() {
         elements.topic.focus();
         return;
     }
-    
+
     if (state.isGenerating) return;
-    
+
     // Update UI state
     state.isGenerating = true;
     elements.generateBtn.disabled = true;
     elements.generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
     elements.loading.classList.add('active');
-    
+
     // Show loading state
     elements.newsletterPreview.innerHTML = `
         <div class="preview-placeholder">
@@ -3895,7 +3942,7 @@ async function generateNewsletter() {
             </p>
         </div>
     `;
-    
+
     try {
         // Prepare data
         const formData = new FormData();
@@ -3903,9 +3950,9 @@ async function generateNewsletter() {
         formData.append('publish_date', elements.publishDate.value || new Date().toISOString().split('T')[0]);
         formData.append('keywords', elements.keywords.value);
         formData.append('style', 'professional');
-        
+
         console.log('📤 Sending request to /generate-newsletter...');
-        
+
         // Make API request
         const response = await fetch('/generate-newsletter', {
             method: 'POST',
@@ -3914,13 +3961,13 @@ async function generateNewsletter() {
                 'Accept': 'application/json'  // Explicitly ask for JSON
             }
         });
-        
+
         console.log('📥 Response status:', response.status);
-        
+
         // Get response as text first to debug
         const responseText = await response.text();
         console.log('📥 Response text (first 500 chars):', responseText.substring(0, 500));
-        
+
         // Try to parse as JSON
         let result;
         try {
@@ -3929,28 +3976,28 @@ async function generateNewsletter() {
             console.error('❌ Failed to parse JSON:', jsonError);
             throw new Error(`Server returned HTML instead of JSON. The response starts with: "${responseText.substring(0, 100)}..."`);
         }
-        
+
         if (!response.ok) {
             throw new Error(result.error || `Server error ${response.status}`);
         }
-        
+
         if (result.error) {
             throw new Error(result.error);
         }
-        
+
         console.log('✅ Parsed result:', result);
-        
+
         // 🚀 HANDLE REDIRECT
         if (result.redirect_url) {
             console.log('🔄 Redirecting to:', result.redirect_url);
-            
+
             // Show success message
             showNotification(
                 '✅ Newsletter generated! Opening full view...',
                 'success',
                 'Complete'
             );
-            
+
             // Wait 1 second then redirect
             setTimeout(() => {
                 // Open in new tab
@@ -3960,7 +4007,7 @@ async function generateNewsletter() {
                     window.location.href = result.redirect_url;
                 }
             }, 1000);
-            
+
         } else if (result.html) {
             // Old format - show preview (fallback)
             console.log('📄 Old format detected, showing preview');
@@ -3970,14 +4017,14 @@ async function generateNewsletter() {
                 'info',
                 'Complete'
             );
-            
+
         } else {
             throw new Error('Invalid response format from server');
         }
-        
+
     } catch (error) {
         console.error('❌ Newsletter generation error:', error);
-        
+
         // Display detailed error
         elements.newsletterPreview.innerHTML = `
             <div class="error-state">
@@ -3991,13 +4038,13 @@ async function generateNewsletter() {
                 </button>
             </div>
         `;
-        
+
         showNotification(
             `Generation failed: ${error.message.substring(0, 100)}...`,
             'error',
             'Error'
         );
-        
+
     } finally {
         // Reset UI state
         state.isGenerating = false;
@@ -4023,7 +4070,7 @@ function displayNewsletterPreview(result) {
         displayErrorState('No newsletter content received');
         return;
     }
-    
+
     // Create a quick preview
     elements.newsletterPreview.innerHTML = `
         <div style="text-align: center; padding: 2rem;">
@@ -4077,19 +4124,19 @@ function displayNewsletterPreview(result) {
 //         }
 
 //         const result = await response.json();
-        
+
 //         if (result.error) {
 //             throw new Error(result.error);
 //         }
-        
+
 
 //         // Display enhanced newsletter
 //         displayKillerNewsletter(result);
 //         showNewsletterTab('preview', null);
-        
+
 //         // Update analytics
 //         updateNewsletterAnalytics(result);
-        
+
 //         showNotification(`✅ Curated ${result.metadata?.high_quality_sources || 0} high-value insights!`, 'success');
 
 //     } catch (error) {
@@ -4115,10 +4162,10 @@ function displayKillerNewsletter(result) {
     // Create iframe with proper sandbox permissions
     const iframe = document.createElement('iframe');
     iframe.className = 'newsletter-iframe w-full h-[600px] md:h-[700px] border-0 rounded-lg bg-white shadow-inner';
-    
+
     // FIX: Add allow-popups and allow-popups-to-escape-sandbox
     iframe.sandbox = 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox';
-    
+
     iframe.style.width = '100%';
     iframe.style.height = '600px';
     iframe.style.border = 'none';
@@ -4222,7 +4269,7 @@ function displayKillerNewsletter(result) {
     window.currentNewsletterResult = result;
 
     // Add global click handler for parent window
-    window.handleNewsletterClick = function(event, url) {
+    window.handleNewsletterClick = function (event, url) {
         event.preventDefault();
         event.stopPropagation();
         console.log('Opening URL from parent:', url);
@@ -4231,7 +4278,7 @@ function displayKillerNewsletter(result) {
     };
 
     // New: Fullscreen toggle
-    window.toggleNewsletterFullscreen = function() {
+    window.toggleNewsletterFullscreen = function () {
         const iframe = previewContainer.querySelector('iframe');
         if (iframe.requestFullscreen) {
             iframe.requestFullscreen().catch(err => console.warn('Fullscreen failed:', err));
@@ -4257,7 +4304,7 @@ function refreshNewsletterView() {
 // Enhanced error handling
 function handleNewsletterError(error) {
     let userMessage = 'Error generating newsletter';
-    
+
     if (error.message.includes('No high-quality news found')) {
         userMessage = 'Using demo content. Real news sources limited. Try adding specific keywords.';
     } else if (error.name === 'TimeoutError') {
@@ -4265,7 +4312,7 @@ function handleNewsletterError(error) {
     } else {
         userMessage = error.message;
     }
-    
+
     showNotification(userMessage, 'warning');
 }
 
@@ -4293,7 +4340,7 @@ function createErrorState(message) {
 function updateNewsletterAnalytics(result) {
     const analyticsStats = document.getElementById('analytics-stats');
     const contentInsights = document.getElementById('content-insights');
-    
+
     if (!analyticsStats) return;
 
     const stats = {
@@ -4325,7 +4372,7 @@ function updateNewsletterAnalytics(result) {
     // Enhanced insights
     const insights = generateKillerInsights(result);
     if (contentInsights) {
-        contentInsights.innerHTML = insights.map(insight => 
+        contentInsights.innerHTML = insights.map(insight =>
             `<div class="flex items-center text-sm p-2 bg-white rounded border-l-4 border-green-400">
                 <i class="fas fa-bolt text-green-500 mr-3"></i>
                 ${insight}
@@ -4343,11 +4390,11 @@ function calculateRelevanceScore(result) {
 function calculateDepthScore(result) {
     let score = 7; // base
     const content = result.html || '';
-    
+
     if (content.includes('₹') || content.includes('MW')) score += 1;
     if (content.includes('Q') && content.includes('202')) score += 1;
     if ((result.metadata?.word_count || 0) > 1000) score += 1;
-    
+
     return Math.min(10, score);
 }
 
@@ -4358,17 +4405,17 @@ function generateKillerInsights(result) {
     if (metadata.high_quality_sources > 8) {
         insights.push("Premium source curation - executive grade");
     }
-    
+
     if (metadata.estimated_read_time <= 5) {
         insights.push("Perfect CXO length - under 5 minute read");
     } else {
         insights.push("Comprehensive coverage - deep dive edition");
     }
-    
+
     if (metadata.word_count > 800) {
         insights.push("High-density intelligence - zero fluff");
     }
-    
+
     insights.push("Mobile-optimized for on-the-go executives");
     insights.push("Real numbers focus - MW, ₹ Cr, dates emphasized");
 
@@ -4437,16 +4484,16 @@ function showCopyNotification(message, type = 'success') {
 }
 
 // Initialize newsletter functionality
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const publishDate = document.getElementById('publishDate');
     if (publishDate) {
         publishDate.value = new Date().toISOString().split('T')[0];
     }
-    
+
     // Add topic change handler for better UX
     const topicSelect = document.getElementById('topic');
     if (topicSelect) {
-        topicSelect.addEventListener('change', function() {
+        topicSelect.addEventListener('change', function () {
             const keywords = document.getElementById('keywords');
             if (keywords && !keywords.value) {
                 // Pre-fill relevant keywords based on topic
@@ -4459,7 +4506,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     console.log('Newsletter generator initialized');
 });
 
@@ -4472,13 +4519,13 @@ function calculateEngagementScore(result) {
     let score = 7; // base score
     const content = result.html || '';
     const metadata = result.metadata || {};
-    
+
     // Engagement scoring logic
     if (content.includes('🔥') || content.includes('⚡')) score += 1;
     if (metadata.word_count > 800) score += 1;
     if (metadata.high_quality_sources > 5) score += 1;
     if (metadata.estimated_read_time <= 5) score += 1;
-    
+
     return Math.min(10, score);
 }
 
@@ -4486,10 +4533,10 @@ function calculateEngagementScore(result) {
 function calculateFreshnessScore(result) {
     const metadata = result.metadata || {};
     let score = 85; // base freshness
-    
+
     if (metadata.high_quality_sources > 8) score += 10;
     if (metadata.sources_used > 10) score += 5;
-    
+
     return Math.min(100, score);
 }
 
@@ -4498,24 +4545,24 @@ function showNotification(message, type = 'success') {
     // Remove any existing notifications first
     const existingNotifications = document.querySelectorAll('.custom-notification');
     existingNotifications.forEach(notification => notification.remove());
-    
+
     const notification = document.createElement('div');
-    const bgColor = type === 'error' ? 'bg-red-500' : 
-                   type === 'warning' ? 'bg-yellow-500' : 
-                   'bg-green-500';
-    
+    const bgColor = type === 'error' ? 'bg-red-500' :
+        type === 'warning' ? 'bg-yellow-500' :
+            'bg-green-500';
+
     notification.className = `custom-notification fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-0`;
     notification.innerHTML = `
         <div class="flex items-center">
-            <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 
-                         type === 'warning' ? 'fa-exclamation-triangle' : 
-                         'fa-check-circle'} mr-2"></i>
+            <i class="fas ${type === 'error' ? 'fa-exclamation-circle' :
+            type === 'warning' ? 'fa-exclamation-triangle' :
+                'fa-check-circle'} mr-2"></i>
             <span>${message}</span>
         </div>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     // Auto remove after 4 seconds
     setTimeout(() => {
         notification.style.transform = 'translateX(100%)';
@@ -4531,7 +4578,7 @@ function showNotification(message, type = 'success') {
 function updateNewsletterAnalytics(result) {
     const analyticsStats = document.getElementById('analytics-stats');
     const contentInsights = document.getElementById('content-insights');
-    
+
     if (!analyticsStats) return;
 
     const stats = {
@@ -4563,7 +4610,7 @@ function updateNewsletterAnalytics(result) {
     // Enhanced insights
     const insights = generateKillerInsights(result);
     if (contentInsights) {
-        contentInsights.innerHTML = insights.map(insight => 
+        contentInsights.innerHTML = insights.map(insight =>
             `<div class="flex items-center text-sm p-2 bg-white rounded border-l-4 border-green-400">
                 <i class="fas fa-bolt text-green-500 mr-3"></i>
                 ${insight}
@@ -4585,11 +4632,11 @@ function calculateDepthScore(result) {
     let score = 7; // base
     const content = result.html || '';
     const metadata = result.metadata || {};
-    
+
     if (content.includes('₹') || content.includes('MW')) score += 1;
     if (content.includes('Q') && content.includes('202')) score += 1;
     if ((metadata.word_count || 0) > 1000) score += 1;
-    
+
     return Math.min(10, score);
 }
 
@@ -4601,27 +4648,27 @@ function generateKillerInsights(result) {
     if (metadata.high_quality_sources > 8) {
         insights.push("Premium source curation - executive grade");
     }
-    
+
     if (metadata.estimated_read_time <= 5) {
         insights.push("Perfect reading length - under 5 minute read");
     } else {
         insights.push("Comprehensive coverage - deep dive edition");
     }
-    
+
     if (metadata.word_count > 800) {
         insights.push("High-density intelligence - zero fluff");
     }
-    
+
     insights.push("Mobile-optimized for on-the-go reading");
     insights.push("Real numbers focus - data-driven insights");
 
     return insights;
 }
 
-// Fix 8: Update handleNewsletterError function
+//  Update handleNewsletterError function
 function handleNewsletterError(error) {
     let userMessage = 'Error generating newsletter';
-    
+
     if (error.message.includes('No high-quality news found')) {
         userMessage = 'Using demo content. Real news sources limited. Try adding specific keywords.';
     } else if (error.name === 'TimeoutError') {
@@ -4629,33 +4676,10 @@ function handleNewsletterError(error) {
     } else {
         userMessage = error.message;
     }
-    
+
     // Use the fixed showNotification function
     showNotification(userMessage, 'warning');
 }
 
 
-// //  ///  NEW FOR HIRING FORM  ///  //
 
-// document.addEventListener('DOMContentLoaded', function() {
-//     // Validate all links and fix any issues
-//     const links = document.querySelectorAll('a[href]');
-//     links.forEach(link => {
-//         const href = link.getAttribute('href');
-        
-//         // Fix malformed links
-//         if (!href || href.includes('class=') || !href.startsWith('http')) {
-//             console.log('Found malformed link, removing:', href);
-//             link.setAttribute('href', '#');
-//             link.style.color = '#ff6b6b';
-//             link.style.textDecoration = 'line-through';
-//             link.title = 'Link not available - search for this job directly';
-            
-//             link.addEventListener('click', function(e) {
-//                 e.preventDefault();
-//                 const jobTitle = link.textContent.replace('💼 ', '');
-//                 alert(`Job link not available. Please search for: "${jobTitle}" on ${link.closest('.tech-card')?.querySelector('.tech-source a')?.textContent?.replace('📍 ', '') || 'job portals'}`);
-//             });
-//         }
-//     });
-// });

@@ -45,96 +45,82 @@ def get_process_memory(pid):
 
 
 
-
-def encrypt_pdf(pdf_bytes, password):
-    """Encrypt PDF with a password using PyMuPDF."""
-    doc = None
+# ==================== STREAMING PDF ENCRYPTION (DISK-BASED) ====================
+def encrypt_pdf_streaming(input_path: str, output_path: str, password: str) -> bool:
+    """
+    Encrypt PDF using streaming - processes page by page, minimal RAM usage
+    Only reads one page at a time from disk
+    """
     try:
-        # Check actual process memory instead of system memory
-        current_pid = os.getpid()
-        process_memory = get_process_memory(current_pid)
+        from pypdf import PdfReader, PdfWriter
         
-        # Only check if process memory is dangerously high (>500MB for small instance)
-        # Skip system-wide memory check entirely
-        if process_memory and process_memory > 500:  # 500MB threshold
-            logger.warning(f"Process memory high: {process_memory:.1f}MB, but proceeding anyway")
+        logger.info(f"🔐 Starting streaming encryption: {input_path} -> {output_path}")
         
-        # Log current state for debugging
-        used_mem, avail_mem, total_mem = get_memory_info()
-        logger.info(f"System memory: {used_mem:.1f}/{total_mem:.1f}MB used ({used_mem/total_mem*100:.1f}%), Process: {process_memory:.1f}MB")
+        # Open reader from disk (doesn't load entire file)
+        reader = PdfReader(input_path)
+        writer = PdfWriter()
         
-        # OPEN PDF - this is lightweight
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        logger.info(f"PDF opened: {doc.page_count} pages")
+        # Process each page individually (streaming)
+        total_pages = len(reader.pages)
+        for i, page in enumerate(reader.pages, 1):
+            writer.add_page(page)
+            if i % 10 == 0:  # Log progress every 10 pages
+                logger.info(f"   📄 Encrypted page {i}/{total_pages}")
         
-        output_buffer = io.BytesIO()
+        # Add encryption
+        writer.encrypt(password)
         
-        # Save with encryption
-        doc.save(
-            output_buffer,
-            encryption=fitz.PDF_ENCRYPT_AES_256,
-            owner_pw=password,
-            user_pw=password,
-            permissions=fitz.PDF_PERM_PRINT
-        )
+        # Write directly to disk (not to RAM)
+        with open(output_path, "wb") as f:
+            writer.write(f)
         
-        output_buffer.seek(0)
-        encrypted_bytes = output_buffer.getvalue()
-        
-        # Verify encryption worked
-        test_doc = fitz.open(stream=encrypted_bytes, filetype="pdf")
-        is_encrypted = test_doc.is_encrypted
-        test_doc.close()
-        
-        if not is_encrypted:
-            raise Exception("Encryption failed: Output PDF is not encrypted")
-        
-        logger.info(f"Encryption successful: {len(pdf_bytes)} -> {len(encrypted_bytes)} bytes")
-        return encrypted_bytes
+        logger.info(f"✅ Streaming encryption completed: {output_path}")
+        return True
         
     except Exception as e:
-        logger.error(f"Encryption error: {e}")
-        return None
-    finally:
-        if doc:
-            doc.close()
-        gc.collect()
+        logger.error(f"❌ Streaming encryption failed: {e}")
+        return False
 
-
-def remove_pdf_password(pdf_bytes: bytes, password: str) -> Optional[bytes]:
-    """Remove password using pikepdf which handles AES-256 better."""
+def decrypt_pdf_streaming(input_path: str, output_path: str, password: str) -> bool:
+    """
+    Remove PDF password using streaming - processes page by page, minimal RAM usage
+    """
     try:
-        # Validate inputs
-        if not pdf_bytes:
-            raise ValueError("Empty PDF bytes provided")
-        if not password:
-            raise ValueError("Password cannot be empty")
+        from pypdf import PdfReader, PdfWriter
         
-        logger.info(f"Attempting to decrypt PDF of size: {len(pdf_bytes)} bytes")
+        logger.info(f"🔓 Starting streaming decryption: {input_path} -> {output_path}")
         
-        # Open with password - pikepdf is memory efficient
-        with Pdf.open(io.BytesIO(pdf_bytes), password=password) as pdf:
-            # Save without password
-            output = io.BytesIO()
-            pdf.save(output)
-            decrypted_bytes = output.getvalue()
-            
-            logger.info(f"Decryption successful: {len(pdf_bytes)} -> {len(decrypted_bytes)} bytes")
-            
-            # Verify decryption worked
-            with Pdf.open(io.BytesIO(decrypted_bytes)) as test_pdf:
-                if test_pdf.is_encrypted:
-                    raise RuntimeError("Output PDF is still encrypted")
-            
-            return decrypted_bytes
-            
-    except PasswordError:
-        logger.error("Incorrect password provided")
-        raise ValueError("Incorrect password")
+        # Open reader from disk
+        reader = PdfReader(input_path)
+        
+        # Check if encrypted and decrypt
+        if reader.is_encrypted:
+            try:
+                reader.decrypt(password)
+                logger.info(f"   🔑 Password accepted")
+            except Exception as e:
+                logger.error(f"   ❌ Wrong password: {e}")
+                return False
+        
+        writer = PdfWriter()
+        
+        # Process each page individually
+        total_pages = len(reader.pages)
+        for i, page in enumerate(reader.pages, 1):
+            writer.add_page(page)
+            if i % 10 == 0:
+                logger.info(f"   📄 Decrypted page {i}/{total_pages}")
+        
+        # Write directly to disk
+        with open(output_path, "wb") as f:
+            writer.write(f)
+        
+        logger.info(f"✅ Streaming decryption completed: {output_path}")
+        return True
+        
     except Exception as e:
-        logger.error(f"pikepdf decryption failed: {str(e)}")
-        raise RuntimeError(f"Decryption failed: {str(e)}")
-
+        logger.error(f"❌ Streaming decryption failed: {e}")
+        return False
 
 
 

@@ -425,6 +425,152 @@ async def scan_with_clamav_from_disk(file_path: str, filename: str = "upload") -
     return {"safe": False, "message": "Scan failed after retries"}
 
 
+# async def scan_with_clamav(file_content: bytes, filename: str = "upload") -> dict:
+#     global CLAMAV_AVAILABLE
+#     """
+#     Scan file with ClamAV - Optimized for Windows + Amazon Linux 2023
+#     Returns: {"safe": bool, "message": str}
+#     """
+    
+    
+#     if not CLAMAV_AVAILABLE:
+#         logger.warning(f"⚠️ ClamAV not available - skipping scan for {filename}")
+#         if os.getenv("ENVIRONMENT") == "production":
+#             return {"safe": False, "message": "Security scanner unavailable - contact support"}
+#         return {"safe": True, "message": "ClamAV not available - manual review recommended"}
+
+#     temp_path = None
+#     max_retries = 2
+    
+#     for attempt in range(max_retries):
+#         try:
+#             # Cross-platform temp directory
+#             if platform.system().lower() == "windows":
+#                 temp_dir = os.environ.get("TEMP", "C:\\Temp")
+#             else:
+#                 temp_dir = "/tmp"
+            
+#             os.makedirs(temp_dir, exist_ok=True)
+#             # Remove spaces from temp filename to avoid command line issues
+#             safe_filename = sanitize_filename(filename).replace(' ', '_')
+#             temp_filename = f"scan_{uuid.uuid4().hex}_{safe_filename}"
+#             temp_path = os.path.join(temp_dir, temp_filename)
+            
+#             # Write content to temp file
+#             with open(temp_path, "wb") as f:
+#                 f.write(file_content)
+
+#             # Build command - platform specific
+#             if platform.system().lower() == "windows":
+#                 if CLAMAV_SCANNER_PATH and os.path.exists(CLAMAV_SCANNER_PATH):
+#                     cmd = [CLAMAV_SCANNER_PATH, temp_path]
+#                 else:
+#                     cmd = ["clamscan", temp_path]
+#                 creationflags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+                
+#                 result = subprocess.run(
+#                     cmd, 
+#                     capture_output=True, 
+#                     text=True, 
+#                     timeout=30,
+#                     shell=True,
+#                     creationflags=creationflags
+#                 )
+#             else:
+#                 # Linux
+#                 cmd = ["nice", "-n", "10", CLAMAV_SCANNER_PATH, "--infected", "--no-summary", temp_path]
+#                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            
+#             output = result.stdout.strip()
+#             error_output = result.stderr.strip()
+
+#             # Check for viruses using return code (1 = virus found on Linux)
+#             if result.returncode == 1:
+#                 logger.error(f"🚨 MALWARE DETECTED: {filename}")
+#                 return {"safe": False, "message": "Malware detected"}
+
+#             # Check for clean file (return code 0 means clean)
+#             if result.returncode == 0:
+#                 logger.info(f"✅ Scan clean: {filename}")
+#                 return {"safe": True, "message": "Clean"}
+
+#             # Also check stdout for "Infected files: 0" as fallback for Windows
+#             if "Infected files: 0" in output and "Infected files: 1" not in output:
+#                 logger.info(f"✅ Scan clean (by summary): {filename}")
+#                 return {"safe": True, "message": "Clean"}
+            
+#             # Check for "FOUND" in output (legacy format)
+#             if "FOUND" in output:
+#                 virus_name = "Unknown"
+#                 lines = output.split('\n')
+#                 for line in lines:
+#                     if "FOUND" in line:
+#                         parts = line.split(':')
+#                         if len(parts) >= 2:
+#                             virus_info = parts[1].strip()
+#                             virus_name = virus_info.split('FOUND')[0].strip()
+#                         break
+                
+#                 logger.error(f"🚨 MALWARE DETECTED: {filename} → {virus_name}")
+#                 return {"safe": False, "message": f"Malware found: {virus_name}"}
+
+#             # Check for scan errors
+#             if error_output and ("ERROR" in error_output.upper() or "failed" in error_output.lower()):
+#                 logger.error(f"ClamAV error: {error_output}")
+#                 if attempt < max_retries - 1:
+#                     logger.info(f"Retrying scan (attempt {attempt + 2}/{max_retries})...")
+#                     await asyncio.sleep(1)
+#                     continue
+#                 else:
+#                     # For Windows, if clamscan fails but file is likely safe, allow it with warning
+#                     if platform.system().lower() == "windows":
+#                         logger.warning(f"⚠️ ClamAV scan failed but allowing file: {filename}")
+#                         return {"safe": True, "message": "Scan failed - manual inspection recommended"}
+#                     return {"safe": False, "message": "Security scan failed - file rejected"}
+            
+#             # If we get here, check if output is empty but no error
+#             if not output and not error_output:
+#                 logger.warning(f"⚠️ Empty response from ClamAV for {filename}")
+#                 if platform.system().lower() == "windows":
+#                     logger.info(f"✅ Allowing file due to empty response on Windows: {filename}")
+#                     return {"safe": True, "message": "Clean (scan ambiguous)"}
+            
+#             logger.warning(f"Unexpected ClamAV output: {output}")
+#             return {"safe": True, "message": "Clean (uncertain)"}
+
+#         except subprocess.TimeoutError:
+#             logger.error(f"ClamAV scan timeout for {filename} (attempt {attempt + 1})")
+#             if attempt < max_retries - 1:
+#                 continue
+#             if platform.system().lower() == "windows":
+#                 return {"safe": True, "message": "Scan timeout - allowed"}
+#             return {"safe": False, "message": "Scan timeout - file rejected"}
+            
+#         except FileNotFoundError as e:
+#             logger.error(f"ClamAV not found: {e}")
+      
+#             CLAMAV_AVAILABLE = False
+#             return {"safe": True, "message": "ClamAV not installed - skipping scan"}
+            
+#         except Exception as e:
+#             logger.error(f"ClamAV scan error for {filename}: {e}")
+#             if attempt < max_retries - 1:
+#                 continue
+#             if platform.system().lower() == "windows":
+#                 logger.warning(f"⚠️ Allowing file due to scan error on Windows: {filename}")
+#                 return {"safe": True, "message": f"Scan error: {str(e)} - allowed"}
+#             return {"safe": False, "message": f"Scan failed: {str(e)}"}
+            
+#         finally:
+#             # Clean up temp file
+#             if temp_path and os.path.exists(temp_path):
+#                 try:
+#                     os.unlink(temp_path)
+#                 except Exception as e:
+#                     logger.warning(f"Failed to delete temp file {temp_path}: {e}")
+    
+#     return {"safe": False, "message": "Scan failed after retries"}
+
 
 
 def init_clamav_scanner():
@@ -629,6 +775,87 @@ def test_clamav_performance():
         logger.error(f"ClamAV performance test failed: {e}")
         return False
 
+# def init_clamav_scanner():
+#     """Initialize ClamAV scanner - Optimized for Windows + Amazon Linux 2023"""
+#     global CLAMAV_AVAILABLE, CLAMAV_SCANNER_PATH
+    
+#     system = platform.system().lower()
+#     logger.info(f"🔍 Initializing ClamAV on {system}...")
+    
+#     try:
+#         if system == "windows":
+#             # First check if clamscan is in PATH
+#             try:
+#                 result = subprocess.run(
+#                     ["where", "clamscan"], 
+#                     capture_output=True, 
+#                     text=True, 
+#                     shell=True,
+#                     timeout=5
+#                 )
+#                 if result.returncode == 0 and result.stdout.strip():
+#                     paths = result.stdout.strip().split('\n')
+#                     CLAMAV_SCANNER_PATH = paths[0]  # Use first found
+#                     CLAMAV_AVAILABLE = True
+#                     logger.info(f"✅ ClamAV found on Windows PATH: {CLAMAV_SCANNER_PATH}")
+                    
+#                     # Test the scanner
+#                     test_result = subprocess.run(
+#                         [CLAMAV_SCANNER_PATH, "--version"],
+#                         capture_output=True,
+#                         text=True,
+#                         shell=True,
+#                         timeout=5
+#                     )
+#                     if test_result.returncode == 0:
+#                         logger.info(f"✅ ClamAV version: {test_result.stdout.strip()}")
+#                     return
+#             except Exception as e:
+#                 logger.warning(f"PATH check failed: {e}")
+            
+#             # Check common installation paths
+#             possible_paths = [
+#                 r"C:\Program Files\ClamAV\clamscan.exe",
+#                 r"C:\ClamAV\clamscan.exe",
+#                 r"C:\Program Files (x86)\ClamAV\clamscan.exe"
+#             ]
+#             for path in possible_paths:
+#                 if os.path.exists(path):
+#                     CLAMAV_SCANNER_PATH = path
+#                     CLAMAV_AVAILABLE = True
+#                     logger.info(f"✅ ClamAV found on Windows: {path}")
+#                     return
+            
+#             # If we get here, ClamAV not found
+#             logger.warning("⚠️ ClamAV not found on Windows. Install from: https://clamav.net/downloads")
+#             CLAMAV_AVAILABLE = False
+            
+#         else:
+#             # Linux detection (existing code)
+#             common_paths = ["/usr/bin/clamscan", "/usr/local/bin/clamscan", "/bin/clamscan"]
+#             for path in common_paths:
+#                 if os.path.exists(path) and os.access(path, os.X_OK):
+#                     CLAMAV_SCANNER_PATH = path
+#                     CLAMAV_AVAILABLE = True
+#                     logger.info(f"✅ ClamAV found at: {path}")
+#                     return
+            
+#             try:
+#                 result = subprocess.run(["which", "clamscan"], capture_output=True, text=True, timeout=5)
+#                 if result.returncode == 0 and result.stdout.strip():
+#                     CLAMAV_SCANNER_PATH = result.stdout.strip()
+#                     CLAMAV_AVAILABLE = True
+#                     logger.info(f"✅ ClamAV found via which: {CLAMAV_SCANNER_PATH}")
+#                     return
+#             except Exception:
+#                 pass
+            
+#             CLAMAV_AVAILABLE = False
+#             logger.warning("⚠️ ClamAV not found. Install with: sudo yum install clamav clamav-update -y")
+            
+#     except Exception as e:
+#         logger.error(f"ClamAV initialization failed: {e}")
+#         CLAMAV_AVAILABLE = False
 
 # ==================== UNIFIED FILE VALIDATION (NO DUPLICATES) ====================
 def is_valid_pdf_structure(file_path: str) -> bool:
@@ -829,6 +1056,90 @@ async def validate_file_from_disk(file_path: str, file_type: str, original_filen
 #========================
 
 
+# async def validate_file(file: UploadFile, file_type: str) -> bytes:
+#     """
+#     UNIFIED file validation - Complete security check:
+#     - Filename sanitization
+#     - Extension validation  
+#     - Magic bytes check
+#     - MIME validation
+#     - ClamAV scanning
+#     - Size limits
+#     """
+#     if not file.filename:
+#         raise HTTPException(400, "No filename provided")
+    
+#     # Sanitize filename
+#     safe_filename = sanitize_filename(file.filename)
+#     file.filename = safe_filename
+    
+#     # Validate file type exists in config
+#     if file_type not in ALLOWED_FILE_TYPES:
+#         raise HTTPException(400, f"Unsupported file type: {file_type}")
+    
+#     file_config = ALLOWED_FILE_TYPES[file_type]
+    
+#     # Validate extension
+#     ext = os.path.splitext(safe_filename)[1].lower()
+#     if ext not in file_config['extensions']:
+#         raise HTTPException(
+#             400, 
+#             f"Invalid extension. Allowed: {file_config['extensions']}"
+#         )
+    
+#     # Read file content with size limit
+#     max_size = file_config['max_size']
+#     content = await file.read(max_size + 1024)
+    
+#     if len(content) > max_size:
+#         raise HTTPException(
+#             400, 
+#             f"File too large. Max: {max_size // (1024*1024)}MB"
+#         )
+    
+#     if len(content) < 100:  # Minimum size check
+#         raise HTTPException(400, "File too small or empty")
+    
+#     # Magic bytes check (file signature)
+#     magic_match = False
+#     for magic_bytes in file_config['magic']:
+#         if content.startswith(magic_bytes):
+#             magic_match = True
+#             break
+    
+#     if not magic_match:
+#         raise HTTPException(400, f"Invalid {file_type.upper()} file format - file signature mismatch")
+    
+#     # MIME type check with python-magic
+#     try:
+#         mime = magic.from_buffer(content[:1024], mime=True)
+        
+#         if file_type == 'pdf':
+#             # Allow common PDF MIME types and octet-stream (browser-generated)
+#             allowed_pdf_mimes = ['application/pdf', 'application/octet-stream']
+#             if mime not in allowed_pdf_mimes:
+#                 raise HTTPException(400, f"Invalid content type. Expected PDF, got {mime}")
+#         else:
+#             if mime not in file_config['mime']:
+#                 raise HTTPException(400, f"Invalid content type. Expected {file_type}, got {mime}")
+#     except Exception as e:
+#         logger.warning(f"MIME detection failed: {e}")
+#         # Don't block on MIME detection error, but log it
+    
+#     # ClamAV virus scan
+#     scan_result = await scan_with_clamav(content, safe_filename)
+#     if not scan_result["safe"]:
+#         logger.error(f"🚨 MALWARE BLOCKED: {safe_filename} - {scan_result['message']}")
+#         raise HTTPException(
+#             status_code=403, 
+#             detail=f"Security Alert: {scan_result['message']}"
+#         )
+    
+#     # Reset file pointer for subsequent reads
+#     await file.seek(0)
+    
+#     logger.info(f"✅ File validated: {safe_filename} ({file_type}, {len(content)} bytes)")
+#     return content
 
 # ==================== SECURITY HEALTH CHECK ENDPOINT ====================
 @app.get("/security-health")
@@ -977,9 +1288,6 @@ async def add_security_headers(request: Request, call_next):
 #     return response
 
 ##### ehuggingface
-
-
-
 
 # ------------------------------------------------------------------
 # 1. Load the HF model once (thread-safe, CPU-only)
@@ -2759,48 +3067,6 @@ async def process_compression_disk_only(task_id: str, input_path: str, filename:
         cleanup_compression_estimation_files(task_id)
         raise
 
-# @app.post("/start_compression")
-# @limiter.limit(RATE_LIMITS['compress'])
-# async def start_compression(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...), preset: str = Form("ebook")):
-#     logger.info(f"Starting compression: file={file.filename}, preset={preset}")
-    
-#     task_id = str(uuid.uuid4())
-#     file_path = None
-    
-#     try:
-#         await progress_tracker.update_progress(task_id, 0, "Initializing compression...", "initializing")
-        
-#         # Step 1: Upload to disk immediately
-#         await progress_tracker.update_progress(task_id, 10, "Uploading file to disk...", "uploading")
-#         file_path = await upload_to_disk_first(file, task_id)
-        
-#         # Step 2: Validate from disk
-#         await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
-#         await validate_file_from_disk(file_path, 'pdf', file.filename)
-        
-#         await progress_tracker.update_progress(task_id, 40, "File validated! Starting compression...", "processing")
-#         background_tasks.add_task(process_compression_disk_only, task_id, file_path, file.filename, preset)
-        
-#         return JSONResponse(content={
-#             "task_id": task_id, 
-#             "status": "started", 
-#             "message": "Compression started (pure disk-based)",
-#             "processing_mode": "pure_disk"
-#         })
-        
-#     except HTTPException as e:
-#         if file_path and os.path.exists(file_path):
-#             os.unlink(file_path)
-#         await progress_tracker.update_progress(task_id, 100, f"Validation failed: {e.detail}", "error")
-#         raise e
-#     except Exception as e:
-#         if file_path and os.path.exists(file_path):
-#             os.unlink(file_path)
-#         logger.error(f"❌ Failed: {str(e)}")
-#         await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
-#         raise HTTPException(status_code=500, detail=f"Failed: {str(e)}")
-
-
 @app.post("/start_compression")
 @limiter.limit(RATE_LIMITS['compress'])
 async def start_compression(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...), preset: str = Form("ebook")):
@@ -2810,10 +3076,6 @@ async def start_compression(request: Request, background_tasks: BackgroundTasks,
     file_path = None
     
     try:
-        # Check if file exists
-        if not file or not file.filename:
-            raise HTTPException(status_code=400, detail="No file provided")
-        
         await progress_tracker.update_progress(task_id, 0, "Initializing compression...", "initializing")
         
         # Step 1: Upload to disk immediately
@@ -2822,23 +3084,7 @@ async def start_compression(request: Request, background_tasks: BackgroundTasks,
         
         # Step 2: Validate from disk
         await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
-        
-        # ✅ ADD TRY-CATCH for validation errors to return proper JSON
-        try:
-            await validate_file_from_disk(file_path, 'pdf', file.filename)
-        except HTTPException as validation_error:
-            # Clean up and re-raise with proper detail
-            if file_path and os.path.exists(file_path):
-                os.unlink(file_path)
-            raise HTTPException(
-                status_code=validation_error.status_code,
-                detail=validation_error.detail
-            )
-        
-        # Step 3: Check preset is valid
-        valid_presets = ['prepress', 'printer', 'ebook', 'screen']
-        if preset not in valid_presets:
-            raise HTTPException(status_code=400, detail=f"Invalid preset. Use: {', '.join(valid_presets)}")
+        await validate_file_from_disk(file_path, 'pdf', file.filename)
         
         await progress_tracker.update_progress(task_id, 40, "File validated! Starting compression...", "processing")
         background_tasks.add_task(process_compression_disk_only, task_id, file_path, file.filename, preset)
@@ -2851,30 +3097,16 @@ async def start_compression(request: Request, background_tasks: BackgroundTasks,
         })
         
     except HTTPException as e:
-        # ✅ Ensure clean error response
         if file_path and os.path.exists(file_path):
-            try:
-                os.unlink(file_path)
-            except:
-                pass
+            os.unlink(file_path)
         await progress_tracker.update_progress(task_id, 100, f"Validation failed: {e.detail}", "error")
-        # Return proper JSON error
-        return JSONResponse(
-            status_code=e.status_code,
-            content={"detail": e.detail}
-        )
+        raise e
     except Exception as e:
         if file_path and os.path.exists(file_path):
-            try:
-                os.unlink(file_path)
-            except:
-                pass
-        logger.error(f"❌ Failed: {str(e)}", exc_info=True)
+            os.unlink(file_path)
+        logger.error(f"❌ Failed: {str(e)}")
         await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
-        return JSONResponse(
-            status_code=500,
-            content={"detail": f"Failed: {str(e)}"}
-        )
+        raise HTTPException(status_code=500, detail=f"Failed: {str(e)}")
 
 @app.get("/download_compressed/{task_id}")
 async def download_compressed(task_id: str):
@@ -3575,13 +3807,6 @@ async def remove_pdf_password_endpoint(request: Request, file: UploadFile = File
         
         # Force garbage collection
         gc.collect()
-
-
-#================================== Client side pdf validation endpoint (for testing) =============================
-
-
-#==========================================================
-
 
 
 #### remove image background endpoint (disk-based)
