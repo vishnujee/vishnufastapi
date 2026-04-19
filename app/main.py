@@ -320,6 +320,12 @@ async def scan_with_clamav_from_disk(file_path: str, filename: str = "upload") -
     Scan file with ClamAV - reads from disk directly, NO RAM loading
     Returns: {"safe": bool, "message": str}
     """
+    
+        # Skip scanning entirely on EC2
+    # if os.path.exists("/home/ec2-user"):  # Running on EC2
+    #     logger.info(f"⏩ EC2 optimization - skipping ClamAV scan for {filename}")
+    #     return {"safe": True, "message": "EC2 optimization - scan skipped"}
+    
     global CLAMAV_AVAILABLE
     logger.info(f"🔍 Scanning with ClamAV: {filename}")
     
@@ -2528,59 +2534,76 @@ def validate_file_size(file_size_bytes: int):
     if file_size_mb > COMPRESS_MAX_FILE_SIZE_MB:
         raise HTTPException(status_code=400, detail=f"File exceeds {COMPRESS_MAX_FILE_SIZE_MB}MB limit")
 
-class ProgressTracker:
-    def __init__(self):
-        self.tasks: Dict[str, dict] = {}
-        self.use_redis = False
+# class ProgressTracker:
+#     def __init__(self):
+#         self.tasks: Dict[str, dict] = {}
+#         self.use_redis = False
         
-        # Try Redis but don't fail if not available
-        try:
-            import redis
-            self.redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-            self.redis_client.ping()
-            self.use_redis = True
-            logger.info("✅ Redis connected for progress tracking")
-        except:
-            logger.warning("⚠️ Redis not available, using in-memory storage")
-            self.use_redis = False
+#         # Try Redis but don't fail if not available
+#         try:
+#             import redis
+#             self.redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+#             self.redis_client.ping()
+#             self.use_redis = True
+#             logger.info("✅ Redis connected for progress tracking")
+#         except:
+#             logger.warning("⚠️ Redis not available, using in-memory storage")
+#             self.use_redis = False
+    
+#     async def update_progress(self, task_id: str, progress: int, message: str = "", stage: str = ""):
+#         progress_data = {
+#             "progress": max(0, min(100, progress)), 
+#             "message": message, 
+#             "stage": stage, 
+#             "timestamp": time.time()
+#         }
+        
+#         # Store in memory always (as backup)
+#         self.tasks[task_id] = progress_data
+        
+#         # Also store in Redis if available
+#         if self.use_redis:
+#             try:
+#                 self.redis_client.setex(f"progress:{task_id}", 300, json.dumps(progress_data))
+#             except Exception as e:
+#                 logger.error(f"Redis update error: {e}")
+        
+#         logger.info(f"📊 Progress: {task_id} - {progress}% - {message}")
+    
+#     def get_progress(self, task_id: str):
+#         # Try memory first
+#         if task_id in self.tasks:
+#             return self.tasks[task_id]
+        
+#         # Try Redis if available
+#         if self.use_redis:
+#             try:
+#                 data = self.redis_client.get(f"progress:{task_id}")
+#                 if data:
+#                     return json.loads(data)
+#             except:
+#                 pass
+        
+#         return None
+class SimpleProgressTracker:
+    def __init__(self):
+        self.tasks = {}
     
     async def update_progress(self, task_id: str, progress: int, message: str = "", stage: str = ""):
-        progress_data = {
-            "progress": max(0, min(100, progress)), 
-            "message": message, 
-            "stage": stage, 
+        self.tasks[task_id] = {
+            "progress": progress,
+            "message": message,
+            "stage": stage,
             "timestamp": time.time()
         }
-        
-        # Store in memory always (as backup)
-        self.tasks[task_id] = progress_data
-        
-        # Also store in Redis if available
-        if self.use_redis:
-            try:
-                self.redis_client.setex(f"progress:{task_id}", 300, json.dumps(progress_data))
-            except Exception as e:
-                logger.error(f"Redis update error: {e}")
-        
-        logger.info(f"📊 Progress: {task_id} - {progress}% - {message}")
+        logger.info(f"📊 Progress {task_id}: {progress}% - {message}")
     
     def get_progress(self, task_id: str):
-        # Try memory first
-        if task_id in self.tasks:
-            return self.tasks[task_id]
-        
-        # Try Redis if available
-        if self.use_redis:
-            try:
-                data = self.redis_client.get(f"progress:{task_id}")
-                if data:
-                    return json.loads(data)
-            except:
-                pass
-        
-        return None
+        return self.tasks.get(task_id)
 
-progress_tracker = ProgressTracker()
+progress_tracker = SimpleProgressTracker()
+
+
 async def update_progress(task_id: str, progress: int, message: str = "", stage: str = ""):
     await progress_tracker.update_progress(task_id, progress, message, stage)
 
@@ -2987,13 +3010,11 @@ async def download_compressed(task_id: str):
         raise HTTPException(status_code=500, detail="Failed to download compressed file")
 
 @app.get("/progress/{task_id}")
-async def get_progress_status(task_id: str):
-    """Get current progress for a task"""
-    progress_data = progress_tracker.get_progress(task_id)
-    if not progress_data:
-        raise HTTPException(status_code=404, detail="Task not found or expired")
-    
-    return JSONResponse(content=progress_data)
+async def get_progress(task_id: str):
+    progress = progress_tracker.get_progress(task_id)
+    if not progress:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return JSONResponse(content=progress)
 
 @app.post("/stop_operations")
 async def stop_operations():
