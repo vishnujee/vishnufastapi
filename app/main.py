@@ -404,7 +404,7 @@ async def scan_with_clamav_from_disk(file_path: str, filename: str = "upload") -
             logger.warning(f"Unexpected ClamAV output: {output}")
             return {"safe": True, "message": "Clean (uncertain)"}
             
-        except subprocess.TimeoutError:
+        except subprocess.TimeoutExpired:
             logger.error(f"ClamAV scan timeout for {filename} (attempt {attempt + 1})")
             if attempt < max_retries - 1:
                 continue
@@ -2484,7 +2484,7 @@ async def start_compression(
             "status": "started", 
             "message": "Compression started (pure disk-based)",
             "processing_mode": "pure_disk",
-            "page_count": page_count  # Optional: return page count to client
+            # "page_count": page_count  # Optional: return page count to client
         })
         
     except HTTPException as e:
