@@ -1666,6 +1666,7 @@ def initialize_global_gemini_model():
                 print("🚀 PRE-LOADING Gemini model globally...")
                 start = time.time()
                 genai.configure(api_key=GOOGLE_API_KEY)
+                # _GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.5-flash')
                 _GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.0-flash')
                 try:
                     _GEMINI_MODEL.generate_content("ping", generation_config=genai.types.GenerationConfig(max_output_tokens=1))
@@ -2040,39 +2041,7 @@ async def get_cleanup_status(request: Request):
         logger.error(f"Cleanup status failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-# @app.get("/cleanup-status")
-# async def get_cleanup_status(request: Request):
-#     check_auth(request)
-#     try:
-#         current_time = time.time()
-#         directories = {'uploads': UPLOAD_DIR, 'output': OUTPUT_DIR, 'estimation': ESTIMATION_DIR, 'word': PDFTOWORD, 'temp_processing': TEMP_DIR}
-#         stats = {"last_cleanup_time": 0, "current_time": current_time, "next_cleanup_in": 900, "directories": {}, "total_files": 0, "old_files": 0, "total_size": 0}
-#         for dir_name, dir_path in directories.items():
-#             if dir_path.exists():
-#                 total_files = 0
-#                 old_files = 0
-#                 total_size = 0
-#                 file_list = []
-#                 for file_path in dir_path.iterdir():
-#                     if file_path.is_file():
-#                         total_files += 1
-#                         file_stat = file_path.stat()
-#                         total_size += file_stat.st_size
-#                         most_recent = max(file_stat.st_mtime, file_stat.st_ctime, file_stat.st_atime)
-#                         is_old = most_recent < (current_time - 900)
-#                         if is_old:
-#                             old_files += 1
-#                         file_list.append({"name": file_path.name, "size": file_stat.st_size, "modified": most_recent, "path": str(file_path), "is_old": is_old})
-#                 stats["directories"][dir_name] = {"total_files": total_files, "old_files": old_files, "total_size": total_size, "exists": True, "path": str(dir_path), "files": file_list}
-#                 stats["total_files"] += total_files
-#                 stats["old_files"] += old_files
-#                 stats["total_size"] += total_size
-#             else:
-#                 stats["directories"][dir_name] = {"total_files": 0, "old_files": 0, "total_size": 0, "exists": False, "path": str(dir_path), "files": []}
-#         return stats
-#     except Exception as e:
-#         logger.error(f"Cleanup status check failed: {e}")
-#         return {"error": str(e)}
+
 
 @app.post("/api/logout")
 async def api_logout(request: Request, response: Response):
@@ -2228,7 +2197,7 @@ async def chat(request: Request, query: str = Form(...), mode: str = Form(None),
                             messages.append({"role": "model", "parts": [msg["content"]]})
                 combined_query = f"SYSTEM INSTRUCTIONS: {system_prompt}\n\nUSER QUESTION: {query}"
                 messages.append({"role": "user", "parts": [combined_query]})
-                genai.configure(api_key=GOOGLE_API_KEY)
+                # genai.configure(api_key=GOOGLE_API_KEY)
                 generation_config = genai.types.GenerationConfig(max_output_tokens=3024, temperature=0.2, top_p=0.95, top_k=40, candidate_count=1, presence_penalty=0.0, frequency_penalty=0.0)
                 connection_start = time.time()
                 response = GEMINI_MODEL.generate_content(messages, stream=True, generation_config=generation_config, request_options={'timeout': 35})
@@ -2405,6 +2374,131 @@ async def chat(request: Request, query: str = Form(...), mode: str = Form(None),
             total_time = time.time() - start_time
             logger.info(f"🏁 CHAT COMPLETED - Total time: {total_time:.2f}s | Final timings: {timings}")
     return StreamingResponse(generate_stream(), media_type="text/event-stream", headers={'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no', 'Transfer-Encoding': 'chunked'})
+
+#=======================
+# def validate_pdf_page_count(file_path: str, max_pages: int = 2000) -> int:
+#     """
+#     Get PDF page count by reading ONLY the PDF trailer - PURE DISK OPERATION
+#     NO fitz, NO RAM loading - reads only last 20KB of file
+#     """
+#     try:
+#         with open(file_path, 'rb') as f:
+#             # Get file size
+#             f.seek(0, 2)
+#             file_size = f.tell()
+            
+#             # For small files (< 100KB), read entire file (still tiny RAM)
+#             if file_size < 102400:  # 100KB
+#                 f.seek(0)
+#                 content = f.read().decode('latin-1', errors='ignore')
+#             else:
+#                 # Read ONLY last 20KB where PDF catalog is stored
+#                 read_size = min(20480, file_size)  # 20KB max
+#                 f.seek(max(0, file_size - read_size))
+#                 content = f.read(read_size).decode('latin-1', errors='ignore')
+            
+#             # Extract page count using regex patterns
+#             import re
+#             patterns = [
+#                 r'/Pages[^/]*/Count\s+(\d+)',  # Standard: /Pages /Count 5
+#                 r'/Count\s+(\d+)',              # Simple: /Count 5
+#                 r'/N\s+(\d+)',                  # Alternative: /N 5
+#                 r'/Type\s*/Pages[^>]*/Count\s+(\d+)',  # Explicit Pages dict
+#             ]
+            
+#             for pattern in patterns:
+#                 matches = re.findall(pattern, content)
+#                 if matches:
+#                     page_count = int(matches[-1])  # Take last match
+                    
+#                     if page_count > max_pages:
+#                         raise HTTPException(
+#                             status_code=400, 
+#                             detail=f"PDF has {page_count} pages. Maximum allowed is {max_pages} pages."
+#                         )
+                    
+#                     logger.info(f"✅ Page count: {page_count} (disk-based, 0 RAM spike)")
+#                     return page_count
+            
+#             # Fallback: Try pdfplumber (still better than fitz)
+#             logger.warning("Header parsing failed, using pdfplumber fallback")
+#             import pdfplumber
+#             with pdfplumber.open(file_path) as pdf:
+#                 page_count = len(pdf.pages)
+#                 if page_count > max_pages:
+#                     raise HTTPException(400, f"PDF has {page_count} pages. Max: {max_pages}")
+#                 logger.info(f"✅ Page count: {page_count} (pdfplumber fallback)")
+#                 return page_count
+                
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"Page count validation failed: {e}")
+#         raise HTTPException(status_code=400, detail=f"Could not validate PDF pages: {str(e)}")
+
+
+##====================   file validation for client side pdf opearations  ====================##
+@app.post("/start_compression")
+@limiter.limit(RATE_LIMITS['compress'])
+async def start_compression(
+    request: Request, 
+    background_tasks: BackgroundTasks, 
+    file: UploadFile = File(...), 
+    preset: str = Form("ebook")
+):
+    logger.info(f"Starting compression: file={file.filename}, preset={preset}")
+    
+    task_id = str(uuid.uuid4())
+    file_path = None
+    
+    try:
+        # ✅ STEP 1: SINGLE UPLOAD to disk (NO RAM)
+        await progress_tracker.update_progress(task_id, 10, "Uploading file to disk...", "uploading")
+        file_path = await upload_to_disk_first(file, task_id)
+        logger.info(f"✅ File uploaded ONCE to disk: {file_path}")
+        
+        # ✅ STEP 2: Validate from disk (NO additional uploads)
+        await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
+        
+        # Validate file type, magic bytes, virus scan
+        await validate_file_from_disk(file_path, 'pdf', file.filename)
+        
+        # ✅ STEP 3: Get page count - PURE DISK, NO RAM
+        # page_count = validate_pdf_page_count(file_path, max_pages=1000)
+        # logger.info(f"✅ PDF has {page_count} pages - proceeding with compression")
+        
+        # ✅ STEP 4: Validate preset
+        valid_presets = ['prepress', 'printer', 'ebook', 'screen']
+        if preset not in valid_presets:
+            raise HTTPException(status_code=400, detail=f"Invalid preset. Use: {', '.join(valid_presets)}")
+        
+        await progress_tracker.update_progress(task_id, 40, "File validated! Starting compression...", "processing")
+        background_tasks.add_task(process_compression_disk_only, task_id, file_path, file.filename, preset)
+        
+        return JSONResponse(content={
+            "task_id": task_id, 
+            "status": "started", 
+            "message": "Compression started (pure disk-based)",
+            "processing_mode": "pure_disk",
+            "page_count": page_count  # Optional: return page count to client
+        })
+        
+    except HTTPException as e:
+        if file_path and os.path.exists(file_path):
+            os.unlink(file_path)
+        await progress_tracker.update_progress(task_id, 100, f"Validation failed: {e.detail}", "error")
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+    except Exception as e:
+        if file_path and os.path.exists(file_path):
+            os.unlink(file_path)
+        logger.error(f"❌ Failed: {str(e)}", exc_info=True)
+        await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
+        return JSONResponse(status_code=500, content={"detail": f"Failed: {str(e)}"})
+
+#===================
+
+
+
 
 # Redis for progress tracking (fallback to in-memory if Redis not available)
 try:
@@ -2683,6 +2777,8 @@ async def start_estimation(request: Request, background_tasks: BackgroundTasks, 
         # Step 2: Validate from disk (NO RAM loading of entire file)
         await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
         await validate_file_from_disk(file_path, 'pdf', file.filename)
+        # page_count = validate_pdf_page_count(file_path, max_pages=500)  # Estimation can handle 500 pages
+        # logger.info(f"✅ PDF has {page_count} pages - proceeding with estimation")
         
         await progress_tracker.update_progress(task_id, 40, "File validated! Starting estimation...", "processing")
         background_tasks.add_task(process_estimation_sequential_disk, task_id, file_path, file.filename)
@@ -2759,46 +2855,6 @@ async def process_compression_disk_only(task_id: str, input_path: str, filename:
         cleanup_compression_estimation_files(task_id)
         raise
 
-# @app.post("/start_compression")
-# @limiter.limit(RATE_LIMITS['compress'])
-# async def start_compression(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...), preset: str = Form("ebook")):
-#     logger.info(f"Starting compression: file={file.filename}, preset={preset}")
-    
-#     task_id = str(uuid.uuid4())
-#     file_path = None
-    
-#     try:
-#         await progress_tracker.update_progress(task_id, 0, "Initializing compression...", "initializing")
-        
-#         # Step 1: Upload to disk immediately
-#         await progress_tracker.update_progress(task_id, 10, "Uploading file to disk...", "uploading")
-#         file_path = await upload_to_disk_first(file, task_id)
-        
-#         # Step 2: Validate from disk
-#         await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
-#         await validate_file_from_disk(file_path, 'pdf', file.filename)
-        
-#         await progress_tracker.update_progress(task_id, 40, "File validated! Starting compression...", "processing")
-#         background_tasks.add_task(process_compression_disk_only, task_id, file_path, file.filename, preset)
-        
-#         return JSONResponse(content={
-#             "task_id": task_id, 
-#             "status": "started", 
-#             "message": "Compression started (pure disk-based)",
-#             "processing_mode": "pure_disk"
-#         })
-        
-#     except HTTPException as e:
-#         if file_path and os.path.exists(file_path):
-#             os.unlink(file_path)
-#         await progress_tracker.update_progress(task_id, 100, f"Validation failed: {e.detail}", "error")
-#         raise e
-#     except Exception as e:
-#         if file_path and os.path.exists(file_path):
-#             os.unlink(file_path)
-#         logger.error(f"❌ Failed: {str(e)}")
-#         await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
-#         raise HTTPException(status_code=500, detail=f"Failed: {str(e)}")
 
 
 @app.post("/start_compression")
@@ -2834,6 +2890,8 @@ async def start_compression(request: Request, background_tasks: BackgroundTasks,
                 status_code=validation_error.status_code,
                 detail=validation_error.detail
             )
+        # page_count = validate_pdf_page_count(file_path, max_pages=1000)  # Compression can handle more pages
+        # logger.info(f"✅ PDF has {page_count} pages - proceeding with compression")
         
         # Step 3: Check preset is valid
         valid_presets = ['prepress', 'printer', 'ebook', 'screen']
@@ -3421,6 +3479,8 @@ async def encrypt_pdf_endpoint(request: Request, file: UploadFile = File(...), p
         
         # ✅ STEP 2: Validate file from disk (reads only headers)
         await validate_file_from_disk(input_path, 'pdf', file.filename)
+        # page_count = validate_pdf_page_count(input_path, max_pages=5)  # Encryption is fast, 500 pages is fine
+        # logger.info(f"✅ PDF has {page_count} pages - proceeding with encryption")
         
         # ✅ STEP 3: Create output path on disk
         output_filename = f"encrypted_{task_id}_{sanitize_filename(file.filename)}"
@@ -3510,6 +3570,8 @@ async def remove_pdf_password_endpoint(request: Request, file: UploadFile = File
         
         # ✅ STEP 2: Validate file from disk (reads only headers)
         await validate_file_from_disk(input_path, 'pdf', file.filename)
+        # page_count = validate_pdf_page_count(input_path, max_pages=500)
+        # logger.info(f"✅ PDF has {page_count} pages - proceeding with password removal")
         
         # ✅ STEP 3: Create output path on disk
         output_filename = f"decrypted_{task_id}_{sanitize_filename(file.filename)}"

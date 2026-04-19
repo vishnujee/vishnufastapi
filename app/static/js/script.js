@@ -146,43 +146,7 @@ function getProgressStage(stage) {
 }
 
 
-// validate file server side common code
-// async function validatePDFBeforeProcessing(file) {
-//     console.log("validate file in validatePDFBeforeProcessing(file)");
-
-//     const formData = new FormData();
-//     formData.append('file', file);
-
-//     try {
-//         const response = await fetch('/validate_pdf_before_client', {
-//             method: 'POST',
-//             body: formData
-//         });
-
-//         const result = await response.json();
-
-//         if (!result.valid) {
-//             alert(`⚠️ Security Check Failed: ${result.reason}\n\nPlease use a different PDF file.`);
-//             return false;
-//         }
-
-//         // Optional: Warn about large PDFs
-//         if (result.page_count > 100) {
-//             const proceed = confirm(
-//                 `This PDF has ${result.page_count} pages.\n` +
-//                 `Client-side processing may be slow.\n\n` +
-//                 `Continue anyway?`
-//             );
-//             if (!proceed) return false;
-//         }
-
-//         return true;
-
-//     } catch (error) {
-//         console.warn('Validation server unavailable, proceeding with client processing');
-//         return true; // Fallback to client-only
-//     }
-// }
+// validate file server side common co
 
 
 
@@ -1505,11 +1469,6 @@ async function mergePDFsClientSide() {
     const submitButton = document.getElementById('merge-submit-btn');
 
 
-    // // server side validatioin
-    // for (const file of fileInput.files) {
-    //     const isValid = await validatePDFBeforeProcessing(file);
-    //     if (!isValid) return;
-    // }
 
     // Validation client side with better error handling
     if (!fileInput || !fileInput.files || fileInput.files.length < 2) {
