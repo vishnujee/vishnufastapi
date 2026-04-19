@@ -321,6 +321,7 @@ async def scan_with_clamav_from_disk(file_path: str, filename: str = "upload") -
     Returns: {"safe": bool, "message": str}
     """
     global CLAMAV_AVAILABLE
+    logger.info(f"🔍 Scanning with ClamAV: {filename}")
     
     if not CLAMAV_AVAILABLE:
         logger.warning(f"⚠️ ClamAV not available - skipping scan for {filename}")
@@ -773,7 +774,7 @@ async def validate_file_from_disk(file_path: str, file_type: str, original_filen
         
         # Validate PDF structure using PyMuPDF
         try:
-            import fitz
+         
             doc = fitz.open(file_path)
             page_count = len(doc)
             
@@ -812,6 +813,7 @@ async def validate_file_from_disk(file_path: str, file_type: str, original_filen
         
         if file_type == 'pdf':
             allowed_pdf_mimes = ['application/pdf', 'application/octet-stream']
+            logger.info(f"Detected MIME type: {mime} for {original_filename}")
             if mime not in allowed_pdf_mimes:
                 logger.warning(f"⚠️ Unusual MIME type: {mime}, but allowing based on PDF structure")
         else:
@@ -823,6 +825,7 @@ async def validate_file_from_disk(file_path: str, file_type: str, original_filen
     
     # ClamAV virus scan - stream from disk without loading entire file
     scan_result = await scan_with_clamav_from_disk(file_path, original_filename or os.path.basename(file_path))
+    logger.info(f"ClamAV scan done result for {original_filename}: {scan_result}")
     if not scan_result["safe"]:
         logger.error(f"🚨 MALWARE BLOCKED: {file_path} - {scan_result['message']}")
         raise HTTPException(status_code=403, detail=f"Security Alert: {scan_result['message']}")
@@ -2453,6 +2456,7 @@ async def start_compression(
     logger.info(f"Starting compression: file={file.filename}, preset={preset}")
     
     task_id = str(uuid.uuid4())
+    logger.info(f"🚀 Created task: {task_id}")
     file_path = None
     
     try:
@@ -2527,43 +2531,54 @@ def validate_file_size(file_size_bytes: int):
 class ProgressTracker:
     def __init__(self):
         self.tasks: Dict[str, dict] = {}
+        self.use_redis = False
+        
+        # Try Redis but don't fail if not available
+        try:
+            import redis
+            self.redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+            self.redis_client.ping()
+            self.use_redis = True
+            logger.info("✅ Redis connected for progress tracking")
+        except:
+            logger.warning("⚠️ Redis not available, using in-memory storage")
+            self.use_redis = False
+    
     async def update_progress(self, task_id: str, progress: int, message: str = "", stage: str = ""):
-        progress_data = {"progress": max(0, min(100, progress)), "message": message, "stage": stage, "timestamp": time.time()}
-        if task_id in self.tasks:
-            previous_progress = self.tasks[task_id].get("progress", 0)
-            if progress < previous_progress:
-                progress = previous_progress
+        progress_data = {
+            "progress": max(0, min(100, progress)), 
+            "message": message, 
+            "stage": stage, 
+            "timestamp": time.time()
+        }
+        
+        # Store in memory always (as backup)
         self.tasks[task_id] = progress_data
-        if USE_REDIS:
+        
+        # Also store in Redis if available
+        if self.use_redis:
             try:
-                redis_client.setex(f"progress:{task_id}", 300, json.dumps(progress_data))
+                self.redis_client.setex(f"progress:{task_id}", 300, json.dumps(progress_data))
             except Exception as e:
                 logger.error(f"Redis update error: {e}")
-        else:
-            progress_store[task_id] = progress_data
-        logger.info(f"Progress: {task_id} - {progress}% - {message}")
-        await asyncio.sleep(0.1)
+        
+        logger.info(f"📊 Progress: {task_id} - {progress}% - {message}")
+    
     def get_progress(self, task_id: str):
-        try:
-            if USE_REDIS:
-                data = redis_client.get(f"progress:{task_id}")
+        # Try memory first
+        if task_id in self.tasks:
+            return self.tasks[task_id]
+        
+        # Try Redis if available
+        if self.use_redis:
+            try:
+                data = self.redis_client.get(f"progress:{task_id}")
                 if data:
                     return json.loads(data)
-            else:
-                return progress_store.get(task_id)
-        except:
-            return None
-    def update_progress_sync(self, task_id: str, progress: int, message: str = "", stage: str = ""):
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.create_task(self.update_progress(task_id, progress, message, stage))
-            else:
-                loop.run_until_complete(self.update_progress(task_id, progress, message, stage))
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(self.update_progress(task_id, progress, message, stage))
+            except:
+                pass
+        
+        return None
 
 progress_tracker = ProgressTracker()
 async def update_progress(task_id: str, progress: int, message: str = "", stage: str = ""):
@@ -2979,6 +2994,7 @@ async def get_progress_status(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found or expired")
     
     return JSONResponse(content=progress_data)
+
 @app.post("/stop_operations")
 async def stop_operations():
     try:
