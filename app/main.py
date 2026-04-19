@@ -351,7 +351,7 @@ async def scan_with_clamav_from_disk(file_path: str, filename: str = "upload") -
             else:
                 # Linux - scan file directly from disk
                 cmd = ["nice", "-n", "10", CLAMAV_SCANNER_PATH, "--infected", "--no-summary", file_path]
-                timeout_value = 60 if file_path.endswith('.pdf') else 30
+                timeout_value = 180 if file_path.endswith('.pdf') else 30
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_value)
                 # result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             
