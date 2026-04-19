@@ -370,77 +370,84 @@
             scrollbar-width: thin;
             scrollbar-color: #764ba2 #f1f1f1;
         }
+
         /* Fix long filename wrapping in received files */
-.file-card {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    word-break: break-word;
-}
+        .file-card {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
 
-.file-card .d-flex {
-    flex-wrap: wrap;
-    gap: 10px;
-}
+        .file-card .d-flex {
+            flex-wrap: wrap;
+            gap: 10px;
+        }
 
-.file-card .d-flex > div:first-child {
-    flex: 1;
-    min-width: 0; /* Allows shrinking below content size */
-    overflow: hidden;
-}
+        .file-card .d-flex>div:first-child {
+            flex: 1;
+            min-width: 0;
+            /* Allows shrinking below content size */
+            overflow: hidden;
+        }
 
-.file-card strong {
-    display: block;
-    word-break: break-word;
-    white-space: normal;
-    line-height: 1.4;
-}
+        .file-card strong {
+            display: block;
+            word-break: break-word;
+            white-space: normal;
+            line-height: 1.4;
+        }
 
-/* For mobile devices */
-@media (max-width: 768px) {
-    .file-card .d-flex {
-        flex-direction: column;
-        align-items: flex-start !important;
-    }
-    
-    .file-card .btn {
-        align-self: flex-start;
-        margin-top: 8px;
-    }
-}
+        /* For mobile devices */
+        @media (max-width: 768px) {
+            .file-card .d-flex {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
 
-/* Increase received files container height */
-#received-files {
-    max-height: 500px;  /* Increased from 400px to 500px */
-    min-height: 200px;  /* Minimum height even when empty */
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-}
+            .file-card .btn {
+                align-self: flex-start;
+                margin-top: 8px;
+            }
+        }
 
-/* Even taller on desktop */
-@media (min-width: 768px) {
-    #received-files {
-        max-height: 600px;  /* Taller on desktop/laptop */
-    }
-}
+        /* Increase received files container height */
+        #received-files {
+            max-height: 500px;
+            /* Increased from 400px to 500px */
+            min-height: 200px;
+            /* Minimum height even when empty */
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
 
-/* Mobile specific */
-@media (max-width: 768px) {
-    #received-files {
-        max-height: 450px;  /* Good height for mobile */
-        min-height: 150px;
-    }
-}
+        /* Even taller on desktop */
+        @media (min-width: 768px) {
+            #received-files {
+                max-height: 600px;
+                /* Taller on desktop/laptop */
+            }
+        }
 
-/* Receiving progress bar custom styles */
-#receiving-progress-container .progress {
-    height: 25px;
-    background-color: #e9ecef;
-}
-#receiving-progress-bar {
-    transition: width 0.2s ease;
-    line-height: 25px;
-    font-size: 12px;
-}
+        /* Mobile specific */
+        @media (max-width: 768px) {
+            #received-files {
+                max-height: 450px;
+                /* Good height for mobile */
+                min-height: 150px;
+            }
+        }
+
+        /* Receiving progress bar custom styles */
+        #receiving-progress-container .progress {
+            height: 25px;
+            background-color: #e9ecef;
+        }
+
+        #receiving-progress-bar {
+            transition: width 0.2s ease;
+            line-height: 25px;
+            font-size: 12px;
+        }
     </style>
 </head>
 
@@ -511,11 +518,13 @@
                             <!-- RECEIVING PROGRESS BAR - ADDED ABOVE RECEIVED FILES SECTION -->
                             <div id="receiving-progress-container" style="display:none;" class="mb-3">
                                 <div class="d-flex justify-content-between mb-1">
-                                    <small><i class="fas fa-download text-info"></i> Receiving: <span id="receiving-filename" class="fw-bold">---</span></small>
+                                    <small><i class="fas fa-download text-info"></i> Receiving: <span
+                                            id="receiving-filename" class="fw-bold">---</span></small>
                                     <small><span id="receiving-percent">0%</span></small>
                                 </div>
                                 <div class="progress" style="height: 25px;">
-                                    <div id="receiving-progress-bar" class="progress-bar bg-info" role="progressbar" style="width: 0%;">0%</div>
+                                    <div id="receiving-progress-bar" class="progress-bar bg-info" role="progressbar"
+                                        style="width: 0%;">0%</div>
                                 </div>
                                 <div class="d-flex justify-content-between mt-1">
                                     <small id="receiving-speed" class="text-muted"></small>
@@ -761,6 +770,11 @@
         // Helper function to warning message if transfer is greater than 30 sec
 
         // ==================== WEBSOCKET CONNECTION ====================
+
+        // Auto-reconnect with persistent connection
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
+
         function connectWebSocket() {
             if (STATE.isConnecting || STATE.isConnected) {
                 showAlert('Already connecting or connected', 'warning');
@@ -785,6 +799,7 @@
             STATE.ws = new WebSocket(url);
 
             STATE.ws.onopen = () => {
+                reconnectAttempts = 0;
                 document.getElementById('connect-btn').style.display = 'none';
                 document.getElementById('disconnect-btn').style.display = 'inline-block';
                 document.getElementById('peers-container').style.display = 'block';
@@ -817,9 +832,28 @@
                 }
             };
 
+            // STATE.ws.onclose = () => {
+            //     cleanupConnection();
+            //     showAlert('Disconnected from server', 'info');
+            //     const connectBtn = document.getElementById('connect-btn');
+            //     connectBtn.disabled = false;
+            //     connectBtn.innerHTML = '<i class="fas fa-search"></i> Search for Devices';
+            //     connectBtn.style.display = 'inline-block';
+            // };
+
             STATE.ws.onclose = () => {
                 cleanupConnection();
                 showAlert('Disconnected from server', 'info');
+
+                // ✅ AUTO-RECONNECT
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    reconnectAttempts++;
+                    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+                    console.log(`Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+                    setTimeout(() => connectWebSocket(), delay);
+                }
+
+                // Reset button state
                 const connectBtn = document.getElementById('connect-btn');
                 connectBtn.disabled = false;
                 connectBtn.innerHTML = '<i class="fas fa-search"></i> Search for Devices';
@@ -1147,7 +1181,7 @@
             // Hide receiving progress bar if visible
             const progressContainer = document.getElementById('receiving-progress-container');
             if (progressContainer) progressContainer.style.display = 'none';
-            
+
             STATE.isTransferCancelled = true;
 
             if (STATE.dataChannel && STATE.dataChannel.readyState === 'open') {
@@ -1230,7 +1264,7 @@
                 document.getElementById('receiving-speed').innerHTML = '';
                 document.getElementById('receiving-timeleft').innerHTML = '';
             }
-            
+
             if (!isTransferActive) {
                 startSleepWarning();
             }
@@ -1250,7 +1284,7 @@
                 STATE.reception.buffers.push(chunkData);
                 STATE.reception.bytesReceived += chunkData.byteLength;
                 const receivedPercent = STATE.reception.bytesReceived / STATE.reception.metadata.file_size;
-                
+
                 // Update receiving progress bar
                 const percent = Math.round(receivedPercent * 100);
                 const progressBar = document.getElementById('receiving-progress-bar');
@@ -1260,13 +1294,13 @@
                     progressBar.textContent = `${percent}%`;
                 }
                 if (percentSpan) percentSpan.textContent = `${percent}%`;
-                
+
                 const elapsed = (Date.now() - STATE.reception.startTime) / 1000;
                 if (elapsed > 0) {
                     const speed = STATE.reception.bytesReceived / elapsed;
                     const speedSpan = document.getElementById('receiving-speed');
                     if (speedSpan) speedSpan.innerHTML = `<i class="fas fa-tachometer-alt"></i> ${formatSpeed(speed)}`;
-                    
+
                     const remainingBytes = STATE.reception.metadata.file_size - STATE.reception.bytesReceived;
                     const remainingTime = remainingBytes / speed;
                     const timeSpan = document.getElementById('receiving-timeleft');
@@ -1274,7 +1308,7 @@
                         timeSpan.innerHTML = `<i class="fas fa-clock"></i> ${Math.round(remainingTime)}s`;
                     }
                 }
-                
+
                 updateProgress(receivedPercent, STATE.reception.metadata.current_index, STATE.reception.metadata.total_files);
             }
         }
@@ -1283,7 +1317,7 @@
             // Hide receiving progress bar when file is complete
             const progressContainer = document.getElementById('receiving-progress-container');
             if (progressContainer) progressContainer.style.display = 'none';
-            
+
             if (!STATE.reception.metadata) return;
             const { file_name, file_size, current_index, total_files, mime_type } = STATE.reception.metadata;
             const totalLength = STATE.reception.buffers.reduce((total, arr) => total + arr.length, 0);

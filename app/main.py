@@ -1,4 +1,3 @@
-import cmd
 
 from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form,Body,BackgroundTasks,Depends,status,Response
 from fastapi.responses import HTMLResponse, StreamingResponse,JSONResponse,RedirectResponse
@@ -704,11 +703,37 @@ def is_valid_pdf_structure(file_path: str) -> bool:
         return False
 
 # ============================================= FILE VALIDATION (INTEGRATED) ============================
-async def validate_file_from_disk(file_path: str, file_type: str, original_filename: str = None) -> bool:
+
+
+
+def get_page_count_from_disk_only(file_path: str) -> Optional[int]:
+    """Read only last 32KB of file - 0 RAM spike"""
+    try:
+        with open(file_path, 'rb') as f:
+            f.seek(0, 2)
+            file_size = f.tell()
+            read_size = min(32768, file_size)
+            f.seek(max(0, file_size - read_size))
+            content = f.read().decode('latin-1', errors='ignore')
+            
+            match = re.search(r'/Count\s+(\d+)', content)
+            if match:
+                return int(match.group(1))
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to get page count from disk: {e}")
+        return None
+
+async def validate_file_from_disk(
+    file_path: str, 
+    file_type: str, 
+    original_filename: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Validate file directly from disk - NO RAM loading of entire file
     Enhanced with actual PDF structure validation + garbage detection
     """
+    page_limit = 2000  # Strict page limit for PDFs to prevent abuse
     if not os.path.exists(file_path):
         raise HTTPException(400, "File not found on disk")
     
@@ -754,18 +779,12 @@ async def validate_file_from_disk(file_path: str, file_type: str, original_filen
     if file_type == 'pdf':
         # Check for garbage after %%EOF (security risk)
         try:
-            # with open(file_path, 'rb') as f:
-            #     content = f.read()
-            #     # Find last %%EOF marker
-            #     last_eof = content.rfind(b'%%EOF')
-            
-            # ✅ Read only last 10KB instead
             with open(file_path, 'rb') as f:
-                f.seek(0, 2)  # Go to end
+                f.seek(0, 2)
                 file_size = f.tell()
                 read_size = min(10240, file_size)  # Max 10KB
                 f.seek(max(0, file_size - read_size))
-                content = f.read()  # Only last 10KB
+                content = f.read()
                 last_eof = content.rfind(b'%%EOF')
                 if last_eof != -1:
                     # Check if there's anything after %%EOF
@@ -778,67 +797,78 @@ async def validate_file_from_disk(file_path: str, file_type: str, original_filen
         except Exception as e:
             logger.warning(f"Garbage check failed: {e}")
         
-        # Validate PDF structure using PyMuPDF
+        # Validate PDF structure using PyMuPDF (single source of truth)
+        doc = None
         try:
-         
             doc = fitz.open(file_path)
             page_count = len(doc)
             
             if page_count == 0:
-                doc.close()
                 raise HTTPException(400, "PDF has no pages - invalid document")
             
-            # Optional: Check first page is readable
+            # Check page limit
+            
+            if page_count > page_limit:
+                raise HTTPException(400, f"PDF exceeds {page_limit} pages")
+            
+            # Verify first page is readable
             try:
                 first_page = doc[0]
                 first_page.get_text()
             except Exception as page_error:
-                doc.close()
                 raise HTTPException(400, f"PDF has corrupt page structure: {str(page_error)}")
             
-            doc.close()
             logger.info(f"✅ PDF structure validated: {page_count} pages")
             
-        except Exception as e:
-            if "FileDataError" in str(e) or "no objects found" in str(e):
-                raise HTTPException(400, "Invalid PDF file: Not a valid PDF document")
-            else:
-                raise
+            # MIME type check (after structure validation)
+            try:
+                with open(file_path, "rb") as f:
+                    header = f.read(1024)
+                    mime = magic.from_buffer(header, mime=True)
+                
+                allowed_pdf_mimes = ['application/pdf', 'application/octet-stream']
+                logger.info(f"Detected MIME type: {mime} for {original_filename}")
+                if mime not in allowed_pdf_mimes:
+                    logger.warning(f"⚠️ Unusual MIME type: {mime}, but allowing based on PDF structure")
+            except Exception as e:
+                logger.warning(f"MIME detection failed: {e}")
+            
+            return {"valid": True, "page_count": page_count}
             
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"❌ PDF validation failed: {e}")
-            raise HTTPException(400, f"PDF validation failed: {str(e)}")
+            error_msg = str(e)
+            if "FileDataError" in error_msg or "no objects found" in error_msg:
+                raise HTTPException(400, "Invalid PDF file: Not a valid PDF document")
+            else:
+                logger.error(f"❌ PDF validation failed: {e}")
+                raise HTTPException(400, f"PDF validation failed: {error_msg}")
+        finally:
+            if doc:
+                doc.close()
     
-    # MIME type check - read ONLY first 1KB from disk
+    # ========== NON-PDF FILE VALIDATION ==========
+    # MIME type check for non-PDF files
     try:
         with open(file_path, "rb") as f:
             header = f.read(1024)
             mime = magic.from_buffer(header, mime=True)
         
-        if file_type == 'pdf':
-            allowed_pdf_mimes = ['application/pdf', 'application/octet-stream']
-            logger.info(f"Detected MIME type: {mime} for {original_filename}")
-            if mime not in allowed_pdf_mimes:
-                logger.warning(f"⚠️ Unusual MIME type: {mime}, but allowing based on PDF structure")
-        else:
-            if mime not in file_config['mime']:
-                raise HTTPException(400, f"Invalid content type. Expected {file_type}, got {mime}")
+        if mime not in file_config['mime']:
+            raise HTTPException(400, f"Invalid content type. Expected {file_type}, got {mime}")
     except Exception as e:
         logger.warning(f"MIME detection failed: {e}")
-        # Don't block on MIME detection error
-    
+        
     # ClamAV virus scan - stream from disk without loading entire file
-    scan_result = await scan_with_clamav_from_disk(file_path, original_filename or os.path.basename(file_path))
-    logger.info(f"ClamAV scan done result for {original_filename}: {scan_result}")
-    if not scan_result["safe"]:
-        logger.error(f"🚨 MALWARE BLOCKED: {file_path} - {scan_result['message']}")
-        raise HTTPException(status_code=403, detail=f"Security Alert: {scan_result['message']}")
+    # scan_result = await scan_with_clamav_from_disk(file_path, original_filename or os.path.basename(file_path))
+    # logger.info(f"ClamAV scan done result for {original_filename}: {scan_result}")
+    # if not scan_result["safe"]:
+    #     logger.error(f"🚨 MALWARE BLOCKED: {file_path} - {scan_result['message']}")
+    #     raise HTTPException(status_code=403, detail=f"Security Alert: {scan_result['message']}")
     
     logger.info(f"✅ File validated from disk: {file_path}")
-    return True
-
+    return {"valid": True}
 #========================
 
 
@@ -950,44 +980,44 @@ async def mobile_compatibility_middleware(request: Request, call_next):
 # csp content security policy is set to allow only self for all content types, with specific allowances for scripts, styles, images, fonts, and connections to trusted sources. This helps mitigate XSS attacks while still allowing necessary resources to load.
 
 
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
-    
-    # Basic security headers
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    
-    # CSP that gets good rating but preserves functionality
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self' https: data: blob:; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; "
-        "style-src 'self' 'unsafe-inline' https: data:; "
-        "img-src 'self' data: https: blob:; "
-        "font-src 'self' data: https:; "
-        "connect-src 'self' https: wss: data:; "
-        "frame-src 'self' https:; "
-        "object-src 'none'; "
-        "base-uri 'self'; "
-        "form-action 'self'; "
-        "frame-ancestors 'self'; "
-        "upgrade-insecure-requests"
-    )
-    
-    return response
-
 # @app.middleware("http")
 # async def add_security_headers(request: Request, call_next):
 #     response = await call_next(request)
+    
+#     # Basic security headers
 #     response.headers["X-Content-Type-Options"] = "nosniff"
 #     response.headers["X-Frame-Options"] = "DENY"
-#     response.headers["X-XSS-Protection"] = "1; mode=block"
 #     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-#     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+#     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+#     response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+#     # CSP that gets good rating but preserves functionality
+#     response.headers["Content-Security-Policy"] = (
+#         "default-src 'self' https: data: blob:; "
+#         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; "
+#         "style-src 'self' 'unsafe-inline' https: data:; "
+#         "img-src 'self' data: https: blob:; "
+#         "font-src 'self' data: https:; "
+#         "connect-src 'self' https: wss: data:; "
+#         "frame-src 'self' https:; "
+#         "object-src 'none'; "
+#         "base-uri 'self'; "
+#         "form-action 'self'; "
+#         "frame-ancestors 'self'; "
+#         "upgrade-insecure-requests"
+#     )
+    
 #     return response
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 ##### ehuggingface
 
@@ -2451,59 +2481,6 @@ async def chat(request: Request, query: str = Form(...), mode: str = Form(None),
 
 
 ##====================   file validation for client side pdf opearations  ====================##
-@app.post("/start_compression")
-@limiter.limit(RATE_LIMITS['compress'])
-async def start_compression(
-    request: Request, 
-    background_tasks: BackgroundTasks, 
-    file: UploadFile = File(...), 
-    preset: str = Form("ebook")
-):
-    logger.info(f"Starting compression: file={file.filename}, preset={preset}")
-    
-    task_id = str(uuid.uuid4())
-    file_path = None
-    
-    try:
-        # Initialize progress
-        await progress_tracker.update_progress(task_id, 0, "Initializing compression...", "initializing")
-        
-        # Step 1: Upload to disk
-        await progress_tracker.update_progress(task_id, 5, "Uploading file...", "uploading")
-        file_path = await upload_to_disk_first(file, task_id)
-        
-        # Step 2: Validate file
-        await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
-        await validate_file_from_disk(file_path, 'pdf', file.filename)
-        
-        # Step 3: Validate preset
-        valid_presets = ['prepress', 'printer', 'ebook', 'screen']
-        if preset not in valid_presets:
-            raise HTTPException(status_code=400, detail=f"Invalid preset. Use: {', '.join(valid_presets)}")
-        
-        await progress_tracker.update_progress(task_id, 40, "Starting compression...", "processing")
-        
-        # Step 4: Process in background
-        background_tasks.add_task(process_compression_with_progress, task_id, file_path, file.filename, preset)
-        
-        return JSONResponse(content={
-            "task_id": task_id, 
-            "status": "started", 
-            "message": "Compression started",
-            "processing_mode": "disk_based"
-        })
-        
-    except HTTPException as e:
-        if file_path and os.path.exists(file_path):
-            os.unlink(file_path)
-        await progress_tracker.update_progress(task_id, 100, f"Validation failed: {e.detail}", "error")
-        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
-    except Exception as e:
-        if file_path and os.path.exists(file_path):
-            os.unlink(file_path)
-        logger.error(f"❌ Failed: {str(e)}", exc_info=True)
-        await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
-        return JSONResponse(status_code=500, content={"detail": f"Failed: {str(e)}"})
 
 
 #===================
@@ -3152,12 +3129,12 @@ async def save_uploaded_file_disk(file: UploadFile, task_id: str) -> Path:
     return file_path
 
 def validate_pdf_pages(file_path: Path) -> int:
+    MAX_PAGES_ESTIMATION = 2000
     try:
-        with open(file_path, "rb") as f:
-            pdf_reader = PdfReader(f)
-            page_count = len(pdf_reader.pages)
-            if page_count > MAX_PAGES:
-                raise HTTPException(status_code=400, detail=f"PDF exceeds {MAX_PAGES} pages limit. Found {page_count} pages.")
+        with pdfplumber.open(file_path) as pdf:
+            page_count = len(pdf.pages)
+            if page_count > MAX_PAGES_ESTIMATION:
+                raise HTTPException(400, f"PDF exceeds {MAX_PAGES_ESTIMATION} pages")
             return page_count
     except Exception as e:
         logger.error(f"PDF validation error: {e}")
@@ -3432,8 +3409,8 @@ async def convert_pdf_to_word_endpoint(request: Request, file: UploadFile = File
         
         # Step 3: Validate page count
         await progress_tracker.update_progress(task_id, 40, "Checking PDF structure...", "processing")
-        page_count = validate_pdf_pages(Path(file_path))
-        logger.info(f"📄 PDF validated: {page_count} pages")
+        # page_count = validate_pdf_pages(Path(file_path))
+        # logger.info(f"📄 PDF validated: {page_count} pages")
         
         # Step 4: Convert using disk file
         await progress_tracker.update_progress(task_id, 50, "Converting to Word format...", "converting")
@@ -3579,8 +3556,8 @@ async def convert_pdf_to_excel_endpoint(request: Request, file: UploadFile = Fil
         
         # Step 3: Validate page count
         await progress_tracker.update_progress(task_id, 40, "Checking PDF structure...", "processing")
-        page_count = validate_pdf_pages(Path(file_path))
-        logger.info(f"📄 PDF validated: {page_count} pages")
+        # page_count = validate_pdf_pages(Path(file_path))
+        # logger.info(f"📄 PDF validated: {page_count} pages")
         
         # Step 4: Convert using disk file
         await progress_tracker.update_progress(task_id, 50, "Converting to Excel format...", "converting")
