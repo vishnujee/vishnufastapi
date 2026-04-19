@@ -1009,61 +1009,17 @@ async def mobile_compatibility_middleware(request: Request, call_next):
     
 #     return response
 
+
+
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
-    
-    # Basic security headers (keep these)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    
-    # Mobile-friendly CSP (allows CSS but blocks XSS)
-    user_agent = request.headers.get("user-agent", "").lower()
-    is_mobile = any(term in user_agent for term in ['mobile', 'android', 'iphone'])
-    
-    if is_mobile:
-        # More permissive for mobile (allows inline styles)
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' https:; "  # No unsafe-inline/eval
-            "style-src 'self' 'unsafe-inline' https:; "  # Allows inline CSS
-            "img-src 'self' data: https:; "
-            "font-src 'self' https:; "
-            "connect-src 'self' https: wss:; "
-            "frame-ancestors 'none'; "
-            "base-uri 'self'; "
-            "form-action 'self'; "
-            "object-src 'none'"
-        )
-    else:
-        # Stricter for desktop
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' https:; "
-            "style-src 'self' https:; "  # No inline styles on desktop
-            "img-src 'self' data: https:; "
-            "font-src 'self' https:; "
-            "connect-src 'self' https: wss:; "
-            "frame-ancestors 'none'; "
-            "base-uri 'self'; "
-            "form-action 'self'; "
-            "object-src 'none'"
-        )
-    
     return response
-
-# @app.middleware("http")
-# async def add_security_headers(request: Request, call_next):
-#     response = await call_next(request)
-#     response.headers["X-Content-Type-Options"] = "nosniff"
-#     response.headers["X-Frame-Options"] = "DENY"
-#     response.headers["X-XSS-Protection"] = "1; mode=block"
-#     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-#     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-#     return response
 
 ##### ehuggingface
 
