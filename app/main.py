@@ -2462,39 +2462,35 @@ async def start_compression(
     logger.info(f"Starting compression: file={file.filename}, preset={preset}")
     
     task_id = str(uuid.uuid4())
-    logger.info(f"🚀 Created task: {task_id}")
     file_path = None
     
     try:
-        # ✅ STEP 1: SINGLE UPLOAD to disk (NO RAM)
-        await progress_tracker.update_progress(task_id, 10, "Uploading file to disk...", "uploading")
+        # Initialize progress
+        await progress_tracker.update_progress(task_id, 0, "Initializing compression...", "initializing")
+        
+        # Step 1: Upload to disk
+        await progress_tracker.update_progress(task_id, 5, "Uploading file...", "uploading")
         file_path = await upload_to_disk_first(file, task_id)
-        logger.info(f"✅ File uploaded ONCE to disk: {file_path}")
         
-        # ✅ STEP 2: Validate from disk (NO additional uploads)
+        # Step 2: Validate file
         await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
-        
-        # Validate file type, magic bytes, virus scan
         await validate_file_from_disk(file_path, 'pdf', file.filename)
         
-        # ✅ STEP 3: Get page count - PURE DISK, NO RAM
-        # page_count = validate_pdf_page_count(file_path, max_pages=1000)
-        # logger.info(f"✅ PDF has {page_count} pages - proceeding with compression")
-        
-        # ✅ STEP 4: Validate preset
+        # Step 3: Validate preset
         valid_presets = ['prepress', 'printer', 'ebook', 'screen']
         if preset not in valid_presets:
             raise HTTPException(status_code=400, detail=f"Invalid preset. Use: {', '.join(valid_presets)}")
         
-        await progress_tracker.update_progress(task_id, 40, "File validated! Starting compression...", "processing")
-        background_tasks.add_task(process_compression_disk_only, task_id, file_path, file.filename, preset)
+        await progress_tracker.update_progress(task_id, 40, "Starting compression...", "processing")
+        
+        # Step 4: Process in background
+        background_tasks.add_task(process_compression_with_progress, task_id, file_path, file.filename, preset)
         
         return JSONResponse(content={
             "task_id": task_id, 
             "status": "started", 
-            "message": "Compression started (pure disk-based)",
-            "processing_mode": "pure_disk",
-            # "page_count": page_count  # Optional: return page count to client
+            "message": "Compression started",
+            "processing_mode": "disk_based"
         })
         
     except HTTPException as e:
@@ -2508,6 +2504,7 @@ async def start_compression(
         logger.error(f"❌ Failed: {str(e)}", exc_info=True)
         await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
         return JSONResponse(status_code=500, content={"detail": f"Failed: {str(e)}"})
+
 
 #===================
 
@@ -2534,78 +2531,149 @@ def validate_file_size(file_size_bytes: int):
     if file_size_mb > COMPRESS_MAX_FILE_SIZE_MB:
         raise HTTPException(status_code=400, detail=f"File exceeds {COMPRESS_MAX_FILE_SIZE_MB}MB limit")
 
-# class ProgressTracker:
-#     def __init__(self):
-#         self.tasks: Dict[str, dict] = {}
-#         self.use_redis = False
-        
-#         # Try Redis but don't fail if not available
-#         try:
-#             import redis
-#             self.redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-#             self.redis_client.ping()
-#             self.use_redis = True
-#             logger.info("✅ Redis connected for progress tracking")
-#         except:
-#             logger.warning("⚠️ Redis not available, using in-memory storage")
-#             self.use_redis = False
-    
-#     async def update_progress(self, task_id: str, progress: int, message: str = "", stage: str = ""):
-#         progress_data = {
-#             "progress": max(0, min(100, progress)), 
-#             "message": message, 
-#             "stage": stage, 
-#             "timestamp": time.time()
-#         }
-        
-#         # Store in memory always (as backup)
-#         self.tasks[task_id] = progress_data
-        
-#         # Also store in Redis if available
-#         if self.use_redis:
-#             try:
-#                 self.redis_client.setex(f"progress:{task_id}", 300, json.dumps(progress_data))
-#             except Exception as e:
-#                 logger.error(f"Redis update error: {e}")
-        
-#         logger.info(f"📊 Progress: {task_id} - {progress}% - {message}")
-    
-#     def get_progress(self, task_id: str):
-#         # Try memory first
-#         if task_id in self.tasks:
-#             return self.tasks[task_id]
-        
-#         # Try Redis if available
-#         if self.use_redis:
-#             try:
-#                 data = self.redis_client.get(f"progress:{task_id}")
-#                 if data:
-#                     return json.loads(data)
-#             except:
-#                 pass
-        
-#         return None
-class SimpleProgressTracker:
+
+class ProgressTracker:
     def __init__(self):
-        self.tasks = {}
+        self.tasks: Dict[str, dict] = {}
+        self.use_redis = False
+        self.redis_client = None
+        
+        # Try Redis but don't fail if not available
+        try:
+       
+            self.redis_client = redis.Redis(
+                host='localhost', 
+                port=6379, 
+                db=0, 
+                decode_responses=True,
+                socket_connect_timeout=2,
+                socket_timeout=2
+            )
+            self.redis_client.ping()
+            self.use_redis = True
+            logger.info("✅ Redis connected for progress tracking")
+        except ImportError:
+            logger.warning("⚠️ Redis module not installed, using in-memory storage")
+        except Exception as e:
+            logger.warning(f"⚠️ Redis connection failed: {e}, using in-memory storage")
     
     async def update_progress(self, task_id: str, progress: int, message: str = "", stage: str = ""):
-        self.tasks[task_id] = {
-            "progress": progress,
-            "message": message,
-            "stage": stage,
+        """Update progress for a task"""
+        progress_data = {
+            "progress": max(0, min(100, progress)), 
+            "message": message, 
+            "stage": stage, 
             "timestamp": time.time()
         }
-        logger.info(f"📊 Progress {task_id}: {progress}% - {message}")
+        
+        # Store in memory always (as backup)
+        self.tasks[task_id] = progress_data
+        
+        # Also store in Redis if available
+        if self.use_redis and self.redis_client:
+            try:
+                self.redis_client.setex(f"progress:{task_id}", 300, json.dumps(progress_data))
+            except Exception as e:
+                logger.error(f"Redis update error: {e}")
+        
+        logger.info(f"📊 Progress: {task_id} - {progress}% - {message}")
     
-    def get_progress(self, task_id: str):
-        return self.tasks.get(task_id)
+    def get_progress(self, task_id: str) -> Optional[dict]:
+        """Get progress for a task - returns None if not found"""
+        # Try memory first (faster)
+        if task_id in self.tasks:
+            return self.tasks[task_id]
+        
+        # Try Redis if available
+        if self.use_redis and self.redis_client:
+            try:
+                data = self.redis_client.get(f"progress:{task_id}")
+                if data:
+                    return json.loads(data)
+            except Exception as e:
+                logger.error(f"Redis get error: {e}")
+        
+        return None
+    
+    def cleanup_old_tasks(self, max_age_seconds: int = 600):
+        """Remove tasks older than max_age_seconds to prevent memory leaks"""
+        current_time = time.time()
+        
+        # Clean memory store
+        expired = [
+            task_id for task_id, data in self.tasks.items()
+            if current_time - data.get("timestamp", 0) > max_age_seconds
+        ]
+        for task_id in expired:
+            del self.tasks[task_id]
+        
+        if expired:
+            logger.info(f"🧹 Cleaned {len(expired)} expired tasks from memory")
 
-progress_tracker = SimpleProgressTracker()
+# Create global instance
+progress_tracker = ProgressTracker()
 
 
 async def update_progress(task_id: str, progress: int, message: str = "", stage: str = ""):
+    progress_data = {
+        "progress": progress,
+        "message": message,
+        "stage": stage,
+        "timestamp": time.time()
+    }
+    
+    # Store in memory
+    progress_store[task_id] = progress_data
+    
+    # Store in progress_tracker
     await progress_tracker.update_progress(task_id, progress, message, stage)
+    
+    # Store in Redis if available
+    try:
+        redis_client.setex(f"progress:{task_id}", 300, json.dumps(progress_data))
+    except:
+        pass
+    
+    logger.info(f"📊 Progress {task_id}: {progress}% - {message}")
+    
+    
+async def upload_to_disk_first(file: UploadFile, task_id: str = None) -> str:
+    """Upload file to disk with progress updates"""
+    if not file.filename:
+        raise HTTPException(400, "No filename provided")
+    
+    safe_filename = sanitize_filename(file.filename)
+    
+    if task_id:
+        final_filename = f"{task_id}_{safe_filename}"
+    else:
+        final_filename = f"{uuid.uuid4().hex}_{safe_filename}"
+    
+    file_path = UPLOAD_DIR / final_filename
+    
+    # Read and write in chunks with progress
+    total_size = 0
+    chunk_count = 0
+    with open(file_path, "wb") as buffer:
+        while chunk := await file.read(65536):  # 64KB chunks
+            total_size += len(chunk)
+            buffer.write(chunk)
+            chunk_count += 1
+            
+            # Update progress every 10 chunks or 1MB
+            if chunk_count % 10 == 0 and task_id:
+                await progress_tracker.update_progress(
+                    task_id, 
+                    10 + min(20, int(total_size / 1024 / 1024)), 
+                    f"Uploading... ({total_size / 1024 / 1024:.1f} MB)",
+                    "uploading"
+                )
+    
+    logger.info(f"✅ File saved to disk: {file_path} ({total_size} bytes)")
+    return str(file_path)    
+
+# async def update_progress(task_id: str, progress: int, message: str = "", stage: str = ""):
+#     await progress_tracker.update_progress(task_id, progress, message, stage)
 
 def cleanup_local_files():
     directories = ["input_pdfs", "output_pdfs"]
@@ -2863,159 +2931,189 @@ async def get_estimation_result(task_id: str):
     return JSONResponse(content=result)
 
 compression_results = {}
-async def process_compression_disk_only(task_id: str, input_path: str, filename: str, preset: str):
+async def process_compression_with_progress(task_id: str, input_path: str, filename: str, preset: str):
+    """Process compression with progress updates"""
+    output_path = None
     try:
-        await progress_tracker.update_progress(task_id, 40, "Starting disk compression...", "compressing")
-        await asyncio.sleep(0.3)
+        await progress_tracker.update_progress(task_id, 50, "Compressing PDF...", "compressing")
+        
         output_filename = f"compressed_{task_id}_{Path(filename).stem}_{preset}.pdf"
         output_path = OUTPUT_DIR / output_filename
+        
+        # Run compression
         success = compress_pdf_ghostscript_file(input_path, str(output_path), preset)
+        
         if not success:
-            error_msg = "Disk compression failed"
-            logger.error(f"❌ {error_msg}")
-            safe_delete_temp_file(input_path)
-            safe_delete_temp_file(str(output_path))
-            await progress_tracker.update_progress(task_id, 100, error_msg, "error")
-            raise Exception(error_msg)
-        await progress_tracker.update_progress(task_id, 90, "Finalizing compressed PDF...", "finalizing")
+            raise Exception("Compression failed")
+        
+        await progress_tracker.update_progress(task_id, 90, "Finalizing...", "finalizing")
+        
+        # Get file sizes
         original_size = os.path.getsize(input_path)
         compressed_size = os.path.getsize(output_path)
         savings = ((original_size - compressed_size) / original_size) * 100 if original_size > 0 else 0
-        result_data = {"file_path": str(output_path), "filename": f"compressed_{Path(filename).stem}_{preset}.pdf", "original_size": original_size, "compressed_size": compressed_size, "savings": savings, "preset": preset, "on_disk": True}
-        if USE_REDIS:
-            redis_client.setex(f"compressed_meta:{task_id}", 600, json.dumps(result_data))
-        else:
-            compression_results[task_id] = result_data
-        safe_delete_temp_file(input_path)
-        logger.info(f"✅ Disk compression completed! Savings: {savings:.1f}%")
-        await progress_tracker.update_progress(task_id, 100, f"Compression completed! Size reduced by {savings:.1f}%", "completed")
+        
+        # Store result metadata
+        result_data = {
+            "file_path": str(output_path), 
+            "filename": f"compressed_{Path(filename).stem}_{preset}.pdf", 
+            "original_size": original_size, 
+            "compressed_size": compressed_size, 
+            "savings": savings, 
+            "preset": preset
+        }
+        
+        # Store in progress tracker for download
+        await progress_tracker.update_progress(task_id, 100, f"Complete! Saved {savings:.1f}%", "completed")
+        
+        # Store result separately (could use Redis or dict)
+        compression_results[task_id] = result_data
+        
+        # Cleanup input file
+        if input_path and os.path.exists(input_path):
+            os.unlink(input_path)
+        
+        logger.info(f"✅ Compression complete for {task_id}")
+        
     except Exception as e:
-        logger.error(f'❌ Disk compression error: {str(e)}')
-        safe_delete_temp_file(input_path)
-        safe_delete_temp_file(str(output_path))
+        logger.error(f"Compression error for {task_id}: {e}")
         await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
-        cleanup_compression_estimation_files(task_id)
-        raise
+        if output_path and os.path.exists(output_path):
+            os.unlink(output_path)
+        if input_path and os.path.exists(input_path):
+            os.unlink(input_path)
 
 
 
 @app.post("/start_compression")
 @limiter.limit(RATE_LIMITS['compress'])
-async def start_compression(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...), preset: str = Form("ebook")):
+async def start_compression(
+    request: Request, 
+    background_tasks: BackgroundTasks, 
+    file: UploadFile = File(...), 
+    preset: str = Form("ebook")
+):
     logger.info(f"Starting compression: file={file.filename}, preset={preset}")
     
     task_id = str(uuid.uuid4())
     file_path = None
     
     try:
-        # Check if file exists
-        if not file or not file.filename:
-            raise HTTPException(status_code=400, detail="No file provided")
-        
+        # Initialize progress
         await progress_tracker.update_progress(task_id, 0, "Initializing compression...", "initializing")
         
-        # Step 1: Upload to disk immediately
-        await progress_tracker.update_progress(task_id, 10, "Uploading file to disk...", "uploading")
+        # Step 1: Upload to disk
+        await progress_tracker.update_progress(task_id, 5, "Uploading file...", "uploading")
         file_path = await upload_to_disk_first(file, task_id)
         
-        # Step 2: Validate from disk
+        # Step 2: Validate file
         await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
+        await validate_file_from_disk(file_path, 'pdf', file.filename)
         
-        # ✅ ADD TRY-CATCH for validation errors to return proper JSON
-        try:
-            await validate_file_from_disk(file_path, 'pdf', file.filename)
-        except HTTPException as validation_error:
-            # Clean up and re-raise with proper detail
-            if file_path and os.path.exists(file_path):
-                os.unlink(file_path)
-            raise HTTPException(
-                status_code=validation_error.status_code,
-                detail=validation_error.detail
-            )
-        # page_count = validate_pdf_page_count(file_path, max_pages=1000)  # Compression can handle more pages
-        # logger.info(f"✅ PDF has {page_count} pages - proceeding with compression")
-        
-        # Step 3: Check preset is valid
+        # Step 3: Validate preset
         valid_presets = ['prepress', 'printer', 'ebook', 'screen']
         if preset not in valid_presets:
             raise HTTPException(status_code=400, detail=f"Invalid preset. Use: {', '.join(valid_presets)}")
         
-        await progress_tracker.update_progress(task_id, 40, "File validated! Starting compression...", "processing")
-        background_tasks.add_task(process_compression_disk_only, task_id, file_path, file.filename, preset)
+        await progress_tracker.update_progress(task_id, 40, "Starting compression...", "processing")
+        
+        # Step 4: Process in background
+        background_tasks.add_task(process_compression_with_progress, task_id, file_path, file.filename, preset)
         
         return JSONResponse(content={
             "task_id": task_id, 
             "status": "started", 
-            "message": "Compression started (pure disk-based)",
-            "processing_mode": "pure_disk"
+            "message": "Compression started",
+            "processing_mode": "disk_based"
         })
         
     except HTTPException as e:
-        # ✅ Ensure clean error response
         if file_path and os.path.exists(file_path):
-            try:
-                os.unlink(file_path)
-            except:
-                pass
+            os.unlink(file_path)
         await progress_tracker.update_progress(task_id, 100, f"Validation failed: {e.detail}", "error")
-        # Return proper JSON error
-        return JSONResponse(
-            status_code=e.status_code,
-            content={"detail": e.detail}
-        )
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
     except Exception as e:
         if file_path and os.path.exists(file_path):
-            try:
-                os.unlink(file_path)
-            except:
-                pass
+            os.unlink(file_path)
         logger.error(f"❌ Failed: {str(e)}", exc_info=True)
         await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
-        return JSONResponse(
-            status_code=500,
-            content={"detail": f"Failed: {str(e)}"}
-        )
-
+        return JSONResponse(status_code=500, content={"detail": f"Failed: {str(e)}"})
 @app.get("/download_compressed/{task_id}")
 async def download_compressed(task_id: str):
-    try:
-        result_data = None
-        if USE_REDIS:
-            metadata = redis_client.get(f"compressed_meta:{task_id}")
-            if metadata:
-                result_data = json.loads(metadata)
-        else:
-            result_data = compression_results.get(task_id)
-        if not result_data:
-            raise HTTPException(status_code=404, detail="Compressed result not found or expired")
-        filename = result_data["filename"]
-        file_path = result_data["file_path"]
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="Compressed file not found")
-        def file_generator():
-            with open(file_path, "rb") as f:
-                while chunk := f.read(128 * 1024):
-                    yield chunk
-            safe_delete_temp_file(file_path)
-            if USE_REDIS:
-                redis_client.delete(f"compressed_meta:{task_id}")
-            elif task_id in compression_results:
-                del compression_results[task_id]
-            logger.info(f"Cleaned up disk file: {task_id}")
-        return StreamingResponse(file_generator(), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"', "X-Original-Size": str(result_data["original_size"]), "X-Compressed-Size": str(result_data["compressed_size"]), "X-Savings-Percent": f"{result_data['savings']:.1f}", "X-Compression-Level": result_data["preset"]})
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Download error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to download compressed file")
+    """Download compressed file"""
+    result_data = compression_results.get(task_id)
+    
+    if not result_data:
+        raise HTTPException(status_code=404, detail="Compressed result not found")
+    
+    filename = result_data["filename"]
+    file_path = result_data["file_path"]
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Compressed file not found")
+    
+    def file_generator():
+        with open(file_path, "rb") as f:
+            while chunk := f.read(64 * 1024):  # 64KB chunks
+                yield chunk
+        # Clean up after download
+        safe_delete_temp_file(file_path)
+        if task_id in compression_results:
+            del compression_results[task_id]
+        # Clean up progress data
+        if task_id in progress_tracker.tasks:
+            del progress_tracker.tasks[task_id]
+    
+    return StreamingResponse(
+        file_generator(), 
+        media_type="application/pdf", 
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Original-Size": str(result_data["original_size"]),
+            "X-Compressed-Size": str(result_data["compressed_size"]),
+            "X-Savings-Percent": f"{result_data['savings']:.1f}",
+            "X-Compression-Level": result_data["preset"]
+        }
+    )
+
+progress_store: Dict[str, dict] = {}
+
+# Or use Redis for production (recommended)
+
+redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+
+
+# Make sure your update_progress function stores in ALL locations
 
 @app.get("/progress/{task_id}")
-async def get_progress(task_id: str):
+async def get_progress_endpoint(task_id: str):
+    """Get progress for a task - FIXED endpoint"""
+    logger.info(f"🔍 Progress requested for task: {task_id}")
+    
+    # Check in progress_tracker first
     progress = progress_tracker.get_progress(task_id)
-    if not progress:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return JSONResponse(content=progress)
-
+    
+    if progress:
+        logger.info(f"✅ Found progress for {task_id}: {progress.get('progress', 0)}%")
+        return JSONResponse(content=progress)
+    
+    # Also check the global progress_store as fallback
+    if task_id in progress_store:
+        logger.info(f"✅ Found progress in store for {task_id}")
+        return JSONResponse(content=progress_store[task_id])
+    
+    # Check Redis directly
+    try:
+        redis_data = redis_client.get(f"progress:{task_id}")
+        if redis_data:
+            logger.info(f"✅ Found progress in Redis for {task_id}")
+            return JSONResponse(content=json.loads(redis_data))
+    except:
+        pass
+    
+    logger.warning(f"❌ Task {task_id} not found in any storage")
+    raise HTTPException(status_code=404, detail="Task not found")
 @app.post("/stop_operations")
 async def stop_operations():
     try:
@@ -3321,39 +3419,56 @@ async def convert_pdf_to_word_endpoint(request: Request, file: UploadFile = File
     file_path = None
     
     try:
-        # ✅ Step 1: Upload to disk immediately (NO RAM)
+        # Initialize progress
+        await progress_tracker.update_progress(task_id, 0, "Starting PDF to Word conversion...", "initializing")
+        
+        # Step 1: Upload to disk
+        await progress_tracker.update_progress(task_id, 10, "Uploading file...", "uploading")
         file_path = await upload_to_disk_first(file, task_id)
         
-        # ✅ Step 2: Validate from disk (NO RAM)
+        # Step 2: Validate from disk
+        await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
         await validate_file_from_disk(file_path, 'pdf', file.filename)
         
-        # ✅ Step 3: Validate page count from disk
+        # Step 3: Validate page count
+        await progress_tracker.update_progress(task_id, 40, "Checking PDF structure...", "processing")
         page_count = validate_pdf_pages(Path(file_path))
         logger.info(f"📄 PDF validated: {page_count} pages")
         
-        # ✅ Step 4: Convert using disk file
+        # Step 4: Convert using disk file
+        await progress_tracker.update_progress(task_id, 50, "Converting to Word format...", "converting")
         docx_bytes = convert_pdf_to_word_disk_based(Path(file_path), task_id)
         
         if not docx_bytes:
+            await progress_tracker.update_progress(task_id, 70, "Trying fallback conversion...", "fallback")
             docx_bytes = convert_pdf_to_word_local_fallback(Path(file_path), task_id)
         
         if not docx_bytes:
             raise HTTPException(500, detail="Conversion failed")
         
-        # ✅ Step 5: Return response
-        return StreamingResponse(
+        await progress_tracker.update_progress(task_id, 90, "Preparing download...", "finalizing")
+        
+        # Return response with task_id in headers
+        response = StreamingResponse(
             io.BytesIO(docx_bytes), 
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={"Content-Disposition": 'attachment; filename="converted_output.docx"'}
+            headers={
+                "Content-Disposition": 'attachment; filename="converted_output.docx"',
+                "X-Task-ID": task_id
+            }
         )
+        
+        await progress_tracker.update_progress(task_id, 100, "Conversion complete!", "completed")
+        return response
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error: {e}")
+        await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
         raise HTTPException(500, detail=f"Conversion error: {str(e)}")
     finally:
-        # ✅ Step 6: Cleanup
+        # Cleanup
         if file_path and os.path.exists(file_path):
             os.unlink(file_path)
         cleanup_task_files(task_id)
@@ -3442,7 +3557,6 @@ def convert_pdf_to_excel_disk_based(pdf_file_path: Path, task_id: str, max_retri
                 return None
     
     return None
-
 @app.post("/convert_pdf_to_excel")
 @limiter.limit(RATE_LIMITS['convert'])
 async def convert_pdf_to_excel_endpoint(request: Request, file: UploadFile = File(...)):
@@ -3452,45 +3566,58 @@ async def convert_pdf_to_excel_endpoint(request: Request, file: UploadFile = Fil
     file_path = None
     
     try:
-        # ✅ Step 1: Upload to disk immediately (NO RAM)
+        # Initialize progress
+        await progress_tracker.update_progress(task_id, 0, "Starting PDF to Excel conversion...", "initializing")
+        
+        # Step 1: Upload to disk
+        await progress_tracker.update_progress(task_id, 10, "Uploading file...", "uploading")
         file_path = await upload_to_disk_first(file, task_id)
         
-        # ✅ Step 2: Validate from disk (NO RAM loading of entire file)
+        # Step 2: Validate from disk
+        await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
         await validate_file_from_disk(file_path, 'pdf', file.filename)
         
-        # ✅ Step 3: Validate page count from disk
+        # Step 3: Validate page count
+        await progress_tracker.update_progress(task_id, 40, "Checking PDF structure...", "processing")
         page_count = validate_pdf_pages(Path(file_path))
         logger.info(f"📄 PDF validated: {page_count} pages")
         
-        # ✅ Step 4: Convert using disk file (Adobe API needs RAM, unavoidable)
+        # Step 4: Convert using disk file
+        await progress_tracker.update_progress(task_id, 50, "Converting to Excel format...", "converting")
         logger.info("🔄 Starting PDF to Excel conversion...")
         xlsx_bytes = convert_pdf_to_excel_disk_based(Path(file_path), task_id)
         
         if not xlsx_bytes:
             raise HTTPException(status_code=500, detail="Excel conversion failed after all retry attempts")
         
+        await progress_tracker.update_progress(task_id, 90, "Preparing download...", "finalizing")
         logger.info(f"✅ Excel conversion successful for task {task_id}")
         
-        # ✅ Step 5: Return response (RAM unavoidable for output)
-        return StreamingResponse(
+        # Return response with task_id in headers
+        response = StreamingResponse(
             io.BytesIO(xlsx_bytes), 
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": 'attachment; filename="converted_output.xlsx"'}
+            headers={
+                "Content-Disposition": 'attachment; filename="converted_output.xlsx"',
+                "X-Task-ID": task_id
+            }
         )
+        
+        await progress_tracker.update_progress(task_id, 100, "Conversion complete!", "completed")
+        return response
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"💥 Error: {str(e)}")
+        await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
         raise HTTPException(status_code=500, detail=f"Excel conversion error: {str(e)}")
     finally:
-        # ✅ Step 6: Cleanup disk file
+        # Cleanup
         if file_path and os.path.exists(file_path):
             os.unlink(file_path)
             logger.info(f"🗑️ Deleted: {file_path}")
         cleanup_task_files(task_id)
-
-
 
 
 ##########################

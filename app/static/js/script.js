@@ -41,6 +41,76 @@ async function computeAllCompressionSizes() {
 let currentTaskId = null;
 let progressInterval = null;
 
+function startProgressTracking(taskId, progressBar, progressText, progressPercent, progressStatus) {
+    console.log('🚀 Starting progress tracking for task:', taskId);
+
+    if (!taskId) {
+        console.error('❌ No taskId provided');
+        return null;
+    }
+
+    // Clear any existing interval
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+
+    let isCompleted = false;
+    let consecutiveErrors = 0;
+
+    const interval = setInterval(async () => {
+        if (isCompleted) {
+            clearInterval(interval);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/progress/${taskId}`);
+
+            if (response.status === 404) {
+                // Task not found yet - normal for first few seconds
+                consecutiveErrors++;
+                if (consecutiveErrors > 10) {
+                    console.warn('⚠️ Task not found after multiple attempts');
+                }
+                return;
+            }
+
+            if (response.ok) {
+                consecutiveErrors = 0; // Reset error counter
+                const progressData = await response.json();
+                console.log('📊 Progress update:', progressData);
+
+                // Update UI
+                updateProgressUI(progressBar, progressText, progressPercent, progressStatus, progressData);
+
+                // Check for completion
+                if (progressData.progress >= 100) {
+                    console.log('✅ Task completed, stopping tracking');
+                    isCompleted = true;
+                    clearInterval(interval);
+                    progressInterval = null;
+                }
+            } else {
+                console.warn('⚠️ Progress fetch failed:', response.status);
+            }
+        } catch (error) {
+            console.error('💥 Progress fetch error:', error);
+            consecutiveErrors++;
+
+            // Stop after too many errors
+            if (consecutiveErrors > 15) {
+                console.error('❌ Too many errors, stopping progress tracking');
+                clearInterval(interval);
+                progressInterval = null;
+            }
+        }
+    }, 800); // Check every 800ms
+
+    progressInterval = interval;
+    console.log('✅ Progress tracking started');
+    return interval;
+}
 
 function stopProgressTracking() {
     if (progressInterval) {
@@ -50,100 +120,47 @@ function stopProgressTracking() {
     currentTaskId = null;
 }
 
-
-
-function startProgressTracking(taskId, progressBar, progressText, progressPercent, progressStatus) {
-    console.log('🚀 Starting progress tracking for task:', taskId);
-
-    if (!taskId) {
-        console.error('❌ No taskId provided');
-        return null;
-    }
-
-    let isCompleted = false;
-
-    const progressInterval = setInterval(async () => {
-        if (isCompleted) {
-            clearInterval(progressInterval);
-            return;
-        }
-
-        try {
-            const response = await fetch(`${BASE_URL}/progress/${taskId}`);
-
-            if (response.ok) {
-                const progressData = await response.json();
-                console.log('📊 Progress update received:', progressData);
-
-                // ✅ ALWAYS update UI with received data
-                if (progressData.progress !== undefined) {
-                    updateProgressUI(progressBar, progressText, progressPercent, progressStatus, progressData);
-
-                    // ✅ Check for completion
-                    if (progressData.progress >= 100) {
-                        console.log('✅ Task completed, stopping tracking');
-                        isCompleted = true;
-                        clearInterval(progressInterval);
-                    }
-                }
-            } else {
-                console.warn('⚠️ Progress fetch failed:', response.status);
-            }
-        } catch (error) {
-            console.error('💥 Progress fetch error:', error);
-        }
-    }, 100); // Reduced to 800ms for better responsiveness
-
-    console.log('✅ Progress tracking started');
-    return progressInterval;
-}
-
 function updateProgressUI(progressBar, progressText, progressPercent, progressStatus, progressData) {
-    console.log('🔄 UI Update called with:', progressData); // Debug log
-
-    // ✅ Update progress bar
+    // Update progress bar
     if (progressBar && progressData.progress !== undefined) {
         progressBar.value = progressData.progress;
         progressBar.style.width = progressData.progress + '%';
-        console.log('📊 Progress bar updated to:', progressData.progress + '%');
     }
 
-    // ✅ Update progress percentage text
+    // Update percentage text
     if (progressPercent && progressData.progress !== undefined) {
-        progressPercent.textContent = `${progressData.progress}%`;
+        progressPercent.textContent = `${Math.round(progressData.progress)}%`;
     }
 
-    // ✅ Update progress message
+    // Update message text
     if (progressText && progressData.message) {
         progressText.textContent = progressData.message;
     }
 
-    // ✅ Update progress stage
+    // Update status
     if (progressStatus && progressData.stage) {
-        progressStatus.textContent = getProgressStage(progressData.stage);
-    }
-
-    // ✅ Force browser repaint
-    if (progressBar) {
-        progressBar.offsetHeight; // Trigger reflow
+        progressStatus.textContent = getStageText(progressData.stage);
     }
 }
-function getProgressStage(stage) {
+
+function getStageText(stage) {
     const stages = {
         'initializing': 'Initializing...',
-        'preparing_upload': 'Preparing Upload...',
-        'uploading': 'Uploading to Cloud...',
-        'downloading': 'Processing...',
+        'uploading': 'Uploading file...',
+        'validating': 'Validating file...',
+        'processing': 'Processing...',
         'compressing': 'Compressing PDF...',
-        'ghostscript': 'Running Compression...',
-        'alternative_compression': 'Optimizing...',
         'finalizing': 'Finalizing...',
-        'completed': 'Completed!',
-        'failed': 'Failed',
-        'error': 'Error'
+        'completed': 'Complete!',
+        'error': 'Error occurred'
     };
     return stages[stage] || 'Processing...';
 }
+
+
+
+
+
 
 
 // validate file server side common co
@@ -1750,14 +1767,10 @@ function setupCompressionType() {
     }
 }
 ////////////////////////////////////////////
-
 async function processServerCompressionTwoStep(form, resultDiv, progressDiv, progressBar, progressText, progressPercent, progressStatus, submitButton) {
     const fileInput = form.querySelector('#compress-file');
     const preset = document.getElementById('server-preset')?.value || 'ebook';
     const computeButton = document.getElementById('estimate-sizes-btn');
-    // const progressrid = document.getElementById('progress-status-compressForm');
-    // const progressridother = document.getElementById('progress-percent-compressForm');
-    const completepog = document.getElementById('progress-compressForm');
 
     if (!fileInput || !fileInput.files[0]) {
         resultDiv.textContent = 'Please select a PDF file.';
@@ -1773,7 +1786,7 @@ async function processServerCompressionTwoStep(form, resultDiv, progressDiv, pro
     progressDiv.style.display = 'block';
     updateProgressUI(progressBar, progressText, progressPercent, progressStatus, {
         progress: 0,
-        message: 'Initializing uploading...',
+        message: 'Starting compression...',
         stage: 'initializing'
     });
 
@@ -1782,7 +1795,7 @@ async function processServerCompressionTwoStep(form, resultDiv, progressDiv, pro
 
     try {
         // STEP 1: Start compression
-        console.log('🚀 STEP 1: Starting compression...');
+        console.log('🚀 Starting compression...');
         const formData = new FormData();
         formData.append('file', file);
         formData.append('preset', preset);
@@ -1799,30 +1812,100 @@ async function processServerCompressionTwoStep(form, resultDiv, progressDiv, pro
 
         const startData = await startResponse.json();
         taskId = startData.task_id;
+        console.log('📨 Task ID:', taskId);
 
-        console.log('📨 Received task ID:', taskId);
-
-        // STEP 2: Start real-time progress tracking
-        console.log('🔄 STEP 2: Starting enhanced progress tracking');
+        // STEP 2: Start progress tracking
         progressInterval = startProgressTracking(taskId, progressBar, progressText, progressPercent, progressStatus);
 
-        // STEP 3: Wait for completion with timeout
-        console.log('⏳ STEP 3: Waiting for completion...');
-        await waitForCompressionCompletion(taskId, 300000); // 5 minute timeout
+        // STEP 3: Wait for completion (polling)
+        console.log('⏳ Waiting for completion...');
+        let isComplete = false;
+        let attempts = 0;
+        const maxAttempts = 60; // 60 * 2 seconds = 2 minutes max
+
+        while (!isComplete && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            attempts++;
+
+            try {
+                const progressResponse = await fetch(`/progress/${taskId}`);
+                if (progressResponse.ok) {
+                    const progressData = await progressResponse.json();
+                    if (progressData.progress >= 100) {
+                        isComplete = true;
+                        break;
+                    }
+                }
+            } catch (e) {
+                console.log('Waiting for progress endpoint...');
+            }
+        }
+
+        if (!isComplete) {
+            throw new Error('Compression timeout - process took too long');
+        }
 
         // STEP 4: Download result
-        console.log('📥 STEP 4: Downloading result...');
-        await downloadCompressedResult(taskId, resultDiv);
+        console.log('📥 Downloading result...');
+        const downloadResponse = await fetch(`/download_compressed/${taskId}`);
+
+        if (!downloadResponse.ok) {
+            throw new Error('Failed to download compressed file');
+        }
+
+        // Get filename from headers
+        const contentDisposition = downloadResponse.headers.get('Content-Disposition');
+        let filename = 'compressed.pdf';
+        if (contentDisposition) {
+            const match = contentDisposition.match(/filename="(.+)"|filename=([^;]+)/i);
+            if (match) filename = match[1] || match[2];
+        }
+
+        const blob = await downloadResponse.blob();
+
+        // Trigger download
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        // Show success message
+        const originalSize = downloadResponse.headers.get('X-Original-Size');
+        const compressedSize = downloadResponse.headers.get('X-Compressed-Size');
+        const savings = downloadResponse.headers.get('X-Savings-Percent');
+
+        if (originalSize && compressedSize && savings) {
+            const originalSizeMB = (parseInt(originalSize) / (1024 * 1024)).toFixed(2);
+            const compressedSizeMB = (parseInt(compressedSize) / (1024 * 1024)).toFixed(2);
+
+            resultDiv.innerHTML = `
+                <div class="text-green-600">
+                    ✅ <strong>Compression Successful!</strong><br>
+                    📁 Original: ${originalSizeMB}MB → Compressed: ${compressedSizeMB}MB<br>
+                    💾 Size reduction: <strong class="text-green-600">${savings}%</strong>
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="text-green-600">
+                    ✅ <strong>Compression Successful!</strong><br>
+                    File downloaded successfully.
+                </div>
+            `;
+        }
 
     } catch (error) {
         console.error('Compression error:', error);
 
-        // Stop progress tracking
         if (progressInterval) {
             clearInterval(progressInterval);
+            progressInterval = null;
         }
 
-        // Show error state
         updateProgressUI(progressBar, progressText, progressPercent, progressStatus, {
             progress: 0,
             message: `Error: ${error.message}`,
@@ -1835,14 +1918,21 @@ async function processServerCompressionTwoStep(form, resultDiv, progressDiv, pro
             </div>
         `;
     } finally {
-        // Re-enable button
+        // Re-enable buttons
         submitButton.disabled = false;
         submitButton.innerHTML = '<i class="fas fa-compress-alt mr-2"></i> Compress PDF';
-        computeButton.disabled = false;
-        completepog.style.display = 'none'
+        if (computeButton) computeButton.disabled = false;
 
+        // Clean up
+        if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+        }
 
-
+        // Hide progress after delay
+        setTimeout(() => {
+            if (progressDiv) progressDiv.style.display = 'none';
+        }, 3000);
     }
 }
 
