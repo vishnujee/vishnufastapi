@@ -949,7 +949,26 @@
                 if (!STATE.isTransferCancelled) {
                     const totalTime = (Date.now() - STATE.transfer.startTime) / 1000;
                     const avgSpeed = STATE.transfer.totalSize / totalTime;
+
+                    // Force progress to 100%
+                    updateProgress(1, STATE.transfer.currentFileIndex, STATE.transfer.currentFileIndex);
+
+                    // Show success message in file-info
+                    document.getElementById('file-info').innerHTML =
+                        `<i class="fas fa-check-circle text-success"></i> All ${STATE.transfer.currentFileIndex} file(s) sent successfully`;
+
+                    // Update final stats
+                    document.getElementById('transfer-speed').innerHTML = formatSpeed(avgSpeed);
+                    document.getElementById('time-remaining').innerHTML = `Completed in ${formatTime(totalTime)}`;
+
                     showAlert(`✅ All files sent in ${totalTime.toFixed(1)}s (${formatSpeed(avgSpeed)})`, 'success');
+
+                    // Hide transfer-info after 4 seconds so user can see final state
+                    setTimeout(() => {
+                        if (!STATE.transfer.sendingActive) {
+                            document.getElementById('transfer-info').style.display = 'none';
+                        }
+                    }, 4000);
                 }
                 document.getElementById('cancel-btn').style.display = 'none';
                 document.getElementById('send-btn').disabled = false;
@@ -957,308 +976,326 @@
                 return;
             }
 
-            STATE.transfer.currentFile = STATE.transfer.queue.shift();
-            STATE.transfer.currentFileIndex++;
-            const totalFiles = STATE.transfer.queue.length + STATE.transfer.currentFileIndex;
+            async function sendSingleFile(file, currentIndex, totalFiles) {
+                document.getElementById('file-info').innerHTML =
+                    `<i class="fas fa-upload"></i> Sending: ${file.name} (${formatFileSize(file.size)}) via ${CONFIG.numChannels} channels`;
 
-            await sendSingleFile(STATE.transfer.currentFile, STATE.transfer.currentFileIndex, totalFiles);
-        }
+                const fileId = STATE.nextFileId++;
+                const chunkSize = CONFIG.chunkSize;
+                const totalChunks = Math.ceil(file.size / chunkSize);
 
-        async function sendSingleFile(file, currentIndex, totalFiles) {
-            document.getElementById('file-info').innerHTML =
-                `<i class="fas fa-upload"></i> Sending: ${file.name} (${formatFileSize(file.size)}) via ${CONFIG.numChannels} channels`;
-
-            const fileId = STATE.nextFileId++;
-            const chunkSize = CONFIG.chunkSize;
-            const totalChunks = Math.ceil(file.size / chunkSize);
-
-            // Send metadata
-            const metadata = {
-                type: 'file_metadata_parallel',
-                file_id: fileId,
-                file_name: file.name,
-                file_size: file.size,
-                mime_type: file.type || 'application/octet-stream',
-                total_chunks: totalChunks,
-                current_index: currentIndex,
-                total_files: totalFiles
-            };
-
-            // Send metadata on first channel
-            STATE.dataChannels[0].send(JSON.stringify(metadata));
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            // Prepare all chunks with headers
-            const chunksWithHeaders = [];
-            for (let i = 0; i < totalChunks; i++) {
-                const start = i * chunkSize;
-                const end = Math.min(start + chunkSize, file.size);
-                const chunkBlob = file.slice(start, end);
-                const chunkBuffer = await chunkBlob.arrayBuffer();
-
-                // Create header: [fileId (4 bytes)][sequence (4 bytes)]
-                const header = new ArrayBuffer(8);
-                const headerView = new DataView(header);
-                headerView.setUint32(0, fileId, true);
-                headerView.setUint32(4, i, true);
-
-                // Combine header + data
-                const combined = new Uint8Array(header.byteLength + chunkBuffer.byteLength);
-                combined.set(new Uint8Array(header), 0);
-                combined.set(new Uint8Array(chunkBuffer), header.byteLength);
-
-                chunksWithHeaders.push({
-                    sequence: i,
-                    data: combined.buffer,
-                    size: combined.length,
-                    isLast: i === totalChunks - 1
-                });
-            }
-
-            // Distribute chunks across channels in round-robin
-            const sendPromises = [];
-            let sentSize = 0;
-
-            for (let i = 0; i < chunksWithHeaders.length; i++) {
-                const chunk = chunksWithHeaders[i];
-                const channelIndex = i % CONFIG.numChannels;
-                const channel = STATE.dataChannels[channelIndex];
-
-                const sendPromise = sendChunkWithBackpressure(channel, chunk, channelIndex);
-                sendPromises.push(sendPromise);
-
-                sentSize += chunk.size - 8; // Subtract header size
-                STATE.transfer.transferredSize += chunk.size - 8;
-
-                // Update progress periodically
-                const now = Date.now();
-                if (now - STATE.transfer.lastProgressUpdate > CONFIG.progressUpdateInterval) {
-                    const totalProgress = STATE.transfer.transferredSize / STATE.transfer.totalSize;
-                    updateProgress(totalProgress, currentIndex, totalFiles);
-                    updateTransferStats();
-                    STATE.transfer.lastProgressUpdate = now;
-                }
-            }
-
-
-            await Promise.all(sendPromises);
-            document.getElementById('file-info').innerHTML =
-                `<i class="fas fa-check"></i> Waiting for receiver confirmation: ${file.name}`;
-
-            // Send end marker
-            // STATE.dataChannels[0].send(JSON.stringify({
-            //     type: 'file_end_parallel',
-            //     file_id: fileId,
-            //     total_chunks: totalChunks,
-            //     file_size: file.size
-            // }));
-
-            // await new Promise(resolve => setTimeout(resolve, 200));
-            // await processNextFile();
-            // Wait for ALL channels to drain their buffers before sending end markers
-            // This ensures all chunks are actually sent before we signal completion
-            for (const channel of STATE.dataChannels) {
-                while (channel.bufferedAmount > 0 && !STATE.isTransferCancelled) {
-                    await new Promise(resolve => setTimeout(resolve, 20));
-                }
-            }
-
-            if (STATE.isTransferCancelled) return;
-
-            // Send end marker on EVERY channel so receiver knows each channel finished
-            // Count per-channel chunks so receiver can verify per-channel completion
-            const chunksPerChannel = new Array(CONFIG.numChannels).fill(0);
-            for (let i = 0; i < totalChunks; i++) {
-                chunksPerChannel[i % CONFIG.numChannels]++;
-            }
-
-            // Set up ACK promise BEFORE sending end markers
-            STATE.transfer.pendingAck = fileId;
-            const ackPromise = new Promise((resolve) => {
-                STATE.transfer.ackResolver = resolve;
-            });
-
-            for (let ch = 0; ch < STATE.dataChannels.length; ch++) {
-                STATE.dataChannels[ch].send(JSON.stringify({
-                    type: 'file_end_parallel',
+                // Send metadata
+                const metadata = {
+                    type: 'file_metadata_parallel',
                     file_id: fileId,
-                    total_chunks: totalChunks,
+                    file_name: file.name,
                     file_size: file.size,
-                    channel_id: ch,
-                    channel_chunks: chunksPerChannel[ch]
-                }));
-            }
+                    mime_type: file.type || 'application/octet-stream',
+                    total_chunks: totalChunks,
+                    current_index: currentIndex,
+                    total_files: totalFiles
+                };
 
-            // Wait for receiver ACK (with 15s timeout as safety net)
-            const ackTimeout = new Promise((resolve) => setTimeout(resolve, 15000));
-            await Promise.race([ackPromise, ackTimeout]);
+                // Send metadata on first channel
+                STATE.dataChannels[0].send(JSON.stringify(metadata));
+                await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Clear pending ACK state
-            STATE.transfer.pendingAck = null;
-            STATE.transfer.ackResolver = null;
+                // Prepare all chunks with headers
+                const chunksWithHeaders = [];
+                for (let i = 0; i < totalChunks; i++) {
+                    const start = i * chunkSize;
+                    const end = Math.min(start + chunkSize, file.size);
+                    const chunkBlob = file.slice(start, end);
+                    const chunkBuffer = await chunkBlob.arrayBuffer();
 
-            await processNextFile();
-        }
+                    // Create header: [fileId (4 bytes)][sequence (4 bytes)]
+                    const header = new ArrayBuffer(8);
+                    const headerView = new DataView(header);
+                    headerView.setUint32(0, fileId, true);
+                    headerView.setUint32(4, i, true);
 
-        async function sendChunkWithBackpressure(channel, chunk, channelIndex) {
-            // Wait if buffer is full
-            while (channel.bufferedAmount >= CONFIG.maxBufferedAmountPerChannel && !STATE.isTransferCancelled) {
-                await new Promise(resolve => setTimeout(resolve, 10));
-            }
+                    // Combine header + data
+                    const combined = new Uint8Array(header.byteLength + chunkBuffer.byteLength);
+                    combined.set(new Uint8Array(header), 0);
+                    combined.set(new Uint8Array(chunkBuffer), header.byteLength);
 
-            if (STATE.isTransferCancelled) return;
-
-            // Update channel status
-            const status = STATE.transfer.channelStatus.get(channelIndex);
-            if (status) {
-                status.bufferedAmount = channel.bufferedAmount;
-            }
-
-            // Send binary data directly
-            channel.send(chunk.data);
-        }
-
-        function updateTransferStats() {
-            const elapsed = (Date.now() - STATE.transfer.startTime) / 1000;
-            if (elapsed > 0 && STATE.transfer.totalSize > 0) {
-                const speed = STATE.transfer.transferredSize / elapsed;
-                document.getElementById('transfer-speed').innerHTML = formatSpeed(speed);
-
-                if (speed > 0) {
-                    const remaining = (STATE.transfer.totalSize - STATE.transfer.transferredSize) / speed;
-                    document.getElementById('time-remaining').innerHTML = `Time left: ${formatTime(remaining)}`;
+                    chunksWithHeaders.push({
+                        sequence: i,
+                        data: combined.buffer,
+                        size: combined.length,
+                        isLast: i === totalChunks - 1
+                    });
                 }
 
-                // Update channel stats display
-                const statsDiv = document.getElementById('channel-stats');
-                let statsHtml = '<small>📡 Channels: ';
-                for (let [id, status] of STATE.transfer.channelStatus) {
-                    const bufferPercent = ((status.bufferedAmount || 0) / CONFIG.maxBufferedAmountPerChannel * 100).toFixed(0);
-                    statsHtml += `[${id}:${status.active ? '●' : '○'} ${bufferPercent}%] `;
-                }
-                statsHtml += '</small>';
-                statsDiv.innerHTML = statsHtml;
-            }
-        }
+                // Distribute chunks across channels in round-robin
+                const sendPromises = [];
+                let sentSize = 0;
 
-        function cancelTransfer(fromRemote = false) {
-            STATE.isTransferCancelled = true;
-            STATE.transfer.sendingActive = false;
+                for (let i = 0; i < chunksWithHeaders.length; i++) {
+                    const chunk = chunksWithHeaders[i];
+                    const channelIndex = i % CONFIG.numChannels;
+                    const channel = STATE.dataChannels[channelIndex];
 
-            if (!fromRemote && STATE.dataChannels.length > 0) {
-                for (const channel of STATE.dataChannels) {
-                    if (channel.readyState === 'open') {
-                        try {
-                            channel.send(JSON.stringify({ type: 'cancel_transfer' }));
-                        } catch (e) { }
+                    const sendPromise = sendChunkWithBackpressure(channel, chunk, channelIndex);
+                    sendPromises.push(sendPromise);
+
+                    sentSize += chunk.size - 8; // Subtract header size
+                    STATE.transfer.transferredSize += chunk.size - 8;
+
+                    // Update progress periodically
+                    const now = Date.now();
+                    if (now - STATE.transfer.lastProgressUpdate > CONFIG.progressUpdateInterval) {
+                        const totalProgress = STATE.transfer.transferredSize / STATE.transfer.totalSize;
+                        updateProgress(totalProgress, currentIndex, totalFiles);
+                        updateTransferStats();
+                        STATE.transfer.lastProgressUpdate = now;
                     }
                 }
-            }
 
-            showAlert('Transfer cancelled', 'warning');
-            document.getElementById('cancel-btn').style.display = 'none';
-            document.getElementById('send-btn').disabled = false;
-            document.getElementById('progress-bar').style.width = '0%';
-            document.getElementById('transfer-info').style.display = 'none';
 
-            STATE.transfer.queue = [];
-            STATE.transfer.currentFile = null;
-            STATE.reception.files.clear();
-        }
+                await Promise.all(sendPromises);
 
-        function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
-        }
+                // Force progress to show actual state after all chunks queued
+                const finalProgress = STATE.transfer.transferredSize / STATE.transfer.totalSize;
+                updateProgress(finalProgress, currentIndex, totalFiles);
+                updateTransferStats();
 
-        async function downloadAllFiles() {
-            if (STATE.receivedFiles.length === 0) return;
+                document.getElementById('file-info').innerHTML =
+                    `<i class="fas fa-check"></i> Waiting for receiver confirmation: ${file.name}`;
 
-            const zip = new JSZip();
-            STATE.receivedFiles.forEach(file => {
-                zip.file(file.fileName, file.blob);
-            });
+                // Send end marker
+                // STATE.dataChannels[0].send(JSON.stringify({
+                //     type: 'file_end_parallel',
+                //     file_id: fileId,
+                //     total_chunks: totalChunks,
+                //     file_size: file.size
+                // }));
 
-            const content = await zip.generateAsync({ type: "blob" });
-            const url = URL.createObjectURL(content);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `received_files_${Date.now()}.zip`;
-            a.click();
-            URL.revokeObjectURL(url);
-
-            showAlert(`Downloaded ${STATE.receivedFiles.length} files as ZIP`, 'success');
-        }
-
-        function startHeartbeat() {
-            if (STATE.heartbeatInterval) clearInterval(STATE.heartbeatInterval);
-            STATE.heartbeatInterval = setInterval(() => {
-                if (STATE.ws && STATE.ws.readyState === WebSocket.OPEN) {
-                    STATE.ws.send(JSON.stringify({ type: 'heartbeat' }));
-                }
-            }, CONFIG.heartbeatInterval);
-        }
-
-        function cleanupConnection() {
-            if (STATE.dataChannels.length > 0) {
+                // await new Promise(resolve => setTimeout(resolve, 200));
+                // await processNextFile();
+                // Wait for ALL channels to drain their buffers before sending end markers
+                // This ensures all chunks are actually sent before we signal completion
                 for (const channel of STATE.dataChannels) {
-                    try { channel.close(); } catch (e) { }
+                    while (channel.bufferedAmount > 0 && !STATE.isTransferCancelled) {
+                        await new Promise(resolve => setTimeout(resolve, 20));
+                    }
                 }
-                STATE.dataChannels = [];
-            }
-            if (STATE.rtcPeer) {
-                try { STATE.rtcPeer.close(); } catch (e) { }
-                STATE.rtcPeer = null;
-            }
-            if (STATE.ws) {
-                try { STATE.ws.close(); } catch (e) { }
-                STATE.ws = null;
-            }
-            if (STATE.heartbeatInterval) {
-                clearInterval(STATE.heartbeatInterval);
-                STATE.heartbeatInterval = null;
+
+                if (STATE.isTransferCancelled) return;
+
+                // Send end marker on EVERY channel so receiver knows each channel finished
+                // Count per-channel chunks so receiver can verify per-channel completion
+                const chunksPerChannel = new Array(CONFIG.numChannels).fill(0);
+                for (let i = 0; i < totalChunks; i++) {
+                    chunksPerChannel[i % CONFIG.numChannels]++;
+                }
+
+                // Set up ACK promise BEFORE sending end markers
+                STATE.transfer.pendingAck = fileId;
+                const ackPromise = new Promise((resolve) => {
+                    STATE.transfer.ackResolver = resolve;
+                });
+
+                for (let ch = 0; ch < STATE.dataChannels.length; ch++) {
+                    STATE.dataChannels[ch].send(JSON.stringify({
+                        type: 'file_end_parallel',
+                        file_id: fileId,
+                        total_chunks: totalChunks,
+                        file_size: file.size,
+                        channel_id: ch,
+                        channel_chunks: chunksPerChannel[ch]
+                    }));
+                }
+
+                // Wait for receiver ACK — timeout scales with file size for slow networks
+                // Minimum 30s, max 5 minutes, based on worst-case 30 KB/s speed
+                const ackTimeoutMs = Math.min(300000, Math.max(30000, Math.ceil(file.size / 30000) * 1000));
+                console.log(`Waiting for ACK for file ${fileId} (timeout: ${ackTimeoutMs}ms)`);
+
+                let ackTimedOut = false;
+                const ackTimeout = new Promise((resolve) => setTimeout(() => {
+                    ackTimedOut = true;
+                    console.warn(`ACK timeout for file ${fileId} (${file.name}) after ${ackTimeoutMs}ms`);
+                    resolve();
+                }, ackTimeoutMs));
+
+                await Promise.race([ackPromise, ackTimeout]);
+
+                if (ackTimedOut) {
+                    console.warn(`No ACK received for ${file.name} — continuing anyway`);
+                } else {
+                    console.log(`ACK confirmed for file ${fileId}`);
+                }
+
+                // Clear pending ACK state
+                STATE.transfer.pendingAck = null;
+                STATE.transfer.ackResolver = null;
+
+                // Ensure progress shows 100% for this file in multi-file transfers
+                updateProgress(STATE.transfer.transferredSize / STATE.transfer.totalSize, currentIndex, totalFiles);
+
+                await processNextFile();
             }
 
-            STATE.isConnected = false;
-            STATE.isConnecting = false;
-            STATE.peerId = null;
-            STATE.transfer.channelStatus.clear();
+            async function sendChunkWithBackpressure(channel, chunk, channelIndex) {
+                // Wait if buffer is full
+                while (channel.bufferedAmount >= CONFIG.maxBufferedAmountPerChannel && !STATE.isTransferCancelled) {
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
 
-            document.getElementById('connect-btn').style.display = 'inline-block';
-            document.getElementById('connect-btn').disabled = false;
-            document.getElementById('connect-btn').innerHTML = '<i class="fas fa-search"></i> Search Devices';
-            document.getElementById('disconnect-btn').style.display = 'none';
-            document.getElementById('peers-container').style.display = 'none';
-            document.getElementById('transfer-section').style.display = 'none';
-            document.getElementById('connection-status').style.display = 'none';
-            document.getElementById('send-btn').disabled = false;
-            document.getElementById('cancel-btn').style.display = 'none';
-            if (STATE.peerId) {
-                updatePeerConnectionStatus(STATE.peerId, false);
+                if (STATE.isTransferCancelled) return;
+
+                // Update channel status
+                const status = STATE.transfer.channelStatus.get(channelIndex);
+                if (status) {
+                    status.bufferedAmount = channel.bufferedAmount;
+                }
+
+                // Send binary data directly
+                channel.send(chunk.data);
             }
-        }
 
+            function updateTransferStats() {
+                const elapsed = (Date.now() - STATE.transfer.startTime) / 1000;
+                if (elapsed > 0 && STATE.transfer.totalSize > 0) {
+                    const speed = STATE.transfer.transferredSize / elapsed;
+                    document.getElementById('transfer-speed').innerHTML = formatSpeed(speed);
 
+                    if (speed > 0) {
+                        const remaining = (STATE.transfer.totalSize - STATE.transfer.transferredSize) / speed;
+                        document.getElementById('time-remaining').innerHTML = `Time left: ${formatTime(remaining)}`;
+                    }
 
-        window.addEventListener('beforeunload', () => {
-            STATE.receivedFiles.forEach(file => URL.revokeObjectURL(file.url));
-            cleanupConnection();
-        });
-        // Global orphan cleanup — runs ONCE, every 30s
-        setInterval(() => {
-            const now = Date.now();
-            for (const [fileId, chunks] of STATE.reception.orphanedChunks) {
-                const filtered = chunks.filter(c => now - c.timestamp < 120000);
-                if (filtered.length === 0) {
-                    STATE.reception.orphanedChunks.delete(fileId);
-                } else if (filtered.length !== chunks.length) {
-                    STATE.reception.orphanedChunks.set(fileId, filtered);
+                    // Update channel stats display
+                    const statsDiv = document.getElementById('channel-stats');
+                    let statsHtml = '<small>📡 Channels: ';
+                    for (let [id, status] of STATE.transfer.channelStatus) {
+                        const bufferPercent = ((status.bufferedAmount || 0) / CONFIG.maxBufferedAmountPerChannel * 100).toFixed(0);
+                        statsHtml += `[${id}:${status.active ? '●' : '○'} ${bufferPercent}%] `;
+                    }
+                    statsHtml += '</small>';
+                    statsDiv.innerHTML = statsHtml;
                 }
             }
-        }, 30000);
 
-        document.getElementById('client-id').value = 'Device-' + Math.floor(Math.random() * 1000);
+            function cancelTransfer(fromRemote = false) {
+                STATE.isTransferCancelled = true;
+                STATE.transfer.sendingActive = false;
+
+                if (!fromRemote && STATE.dataChannels.length > 0) {
+                    for (const channel of STATE.dataChannels) {
+                        if (channel.readyState === 'open') {
+                            try {
+                                channel.send(JSON.stringify({ type: 'cancel_transfer' }));
+                            } catch (e) { }
+                        }
+                    }
+                }
+
+                showAlert('Transfer cancelled', 'warning');
+                document.getElementById('cancel-btn').style.display = 'none';
+                document.getElementById('send-btn').disabled = false;
+                document.getElementById('progress-bar').style.width = '0%';
+                document.getElementById('transfer-info').style.display = 'none';
+
+                STATE.transfer.queue = [];
+                STATE.transfer.currentFile = null;
+                STATE.reception.files.clear();
+            }
+
+            function escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            async function downloadAllFiles() {
+                if (STATE.receivedFiles.length === 0) return;
+
+                const zip = new JSZip();
+                STATE.receivedFiles.forEach(file => {
+                    zip.file(file.fileName, file.blob);
+                });
+
+                const content = await zip.generateAsync({ type: "blob" });
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `received_files_${Date.now()}.zip`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                showAlert(`Downloaded ${STATE.receivedFiles.length} files as ZIP`, 'success');
+            }
+
+            function startHeartbeat() {
+                if (STATE.heartbeatInterval) clearInterval(STATE.heartbeatInterval);
+                STATE.heartbeatInterval = setInterval(() => {
+                    if (STATE.ws && STATE.ws.readyState === WebSocket.OPEN) {
+                        STATE.ws.send(JSON.stringify({ type: 'heartbeat' }));
+                    }
+                }, CONFIG.heartbeatInterval);
+            }
+
+            function cleanupConnection() {
+                if (STATE.dataChannels.length > 0) {
+                    for (const channel of STATE.dataChannels) {
+                        try { channel.close(); } catch (e) { }
+                    }
+                    STATE.dataChannels = [];
+                }
+                if (STATE.rtcPeer) {
+                    try { STATE.rtcPeer.close(); } catch (e) { }
+                    STATE.rtcPeer = null;
+                }
+                if (STATE.ws) {
+                    try { STATE.ws.close(); } catch (e) { }
+                    STATE.ws = null;
+                }
+                if (STATE.heartbeatInterval) {
+                    clearInterval(STATE.heartbeatInterval);
+                    STATE.heartbeatInterval = null;
+                }
+
+                STATE.isConnected = false;
+                STATE.isConnecting = false;
+                STATE.peerId = null;
+                STATE.transfer.channelStatus.clear();
+
+                document.getElementById('connect-btn').style.display = 'inline-block';
+                document.getElementById('connect-btn').disabled = false;
+                document.getElementById('connect-btn').innerHTML = '<i class="fas fa-search"></i> Search Devices';
+                document.getElementById('disconnect-btn').style.display = 'none';
+                document.getElementById('peers-container').style.display = 'none';
+                document.getElementById('transfer-section').style.display = 'none';
+                document.getElementById('connection-status').style.display = 'none';
+                document.getElementById('send-btn').disabled = false;
+                document.getElementById('cancel-btn').style.display = 'none';
+                if (STATE.peerId) {
+                    updatePeerConnectionStatus(STATE.peerId, false);
+                }
+            }
+
+
+
+            window.addEventListener('beforeunload', () => {
+                STATE.receivedFiles.forEach(file => URL.revokeObjectURL(file.url));
+                cleanupConnection();
+            });
+            // Global orphan cleanup — runs ONCE, every 30s
+            setInterval(() => {
+                const now = Date.now();
+                for (const [fileId, chunks] of STATE.reception.orphanedChunks) {
+                    const filtered = chunks.filter(c => now - c.timestamp < 120000);
+                    if (filtered.length === 0) {
+                        STATE.reception.orphanedChunks.delete(fileId);
+                    } else if (filtered.length !== chunks.length) {
+                        STATE.reception.orphanedChunks.set(fileId, filtered);
+                    }
+                }
+            }, 30000);
+
+            document.getElementById('client-id').value = 'Device-' + Math.floor(Math.random() * 1000);
     </script>
 </body>
 

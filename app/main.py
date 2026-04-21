@@ -1711,8 +1711,9 @@ def initialize_global_gemini_model():
                 print("🚀 PRE-LOADING Gemini model globally...")
                 start = time.time()
                 genai.configure(api_key=GOOGLE_API_KEY)
-                # _GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.5-flash')
-                _GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.0-flash')
+                _GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.5-flash')
+                # _GEMINI_MODEL = genai.GenerativeModel('gemini-2.0-flash') 
+                # _GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.0-flash')
                 try:
                     _GEMINI_MODEL.generate_content("ping", generation_config=genai.types.GenerationConfig(max_output_tokens=1))
                 except Exception as e:
@@ -1835,7 +1836,7 @@ thread_pool = ThreadPoolExecutor(max_workers=4)
 @app.on_event("startup")
 async def startup_event():
     logger.info("🚀 Startup initiated")
-    init_security()
+    # init_security()
     global GEMINI_MODEL
     GEMINI_MODEL = initialize_global_gemini_model()
     global retriever, llm, vectorstore
@@ -2243,7 +2244,7 @@ async def chat(request: Request, query: str = Form(...), mode: str = Form(None),
                 combined_query = f"SYSTEM INSTRUCTIONS: {system_prompt}\n\nUSER QUESTION: {query}"
                 messages.append({"role": "user", "parts": [combined_query]})
                 # genai.configure(api_key=GOOGLE_API_KEY)
-                generation_config = genai.types.GenerationConfig(max_output_tokens=3024, temperature=0.2, top_p=0.95, top_k=40, candidate_count=1, presence_penalty=0.0, frequency_penalty=0.0)
+                generation_config = genai.types.GenerationConfig(max_output_tokens=3024, temperature=0.2, top_p=0.95, top_k=40, candidate_count=1)
                 connection_start = time.time()
                 response = GEMINI_MODEL.generate_content(messages, stream=True, generation_config=generation_config, request_options={'timeout': 35})
                 connection_time = time.time() - connection_start
