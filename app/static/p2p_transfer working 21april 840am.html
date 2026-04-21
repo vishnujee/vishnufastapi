@@ -221,7 +221,6 @@
             dataChannels: [],
             clientId: null,
             peerId: null,
-            intentionalDisconnect: false,
 
             transfer: {
                 queue: [],
@@ -233,12 +232,12 @@
                 lastProgressUpdate: 0,
                 sendingActive: false,
                 channelStatus: new Map(),
-                pendingAck: null,
+                pendingAck: null,      // ADD THIS
                 ackResolver: null
             },
 
             reception: {
-                files: new Map(),
+                files: new Map(),            // Store file data by fileId
                 currentFileId: null,
                 startTime: null,
                 lastProgressUpdate: 0,
@@ -297,34 +296,6 @@
                 `${percentValue}% ${totalFiles > 1 ? `(File ${currentIndex}/${totalFiles})` : ''}`;
         }
 
-
-        //======helper function
-        function cleanupPeerConnection() {
-            // Close and clear data channels
-            if (STATE.dataChannels.length > 0) {
-                for (const channel of STATE.dataChannels) {
-                    try { channel.close(); } catch (e) { }
-                }
-                STATE.dataChannels = [];
-            }
-
-            // Close peer connection
-            if (STATE.rtcPeer) {
-                try { STATE.rtcPeer.close(); } catch (e) { }
-                STATE.rtcPeer = null;
-            }
-
-            // Reset transfer state
-            STATE.transfer.channelStatus.clear();
-            STATE.transfer.sendingActive = false;
-            STATE.transfer.pendingAck = null;
-            STATE.transfer.ackResolver = null;
-
-            // Hide transfer UI
-            document.getElementById('transfer-section').style.display = 'none';
-        }
-
-
         // ==================== WEBSOCKET ====================
         function connectWebSocket(retryAttempt = 0) {
             if (STATE.isConnecting || STATE.isConnected) {
@@ -367,12 +338,9 @@
                     if (data.type === 'peers') {
                         updatePeersList(data.peers);
                     } else if (data.type === 'offer') {
-                        // Always accept new offers — clean up old peer if exists
-                        if (STATE.rtcPeer || STATE.dataChannels.length > 0) {
-                            console.log('New offer received, cleaning up old peer connection');
-                            cleanupPeerConnection();
+                        if (STATE.dataChannels.length === 0) {
+                            handleOffer(data);
                         }
-                        handleOffer(data);
                     } else if (data.type === 'answer') {
                         handleAnswer(data);
                     } else if (data.type === 'ice') {
@@ -387,12 +355,6 @@
 
             STATE.ws.onclose = () => {
                 cleanupConnection();
-                // Don't auto-retry if user intentionally disconnected
-                if (STATE.intentionalDisconnect) {
-                    STATE.intentionalDisconnect = false;
-                    showAlert('Disconnected from server', 'info');
-                    return;
-                }
                 if (retryAttempt < 3) {
                     setTimeout(() => connectWebSocket(retryAttempt + 1), 2000);
                 } else {
@@ -403,37 +365,9 @@
                 }
             };
         }
-        function updatePeerConnectionStatus(peerId, isConnected) {
-            const peersList = document.getElementById('peers-list');
-            const peerItems = peersList.querySelectorAll('.list-group-item');
-            peerItems.forEach(item => {
-                const button = item.querySelector('button');
-                const peerName = item.querySelector('strong').textContent;
-                if (peerName === peerId) {
-                    if (isConnected) {
-                        button.innerHTML = '<i class="fas fa-check"></i> Connected';
-                        button.disabled = true;
-                        button.classList.remove('btn-primary');
-                        button.classList.add('btn-success');
-                    } else {
-                        button.innerHTML = '<i class="fas fa-plug"></i> Connect';
-                        button.disabled = false;
-                        button.classList.remove('btn-success');
-                        button.classList.add('btn-primary');
-                    }
-                }
-            });
-        }
 
         function disconnectWebSocket() {
-
-            STATE.intentionalDisconnect = true;
-            if (STATE.ws) {
-                try { STATE.ws.close(); } catch (e) { }
-            }
-            if (STATE.peerId) {
-                updatePeerConnectionStatus(STATE.peerId, false);
-            }
+            if (STATE.ws) STATE.ws.close();
             cleanupConnection();
         }
 
@@ -467,18 +401,15 @@
                 console.error('WebSocket not connected, cannot send signal');
             }
         }
-
+        // Add these functions after sendSignal function
         function handleOffer(data) {
             STATE.peerId = data.from;
 
-            // Clean up any stale peer connection
-            cleanupPeerConnection();
+            if (STATE.rtcPeer) {
+                try { STATE.rtcPeer.close(); } catch (e) { }
+            }
 
             STATE.rtcPeer = new RTCPeerConnection(RTC_CONFIG);
-
-
-
-
             STATE.rtcPeer.oniceconnectionstatechange = () => {
                 console.log('ICE connection state:', STATE.rtcPeer.iceConnectionState);
             };
@@ -537,22 +468,26 @@
             }
         }
         function initiateConnection(peerId) {
-
-
             if (STATE.dataChannels.length > 0 && STATE.dataChannels[0]?.readyState === 'open') {
                 showAlert('Already connected!', 'warning');
                 return;
             }
-
-            // Clean up any stale peer connection from previous attempts
-            cleanupPeerConnection();
+            // if (event.candidate) {
+            //     if (typeof sendSignal === 'function') {
+            //         sendSignal({ type: 'ice', ice: event.candidate }, STATE.peerId);
+            //     } else {
+            //         console.error('sendSignal not defined');
+            //     }
+            // }
 
             STATE.peerId = peerId;
             showAlert(`Connecting to ${peerId} with ${CONFIG.numChannels} parallel channels...`, 'info');
 
+            if (STATE.rtcPeer) {
+                try { STATE.rtcPeer.close(); } catch (e) { }
+            }
+
             STATE.rtcPeer = new RTCPeerConnection(RTC_CONFIG);
-
-
             STATE.rtcPeer.oniceconnectionstatechange = () => {
                 console.log('ICE connection state:', STATE.rtcPeer.iceConnectionState);
             };
@@ -617,7 +552,6 @@
                     showAlert(`✅ Connected with ${CONFIG.numChannels} parallel channels!`, 'success');
                     document.getElementById('transfer-section').style.display = 'block';
                     document.getElementById('file-input').disabled = false;
-                    updatePeerConnectionStatus(STATE.peerId, true);  // <-- ADD THIS LINE
                 }
             };
 
@@ -636,7 +570,7 @@
             channel.onmessage = (event) => handleDataMessage(event, channelId);
         }
 
-        // ==================== BINARY DATA RECEPTION ====================
+        // ==================== FIXED: BINARY DATA RECEPTION ====================
         function handleDataMessage(event, channelId) {
             const data = event.data;
 
@@ -724,7 +658,7 @@
 
             let file = STATE.reception.files.get(fileId);
 
-            // Buffer orphaned chunks instead of rejecting them
+            // FIX: Buffer orphaned chunks instead of rejecting them
             if (!file) {
                 console.log(`Buffering orphaned chunk ${sequence} for file ${fileId}`);
 
@@ -740,7 +674,20 @@
                     timestamp: Date.now()
                 });
 
-
+                // Clean old orphaned chunks (older than 30 seconds)
+                // setTimeout(() => {
+                //     const orphaned = STATE.reception.orphanedChunks.get(fileId);
+                //     if (orphaned) {
+                //         const now = Date.now();
+                //         const filtered = orphaned.filter(c => now - c.timestamp < 30000);
+                //         if (filtered.length === 0) {
+                //             STATE.reception.orphanedChunks.delete(fileId);
+                //         } else {
+                //             STATE.reception.orphanedChunks.set(fileId, filtered);
+                //         }
+                //     }
+                // }, 30000);
+                // Global orphan cleanup — runs every 30s, removes entries older than 2 minutes
 
 
                 return;
@@ -808,7 +755,9 @@
                 return;
             }
 
-
+            // All channels done — now wait for chunk count to match
+            // Do NOT delete the file on timeout; keep waiting until chunks arrive
+            // (stragglers from SCTP reordering can land after end markers on other channels)
             const maxWaitMs = 10000;  // 10s hard ceiling per file
             const pollMs = 50;
             const startWait = Date.now();
@@ -897,7 +846,8 @@
 
             STATE.reception.files.delete(file_id);
 
-
+            // Send ACK back to sender so it knows this file is safely reassembled
+            // Send ACK back to sender — use channel with lowest bufferedAmount for faster delivery
             try {
                 let bestChannel = STATE.dataChannels[0];
                 for (const ch of STATE.dataChannels) {
@@ -914,7 +864,7 @@
             } catch (e) { console.error('ACK send failed:', e); }
 
         }
-        // ====================BINARY DATA SENDING ====================
+        // ==================== FIXED: BINARY DATA SENDING ====================
         async function sendFiles() {
             if (STATE.dataChannels.length === 0 || STATE.dataChannels[0]?.readyState !== 'open') {
                 showAlert('Not connected to a peer', 'warning');
@@ -1040,7 +990,7 @@
                 }
             }
 
-
+            // Wait for all chunks to be queued
             await Promise.all(sendPromises);
             document.getElementById('file-info').innerHTML =
                 `<i class="fas fa-check"></i> Waiting for receiver confirmation: ${file.name}`;
@@ -1234,9 +1184,6 @@
             document.getElementById('connection-status').style.display = 'none';
             document.getElementById('send-btn').disabled = false;
             document.getElementById('cancel-btn').style.display = 'none';
-            if (STATE.peerId) {
-                updatePeerConnectionStatus(STATE.peerId, false);
-            }
         }
 
 

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>P2P File Transfer </title>
+    <title>P2P File Transfer - PARALLEL CHANNELS (Fixed)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -103,8 +103,8 @@
     <div class="container">
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <h3 class="mb-0"><i class="fas fa-rocket"></i> P2P File Transfer</h3>
-
+                <h3 class="mb-0"><i class="fas fa-rocket"></i> P2P File Transfer - PARALLEL CHANNELS</h3>
+                <small>⚡ 3 Parallel Channels • Binary Transfer • No Data Loss</small>
             </div>
 
             <div class="card-body">
@@ -177,16 +177,6 @@
                 </div>
             </div>
         </div>
-        <div class="alert alert-warning mt-3" style="background: #e2e0e6; border-left: 4px solid #ffc107;">
-
-            <strong>📌 Tips for File Transfer:</strong>
-            <ul style="font-size: 14px;" class="mb-0 mt-2">
-                <li>📶 Both devices must be on <strong>SAME WiFi network or mobile hotspot</strong></li>
-                <li>🔋 Keep screens <strong>ON</strong> during transfer.</li>
-
-                <li>🚫 Transfer will FAIL if any device locks/sleeps</li>
-            </ul>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -195,9 +185,7 @@
         const CONFIG = {
             numChannels: 3,                 // Number of parallel channels
             chunkSize: 128 * 1024,          // 128KB per chunk
-            // chunkSize: 256 * 1024,
-            maxBufferedAmountPerChannel: 8 * 1024 * 1024,
-            // maxBufferedAmountPerChannel: 1 * 1024 * 1024,  // 1MB — smaller buffer = tighter ordering, still fast
+            maxBufferedAmountPerChannel: 4 * 1024 * 1024,
             lowBufferThreshold: 1 * 1024 * 1024,
             heartbeatInterval: 30000,
             maxFileSize: 10 * 1024 * 1024 * 1024,
@@ -221,7 +209,6 @@
             dataChannels: [],
             clientId: null,
             peerId: null,
-            intentionalDisconnect: false,
 
             transfer: {
                 queue: [],
@@ -232,13 +219,11 @@
                 startTime: null,
                 lastProgressUpdate: 0,
                 sendingActive: false,
-                channelStatus: new Map(),
-                pendingAck: null,
-                ackResolver: null
+                channelStatus: new Map()
             },
 
             reception: {
-                files: new Map(),
+                files: new Map(),            // Store file data by fileId
                 currentFileId: null,
                 startTime: null,
                 lastProgressUpdate: 0,
@@ -297,34 +282,6 @@
                 `${percentValue}% ${totalFiles > 1 ? `(File ${currentIndex}/${totalFiles})` : ''}`;
         }
 
-
-        //======helper function
-        function cleanupPeerConnection() {
-            // Close and clear data channels
-            if (STATE.dataChannels.length > 0) {
-                for (const channel of STATE.dataChannels) {
-                    try { channel.close(); } catch (e) { }
-                }
-                STATE.dataChannels = [];
-            }
-
-            // Close peer connection
-            if (STATE.rtcPeer) {
-                try { STATE.rtcPeer.close(); } catch (e) { }
-                STATE.rtcPeer = null;
-            }
-
-            // Reset transfer state
-            STATE.transfer.channelStatus.clear();
-            STATE.transfer.sendingActive = false;
-            STATE.transfer.pendingAck = null;
-            STATE.transfer.ackResolver = null;
-
-            // Hide transfer UI
-            document.getElementById('transfer-section').style.display = 'none';
-        }
-
-
         // ==================== WEBSOCKET ====================
         function connectWebSocket(retryAttempt = 0) {
             if (STATE.isConnecting || STATE.isConnected) {
@@ -367,18 +324,13 @@
                     if (data.type === 'peers') {
                         updatePeersList(data.peers);
                     } else if (data.type === 'offer') {
-                        // Always accept new offers — clean up old peer if exists
-                        if (STATE.rtcPeer || STATE.dataChannels.length > 0) {
-                            console.log('New offer received, cleaning up old peer connection');
-                            cleanupPeerConnection();
+                        if (STATE.dataChannels.length === 0) {
+                            handleOffer(data);  // This must be defined
                         }
-                        handleOffer(data);
                     } else if (data.type === 'answer') {
-                        handleAnswer(data);
+                        handleAnswer(data);     // This must be defined
                     } else if (data.type === 'ice') {
-                        handleIceCandidate(data);
-                    } else if (data.type === 'pong') {
-                        // Heartbeat acknowledgment from server — ignore silently
+                        handleIceCandidate(data); // This must be defined
                     }
                 } catch (error) {
                     console.error('Message error:', error);
@@ -387,12 +339,6 @@
 
             STATE.ws.onclose = () => {
                 cleanupConnection();
-                // Don't auto-retry if user intentionally disconnected
-                if (STATE.intentionalDisconnect) {
-                    STATE.intentionalDisconnect = false;
-                    showAlert('Disconnected from server', 'info');
-                    return;
-                }
                 if (retryAttempt < 3) {
                     setTimeout(() => connectWebSocket(retryAttempt + 1), 2000);
                 } else {
@@ -403,37 +349,9 @@
                 }
             };
         }
-        function updatePeerConnectionStatus(peerId, isConnected) {
-            const peersList = document.getElementById('peers-list');
-            const peerItems = peersList.querySelectorAll('.list-group-item');
-            peerItems.forEach(item => {
-                const button = item.querySelector('button');
-                const peerName = item.querySelector('strong').textContent;
-                if (peerName === peerId) {
-                    if (isConnected) {
-                        button.innerHTML = '<i class="fas fa-check"></i> Connected';
-                        button.disabled = true;
-                        button.classList.remove('btn-primary');
-                        button.classList.add('btn-success');
-                    } else {
-                        button.innerHTML = '<i class="fas fa-plug"></i> Connect';
-                        button.disabled = false;
-                        button.classList.remove('btn-success');
-                        button.classList.add('btn-primary');
-                    }
-                }
-            });
-        }
 
         function disconnectWebSocket() {
-
-            STATE.intentionalDisconnect = true;
-            if (STATE.ws) {
-                try { STATE.ws.close(); } catch (e) { }
-            }
-            if (STATE.peerId) {
-                updatePeerConnectionStatus(STATE.peerId, false);
-            }
+            if (STATE.ws) STATE.ws.close();
             cleanupConnection();
         }
 
@@ -467,27 +385,15 @@
                 console.error('WebSocket not connected, cannot send signal');
             }
         }
-
+        // Add these functions after sendSignal function
         function handleOffer(data) {
             STATE.peerId = data.from;
 
-            // Clean up any stale peer connection
-            cleanupPeerConnection();
+            if (STATE.rtcPeer) {
+                try { STATE.rtcPeer.close(); } catch (e) { }
+            }
 
             STATE.rtcPeer = new RTCPeerConnection(RTC_CONFIG);
-
-
-
-
-            STATE.rtcPeer.oniceconnectionstatechange = () => {
-                console.log('ICE connection state:', STATE.rtcPeer.iceConnectionState);
-            };
-            STATE.rtcPeer.onconnectionstatechange = () => {
-                console.log('Peer connection state:', STATE.rtcPeer.connectionState);
-            };
-            STATE.rtcPeer.onicegatheringstatechange = () => {
-                console.log('ICE gathering state:', STATE.rtcPeer.iceGatheringState);
-            };
             STATE.dataChannels = [];
             STATE.transfer.channelStatus.clear();
 
@@ -506,12 +412,10 @@
 
             STATE.rtcPeer.onicecandidate = (event) => {
                 if (event.candidate) {
-                    console.log('🧊 Local ICE candidate generated, sending to peer:', event.candidate.candidate);
                     sendSignal({ type: 'ice', ice: event.candidate }, STATE.peerId);
-                } else {
-                    console.log('🧊 ICE gathering finished (null candidate)');
                 }
             };
+
             STATE.rtcPeer.setRemoteDescription(new RTCSessionDescription(data.offer))
                 .then(() => STATE.rtcPeer.createAnswer())
                 .then(answer => STATE.rtcPeer.setLocalDescription(answer))
@@ -527,48 +431,40 @@
         }
 
         function handleIceCandidate(data) {
-            console.log('🧊 Remote ICE candidate received:', data.ice?.candidate);
             if (STATE.rtcPeer) {
                 STATE.rtcPeer.addIceCandidate(new RTCIceCandidate(data.ice))
-                    .then(() => console.log('🧊 Remote ICE candidate added successfully'))
-                    .catch(error => console.error('🧊 Error adding ICE candidate:', error));
-            } else {
-                console.error('🧊 No rtcPeer — cannot add ICE candidate');
+                    .catch(error => console.error('Error adding ICE candidate:', error));
             }
         }
         function initiateConnection(peerId) {
-
-
             if (STATE.dataChannels.length > 0 && STATE.dataChannels[0]?.readyState === 'open') {
                 showAlert('Already connected!', 'warning');
                 return;
             }
-
-            // Clean up any stale peer connection from previous attempts
-            cleanupPeerConnection();
+            // if (event.candidate) {
+            //     if (typeof sendSignal === 'function') {
+            //         sendSignal({ type: 'ice', ice: event.candidate }, STATE.peerId);
+            //     } else {
+            //         console.error('sendSignal not defined');
+            //     }
+            // }
 
             STATE.peerId = peerId;
             showAlert(`Connecting to ${peerId} with ${CONFIG.numChannels} parallel channels...`, 'info');
 
+            if (STATE.rtcPeer) {
+                try { STATE.rtcPeer.close(); } catch (e) { }
+            }
+
             STATE.rtcPeer = new RTCPeerConnection(RTC_CONFIG);
-
-
-            STATE.rtcPeer.oniceconnectionstatechange = () => {
-                console.log('ICE connection state:', STATE.rtcPeer.iceConnectionState);
-            };
-            STATE.rtcPeer.onconnectionstatechange = () => {
-                console.log('Peer connection state:', STATE.rtcPeer.connectionState);
-            };
-            STATE.rtcPeer.onicegatheringstatechange = () => {
-                console.log('ICE gathering state:', STATE.rtcPeer.iceGatheringState);
-            };
             STATE.dataChannels = [];
             STATE.transfer.channelStatus.clear();
 
             // Create multiple data channels
             for (let i = 0; i < CONFIG.numChannels; i++) {
                 const channel = STATE.rtcPeer.createDataChannel(`fileTransfer_${i}`, {
-                    ordered: true
+                    ordered: true,
+                    maxRetransmits: 10
                 });
                 channel.binaryType = 'arraybuffer';
                 channel.channelId = i;
@@ -581,17 +477,9 @@
                 });
             }
 
-            // STATE.rtcPeer.onicecandidate = (event) => {
-            //     if (event.candidate) {
-            //         sendSignal({ type: 'ice', ice: event.candidate }, STATE.peerId);
-            //     }
-            // };
             STATE.rtcPeer.onicecandidate = (event) => {
                 if (event.candidate) {
-                    console.log('🧊 Local ICE candidate generated, sending to peer:', event.candidate.candidate);
                     sendSignal({ type: 'ice', ice: event.candidate }, STATE.peerId);
-                } else {
-                    console.log('🧊 ICE gathering finished (null candidate)');
                 }
             };
 
@@ -617,7 +505,6 @@
                     showAlert(`✅ Connected with ${CONFIG.numChannels} parallel channels!`, 'success');
                     document.getElementById('transfer-section').style.display = 'block';
                     document.getElementById('file-input').disabled = false;
-                    updatePeerConnectionStatus(STATE.peerId, true);  // <-- ADD THIS LINE
                 }
             };
 
@@ -636,7 +523,7 @@
             channel.onmessage = (event) => handleDataMessage(event, channelId);
         }
 
-        // ==================== BINARY DATA RECEPTION ====================
+        // ==================== FIXED: BINARY DATA RECEPTION ====================
         function handleDataMessage(event, channelId) {
             const data = event.data;
 
@@ -650,8 +537,6 @@
                         handleFileMetadata(msg);
                     } else if (msg.type === 'file_end_parallel') {
                         handleFileEnd(msg);
-                    } else if (msg.type === 'file_ack') {
-                        handleFileAck(msg);
                     } else if (msg.type === 'cancel_transfer') {
                         cancelTransfer(true);
                     }
@@ -671,20 +556,11 @@
             console.log('Received metadata:', data);
 
             // Initialize file reception
-            // STATE.reception.files.set(data.file_id, {
-            //     metadata: data,
-            //     chunks: new Map(),
-            //     receivedSize: 0,
-            //     expectedChunks: data.total_chunks
-            // });
             STATE.reception.files.set(data.file_id, {
                 metadata: data,
                 chunks: new Map(),
                 receivedSize: 0,
-                expectedChunks: data.total_chunks,
-                endMarkersReceived: new Set(),      // which channels have sent their end marker
-                endMarkerInfo: null,                 // cached file_size/total_chunks for reassembly
-                finalized: false                     // prevent double-reassembly
+                expectedChunks: data.total_chunks
             });
 
             // FIX: Process any orphaned chunks that arrived before metadata
@@ -724,7 +600,7 @@
 
             let file = STATE.reception.files.get(fileId);
 
-            // Buffer orphaned chunks instead of rejecting them
+            // FIX: Buffer orphaned chunks instead of rejecting them
             if (!file) {
                 console.log(`Buffering orphaned chunk ${sequence} for file ${fileId}`);
 
@@ -740,8 +616,19 @@
                     timestamp: Date.now()
                 });
 
-
-
+                // Clean old orphaned chunks (older than 30 seconds)
+                setTimeout(() => {
+                    const orphaned = STATE.reception.orphanedChunks.get(fileId);
+                    if (orphaned) {
+                        const now = Date.now();
+                        const filtered = orphaned.filter(c => now - c.timestamp < 30000);
+                        if (filtered.length === 0) {
+                            STATE.reception.orphanedChunks.delete(fileId);
+                        } else {
+                            STATE.reception.orphanedChunks.set(fileId, filtered);
+                        }
+                    }
+                }, 30000);
 
                 return;
             }
@@ -770,71 +657,69 @@
             console.log(`Chunk ${sequence} received on channel ${channelId}, total: ${file.chunks.size}/${file.expectedChunks}`);
         }
 
-        function handleFileAck(data) {
-            console.log(`ACK received for file ${data.file_id}`);
-            if (STATE.transfer.pendingAck === data.file_id && STATE.transfer.ackResolver) {
-                STATE.transfer.ackResolver();
-                STATE.transfer.pendingAck = null;
-                STATE.transfer.ackResolver = null;
-            }
-        }
 
         async function handleFileEnd(data) {
-            const { file_id, total_chunks, file_size, channel_id, channel_chunks } = data;
+            const { file_id, total_chunks, file_size } = data;
+
+            // FIX: Wait up to 3 seconds for straggler chunks
+            let waitCount = 0;
+            const maxWait = 30; // 30 * 100ms = 3 seconds
+
+            while (waitCount < maxWait) {
+                const file = STATE.reception.files.get(file_id);
+                if (!file) {
+                    console.error(`File ${file_id} not found`);
+                    return;
+                }
+
+                // Check if we have all chunks or if we should stop waiting
+                if (file.chunks.size >= total_chunks) {
+                    console.log(`All chunks received after ${waitCount * 100}ms wait`);
+                    break;
+                }
+
+                // Check if progress has stalled
+                const currentSize = file.chunks.size;
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // If no new chunks arrived in last second, stop waiting
+                if (file.chunks.size === currentSize && waitCount > 10) {
+                    console.log(`Progress stalled at ${currentSize}/${total_chunks} chunks`);
+                    break;
+                }
+
+                waitCount++;
+            }
 
             const file = STATE.reception.files.get(file_id);
             if (!file) {
-                console.error(`file_end for unknown file ${file_id} on channel ${channel_id}`);
+                console.error(`File ${file_id} not found`);
                 return;
             }
 
-            if (file.finalized) return;
-
-            // Mark this channel's end marker as received
-            if (typeof channel_id === 'number') {
-                file.endMarkersReceived.add(channel_id);
-            } else {
-                // Fallback for old-format end markers: treat as "all channels done"
-                for (let i = 0; i < CONFIG.numChannels; i++) file.endMarkersReceived.add(i);
-            }
-            file.endMarkerInfo = { total_chunks, file_size };
-
-            console.log(`file_end received for file ${file_id} channel ${channel_id}, have ${file.endMarkersReceived.size}/${CONFIG.numChannels} end markers`);
-
-
-
-            // Only proceed to reassembly once EVERY channel has signaled completion
-            if (file.endMarkersReceived.size < CONFIG.numChannels) {
-                return;
-            }
-
-
-            const maxWaitMs = 10000;  // 10s hard ceiling per file
-            const pollMs = 50;
-            const startWait = Date.now();
-
-            while (file.chunks.size < total_chunks && (Date.now() - startWait) < maxWaitMs) {
-                await new Promise(r => setTimeout(r, pollMs));
-                // Re-fetch in case file was deleted elsewhere
-                if (!STATE.reception.files.has(file_id)) return;
-            }
-
+            // Verify all chunks received
             if (file.chunks.size !== total_chunks) {
+                console.error(`Missing chunks: ${file.chunks.size}/${total_chunks}`);
+
+                // Log which chunks are missing for debugging
                 const missing = [];
                 for (let i = 0; i < total_chunks; i++) {
-                    if (!file.chunks.has(i)) missing.push(i);
+                    if (!file.chunks.has(i)) {
+                        missing.push(i);
+                    }
                 }
-                console.error(`Missing chunks after ${maxWaitMs}ms wait: ${file.chunks.size}/${total_chunks}`, missing.slice(0, 20));
+                console.log('Missing chunk indices:', missing.slice(0, 20));
+
                 showAlert(`File incomplete: ${file.metadata.file_name} (missing ${total_chunks - file.chunks.size} chunks)`, 'warning');
                 STATE.reception.files.delete(file_id);
                 return;
             }
 
-            file.finalized = true;
-
-            // Reassemble
+            // Reassemble file in order
             const chunksList = [];
             let totalLength = 0;
+
+            // First pass: calculate total length
             for (let i = 0; i < total_chunks; i++) {
                 const chunk = file.chunks.get(i);
                 if (!chunk) {
@@ -846,13 +731,15 @@
                 totalLength += chunk.length;
             }
 
+            // Verify total length matches expected file size
             if (totalLength !== file_size) {
-                console.error(`File size mismatch: expected ${file_size}, got ${totalLength}`);
+                console.error(`File size mismatch: expected ${file_size}, calculated ${totalLength}`);
                 showAlert(`File corrupted: ${file.metadata.file_name}`, 'danger');
                 STATE.reception.files.delete(file_id);
                 return;
             }
 
+            // Combine chunks
             const combined = new Uint8Array(totalLength);
             let offset = 0;
             for (const buffer of chunksList) {
@@ -870,6 +757,7 @@
                 size: blob.size
             });
 
+            // Add to UI
             const fileCard = document.createElement('div');
             fileCard.className = 'file-card';
             fileCard.innerHTML = `
@@ -883,6 +771,7 @@
             </a>
         </div>
     `;
+
             document.getElementById('received-files').appendChild(fileCard);
             document.getElementById('download-all-btn').style.display = 'block';
 
@@ -895,26 +784,11 @@
                 document.getElementById('transfer-info').style.display = 'none';
             }
 
+            // Cleanup
             STATE.reception.files.delete(file_id);
-
-
-            try {
-                let bestChannel = STATE.dataChannels[0];
-                for (const ch of STATE.dataChannels) {
-                    if (ch.readyState === 'open' && ch.bufferedAmount < bestChannel.bufferedAmount) {
-                        bestChannel = ch;
-                    }
-                }
-                if (bestChannel && bestChannel.readyState === 'open') {
-                    bestChannel.send(JSON.stringify({
-                        type: 'file_ack',
-                        file_id: file_id
-                    }));
-                }
-            } catch (e) { console.error('ACK send failed:', e); }
-
         }
-        // ====================BINARY DATA SENDING ====================
+
+        // ==================== FIXED: BINARY DATA SENDING ====================
         async function sendFiles() {
             if (STATE.dataChannels.length === 0 || STATE.dataChannels[0]?.readyState !== 'open') {
                 showAlert('Not connected to a peer', 'warning');
@@ -1040,63 +914,18 @@
                 }
             }
 
-
+            // Wait for all chunks to be queued
             await Promise.all(sendPromises);
-            document.getElementById('file-info').innerHTML =
-                `<i class="fas fa-check"></i> Waiting for receiver confirmation: ${file.name}`;
 
             // Send end marker
-            // STATE.dataChannels[0].send(JSON.stringify({
-            //     type: 'file_end_parallel',
-            //     file_id: fileId,
-            //     total_chunks: totalChunks,
-            //     file_size: file.size
-            // }));
+            STATE.dataChannels[0].send(JSON.stringify({
+                type: 'file_end_parallel',
+                file_id: fileId,
+                total_chunks: totalChunks,
+                file_size: file.size
+            }));
 
-            // await new Promise(resolve => setTimeout(resolve, 200));
-            // await processNextFile();
-            // Wait for ALL channels to drain their buffers before sending end markers
-            // This ensures all chunks are actually sent before we signal completion
-            for (const channel of STATE.dataChannels) {
-                while (channel.bufferedAmount > 0 && !STATE.isTransferCancelled) {
-                    await new Promise(resolve => setTimeout(resolve, 20));
-                }
-            }
-
-            if (STATE.isTransferCancelled) return;
-
-            // Send end marker on EVERY channel so receiver knows each channel finished
-            // Count per-channel chunks so receiver can verify per-channel completion
-            const chunksPerChannel = new Array(CONFIG.numChannels).fill(0);
-            for (let i = 0; i < totalChunks; i++) {
-                chunksPerChannel[i % CONFIG.numChannels]++;
-            }
-
-            // Set up ACK promise BEFORE sending end markers
-            STATE.transfer.pendingAck = fileId;
-            const ackPromise = new Promise((resolve) => {
-                STATE.transfer.ackResolver = resolve;
-            });
-
-            for (let ch = 0; ch < STATE.dataChannels.length; ch++) {
-                STATE.dataChannels[ch].send(JSON.stringify({
-                    type: 'file_end_parallel',
-                    file_id: fileId,
-                    total_chunks: totalChunks,
-                    file_size: file.size,
-                    channel_id: ch,
-                    channel_chunks: chunksPerChannel[ch]
-                }));
-            }
-
-            // Wait for receiver ACK (with 15s timeout as safety net)
-            const ackTimeout = new Promise((resolve) => setTimeout(resolve, 15000));
-            await Promise.race([ackPromise, ackTimeout]);
-
-            // Clear pending ACK state
-            STATE.transfer.pendingAck = null;
-            STATE.transfer.ackResolver = null;
-
+            await new Promise(resolve => setTimeout(resolve, 200));
             await processNextFile();
         }
 
@@ -1234,29 +1063,12 @@
             document.getElementById('connection-status').style.display = 'none';
             document.getElementById('send-btn').disabled = false;
             document.getElementById('cancel-btn').style.display = 'none';
-            if (STATE.peerId) {
-                updatePeerConnectionStatus(STATE.peerId, false);
-            }
         }
-
-
 
         window.addEventListener('beforeunload', () => {
             STATE.receivedFiles.forEach(file => URL.revokeObjectURL(file.url));
             cleanupConnection();
         });
-        // Global orphan cleanup — runs ONCE, every 30s
-        setInterval(() => {
-            const now = Date.now();
-            for (const [fileId, chunks] of STATE.reception.orphanedChunks) {
-                const filtered = chunks.filter(c => now - c.timestamp < 120000);
-                if (filtered.length === 0) {
-                    STATE.reception.orphanedChunks.delete(fileId);
-                } else if (filtered.length !== chunks.length) {
-                    STATE.reception.orphanedChunks.set(fileId, filtered);
-                }
-            }
-        }, 30000);
 
         document.getElementById('client-id').value = 'Device-' + Math.floor(Math.random() * 1000);
     </script>
