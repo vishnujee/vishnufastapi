@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>P2P File Transfer </title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>P2P File Transfer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -28,7 +28,7 @@
 
         @media (max-width: 768px) {
             body {
-                padding: 0 !important;
+                padding: 8px !important;
             }
 
             .container {
@@ -37,7 +37,7 @@
             }
 
             .card {
-                border-radius: 0 !important;
+                border-radius: 12px !important;
             }
         }
 
@@ -69,14 +69,36 @@
         .progress-bar {
             background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
             transition: width 0.3s ease;
+            font-weight: 600;
+        }
+
+        .progress-bar.indeterminate {
+            background: linear-gradient(90deg, #667eea 25%, #764ba2 50%, #667eea 75%);
+            background-size: 200% 100%;
+            animation: progress-shimmer 1.5s linear infinite;
+        }
+
+        @keyframes progress-shimmer {
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
         }
 
         .file-card {
             background: #f8f9fa;
             border-radius: 12px;
             padding: 15px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             border-left: 4px solid #667eea;
+            transition: transform 0.15s ease;
+        }
+
+        .file-card:hover {
+            transform: translateX(2px);
         }
 
         #received-files {
@@ -84,17 +106,59 @@
             overflow-y: auto;
         }
 
-        .speed-fast {
-            color: #28a745;
-            font-weight: bold;
-        }
-
         .channel-stats {
             font-size: 11px;
-            padding: 4px 8px;
+            padding: 6px 10px;
             background: #f0f0f0;
-            border-radius: 4px;
+            border-radius: 6px;
             margin-top: 8px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .drop-zone {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            background: #f8f9fd;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            background: #eef0ff;
+            border-color: #764ba2;
+            transform: scale(1.01);
+        }
+
+        .drop-zone .icon {
+            font-size: 32px;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .selected-files {
+            font-size: 13px;
+            color: #495057;
+            margin-top: 8px;
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        .peer-item {
+            transition: all 0.15s ease;
+        }
+
+        .peer-item:hover {
+            background: #f0f3ff;
+        }
+
+        .tips-alert {
+            background: #fff8e1;
+            border-left: 4px solid #ffc107;
+            color: #665200;
         }
     </style>
 </head>
@@ -104,7 +168,6 @@
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <h3 class="mb-0"><i class="fas fa-rocket"></i> P2P File Transfer</h3>
-
             </div>
 
             <div class="card-body">
@@ -135,9 +198,13 @@
                         <div id="transfer-section" style="display:none;">
                             <hr>
                             <h5><i class="fas fa-file-upload"></i> Send Files</h5>
-                            <div class="form-group mb-3">
-                                <input type="file" id="file-input" class="form-control" multiple>
-                                <small class="text-muted">Parallel transfer across 3 channels for maximum speed</small>
+
+                            <div id="drop-zone" class="drop-zone">
+                                <div class="icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                                <div><strong>Click or drop files here</strong></div>
+                                <small class="text-muted">Parallel transfer across 4 channels</small>
+                                <input type="file" id="file-input" multiple style="display:none;">
+                                <div id="selected-files" class="selected-files"></div>
                             </div>
 
                             <div class="d-flex gap-2">
@@ -160,31 +227,36 @@
                                     <span id="transfer-speed" class="text-muted"></span>
                                 </div>
                                 <div id="time-remaining" class="text-muted small"></div>
-                                <div id="channel-stats" class="channel-stats"></div>
+                                <div id="channel-stats" class="channel-stats" style="display:none;"></div>
                             </div>
                         </div>
 
                         <div id="received-files-section" style="display:none;" class="mt-4">
                             <hr>
-                            <h5><i class="fas fa-download"></i> Received Files:</h5>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="mb-0"><i class="fas fa-download"></i> Received Files:</h5>
+                                <button id="clear-received-btn" class="btn btn-sm btn-outline-secondary"
+                                    onclick="clearReceivedFiles()" style="display:none;">
+                                    <i class="fas fa-trash"></i> Clear
+                                </button>
+                            </div>
                             <div id="received-files"></div>
                             <button id="download-all-btn" class="btn btn-secondary mt-2" onclick="downloadAllFiles()"
                                 style="display:none;">
-                                <i class="fas fa-download"></i> Download All
+                                <i class="fas fa-file-archive"></i> Download All as ZIP
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="alert alert-warning mt-3" style="background: #e2e0e6; border-left: 4px solid #ffc107;">
 
-            <strong>📌 Tips for File Transfer:</strong>
+        <div class="alert mt-3 tips-alert">
+            <strong>📌 Tips for best transfer speed:</strong>
             <ul style="font-size: 14px;" class="mb-0 mt-2">
-                <li>📶 Both devices must be on <strong>SAME WiFi network or mobile hotspot</strong></li>
-                <li>🔋 Keep screens <strong>ON</strong> during transfer.</li>
-
-                <li>🚫 Transfer will FAIL if any device locks/sleeps</li>
+                <li>📶 Both devices must be on the <strong>same WiFi network or mobile hotspot</strong></li>
+                <li>🔋 Keep screens <strong>ON</strong> during transfer — locked devices will fail</li>
+                <li>⚡ For huge files (&gt;1 GB), desktop browsers handle better than mobile</li>
             </ul>
         </div>
     </div>
@@ -192,16 +264,17 @@
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script>
         // ==================== CONFIGURATION ====================
+        // Tuned for LAN / hotspot throughput
         const CONFIG = {
-            numChannels: 3,                 // Number of parallel channels
-            chunkSize: 128 * 1024,          // 128KB per chunk
-            // chunkSize: 256 * 1024,
-            maxBufferedAmountPerChannel: 8 * 1024 * 1024,
-            // maxBufferedAmountPerChannel: 1 * 1024 * 1024,  // 1MB — smaller buffer = tighter ordering, still fast
-            lowBufferThreshold: 1 * 1024 * 1024,
+            numChannels: 4,                                 // 4 channels is sweet spot on LAN
+            chunkSize: 256 * 1024,                          // 256 KB — fewer messages, same latency
+            maxBufferedAmountPerChannel: 4 * 1024 * 1024,   // 4 MB — smaller queue = honest progress, less HOL blocking
+            lowBufferThreshold: 1 * 1024 * 1024,            // drain event fires at 1 MB
             heartbeatInterval: 30000,
             maxFileSize: 10 * 1024 * 1024 * 1024,
-            progressUpdateInterval: 100,
+            progressUpdateInterval: 250,                    // 4 UI updates/sec is plenty
+            ackDrainPollMs: 20,
+            reassemblyWaitMs: 30000,                         // large files need more reassembly patience
         };
 
         const RTC_CONFIG = {
@@ -221,24 +294,28 @@
             dataChannels: [],
             clientId: null,
             peerId: null,
+            intentionalDisconnect: false,
 
             transfer: {
                 queue: [],
                 currentFile: null,
                 currentFileIndex: 0,
                 totalSize: 0,
-                transferredSize: 0,
+                transferredSize: 0,          // bytes confirmed flushed from local buffer
+                queuedSize: 0,               // bytes queued into channels
                 startTime: null,
                 lastProgressUpdate: 0,
                 sendingActive: false,
                 channelStatus: new Map(),
-                pendingAck: null,      // ADD THIS
-                ackResolver: null
+                pendingAck: null,
+                ackResolver: null,
+                pendingMetadataAck: null,
+                metadataAckResolver: null,
+                lastBufferedTotal: 0         // snapshot for drain detection
             },
 
             reception: {
-                files: new Map(),            // Store file data by fileId
-                currentFileId: null,
+                files: new Map(),
                 startTime: null,
                 lastProgressUpdate: 0,
                 orphanedChunks: new Map()
@@ -249,7 +326,8 @@
             isConnected: false,
             isConnecting: false,
             heartbeatInterval: null,
-            nextFileId: 1
+            nextFileId: 1,
+            selectedFiles: []
         };
 
         // ==================== UI HELPERS ====================
@@ -268,13 +346,19 @@
         }
 
         function formatTime(seconds) {
-            if (seconds < 0) return "0s";
+            if (!isFinite(seconds) || seconds < 0) return "0s";
             if (seconds < 60) return `${Math.round(seconds)}s`;
             return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
         }
 
         function sanitize(input) {
             return input.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
         }
 
         function showAlert(message, type = 'info') {
@@ -287,13 +371,34 @@
             }, 3000);
         }
 
-        function updateProgress(percent, currentIndex, totalFiles) {
+        function updateProgress(percent, currentIndex, totalFiles, indeterminate = false) {
             const percentValue = Math.min(Math.round(percent * 100), 100);
             const progressBar = document.getElementById('progress-bar');
+            progressBar.classList.toggle('indeterminate', indeterminate);
             progressBar.style.width = `${percentValue}%`;
-            progressBar.textContent = `${percentValue}%`;
+            progressBar.textContent = indeterminate ? 'Finalizing...' : `${percentValue}%`;
             document.getElementById('progress-text').textContent =
                 `${percentValue}% ${totalFiles > 1 ? `(File ${currentIndex}/${totalFiles})` : ''}`;
+        }
+
+        function cleanupPeerConnection() {
+            if (STATE.dataChannels.length > 0) {
+                for (const channel of STATE.dataChannels) {
+                    try { channel.close(); } catch (e) { }
+                }
+                STATE.dataChannels = [];
+            }
+            if (STATE.rtcPeer) {
+                try { STATE.rtcPeer.close(); } catch (e) { }
+                STATE.rtcPeer = null;
+            }
+            STATE.transfer.channelStatus.clear();
+            STATE.transfer.sendingActive = false;
+            STATE.transfer.pendingAck = null;
+            STATE.transfer.ackResolver = null;
+            STATE.transfer.pendingMetadataAck = null;
+            STATE.transfer.metadataAckResolver = null;
+            document.getElementById('transfer-section').style.display = 'none';
         }
 
         // ==================== WEBSOCKET ====================
@@ -338,15 +443,17 @@
                     if (data.type === 'peers') {
                         updatePeersList(data.peers);
                     } else if (data.type === 'offer') {
-                        if (STATE.dataChannels.length === 0) {
-                            handleOffer(data);
+                        if (STATE.rtcPeer || STATE.dataChannels.length > 0) {
+                            console.log('New offer received, cleaning up old peer connection');
+                            cleanupPeerConnection();
                         }
+                        handleOffer(data);
                     } else if (data.type === 'answer') {
                         handleAnswer(data);
                     } else if (data.type === 'ice') {
                         handleIceCandidate(data);
                     } else if (data.type === 'pong') {
-                        // Heartbeat acknowledgment from server — ignore silently
+                        // silent
                     }
                 } catch (error) {
                     console.error('Message error:', error);
@@ -355,6 +462,11 @@
 
             STATE.ws.onclose = () => {
                 cleanupConnection();
+                if (STATE.intentionalDisconnect) {
+                    STATE.intentionalDisconnect = false;
+                    showAlert('Disconnected from server', 'info');
+                    return;
+                }
                 if (retryAttempt < 3) {
                     setTimeout(() => connectWebSocket(retryAttempt + 1), 2000);
                 } else {
@@ -366,8 +478,36 @@
             };
         }
 
+        function updatePeerConnectionStatus(peerId, isConnected) {
+            const peersList = document.getElementById('peers-list');
+            const peerItems = peersList.querySelectorAll('.list-group-item');
+            peerItems.forEach(item => {
+                const button = item.querySelector('button');
+                const peerName = item.querySelector('strong').textContent;
+                if (peerName === peerId) {
+                    if (isConnected) {
+                        button.innerHTML = '<i class="fas fa-check"></i> Connected';
+                        button.disabled = true;
+                        button.classList.remove('btn-primary');
+                        button.classList.add('btn-success');
+                    } else {
+                        button.innerHTML = '<i class="fas fa-plug"></i> Connect';
+                        button.disabled = false;
+                        button.classList.remove('btn-success');
+                        button.classList.add('btn-primary');
+                    }
+                }
+            });
+        }
+
         function disconnectWebSocket() {
-            if (STATE.ws) STATE.ws.close();
+            STATE.intentionalDisconnect = true;
+            if (STATE.ws) {
+                try { STATE.ws.close(); } catch (e) { }
+            }
+            if (STATE.peerId) {
+                updatePeerConnectionStatus(STATE.peerId, false);
+            }
             cleanupConnection();
         }
 
@@ -383,17 +523,20 @@
 
             otherPeers.forEach(peerId => {
                 const peerItem = document.createElement('div');
-                peerItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                peerItem.className = 'list-group-item peer-item d-flex justify-content-between align-items-center';
+                const safeName = escapeHtml(peerId);
                 peerItem.innerHTML = `
-                    <div><i class="fas fa-mobile-alt"></i> <strong>${peerId}</strong></div>
-                    <button class="btn btn-sm btn-primary" onclick="initiateConnection('${peerId}')">
+                    <div><i class="fas fa-mobile-alt"></i> <strong>${safeName}</strong></div>
+                    <button class="btn btn-sm btn-primary">
                         <i class="fas fa-plug"></i> Connect
                     </button>`;
+                // Attach handler safely (avoid injecting peerId into inline onclick)
+                peerItem.querySelector('button').addEventListener('click', () => initiateConnection(peerId));
                 peersList.appendChild(peerItem);
             });
         }
 
-        // ==================== WEBRTC WITH PARALLEL CHANNELS ====================
+        // ==================== WEBRTC ====================
         function sendSignal(message, to) {
             if (STATE.ws && STATE.ws.readyState === WebSocket.OPEN) {
                 STATE.ws.send(JSON.stringify({ to, message }));
@@ -401,24 +544,16 @@
                 console.error('WebSocket not connected, cannot send signal');
             }
         }
-        // Add these functions after sendSignal function
+
         function handleOffer(data) {
             STATE.peerId = data.from;
-
-            if (STATE.rtcPeer) {
-                try { STATE.rtcPeer.close(); } catch (e) { }
-            }
+            cleanupPeerConnection();
 
             STATE.rtcPeer = new RTCPeerConnection(RTC_CONFIG);
-            STATE.rtcPeer.oniceconnectionstatechange = () => {
-                console.log('ICE connection state:', STATE.rtcPeer.iceConnectionState);
-            };
-            STATE.rtcPeer.onconnectionstatechange = () => {
-                console.log('Peer connection state:', STATE.rtcPeer.connectionState);
-            };
-            STATE.rtcPeer.onicegatheringstatechange = () => {
-                console.log('ICE gathering state:', STATE.rtcPeer.iceGatheringState);
-            };
+
+            STATE.rtcPeer.oniceconnectionstatechange = () => console.log('ICE:', STATE.rtcPeer.iceConnectionState);
+            STATE.rtcPeer.onconnectionstatechange = () => console.log('Peer:', STATE.rtcPeer.connectionState);
+
             STATE.dataChannels = [];
             STATE.transfer.channelStatus.clear();
 
@@ -429,20 +564,15 @@
                 channel.channelId = channelId;
                 setupChannelEvents(channel, channelId);
                 STATE.dataChannels.push(channel);
-                STATE.transfer.channelStatus.set(channelId, {
-                    active: false,
-                    bufferedAmount: 0
-                });
+                STATE.transfer.channelStatus.set(channelId, { active: false, bufferedAmount: 0 });
             };
 
             STATE.rtcPeer.onicecandidate = (event) => {
                 if (event.candidate) {
-                    console.log('🧊 Local ICE candidate generated, sending to peer:', event.candidate.candidate);
                     sendSignal({ type: 'ice', ice: event.candidate }, STATE.peerId);
-                } else {
-                    console.log('🧊 ICE gathering finished (null candidate)');
                 }
             };
+
             STATE.rtcPeer.setRemoteDescription(new RTCSessionDescription(data.offer))
                 .then(() => STATE.rtcPeer.createAnswer())
                 .then(answer => STATE.rtcPeer.setLocalDescription(answer))
@@ -458,75 +588,43 @@
         }
 
         function handleIceCandidate(data) {
-            console.log('🧊 Remote ICE candidate received:', data.ice?.candidate);
             if (STATE.rtcPeer) {
                 STATE.rtcPeer.addIceCandidate(new RTCIceCandidate(data.ice))
-                    .then(() => console.log('🧊 Remote ICE candidate added successfully'))
-                    .catch(error => console.error('🧊 Error adding ICE candidate:', error));
-            } else {
-                console.error('🧊 No rtcPeer — cannot add ICE candidate');
+                    .catch(error => console.error('Error adding ICE candidate:', error));
             }
         }
+
         function initiateConnection(peerId) {
             if (STATE.dataChannels.length > 0 && STATE.dataChannels[0]?.readyState === 'open') {
                 showAlert('Already connected!', 'warning');
                 return;
             }
-            // if (event.candidate) {
-            //     if (typeof sendSignal === 'function') {
-            //         sendSignal({ type: 'ice', ice: event.candidate }, STATE.peerId);
-            //     } else {
-            //         console.error('sendSignal not defined');
-            //     }
-            // }
+
+            cleanupPeerConnection();
 
             STATE.peerId = peerId;
             showAlert(`Connecting to ${peerId} with ${CONFIG.numChannels} parallel channels...`, 'info');
 
-            if (STATE.rtcPeer) {
-                try { STATE.rtcPeer.close(); } catch (e) { }
-            }
-
             STATE.rtcPeer = new RTCPeerConnection(RTC_CONFIG);
-            STATE.rtcPeer.oniceconnectionstatechange = () => {
-                console.log('ICE connection state:', STATE.rtcPeer.iceConnectionState);
-            };
-            STATE.rtcPeer.onconnectionstatechange = () => {
-                console.log('Peer connection state:', STATE.rtcPeer.connectionState);
-            };
-            STATE.rtcPeer.onicegatheringstatechange = () => {
-                console.log('ICE gathering state:', STATE.rtcPeer.iceGatheringState);
-            };
+
+            STATE.rtcPeer.oniceconnectionstatechange = () => console.log('ICE:', STATE.rtcPeer.iceConnectionState);
+            STATE.rtcPeer.onconnectionstatechange = () => console.log('Peer:', STATE.rtcPeer.connectionState);
+
             STATE.dataChannels = [];
             STATE.transfer.channelStatus.clear();
 
-            // Create multiple data channels
             for (let i = 0; i < CONFIG.numChannels; i++) {
-                const channel = STATE.rtcPeer.createDataChannel(`fileTransfer_${i}`, {
-                    ordered: true
-                });
+                const channel = STATE.rtcPeer.createDataChannel(`fileTransfer_${i}`, { ordered: true });
                 channel.binaryType = 'arraybuffer';
                 channel.channelId = i;
-
                 setupChannelEvents(channel, i);
                 STATE.dataChannels.push(channel);
-                STATE.transfer.channelStatus.set(i, {
-                    active: false,
-                    bufferedAmount: 0
-                });
+                STATE.transfer.channelStatus.set(i, { active: false, bufferedAmount: 0 });
             }
 
-            // STATE.rtcPeer.onicecandidate = (event) => {
-            //     if (event.candidate) {
-            //         sendSignal({ type: 'ice', ice: event.candidate }, STATE.peerId);
-            //     }
-            // };
             STATE.rtcPeer.onicecandidate = (event) => {
                 if (event.candidate) {
-                    console.log('🧊 Local ICE candidate generated, sending to peer:', event.candidate.candidate);
                     sendSignal({ type: 'ice', ice: event.candidate }, STATE.peerId);
-                } else {
-                    console.log('🧊 ICE gathering finished (null candidate)');
                 }
             };
 
@@ -540,48 +638,65 @@
         }
 
         function setupChannelEvents(channel, channelId) {
+            // ===== PERF #1: event-driven backpressure + drain accumulator =====
+            channel.bufferedAmountLowThreshold = CONFIG.lowBufferThreshold;
+            channel._drainWaiters = [];
+            channel._lastSeenBuffered = 0;  // high-water mark since last drain event
+
+            channel.onbufferedamountlow = () => {
+                // Fired when buffer drops from >threshold to <=threshold.
+                // The bytes that drained = previous high-water - current buffered.
+                const drained = Math.max(0, channel._lastSeenBuffered - channel.bufferedAmount);
+                if (drained > 0 && STATE.transfer.sendingActive) {
+                    STATE.transfer.transferredSize = Math.min(
+                        STATE.transfer.transferredSize + drained,
+                        STATE.transfer.totalSize
+                    );
+                }
+                channel._lastSeenBuffered = channel.bufferedAmount;
+
+                const waiters = channel._drainWaiters;
+                channel._drainWaiters = [];
+                for (const resolve of waiters) resolve();
+            };
+
             channel.onopen = () => {
                 console.log(`Channel ${channelId} opened`);
-                STATE.transfer.channelStatus.set(channelId, {
-                    active: true,
-                    bufferedAmount: 0
-                });
+                STATE.transfer.channelStatus.set(channelId, { active: true, bufferedAmount: 0 });
+                channel._lastSeenBuffered = 0;
 
                 const allOpen = STATE.dataChannels.every(ch => ch.readyState === 'open');
                 if (allOpen && !STATE.transfer.sendingActive) {
                     showAlert(`✅ Connected with ${CONFIG.numChannels} parallel channels!`, 'success');
                     document.getElementById('transfer-section').style.display = 'block';
                     document.getElementById('file-input').disabled = false;
+                    updatePeerConnectionStatus(STATE.peerId, true);
                 }
             };
 
             channel.onclose = () => {
                 console.log(`Channel ${channelId} closed`);
-                STATE.transfer.channelStatus.set(channelId, {
-                    active: false,
-                    bufferedAmount: 0
-                });
+                STATE.transfer.channelStatus.set(channelId, { active: false, bufferedAmount: 0 });
+                const waiters = channel._drainWaiters || [];
+                channel._drainWaiters = [];
+                for (const r of waiters) r();
             };
 
-            channel.onerror = (error) => {
-                console.error(`Channel ${channelId} error:`, error);
-            };
-
+            channel.onerror = (error) => console.error(`Channel ${channelId} error:`, error);
             channel.onmessage = (event) => handleDataMessage(event, channelId);
         }
 
-        // ==================== FIXED: BINARY DATA RECEPTION ====================
+        // ==================== DATA RECEPTION ====================
         function handleDataMessage(event, channelId) {
             const data = event.data;
 
-            // Handle string messages (control messages)
             if (typeof data === 'string') {
                 try {
                     const msg = JSON.parse(data);
-                    console.log('Control message:', msg.type);
-
                     if (msg.type === 'file_metadata_parallel') {
                         handleFileMetadata(msg);
+                    } else if (msg.type === 'metadata_ack') {
+                        handleMetadataAck(msg);
                     } else if (msg.type === 'file_end_parallel') {
                         handleFileEnd(msg);
                     } else if (msg.type === 'file_ack') {
@@ -595,7 +710,6 @@
                 return;
             }
 
-            // Handle binary data (file chunks)
             if (data instanceof ArrayBuffer) {
                 handleBinaryChunk(data, channelId);
             }
@@ -604,51 +718,55 @@
         function handleFileMetadata(data) {
             console.log('Received metadata:', data);
 
-            // Initialize file reception
-            // STATE.reception.files.set(data.file_id, {
-            //     metadata: data,
-            //     chunks: new Map(),
-            //     receivedSize: 0,
-            //     expectedChunks: data.total_chunks
-            // });
             STATE.reception.files.set(data.file_id, {
                 metadata: data,
                 chunks: new Map(),
                 receivedSize: 0,
                 expectedChunks: data.total_chunks,
-                endMarkersReceived: new Set(),      // which channels have sent their end marker
-                endMarkerInfo: null,                 // cached file_size/total_chunks for reassembly
-                finalized: false                     // prevent double-reassembly
+                endMarkersReceived: new Set(),
+                endMarkerInfo: null,
+                finalized: false
             });
 
-            // FIX: Process any orphaned chunks that arrived before metadata
+            // Process any chunks that arrived before metadata
             const orphaned = STATE.reception.orphanedChunks.get(data.file_id);
             if (orphaned && orphaned.length > 0) {
-                console.log(`Processing ${orphaned.length} orphaned chunks for file ${data.file_id}`);
-
                 const file = STATE.reception.files.get(data.file_id);
                 orphaned.forEach(chunk => {
                     if (!file.chunks.has(chunk.sequence)) {
-                        file.chunks.set(chunk.sequence, chunk.data);  // chunk.data is already Uint8Array
+                        file.chunks.set(chunk.sequence, chunk.data);
                         file.receivedSize += chunk.size;
                     }
                 });
-
-                // Clear orphaned chunks for this file
                 STATE.reception.orphanedChunks.delete(data.file_id);
             }
 
             STATE.reception.startTime = Date.now();
             STATE.reception.lastProgressUpdate = Date.now();
 
-            showAlert(`Receiving: ${data.file_name} (${formatFileSize(data.file_size)}) via ${CONFIG.numChannels} channels`, 'info');
+            // ===== PERF #6: send metadata_ack immediately =====
+            try {
+                STATE.dataChannels[0].send(JSON.stringify({
+                    type: 'metadata_ack',
+                    file_id: data.file_id
+                }));
+            } catch (e) { console.error('metadata_ack send failed:', e); }
+
+            showAlert(`Receiving: ${data.file_name} (${formatFileSize(data.file_size)})`, 'info');
             document.getElementById('transfer-info').style.display = 'block';
             document.getElementById('file-info').innerHTML =
-                `<i class="fas fa-download"></i> Receiving: ${data.file_name}`;
+                `<i class="fas fa-download"></i> Receiving: ${escapeHtml(data.file_name)}`;
             updateProgress(0, data.current_index, data.total_files);
             document.getElementById('received-files-section').style.display = 'block';
         }
 
+        function handleMetadataAck(data) {
+            if (STATE.transfer.pendingMetadataAck === data.file_id && STATE.transfer.metadataAckResolver) {
+                STATE.transfer.metadataAckResolver();
+                STATE.transfer.pendingMetadataAck = null;
+                STATE.transfer.metadataAckResolver = null;
+            }
+        }
 
         function handleBinaryChunk(arrayBuffer, channelId) {
             const view = new DataView(arrayBuffer);
@@ -658,46 +776,23 @@
 
             let file = STATE.reception.files.get(fileId);
 
-            // FIX: Buffer orphaned chunks instead of rejecting them
             if (!file) {
-                console.log(`Buffering orphaned chunk ${sequence} for file ${fileId}`);
-
+                // Buffer orphan
                 if (!STATE.reception.orphanedChunks.has(fileId)) {
                     STATE.reception.orphanedChunks.set(fileId, []);
                 }
-
-                // Store as Uint8Array directly, same as normal chunks
                 STATE.reception.orphanedChunks.get(fileId).push({
                     sequence: sequence,
-                    data: new Uint8Array(chunkData),  // Store as Uint8Array
+                    data: new Uint8Array(chunkData),
                     size: chunkData.byteLength,
                     timestamp: Date.now()
                 });
-
-                // Clean old orphaned chunks (older than 30 seconds)
-                // setTimeout(() => {
-                //     const orphaned = STATE.reception.orphanedChunks.get(fileId);
-                //     if (orphaned) {
-                //         const now = Date.now();
-                //         const filtered = orphaned.filter(c => now - c.timestamp < 30000);
-                //         if (filtered.length === 0) {
-                //             STATE.reception.orphanedChunks.delete(fileId);
-                //         } else {
-                //             STATE.reception.orphanedChunks.set(fileId, filtered);
-                //         }
-                //     }
-                // }, 30000);
-                // Global orphan cleanup — runs every 30s, removes entries older than 2 minutes
-
-
                 return;
             }
 
-            // Store chunk normally as Uint8Array
             file.chunks.set(sequence, new Uint8Array(chunkData));
             file.receivedSize += chunkData.byteLength;
 
-            // Update progress (existing code remains the same)
             const percent = file.receivedSize / file.metadata.file_size;
             const now = Date.now();
             if (now - STATE.reception.lastProgressUpdate > CONFIG.progressUpdateInterval) {
@@ -713,12 +808,9 @@
                 }
                 STATE.reception.lastProgressUpdate = now;
             }
-
-            console.log(`Chunk ${sequence} received on channel ${channelId}, total: ${file.chunks.size}/${file.expectedChunks}`);
         }
 
         function handleFileAck(data) {
-            console.log(`ACK received for file ${data.file_id}`);
             if (STATE.transfer.pendingAck === data.file_id && STATE.transfer.ackResolver) {
                 STATE.transfer.ackResolver();
                 STATE.transfer.pendingAck = null;
@@ -727,44 +819,27 @@
         }
 
         async function handleFileEnd(data) {
-            const { file_id, total_chunks, file_size, channel_id, channel_chunks } = data;
+            const { file_id, total_chunks, file_size, channel_id } = data;
 
             const file = STATE.reception.files.get(file_id);
             if (!file) {
-                console.error(`file_end for unknown file ${file_id} on channel ${channel_id}`);
+                console.error(`file_end for unknown file ${file_id}`);
                 return;
             }
-
             if (file.finalized) return;
 
-            // Mark this channel's end marker as received
             if (typeof channel_id === 'number') {
                 file.endMarkersReceived.add(channel_id);
             } else {
-                // Fallback for old-format end markers: treat as "all channels done"
                 for (let i = 0; i < CONFIG.numChannels; i++) file.endMarkersReceived.add(i);
             }
             file.endMarkerInfo = { total_chunks, file_size };
 
-            console.log(`file_end received for file ${file_id} channel ${channel_id}, have ${file.endMarkersReceived.size}/${CONFIG.numChannels} end markers`);
+            if (file.endMarkersReceived.size < CONFIG.numChannels) return;
 
-
-
-            // Only proceed to reassembly once EVERY channel has signaled completion
-            if (file.endMarkersReceived.size < CONFIG.numChannels) {
-                return;
-            }
-
-            // All channels done — now wait for chunk count to match
-            // Do NOT delete the file on timeout; keep waiting until chunks arrive
-            // (stragglers from SCTP reordering can land after end markers on other channels)
-            const maxWaitMs = 10000;  // 10s hard ceiling per file
-            const pollMs = 50;
             const startWait = Date.now();
-
-            while (file.chunks.size < total_chunks && (Date.now() - startWait) < maxWaitMs) {
-                await new Promise(r => setTimeout(r, pollMs));
-                // Re-fetch in case file was deleted elsewhere
+            while (file.chunks.size < total_chunks && (Date.now() - startWait) < CONFIG.reassemblyWaitMs) {
+                await new Promise(r => setTimeout(r, 50));
                 if (!STATE.reception.files.has(file_id)) return;
             }
 
@@ -773,17 +848,16 @@
                 for (let i = 0; i < total_chunks; i++) {
                     if (!file.chunks.has(i)) missing.push(i);
                 }
-                console.error(`Missing chunks after ${maxWaitMs}ms wait: ${file.chunks.size}/${total_chunks}`, missing.slice(0, 20));
-                showAlert(`File incomplete: ${file.metadata.file_name} (missing ${total_chunks - file.chunks.size} chunks)`, 'warning');
+                console.error(`Missing chunks: ${file.chunks.size}/${total_chunks}`, missing.slice(0, 20));
+                showAlert(`File incomplete: ${file.metadata.file_name}`, 'warning');
                 STATE.reception.files.delete(file_id);
                 return;
             }
 
             file.finalized = true;
 
-            // Reassemble
-            const chunksList = [];
-            let totalLength = 0;
+            // ===== PERF #4: reassemble with zero-copy Blob construction =====
+            const parts = [];
             for (let i = 0; i < total_chunks; i++) {
                 const chunk = file.chunks.get(i);
                 if (!chunk) {
@@ -791,25 +865,18 @@
                     STATE.reception.files.delete(file_id);
                     return;
                 }
-                chunksList.push(chunk);
-                totalLength += chunk.length;
+                parts.push(chunk);
             }
 
-            if (totalLength !== file_size) {
-                console.error(`File size mismatch: expected ${file_size}, got ${totalLength}`);
+            const blob = new Blob(parts, { type: file.metadata.mime_type || 'application/octet-stream' });
+
+            if (blob.size !== file_size) {
+                console.error(`File size mismatch: expected ${file_size}, got ${blob.size}`);
                 showAlert(`File corrupted: ${file.metadata.file_name}`, 'danger');
                 STATE.reception.files.delete(file_id);
                 return;
             }
 
-            const combined = new Uint8Array(totalLength);
-            let offset = 0;
-            for (const buffer of chunksList) {
-                combined.set(buffer, offset);
-                offset += buffer.length;
-            }
-
-            const blob = new Blob([combined], { type: file.metadata.mime_type || 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
 
             STATE.receivedFiles.push({
@@ -822,18 +889,18 @@
             const fileCard = document.createElement('div');
             fileCard.className = 'file-card';
             fileCard.innerHTML = `
-        <div class="d-flex justify-content-between align-items-start">
-            <div>
-                <strong><i class="fas fa-file"></i> ${escapeHtml(file.metadata.file_name)}</strong>
-                <div class="small text-muted">${formatFileSize(blob.size)}</div>
-            </div>
-            <a href="${url}" download="${escapeHtml(file.metadata.file_name)}" class="btn btn-sm btn-primary">
-                <i class="fas fa-download"></i> Download
-            </a>
-        </div>
-    `;
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong><i class="fas fa-file"></i> ${escapeHtml(file.metadata.file_name)}</strong>
+                        <div class="small text-muted">${formatFileSize(blob.size)}</div>
+                    </div>
+                    <a href="${url}" download="${escapeHtml(file.metadata.file_name)}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-download"></i> Download
+                    </a>
+                </div>`;
             document.getElementById('received-files').appendChild(fileCard);
             document.getElementById('download-all-btn').style.display = 'block';
+            document.getElementById('clear-received-btn').style.display = 'inline-block';
 
             const elapsed = (Date.now() - STATE.reception.startTime) / 1000;
             const avgSpeed = file_size / elapsed;
@@ -846,8 +913,7 @@
 
             STATE.reception.files.delete(file_id);
 
-            // Send ACK back to sender so it knows this file is safely reassembled
-            // Send ACK back to sender — use channel with lowest bufferedAmount for faster delivery
+            // Send file_ack on the least-busy channel
             try {
                 let bestChannel = STATE.dataChannels[0];
                 for (const ch of STATE.dataChannels) {
@@ -856,37 +922,35 @@
                     }
                 }
                 if (bestChannel && bestChannel.readyState === 'open') {
-                    bestChannel.send(JSON.stringify({
-                        type: 'file_ack',
-                        file_id: file_id
-                    }));
+                    bestChannel.send(JSON.stringify({ type: 'file_ack', file_id: file_id }));
                 }
             } catch (e) { console.error('ACK send failed:', e); }
-
         }
-        // ==================== FIXED: BINARY DATA SENDING ====================
+
+        // ==================== DATA SENDING ====================
         async function sendFiles() {
             if (STATE.dataChannels.length === 0 || STATE.dataChannels[0]?.readyState !== 'open') {
                 showAlert('Not connected to a peer', 'warning');
                 return;
             }
 
-            const fileInput = document.getElementById('file-input');
-            if (!fileInput.files || fileInput.files.length === 0) {
+            if (STATE.selectedFiles.length === 0) {
                 showAlert('Select files to send', 'warning');
                 return;
             }
 
-            STATE.transfer.queue = Array.from(fileInput.files);
+            STATE.transfer.queue = [...STATE.selectedFiles];
             STATE.transfer.totalSize = STATE.transfer.queue.reduce((sum, f) => sum + f.size, 0);
             STATE.transfer.transferredSize = 0;
+            STATE.transfer.queuedSize = 0;
+            STATE.transfer.lastBufferedTotal = 0;
             STATE.transfer.startTime = Date.now();
             STATE.transfer.currentFileIndex = 0;
             STATE.transfer.lastProgressUpdate = 0;
             STATE.transfer.sendingActive = true;
             STATE.isTransferCancelled = false;
 
-            showAlert(`📤 Sending ${STATE.transfer.queue.length} file(s) (${formatFileSize(STATE.transfer.totalSize)}) via ${CONFIG.numChannels} parallel channels`, 'info');
+            showAlert(`📤 Sending ${STATE.transfer.queue.length} file(s) (${formatFileSize(STATE.transfer.totalSize)})`, 'info');
             document.getElementById('cancel-btn').style.display = 'inline-block';
             document.getElementById('send-btn').disabled = true;
             document.getElementById('transfer-info').style.display = 'block';
@@ -899,7 +963,24 @@
                 if (!STATE.isTransferCancelled) {
                     const totalTime = (Date.now() - STATE.transfer.startTime) / 1000;
                     const avgSpeed = STATE.transfer.totalSize / totalTime;
+
+                    updateProgress(1, STATE.transfer.currentFileIndex, STATE.transfer.currentFileIndex);
+                    document.getElementById('file-info').innerHTML =
+                        `<i class="fas fa-check-circle text-success"></i> All ${STATE.transfer.currentFileIndex} file(s) sent successfully`;
+                    document.getElementById('transfer-speed').innerHTML = formatSpeed(avgSpeed);
+                    document.getElementById('time-remaining').innerHTML = `Completed in ${formatTime(totalTime)}`;
+
                     showAlert(`✅ All files sent in ${totalTime.toFixed(1)}s (${formatSpeed(avgSpeed)})`, 'success');
+
+                    // Clear selection after successful send
+                    STATE.selectedFiles = [];
+                    renderSelectedFiles();
+
+                    setTimeout(() => {
+                        if (!STATE.transfer.sendingActive) {
+                            document.getElementById('transfer-info').style.display = 'none';
+                        }
+                    }, 4000);
                 }
                 document.getElementById('cancel-btn').style.display = 'none';
                 document.getElementById('send-btn').disabled = false;
@@ -916,13 +997,12 @@
 
         async function sendSingleFile(file, currentIndex, totalFiles) {
             document.getElementById('file-info').innerHTML =
-                `<i class="fas fa-upload"></i> Sending: ${file.name} (${formatFileSize(file.size)}) via ${CONFIG.numChannels} channels`;
+                `<i class="fas fa-upload"></i> Sending: ${escapeHtml(file.name)} (${formatFileSize(file.size)})`;
 
             const fileId = STATE.nextFileId++;
             const chunkSize = CONFIG.chunkSize;
             const totalChunks = Math.ceil(file.size / chunkSize);
 
-            // Send metadata
             const metadata = {
                 type: 'file_metadata_parallel',
                 file_id: fileId,
@@ -934,53 +1014,50 @@
                 total_files: totalFiles
             };
 
-            // Send metadata on first channel
+            // ===== PERF #6: wait for metadata_ack instead of fixed sleep =====
+            STATE.transfer.pendingMetadataAck = fileId;
+            const metadataAckPromise = new Promise(resolve => {
+                STATE.transfer.metadataAckResolver = resolve;
+            });
             STATE.dataChannels[0].send(JSON.stringify(metadata));
-            await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Prepare all chunks with headers
-            const chunksWithHeaders = [];
+            // Wait up to 3s for metadata ack, then proceed anyway
+            await Promise.race([
+                metadataAckPromise,
+                new Promise(r => setTimeout(r, 3000))
+            ]);
+            STATE.transfer.pendingMetadataAck = null;
+            STATE.transfer.metadataAckResolver = null;
+
+            // ===== PERF #2: stream chunks on demand — no pre-built array =====
+            const chunksPerChannel = new Array(CONFIG.numChannels).fill(0);
+
             for (let i = 0; i < totalChunks; i++) {
+                if (STATE.isTransferCancelled) return;
+
                 const start = i * chunkSize;
                 const end = Math.min(start + chunkSize, file.size);
-                const chunkBlob = file.slice(start, end);
-                const chunkBuffer = await chunkBlob.arrayBuffer();
+                const chunkBuffer = await file.slice(start, end).arrayBuffer();
 
-                // Create header: [fileId (4 bytes)][sequence (4 bytes)]
-                const header = new ArrayBuffer(8);
-                const headerView = new DataView(header);
+                // Build framed chunk (header + payload)
+                const framed = new Uint8Array(8 + chunkBuffer.byteLength);
+                const headerView = new DataView(framed.buffer, 0, 8);
                 headerView.setUint32(0, fileId, true);
                 headerView.setUint32(4, i, true);
+                framed.set(new Uint8Array(chunkBuffer), 8);
 
-                // Combine header + data
-                const combined = new Uint8Array(header.byteLength + chunkBuffer.byteLength);
-                combined.set(new Uint8Array(header), 0);
-                combined.set(new Uint8Array(chunkBuffer), header.byteLength);
-
-                chunksWithHeaders.push({
-                    sequence: i,
-                    data: combined.buffer,
-                    size: combined.length,
-                    isLast: i === totalChunks - 1
-                });
-            }
-
-            // Distribute chunks across channels in round-robin
-            const sendPromises = [];
-            let sentSize = 0;
-
-            for (let i = 0; i < chunksWithHeaders.length; i++) {
-                const chunk = chunksWithHeaders[i];
                 const channelIndex = i % CONFIG.numChannels;
                 const channel = STATE.dataChannels[channelIndex];
+                chunksPerChannel[channelIndex]++;
 
-                const sendPromise = sendChunkWithBackpressure(channel, chunk, channelIndex);
-                sendPromises.push(sendPromise);
+                await sendChunkWithBackpressure(channel, framed.buffer, channelIndex);
 
-                sentSize += chunk.size - 8; // Subtract header size
-                STATE.transfer.transferredSize += chunk.size - 8;
+                // Track queued bytes (for final drain calculation)
+                STATE.transfer.queuedSize += chunkBuffer.byteLength;
 
-                // Update progress periodically
+                // NOTE: STATE.transfer.transferredSize is updated by onbufferedamountlow events
+                // — not here. That's why progress reflects REAL network throughput, not queue speed.
+
                 const now = Date.now();
                 if (now - STATE.transfer.lastProgressUpdate > CONFIG.progressUpdateInterval) {
                     const totalProgress = STATE.transfer.transferredSize / STATE.transfer.totalSize;
@@ -990,43 +1067,64 @@
                 }
             }
 
-            // Wait for all chunks to be queued
-            await Promise.all(sendPromises);
+            const initialProgress = STATE.transfer.transferredSize / STATE.transfer.totalSize;
+            updateProgress(initialProgress, currentIndex, totalFiles);
+            updateTransferStats();
+
             document.getElementById('file-info').innerHTML =
-                `<i class="fas fa-check"></i> Waiting for receiver confirmation: ${file.name}`;
+                `<i class="fas fa-hourglass-half"></i> Flushing to network: ${escapeHtml(file.name)}`;
 
-            // Send end marker
-            // STATE.dataChannels[0].send(JSON.stringify({
-            //     type: 'file_end_parallel',
-            //     file_id: fileId,
-            //     total_chunks: totalChunks,
-            //     file_size: file.size
-            // }));
-
-            // await new Promise(resolve => setTimeout(resolve, 200));
-            // await processNextFile();
-            // Wait for ALL channels to drain their buffers before sending end markers
-            // This ensures all chunks are actually sent before we signal completion
-            for (const channel of STATE.dataChannels) {
-                while (channel.bufferedAmount > 0 && !STATE.isTransferCancelled) {
-                    await new Promise(resolve => setTimeout(resolve, 20));
+            // Drain all channels — poll buffered amount directly since after queueing stops
+            // the drain events may stop firing once below threshold.
+            let prevTotalBuffered = Infinity;
+            let lastDrainUpdate = 0;
+            while (!STATE.isTransferCancelled) {
+                let totalBuffered = 0;
+                for (const ch of STATE.dataChannels) {
+                    totalBuffered += ch.bufferedAmount || 0;
                 }
+                if (totalBuffered === 0) break;
+
+                // Whatever dropped since last poll has genuinely been sent
+                if (prevTotalBuffered !== Infinity && totalBuffered < prevTotalBuffered) {
+                    const drainedNow = prevTotalBuffered - totalBuffered;
+                    STATE.transfer.transferredSize = Math.min(
+                        STATE.transfer.transferredSize + drainedNow,
+                        STATE.transfer.totalSize
+                    );
+                }
+                prevTotalBuffered = totalBuffered;
+
+                const now = Date.now();
+                if (now - lastDrainUpdate > CONFIG.progressUpdateInterval) {
+                    const drainProgress = STATE.transfer.transferredSize / STATE.transfer.totalSize;
+                    updateProgress(drainProgress, currentIndex, totalFiles);
+                    updateTransferStats();
+                    lastDrainUpdate = now;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, CONFIG.ackDrainPollMs));
             }
 
             if (STATE.isTransferCancelled) return;
 
-            // Send end marker on EVERY channel so receiver knows each channel finished
-            // Count per-channel chunks so receiver can verify per-channel completion
-            const chunksPerChannel = new Array(CONFIG.numChannels).fill(0);
-            for (let i = 0; i < totalChunks; i++) {
-                chunksPerChannel[i % CONFIG.numChannels]++;
-            }
+            // Buffer is empty — snap to this file's size (avoid any drift)
+            // For multi-file sends, totalSize is cumulative, so we just ensure
+            // transferredSize reflects "this file fully done" by setting it to
+            // whatever amount should be done after this file.
+            const expectedSentAfterThisFile =
+                STATE.transfer.queuedSize; // payload-only bytes queued up to and including this file
+            STATE.transfer.transferredSize = Math.min(expectedSentAfterThisFile, STATE.transfer.totalSize);
+            updateProgress(STATE.transfer.transferredSize / STATE.transfer.totalSize, currentIndex, totalFiles);
 
-            // Set up ACK promise BEFORE sending end markers
+            document.getElementById('file-info').innerHTML =
+                `<i class="fas fa-hourglass-half"></i> Waiting for receiver: ${escapeHtml(file.name)}`;
+
+            if (STATE.isTransferCancelled) return;
+
+            // Send end markers on every channel
             STATE.transfer.pendingAck = fileId;
-            const ackPromise = new Promise((resolve) => {
-                STATE.transfer.ackResolver = resolve;
-            });
+            const ackPromise = new Promise(resolve => { STATE.transfer.ackResolver = resolve; });
 
             for (let ch = 0; ch < STATE.dataChannels.length; ch++) {
                 STATE.dataChannels[ch].send(JSON.stringify({
@@ -1039,33 +1137,52 @@
                 }));
             }
 
-            // Wait for receiver ACK (with 15s timeout as safety net)
-            const ackTimeout = new Promise((resolve) => setTimeout(resolve, 15000));
+            // Show indeterminate progress while waiting for ACK
+            const currentProgress = STATE.transfer.transferredSize / STATE.transfer.totalSize;
+            updateProgress(currentProgress, currentIndex, totalFiles, true);
+
+            const ackTimeoutMs = Math.min(300000, Math.max(30000, Math.ceil(file.size / 30000) * 1000));
+            let ackTimedOut = false;
+            const ackTimeout = new Promise(resolve => setTimeout(() => {
+                ackTimedOut = true;
+                resolve();
+            }, ackTimeoutMs));
+
             await Promise.race([ackPromise, ackTimeout]);
 
-            // Clear pending ACK state
+            if (ackTimedOut) console.warn(`No ACK received for ${file.name}`);
+
             STATE.transfer.pendingAck = null;
             STATE.transfer.ackResolver = null;
+
+            updateProgress(STATE.transfer.transferredSize / STATE.transfer.totalSize, currentIndex, totalFiles);
 
             await processNextFile();
         }
 
-        async function sendChunkWithBackpressure(channel, chunk, channelIndex) {
-            // Wait if buffer is full
-            while (channel.bufferedAmount >= CONFIG.maxBufferedAmountPerChannel && !STATE.isTransferCancelled) {
-                await new Promise(resolve => setTimeout(resolve, 10));
+        // ===== PERF #1: event-driven backpressure (not polling) =====
+        async function sendChunkWithBackpressure(channel, buffer, channelIndex) {
+            if (channel.readyState !== 'open') return;
+
+            if (channel.bufferedAmount >= CONFIG.maxBufferedAmountPerChannel) {
+                if (STATE.isTransferCancelled) return;
+                await new Promise(resolve => {
+                    channel._drainWaiters.push(resolve);
+                    // Safety net: if bufferedamountlow never fires for some reason
+                    setTimeout(resolve, 1000);
+                });
             }
 
             if (STATE.isTransferCancelled) return;
+            if (channel.readyState !== 'open') return;
 
-            // Update channel status
             const status = STATE.transfer.channelStatus.get(channelIndex);
-            if (status) {
-                status.bufferedAmount = channel.bufferedAmount;
-            }
+            if (status) status.bufferedAmount = channel.bufferedAmount;
 
-            // Send binary data directly
-            channel.send(chunk.data);
+            channel.send(buffer);
+            // After send(), remember the new high-water mark so the drain event
+            // knows how many bytes actually left since last time.
+            channel._lastSeenBuffered = channel.bufferedAmount;
         }
 
         function updateTransferStats() {
@@ -1079,15 +1196,23 @@
                     document.getElementById('time-remaining').innerHTML = `Time left: ${formatTime(remaining)}`;
                 }
 
-                // Update channel stats display
+                // Diagnostic: show per-channel buffer fill so we can see if we're buffer-limited
                 const statsDiv = document.getElementById('channel-stats');
-                let statsHtml = '<small>📡 Channels: ';
-                for (let [id, status] of STATE.transfer.channelStatus) {
-                    const bufferPercent = ((status.bufferedAmount || 0) / CONFIG.maxBufferedAmountPerChannel * 100).toFixed(0);
-                    statsHtml += `[${id}:${status.active ? '●' : '○'} ${bufferPercent}%] `;
+                if (statsDiv && STATE.dataChannels.length > 0) {
+                    let totalBuf = 0;
+                    let html = '📡 ';
+                    for (let i = 0; i < STATE.dataChannels.length; i++) {
+                        const ch = STATE.dataChannels[i];
+                        const buf = ch.bufferedAmount || 0;
+                        totalBuf += buf;
+                        const pct = Math.round((buf / CONFIG.maxBufferedAmountPerChannel) * 100);
+                        const indicator = ch.readyState === 'open' ? '●' : '○';
+                        html += `[${i}:${indicator}${pct}%] `;
+                    }
+                    html += ` queued: ${formatFileSize(totalBuf)}`;
+                    statsDiv.innerHTML = html;
+                    statsDiv.style.display = 'block';
                 }
-                statsHtml += '</small>';
-                statsDiv.innerHTML = statsHtml;
             }
         }
 
@@ -1098,9 +1223,7 @@
             if (!fromRemote && STATE.dataChannels.length > 0) {
                 for (const channel of STATE.dataChannels) {
                     if (channel.readyState === 'open') {
-                        try {
-                            channel.send(JSON.stringify({ type: 'cancel_transfer' }));
-                        } catch (e) { }
+                        try { channel.send(JSON.stringify({ type: 'cancel_transfer' })); } catch (e) { }
                     }
                 }
             }
@@ -1109,6 +1232,7 @@
             document.getElementById('cancel-btn').style.display = 'none';
             document.getElementById('send-btn').disabled = false;
             document.getElementById('progress-bar').style.width = '0%';
+            document.getElementById('progress-bar').classList.remove('indeterminate');
             document.getElementById('transfer-info').style.display = 'none';
 
             STATE.transfer.queue = [];
@@ -1116,29 +1240,127 @@
             STATE.reception.files.clear();
         }
 
-        function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
+        // ==================== DRAG & DROP + FILE SELECTION ====================
+        function setupDropZone() {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+
+            dropZone.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'INPUT') fileInput.click();
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                addFiles(e.target.files);
+                fileInput.value = ''; // allow re-selecting same file
+            });
+
+            ['dragenter', 'dragover'].forEach(ev => {
+                dropZone.addEventListener(ev, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.add('dragover');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(ev => {
+                dropZone.addEventListener(ev, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.remove('dragover');
+                });
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    addFiles(e.dataTransfer.files);
+                }
+            });
+        }
+
+        function addFiles(fileList) {
+            const newFiles = Array.from(fileList);
+            // Deduplicate by name+size
+            for (const f of newFiles) {
+                const exists = STATE.selectedFiles.some(
+                    ex => ex.name === f.name && ex.size === f.size
+                );
+                if (!exists) STATE.selectedFiles.push(f);
+            }
+            renderSelectedFiles();
+        }
+
+        function removeSelectedFile(index) {
+            STATE.selectedFiles.splice(index, 1);
+            renderSelectedFiles();
+        }
+
+        function renderSelectedFiles() {
+            const container = document.getElementById('selected-files');
+            if (STATE.selectedFiles.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            const total = STATE.selectedFiles.reduce((sum, f) => sum + f.size, 0);
+            let html = `<div class="mt-2"><strong>${STATE.selectedFiles.length} file(s), ${formatFileSize(total)}</strong></div>`;
+            STATE.selectedFiles.forEach((f, i) => {
+                html += `
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                        <span class="text-truncate" style="max-width: 70%;">
+                            📄 ${escapeHtml(f.name)} <span class="text-muted">(${formatFileSize(f.size)})</span>
+                        </span>
+                        <button class="btn btn-sm btn-link text-danger p-0" data-idx="${i}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>`;
+            });
+            container.innerHTML = html;
+            container.querySelectorAll('button[data-idx]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    removeSelectedFile(parseInt(btn.dataset.idx, 10));
+                });
+            });
+        }
+
+        // ==================== RECEIVED FILES MANAGEMENT ====================
+        function clearReceivedFiles() {
+            if (STATE.receivedFiles.length === 0) return;
+            if (!confirm(`Clear ${STATE.receivedFiles.length} received file(s)? Downloaded files on your device will NOT be affected.`)) return;
+
+            STATE.receivedFiles.forEach(f => URL.revokeObjectURL(f.url));
+            STATE.receivedFiles = [];
+            document.getElementById('received-files').innerHTML = '';
+            document.getElementById('download-all-btn').style.display = 'none';
+            document.getElementById('clear-received-btn').style.display = 'none';
         }
 
         async function downloadAllFiles() {
             if (STATE.receivedFiles.length === 0) return;
 
-            const zip = new JSZip();
-            STATE.receivedFiles.forEach(file => {
-                zip.file(file.fileName, file.blob);
-            });
+            const btn = document.getElementById('download-all-btn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Zipping...';
 
-            const content = await zip.generateAsync({ type: "blob" });
-            const url = URL.createObjectURL(content);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `received_files_${Date.now()}.zip`;
-            a.click();
-            URL.revokeObjectURL(url);
+            try {
+                const zip = new JSZip();
+                STATE.receivedFiles.forEach(file => zip.file(file.fileName, file.blob));
 
-            showAlert(`Downloaded ${STATE.receivedFiles.length} files as ZIP`, 'success');
+                const content = await zip.generateAsync({ type: "blob" });
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `received_files_${Date.now()}.zip`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                showAlert(`Downloaded ${STATE.receivedFiles.length} files as ZIP`, 'success');
+            } catch (e) {
+                console.error('ZIP error:', e);
+                showAlert('Failed to create ZIP', 'danger');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
         }
 
         function startHeartbeat() {
@@ -1172,7 +1394,6 @@
 
             STATE.isConnected = false;
             STATE.isConnecting = false;
-            STATE.peerId = null;
             STATE.transfer.channelStatus.clear();
 
             document.getElementById('connect-btn').style.display = 'inline-block';
@@ -1184,15 +1405,21 @@
             document.getElementById('connection-status').style.display = 'none';
             document.getElementById('send-btn').disabled = false;
             document.getElementById('cancel-btn').style.display = 'none';
+            if (STATE.peerId) updatePeerConnectionStatus(STATE.peerId, false);
+            STATE.peerId = null;
         }
 
-
-
-        window.addEventListener('beforeunload', () => {
+        window.addEventListener('beforeunload', (e) => {
+            if (STATE.transfer.sendingActive || STATE.reception.files.size > 0) {
+                e.preventDefault();
+                e.returnValue = 'Transfer in progress. Leaving will cancel it.';
+                return e.returnValue;
+            }
             STATE.receivedFiles.forEach(file => URL.revokeObjectURL(file.url));
             cleanupConnection();
         });
-        // Global orphan cleanup — runs ONCE, every 30s
+
+        // Orphan cleanup every 30s
         setInterval(() => {
             const now = Date.now();
             for (const [fileId, chunks] of STATE.reception.orphanedChunks) {
@@ -1206,6 +1433,7 @@
         }, 30000);
 
         document.getElementById('client-id').value = 'Device-' + Math.floor(Math.random() * 1000);
+        setupDropZone();
     </script>
 </body>
 
