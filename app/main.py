@@ -2943,6 +2943,63 @@ def log_final_documents_after_processing(docs: List[Document], query: str):
     logger.info(f"\n{'='*100}\n")
 
 
+# ============================================================
+# TABLE GUARANTEE: bypass the LLM for work-experience queries
+# ============================================================
+# Gemini has a habit of truncating or garbling long markdown
+# tables mid-stream. Instead of fighting that with prompts,
+# detectors, and retries, we simply lift the complete table
+# out of the retrieved tabular document and stream it to the
+# client verbatim. The LLM is only asked to produce a short
+# intro sentence and a closing humor line — tasks that are
+# inexpensive and low-risk.
+# ============================================================
+
+_WORK_QUERY_KEYWORDS = [
+    "work", "working", "worked", "job", "jobs", "employment",
+    "experience", "experince", "experiance",  # common typos
+    "career", "profession", "professional", "project", "projects",
+    "company", "companies", "employer",
+]
+
+
+def _is_work_query(query: str) -> bool:
+    """True when the user is asking about Vishnu's work/job history."""
+    if not query:
+        return False
+    q = query.lower()
+    return any(kw in q for kw in _WORK_QUERY_KEYWORDS)
+
+
+def _extract_clean_table(docs) -> Optional[str]:
+    """Return the full markdown table from the tabular doc (3.pdf),
+    stripped of the WORK_EXPERIENCE_TABLE_START/END markers we add
+    during post-processing. Returns None if no table found."""
+    for doc in docs:
+        src = doc.metadata.get("source", "")
+        if "3.pdf" not in src:
+            continue
+        content = doc.page_content or ""
+        # Strip the wrapper markers we added in post-processing
+        content = content.replace("WORK_EXPERIENCE_TABLE_START", "")
+        content = content.replace("WORK_EXPERIENCE_TABLE_END", "")
+        content = content.strip()
+        # Must actually contain a markdown table (at least a header
+        # row plus a separator row). Post-processing may have collapsed
+        # the '---' separators down to '-', so we just look for enough
+        # pipes plus a line that's mostly separator characters.
+        if content.count("|") < 6:
+            continue
+        has_separator_row = any(
+            set(line.replace(" ", "")) <= set("|:-")
+            and line.count("|") >= 2
+            for line in content.split("\n")
+        )
+        if has_separator_row:
+            return content
+    return None
+
+
 @app.post("/chat")
 @limiter.limit(RATE_LIMITS["chat"])
 async def chat(
@@ -3077,10 +3134,23 @@ async def chat(
                     # prompt_parts = [
                     #     """You are Vishnu AI Assistant — a friendly but funny assistant.\n\n**CORE BEHAVIOR:**\n- Provide accurate, clear, **human-like answers in a better representation** with professional tone\n- Never mention 'documents', 'context', 'references' or similar\n- For non-Vishnu questions: humorously suggest Tone Selector\n- Add light Indian humor naturally (like 'as easy as making Maggi')\n- Keep humor after main answer, on new line with emoji\n\n**TABLE RULES:**\n- Create tables ONLY for naturally tabular data\n- Use proper Markdown table syntax\n- Max 4 columns, wrap long text\n- If user says 'no table' or 'point-wise', use bullet/numbered lists instead\n\n**CRITICAL TABLE COMPLETENESS (MANDATORY):**\n- When the source contains a table (work experience, projects, list of companies, durations, etc.), reproduce EVERY row from the source in full.\n- NEVER truncate, summarize, skip, or combine rows.\n- NEVER use ellipses (\"...\"), \"and so on\", \"etc.\", or \"(more rows omitted)\" inside or after a table.\n- If the source table has N rows, your output table must also have exactly N rows.\n- If the \"Key Responsibilities\" or any cell in the source is very long, shorten that CELL to one concise line — but still include the row.\n- Keep intro prose before the table to 1–2 short sentences. Put the humor line AFTER the table, never inside it.\n- Finish the closing pipe of the last row before adding any commentary."""
                     # ]
-                    prompt_parts = [
-                        """You are Vishnu AI Assistant — a friendly but funny assistant.\n\n**CORE BEHAVIOR:**\n- Provide accurate, clear, **human-like answers in a better representation** with professional tone\n- Never mention 'documents', 'context', 'references' or similar\n- For non-Vishnu questions: humorously suggest Tone Selector\n- Add light Indian humor naturally (like 'as easy as making Maggi')\n- Keep humor after main answer, on new line with emoji\n\n**WORK EXPERIENCE FORMAT (CRITICAL):**\n- For work experience, job history, project list, or company queries → ALWAYS use **bullet points or numbered lists**, NOT tables\n- This prevents formatting issues and ensures complete information is displayed\n- Example format:\n  • **Company Name** (Duration): Project/Position - Key responsibilities\n- Only use tables for non-work related data (like comparison data, statistics, etc.)\n\n**CRITICAL RULES:**\n- NEVER create markdown tables for work experience or project lists\n- Use point-wise format with bullet points (•) or numbers (1., 2., 3.)\n- Include ALL information: company, duration, project name, responsibilities\n- Keep each point concise but complete\n- Put humor line at the end, never inside the list"""
-                    ]
                     
+                    prompt_parts = [
+                    "You are Vishnu AI Assistant - friendly and helpful.",
+                    "",
+                    "Rules:",
+                    "1. Answer accurately in simple English",
+                    "2. Never mention 'documents', 'context', or 'references'",
+                    "3. Add light Indian humor at the end only",
+                    "4. For work experience, use bullet points (•), not tables",
+                    "5. Include ALL information: company, duration,Project Name, Project Description/role",
+                    "6. Never skip or shorten the list",
+                    "",
+                    "Example:",
+                    "• **TATA Power** (Feb 2026 - Present): Team Lead - Enforcement Department",
+                    "",
+                    "CONTEXT:",
+                ]
                     for role, content in conversation_history:
                         if role == "user":
                             prompt_parts.append(f"USER: {content}")
@@ -3113,24 +3183,13 @@ async def chat(
                     logger.info(
                         f"✅ RETRIEVAL COMPLETE - Documents: {len(raw_docs)} | Time: {timings['retrieval_time']:.2f}s"
                     )
-                    logger.info(f"\n{'='*80}")
-                    logger.info(f"📋 ALL {len(raw_docs)} RETRIEVED DOCUMENTS:")
-                    logger.info(f"{'='*80}")
-                    for idx, doc in enumerate(raw_docs, 1):
-                        source = doc.metadata.get('source', 'unknown')
-                        # Check if it's the table document (3.pdf)
-                        is_table = "3.pdf" in source
-                        logger.info(f"{idx}. Source: {source} {'✅ TABLE' if is_table else ''}")
-                        logger.info(f"   Preview: {doc.page_content[:100]}...")
-                    logger.info(f"{'='*80}\n")
                 except Exception as e:
                     logger.error(f"❌ RETRIEVAL FAILED: {e}")
                     raw_docs = []
                     yield f"data: {json.dumps({'chunk': '⚠️ Using general knowledge...', 'status': 'fallback'})}\n\n"
                 processing_start = time.time()
                 final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
-                processed_docs = post_process_retrieved_docs(final_docs, query)
-                processed_docs = processed_docs[:5]
+                processed_docs = post_process_retrieved_docs(final_docs, query)[:3]
                 processing_end = time.time()
                 timings["processing_time"] = processing_end - processing_start
                 logger.info(
@@ -3144,30 +3203,61 @@ async def chat(
                     await asyncio.sleep(0.02)
                     yield f"data: {json.dumps({'chunk': '', 'done': True, 'mode': 'fallback'})}\n\n"
                 else:
+                    # ==============================================
+                    # WORK QUERY? Inject the clean table directly
+                    # ==============================================
+                    work_query = _is_work_query(query)
+                    clean_table = (
+                        _extract_clean_table(processed_docs) if work_query else None
+                    )
+                    if work_query and clean_table:
+                        logger.info(
+                            f"🧷 WORK QUERY + TABLE FOUND — injecting table directly ({len(clean_table)} chars)"
+                        )
+
                     optimized_prompt = build_optimized_prompt(
                         query, processed_docs, conversation_history
                     )
+                    # For work queries we build a SMALLER prompt that only
+                    # asks for intro + humor — we will splice in the table
+                    # ourselves.
+                    if work_query and clean_table:
+                        optimized_prompt = (
+                            "You are Vishnu AI Assistant — friendly, warm, and briefly funny.\n"
+                            "A user has asked about Vishnu's work/job experience. A complete\n"
+                            "markdown table listing every project will be shown separately,\n"
+                            "so you do NOT need to produce the table.\n\n"
+                            "Instructions:\n"
+                            "1. Write ONE short intro sentence (max 25 words) like:\n"
+                            "   'Here is Vishnu's professional journey across 13 years of experience:'\n"
+                            "2. Then output EXACTLY the marker line: <<TABLE>>\n"
+                            "3. Then write ONE short closing line with a light Indian-flavoured\n"
+                            "   humor touch and an emoji (max 20 words).\n"
+                            "DO NOT include any table, markdown pipes, or list of projects yourself.\n"
+                            "DO NOT repeat the marker. Output exactly: intro + newline + <<TABLE>> + newline + humor.\n\n"
+                            f"USER QUESTION: {query}\n\nANSWER:"
+                        )
                     logger.info(
-                        f"📝 PROMPT BUILT - Length: {len(optimized_prompt)} chars | Docs used: {len(processed_docs)}"
+                        f"📝 PROMPT BUILT - Length: {len(optimized_prompt)} chars | Docs used: {len(processed_docs)} | work_query={work_query}"
                     )
                     try:
                         generation_start = time.time()
                         connection_start = time.time()
 
                         # ================================================
-                        # FIX: Cost-aware output budgeting.
-                        # A fixed output cap of 2600 tokens (~10,400 chars)
-                        # is applied to every query. This is enough for the
-                        # full 13-row work-experience table plus intro and
-                        # outro, and prevents runaway repetition loops from
-                        # burning API budget on garbage.
+                        # Cost-aware output budgeting.
+                        # Work queries need very little output (intro +
+                        # humor) because we splice the table in ourselves.
+                        # Regular queries keep a larger budget.
                         # ================================================
-
-                        # Fixed output budget for every query.
-                        _max_tokens = 4000
-                        _char_cap = 16000  # hard abort above this
+                        if work_query and clean_table:
+                            _max_tokens = 500       # ~2000 chars, plenty for intro + humor
+                            _char_cap = 2500
+                        else:
+                            _max_tokens = 4000
+                            _char_cap = 16000
                         logger.info(
-                            f"💰 BUDGET - max_tokens={_max_tokens} char_cap={_char_cap}"
+                            f"💰 BUDGET - max_tokens={_max_tokens} char_cap={_char_cap} work_query={work_query}"
                         )
 
                         def _stream_gemini(temp: float, max_tokens: int):
@@ -3188,58 +3278,87 @@ async def chat(
                             )
                             return resp, time.time() - t0
 
-                        # ------------ Live streaming ------------
-                        # NOTE: With max_output_tokens=2600 enforced at the API
-                        # level, Gemini cannot produce a runaway exceeding that
-                        # cap regardless of behavior. We previously had a
-                        # runaway detector + retry loop, but it produced too
-                        # many false positives on legitimate markdown tables
-                        # (long separator rows are normal) and ended up killing
-                        # good responses. The token cap alone is sufficient
-                        # protection now.
                         attempt1_start = time.time()
                         # LOG FINAL DOCUMENTS BEING SENT TO LLM
                         logger.info(f"\n{'='*80}")
-                        logger.info(f"📄 FINAL DOCUMENTS SENT TO LLM for query: '{query[:100]}'")
+                        logger.info(
+                            f"📄 FINAL DOCUMENTS SENT TO LLM for query: '{query[:100]}'"
+                        )
                         logger.info(f"{'='*80}")
-
                         for idx, doc in enumerate(processed_docs, 1):
                             logger.info(f"\n--- DOCUMENT {idx} ---")
-                            logger.info(f"Source: {doc.metadata.get('source', 'unknown')}")
+                            logger.info(
+                                f"Source: {doc.metadata.get('source', 'unknown')}"
+                            )
                             logger.info(f"Page: {doc.metadata.get('page_num', 'N/A')}")
                             logger.info(f"Content Preview (first 500 chars):")
                             logger.info(f"{doc.page_content[:500]}")
                             logger.info(f"{'─'*50}")
 
-                        # Also log the full optimized prompt
-                        logger.info(f"\n{'='*80}")
-                        logger.info(f"📝 FULL PROMPT SENT TO LLM:")
-                        logger.info(f"{'='*80}")
-                        logger.info(optimized_prompt[:2000])  # First 2000 chars
-                        logger.info(f"... [truncated] ...")
-                        logger.info(f"Total prompt length: {len(optimized_prompt)} chars")
-                        logger.info(f"{'='*80}\n")
-
-                        # THEN call the LLM
-                        response_iter, connect_t = _stream_gemini(temp=0.1, max_tokens=_max_tokens)
-                        # response_iter, connect_t = _stream_gemini(
-                        #     temp=0.1, max_tokens=_max_tokens
-                        # )
+                        response_iter, connect_t = _stream_gemini(
+                            temp=0.1, max_tokens=_max_tokens
+                        )
                         connection_time = connect_t
                         full_response = ""
                         chunk_count = 0
                         total_chars = 0
 
-                        for chunk in response_iter:
-                            if not chunk.text:
-                                continue
-                            chunk_text = chunk.text
-                            full_response += chunk_text
+                        if work_query and clean_table:
+                            # ===== WORK QUERY PATH =====
+                            # Collect the entire LLM response (intro + <<TABLE>> + humor)
+                            # BEFORE streaming anything. Then split on <<TABLE>> and
+                            # stream: intro → clean_table → humor.
+                            llm_text = ""
+                            for chunk in response_iter:
+                                if not chunk.text:
+                                    continue
+                                llm_text += chunk.text
+                            # Split on the marker
+                            if "<<TABLE>>" in llm_text:
+                                intro_part, humor_part = llm_text.split(
+                                    "<<TABLE>>", 1
+                                )
+                            else:
+                                # LLM forgot the marker — default to the raw text
+                                # as intro and a generic humor line.
+                                intro_part = llm_text.strip() or (
+                                    "Here is Vishnu's professional journey across 13 years of experience:"
+                                )
+                                humor_part = (
+                                    "\nHe has been building infrastructure like it's as easy as making chai! 🏗️☕"
+                                )
+                            intro_part = intro_part.strip() + "\n\n"
+                            humor_part = "\n\n" + humor_part.strip()
+
+                            # Stream intro
+                            yield f"data: {json.dumps({'chunk': intro_part, 'done': False})}\n\n"
+                            full_response += intro_part
                             chunk_count += 1
-                            total_chars += len(chunk_text)
-                            # Stream to client immediately (typewriter UX)
-                            data = json.dumps({"chunk": chunk_text, "done": False})
-                            yield f"data: {data}\n\n"
+                            total_chars += len(intro_part)
+                            # Stream the guaranteed-complete table
+                            # yield f"data: {json.dumps({'chunk': clean_table + '\\n', 'done': False})}\n\n"
+                            yield f"data: {json.dumps({'chunk': clean_table + chr(10), 'done': False})}\n\n"
+                            full_response += clean_table + "\n"
+                            chunk_count += 1
+                            total_chars += len(clean_table) + 1
+                            # Stream humor
+                            yield f"data: {json.dumps({'chunk': humor_part, 'done': False})}\n\n"
+                            full_response += humor_part
+                            chunk_count += 1
+                            total_chars += len(humor_part)
+                        else:
+                            # ===== REGULAR PATH =====
+                            for chunk in response_iter:
+                                if not chunk.text:
+                                    continue
+                                chunk_text = chunk.text
+                                full_response += chunk_text
+                                chunk_count += 1
+                                total_chars += len(chunk_text)
+                                data = json.dumps(
+                                    {"chunk": chunk_text, "done": False}
+                                )
+                                yield f"data: {data}\n\n"
 
                         logger.info(
                             f"🎲 Generation: {len(full_response)} chars in {time.time()-attempt1_start:.2f}s"
