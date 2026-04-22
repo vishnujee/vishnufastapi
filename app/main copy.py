@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI,Request, File, UploadFile, HTTPException, Form,Body,BackgroundTasks,Depends,status,Response
 from fastapi.responses import HTMLResponse, StreamingResponse,JSONResponse,RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -64,9 +65,9 @@ from slowapi.errors import RateLimitExceeded
 
 
 from app.pdf_operations import  (
-    encrypt_pdf,
-    remove_pdf_password,
-    remove_background_rembg
+    encrypt_pdf_streaming,
+    decrypt_pdf_streaming,
+    # remove_background_rembg
     
 )
 
@@ -151,6 +152,7 @@ ALLOWED_FILE_TYPES = {
     }
 }
 
+#=== for production, we will enforce strict limits. In development, we can be more lenient.
 RATE_LIMITS = {
     'upload': "10/hour",
     'compress': "5/minute",
@@ -159,6 +161,16 @@ RATE_LIMITS = {
     'convert': "3/minute",
     'auth': "5/minute"
 }
+
+#== For testing, we can set very high limits to avoid interference during development and testing
+# RATE_LIMITS = {
+#     'upload': "30/minute",      # Increased for testing
+#     'compress': "30/minute",    
+#     'estimation': "30/minute",  
+#     'chat': "30/minute",
+#     'convert': "30/minute",     # Changed from 3 to 30
+#     'auth': "30/minute"         # Changed from 5 to 30
+# }
 
 # WebSocket rate limiting storage
 ws_connections = defaultdict(list)
@@ -270,51 +282,68 @@ async def check_ws_rate_limit(client_ip: str, max_connections: int = 5, window_s
     ws_connections[client_ip].append(now)
     return True
 
+
+#===== UPLOAD TO DISK FIRST =====
+async def upload_to_disk_first(file: UploadFile, task_id: str = None) -> str:
+    """
+    IMMEDIATELY write file to disk WITHOUT reading into RAM
+    Uses .read() chunks - CORRECT method for UploadFile
+    """
+    if not file.filename:
+        raise HTTPException(400, "No filename provided")
+    
+    safe_filename = sanitize_filename(file.filename)
+    
+    if task_id:
+        final_filename = f"{task_id}_{safe_filename}"
+    else:
+        final_filename = f"{uuid.uuid4().hex}_{safe_filename}"
+    
+    file_path = UPLOAD_DIR / final_filename
+    
+    # ✅ CORRECT: Read in chunks and write to disk
+    total_size = 0
+    with open(file_path, "wb") as buffer:
+        while chunk := await file.read(65536):  # 64KB chunks
+            total_size += len(chunk)
+            buffer.write(chunk)
+    
+    logger.info(f"✅ File saved to disk: {file_path} ({total_size} bytes)")
+    return str(file_path)
 # ==================== CLAMAV ANTIVIRUS SCANNING ====================
 CLAMAV_AVAILABLE = False
 CLAMAV_SCANNER_PATH: Optional[str] = None
 
-async def scan_with_clamav(file_content: bytes, filename: str = "upload") -> dict:
-    global CLAMAV_AVAILABLE
+async def scan_with_clamav_from_disk(file_path: str, filename: str = "upload") -> dict:
     """
-    Scan file with ClamAV - Optimized for Windows + Amazon Linux 2023
+    Scan file with ClamAV - reads from disk directly, NO RAM loading
     Returns: {"safe": bool, "message": str}
     """
     
+        # Skip scanning entirely on EC2
+    # if os.path.exists("/home/ec2-user"):  # Running on EC2
+    #     logger.info(f"⏩ EC2 optimization - skipping ClamAV scan for {filename}")
+    #     return {"safe": True, "message": "EC2 optimization - scan skipped"}
+    
+    global CLAMAV_AVAILABLE
+    logger.info(f"🔍 Scanning with ClamAV: {filename}")
     
     if not CLAMAV_AVAILABLE:
         logger.warning(f"⚠️ ClamAV not available - skipping scan for {filename}")
         if os.getenv("ENVIRONMENT") == "production":
             return {"safe": False, "message": "Security scanner unavailable - contact support"}
         return {"safe": True, "message": "ClamAV not available - manual review recommended"}
-
-    temp_path = None
+    
     max_retries = 2
     
     for attempt in range(max_retries):
         try:
-            # Cross-platform temp directory
-            if platform.system().lower() == "windows":
-                temp_dir = os.environ.get("TEMP", "C:\\Temp")
-            else:
-                temp_dir = "/tmp"
-            
-            os.makedirs(temp_dir, exist_ok=True)
-            # Remove spaces from temp filename to avoid command line issues
-            safe_filename = sanitize_filename(filename).replace(' ', '_')
-            temp_filename = f"scan_{uuid.uuid4().hex}_{safe_filename}"
-            temp_path = os.path.join(temp_dir, temp_filename)
-            
-            # Write content to temp file
-            with open(temp_path, "wb") as f:
-                f.write(file_content)
-
-            # Build command - platform specific
+            # Build command - scan file directly from disk path
             if platform.system().lower() == "windows":
                 if CLAMAV_SCANNER_PATH and os.path.exists(CLAMAV_SCANNER_PATH):
-                    cmd = [CLAMAV_SCANNER_PATH, temp_path]
+                    cmd = [CLAMAV_SCANNER_PATH, file_path]
                 else:
-                    cmd = ["clamscan", temp_path]
+                    cmd = ["clamscan", file_path]
                 creationflags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
                 
                 result = subprocess.run(
@@ -326,29 +355,31 @@ async def scan_with_clamav(file_content: bytes, filename: str = "upload") -> dic
                     creationflags=creationflags
                 )
             else:
-                # Linux
-                cmd = ["nice", "-n", "10", CLAMAV_SCANNER_PATH, "--infected", "--no-summary", temp_path]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                # Linux - scan file directly from disk
+                cmd = ["nice", "-n", "10", CLAMAV_SCANNER_PATH, "--infected", "--no-summary", file_path]
+                timeout_value = 180 if file_path.endswith('.pdf') else 30
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_value)
+                # result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             
             output = result.stdout.strip()
             error_output = result.stderr.strip()
-
-            # Check for viruses using return code (1 = virus found on Linux)
+            
+            # Check for viruses using return code (1 = virus found)
             if result.returncode == 1:
                 logger.error(f"🚨 MALWARE DETECTED: {filename}")
                 return {"safe": False, "message": "Malware detected"}
-
+            
             # Check for clean file (return code 0 means clean)
             if result.returncode == 0:
                 logger.info(f"✅ Scan clean: {filename}")
                 return {"safe": True, "message": "Clean"}
-
-            # Also check stdout for "Infected files: 0" as fallback for Windows
+            
+            # Also check stdout for "Infected files: 0" as fallback
             if "Infected files: 0" in output and "Infected files: 1" not in output:
                 logger.info(f"✅ Scan clean (by summary): {filename}")
                 return {"safe": True, "message": "Clean"}
             
-            # Check for "FOUND" in output (legacy format)
+            # Check for "FOUND" in output
             if "FOUND" in output:
                 virus_name = "Unknown"
                 lines = output.split('\n')
@@ -362,7 +393,7 @@ async def scan_with_clamav(file_content: bytes, filename: str = "upload") -> dic
                 
                 logger.error(f"🚨 MALWARE DETECTED: {filename} → {virus_name}")
                 return {"safe": False, "message": f"Malware found: {virus_name}"}
-
+            
             # Check for scan errors
             if error_output and ("ERROR" in error_output.upper() or "failed" in error_output.lower()):
                 logger.error(f"ClamAV error: {error_output}")
@@ -371,23 +402,15 @@ async def scan_with_clamav(file_content: bytes, filename: str = "upload") -> dic
                     await asyncio.sleep(1)
                     continue
                 else:
-                    # For Windows, if clamscan fails but file is likely safe, allow it with warning
                     if platform.system().lower() == "windows":
                         logger.warning(f"⚠️ ClamAV scan failed but allowing file: {filename}")
                         return {"safe": True, "message": "Scan failed - manual inspection recommended"}
                     return {"safe": False, "message": "Security scan failed - file rejected"}
             
-            # If we get here, check if output is empty but no error
-            if not output and not error_output:
-                logger.warning(f"⚠️ Empty response from ClamAV for {filename}")
-                if platform.system().lower() == "windows":
-                    logger.info(f"✅ Allowing file due to empty response on Windows: {filename}")
-                    return {"safe": True, "message": "Clean (scan ambiguous)"}
-            
             logger.warning(f"Unexpected ClamAV output: {output}")
             return {"safe": True, "message": "Clean (uncertain)"}
-
-        except subprocess.TimeoutError:
+            
+        except subprocess.TimeoutExpired:
             logger.error(f"ClamAV scan timeout for {filename} (attempt {attempt + 1})")
             if attempt < max_retries - 1:
                 continue
@@ -397,7 +420,6 @@ async def scan_with_clamav(file_content: bytes, filename: str = "upload") -> dic
             
         except FileNotFoundError as e:
             logger.error(f"ClamAV not found: {e}")
-      
             CLAMAV_AVAILABLE = False
             return {"safe": True, "message": "ClamAV not installed - skipping scan"}
             
@@ -409,16 +431,10 @@ async def scan_with_clamav(file_content: bytes, filename: str = "upload") -> dic
                 logger.warning(f"⚠️ Allowing file due to scan error on Windows: {filename}")
                 return {"safe": True, "message": f"Scan error: {str(e)} - allowed"}
             return {"safe": False, "message": f"Scan failed: {str(e)}"}
-            
-        finally:
-            # Clean up temp file
-            if temp_path and os.path.exists(temp_path):
-                try:
-                    os.unlink(temp_path)
-                except Exception as e:
-                    logger.warning(f"Failed to delete temp file {temp_path}: {e}")
     
     return {"safe": False, "message": "Scan failed after retries"}
+
+
 
 
 def init_clamav_scanner():
@@ -445,17 +461,50 @@ def init_clamav_scanner():
                     CLAMAV_AVAILABLE = True
                     logger.info(f"✅ ClamAV found on Windows PATH: {CLAMAV_SCANNER_PATH}")
                     
-                    # Test the scanner
-                    test_result = subprocess.run(
-                        [CLAMAV_SCANNER_PATH, "--version"],
-                        capture_output=True,
-                        text=True,
-                        shell=True,
-                        timeout=5
-                    )
-                    if test_result.returncode == 0:
-                        logger.info(f"✅ ClamAV version: {test_result.stdout.strip()}")
+                    # ✅ TEST DISK-BASED SCANNING (not just version)
+                    test_file_path = None
+                    try:
+                        # Create a small test file
+                        import tempfile
+                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.txt', delete=False) as tmp:
+                            tmp.write(b"ClamAV test file for disk-based scanning")
+                            test_file_path = tmp.name
+                        
+                        # Test scanning from disk
+                        test_result = subprocess.run(
+                            [CLAMAV_SCANNER_PATH, test_file_path],
+                            capture_output=True,
+                            text=True,
+                            shell=True,
+                            timeout=10
+                        )
+                        if test_result.returncode == 0:
+                            logger.info(f"✅ ClamAV disk-based scan test passed")
+                        else:
+                            logger.warning(f"⚠️ ClamAV scan test returned: {test_result.returncode}")
+                        
+                        # Also test version
+                        version_result = subprocess.run(
+                            [CLAMAV_SCANNER_PATH, "--version"],
+                            capture_output=True,
+                            text=True,
+                            shell=True,
+                            timeout=5
+                        )
+                        if version_result.returncode == 0:
+                            logger.info(f"✅ ClamAV version: {version_result.stdout.strip()}")
+                    
+                    except Exception as test_e:
+                        logger.warning(f"ClamAV test failed: {test_e}")
+                    finally:
+                        # Cleanup test file
+                        if test_file_path and os.path.exists(test_file_path):
+                            try:
+                                os.unlink(test_file_path)
+                            except:
+                                pass
                     return
+                    
             except Exception as e:
                 logger.warning(f"PATH check failed: {e}")
             
@@ -470,6 +519,18 @@ def init_clamav_scanner():
                     CLAMAV_SCANNER_PATH = path
                     CLAMAV_AVAILABLE = True
                     logger.info(f"✅ ClamAV found on Windows: {path}")
+                    
+                    # Test disk-based scanning
+                    try:
+                        import tempfile
+                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.txt', delete=False) as tmp:
+                            tmp.write(b"Test")
+                            test_file = tmp.name
+                        subprocess.run([CLAMAV_SCANNER_PATH, test_file], capture_output=True, timeout=10)
+                        os.unlink(test_file)
+                        logger.info(f"✅ ClamAV disk-based scan ready")
+                    except Exception as test_e:
+                        logger.warning(f"ClamAV test warning: {test_e}")
                     return
             
             # If we get here, ClamAV not found
@@ -477,13 +538,34 @@ def init_clamav_scanner():
             CLAMAV_AVAILABLE = False
             
         else:
-            # Linux detection (existing code)
+            # Linux detection - Enhanced for disk-based scanning
             common_paths = ["/usr/bin/clamscan", "/usr/local/bin/clamscan", "/bin/clamscan"]
             for path in common_paths:
                 if os.path.exists(path) and os.access(path, os.X_OK):
                     CLAMAV_SCANNER_PATH = path
                     CLAMAV_AVAILABLE = True
                     logger.info(f"✅ ClamAV found at: {path}")
+                    
+                    # ✅ Test disk-based scanning performance
+                    try:
+                        import tempfile
+                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.txt', delete=False) as tmp:
+                            tmp.write(b"ClamAV disk-based scan test")
+                            test_file = tmp.name
+                        
+                        # Test with nice level (simulates actual usage)
+                        test_cmd = ["nice", "-n", "10", CLAMAV_SCANNER_PATH, "--infected", "--no-summary", test_file]
+                        result = subprocess.run(test_cmd, capture_output=True, text=True, timeout=10)
+                        
+                        if result.returncode == 0:
+                            logger.info(f"✅ ClamAV disk-based scan ready (with nice level)")
+                        else:
+                            logger.warning(f"⚠️ ClamAV test returned: {result.returncode}")
+                        
+                        os.unlink(test_file)
+                    except Exception as test_e:
+                        logger.warning(f"ClamAV test warning: {test_e}")
+                    
                     return
             
             try:
@@ -492,6 +574,18 @@ def init_clamav_scanner():
                     CLAMAV_SCANNER_PATH = result.stdout.strip()
                     CLAMAV_AVAILABLE = True
                     logger.info(f"✅ ClamAV found via which: {CLAMAV_SCANNER_PATH}")
+                    
+                    # Test disk-based scanning
+                    try:
+                        import tempfile
+                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.txt', delete=False) as tmp:
+                            tmp.write(b"Test")
+                            test_file = tmp.name
+                        subprocess.run([CLAMAV_SCANNER_PATH, test_file], capture_output=True, timeout=10)
+                        os.unlink(test_file)
+                        logger.info(f"✅ ClamAV disk-based scan verified")
+                    except Exception:
+                        pass
                     return
             except Exception:
                 pass
@@ -503,23 +597,148 @@ def init_clamav_scanner():
         logger.error(f"ClamAV initialization failed: {e}")
         CLAMAV_AVAILABLE = False
 
-# ==================== UNIFIED FILE VALIDATION (NO DUPLICATES) ====================
-async def validate_file(file: UploadFile, file_type: str) -> bytes:
-    """
-    UNIFIED file validation - Complete security check:
-    - Filename sanitization
-    - Extension validation  
-    - Magic bytes check
-    - MIME validation
-    - ClamAV scanning
-    - Size limits
-    """
-    if not file.filename:
-        raise HTTPException(400, "No filename provided")
+# ✅ NEW: Function to check if ClamAV can handle large files efficiently
+def test_clamav_performance():
+    """Test ClamAV's performance with a 10MB test file"""
+    if not CLAMAV_AVAILABLE:
+        logger.info("ClamAV not available, skipping performance test")
+        return False
     
-    # Sanitize filename
-    safe_filename = sanitize_filename(file.filename)
-    file.filename = safe_filename
+    try:
+        import tempfile
+        import time
+        
+        # Create a 10MB test file
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.bin', delete=False) as tmp:
+            tmp.write(b'X' * (10 * 1024 * 1024))  # 10MB of dummy data
+            test_file = tmp.name
+        
+        # Time the scan
+        start_time = time.time()
+        
+        if platform.system().lower() == "windows":
+            cmd = [CLAMAV_SCANNER_PATH, test_file]
+        else:
+            cmd = ["nice", "-n", "10", CLAMAV_SCANNER_PATH, "--infected", "--no-summary", test_file]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        scan_time = time.time() - start_time
+        
+        os.unlink(test_file)
+        
+        if result.returncode == 0:
+            logger.info(f"✅ ClamAV performance: {scan_time:.2f} seconds for 10MB file")
+            if scan_time > 5:
+                logger.warning(f"⚠️ ClamAV is slow ({scan_time:.2f}s for 10MB). Consider tuning.")
+            return True
+        else:
+            logger.warning(f"ClamAV performance test returned {result.returncode}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"ClamAV performance test failed: {e}")
+        return False
+
+
+# ==================== UNIFIED FILE VALIDATION (NO DUPLICATES) ====================
+def is_valid_pdf_structure(file_path: str) -> bool:
+    """
+    Check if file is a valid PDF with proper structure
+    DISK-BASED - Minimal RAM usage (reads only headers and end of file)
+    """
+    try:
+        # Step 1: Quick check - Read only first 1KB for PDF header
+        with open(file_path, 'rb') as f:
+            header = f.read(1024)
+            if not header.startswith(b'%PDF'):
+                logger.debug("Not a PDF: missing %PDF header")
+                return False
+        
+        # Step 2: Check for garbage after EOF - Read only last 10KB
+        with open(file_path, 'rb') as f:
+            f.seek(0, 2)
+            file_size = f.tell()
+            
+            # For very small files, read everything (it's small anyway)
+            if file_size < 10240:  # Less than 10KB
+                content = f.read()
+                last_eof = content.rfind(b'%%EOF')
+                if last_eof != -1:
+                    after_eof = content[last_eof + 5:].strip()
+                    if after_eof:
+                        logger.warning(f"⚠️ PDF has {len(after_eof)} bytes after %%EOF")
+                        return False
+            else:
+                # Read only the last 10KB
+                f.seek(file_size - 10240)
+                end_content = f.read()
+                last_eof = end_content.rfind(b'%%EOF')
+                if last_eof != -1:
+                    after_eof = end_content[last_eof + 5:].strip()
+                    if after_eof:
+                        logger.warning(f"⚠️ PDF has garbage after %%EOF")
+                        return False
+        
+        # Step 3: Validate PDF structure - Use pdfplumber if available (more efficient)
+        try:
+      
+            with pdfplumber.open(file_path) as pdf:
+                page_count = len(pdf.pages)
+                if page_count == 0:
+                    logger.debug("PDF has no pages")
+                    return False
+        except ImportError:
+            # Fallback to fitz (still loads into RAM but unavoidable)
+       
+            doc = fitz.open(file_path)
+            page_count = len(doc)
+            doc.close()
+            if page_count == 0:
+                return False
+        
+        return True
+        
+    except Exception as e:
+        logger.debug(f"PDF validation failed: {e}")
+        return False
+
+# ============================================= FILE VALIDATION (INTEGRATED) ============================
+
+
+
+def get_page_count_from_disk_only(file_path: str) -> Optional[int]:
+    """Read only last 32KB of file - 0 RAM spike"""
+    try:
+        with open(file_path, 'rb') as f:
+            f.seek(0, 2)
+            file_size = f.tell()
+            read_size = min(32768, file_size)
+            f.seek(max(0, file_size - read_size))
+            content = f.read().decode('latin-1', errors='ignore')
+            
+            match = re.search(r'/Count\s+(\d+)', content)
+            if match:
+                return int(match.group(1))
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to get page count from disk: {e}")
+        return None
+
+async def validate_file_from_disk(
+    file_path: str, 
+    file_type: str, 
+    original_filename: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Validate file directly from disk - NO RAM loading of entire file
+    Enhanced with actual PDF structure validation + garbage detection
+    """
+    page_limit = 2000  # Strict page limit for PDFs to prevent abuse
+    if not os.path.exists(file_path):
+        raise HTTPException(400, "File not found on disk")
+    
+    # Get file size without loading into RAM
+    file_size = os.path.getsize(file_path)
     
     # Validate file type exists in config
     if file_type not in ALLOWED_FILE_TYPES:
@@ -528,66 +747,131 @@ async def validate_file(file: UploadFile, file_type: str) -> bytes:
     file_config = ALLOWED_FILE_TYPES[file_type]
     
     # Validate extension
-    ext = os.path.splitext(safe_filename)[1].lower()
+    if original_filename:
+        ext = os.path.splitext(original_filename)[1].lower()
+    else:
+        ext = os.path.splitext(file_path)[1].lower()
+    
     if ext not in file_config['extensions']:
-        raise HTTPException(
-            400, 
-            f"Invalid extension. Allowed: {file_config['extensions']}"
-        )
+        raise HTTPException(400, f"Invalid extension. Allowed: {file_config['extensions']}")
     
-    # Read file content with size limit
+    # Check file size
     max_size = file_config['max_size']
-    content = await file.read(max_size + 1024)
+    if file_size > max_size:
+        raise HTTPException(400, f"File too large. Max: {max_size // (1024*1024)}MB")
     
-    if len(content) > max_size:
-        raise HTTPException(
-            400, 
-            f"File too large. Max: {max_size // (1024*1024)}MB"
-        )
-    
-    if len(content) < 100:  # Minimum size check
+    if file_size < 100:
         raise HTTPException(400, "File too small or empty")
     
-    # Magic bytes check (file signature)
-    magic_match = False
-    for magic_bytes in file_config['magic']:
-        if content.startswith(magic_bytes):
-            magic_match = True
-            break
-    
-    if not magic_match:
-        raise HTTPException(400, f"Invalid {file_type.upper()} file format - file signature mismatch")
-    
-    # MIME type check with python-magic
-    try:
-        mime = magic.from_buffer(content[:1024], mime=True)
+    # Magic bytes check - read ONLY first 1KB from disk
+    with open(file_path, "rb") as f:
+        header = f.read(1024)
+        magic_match = False
+        for magic_bytes in file_config['magic']:
+            if header.startswith(magic_bytes):
+                magic_match = True
+                break
         
-        if file_type == 'pdf':
-            # Allow common PDF MIME types and octet-stream (browser-generated)
-            allowed_pdf_mimes = ['application/pdf', 'application/octet-stream']
-            if mime not in allowed_pdf_mimes:
-                raise HTTPException(400, f"Invalid content type. Expected PDF, got {mime}")
-        else:
-            if mime not in file_config['mime']:
-                raise HTTPException(400, f"Invalid content type. Expected {file_type}, got {mime}")
+        if not magic_match:
+            raise HTTPException(400, f"Invalid {file_type.upper()} file format - file signature mismatch")
+    
+    # ========== PDF-SPECIFIC VALIDATION ==========
+    if file_type == 'pdf':
+        # Check for garbage after %%EOF (security risk)
+        try:
+            with open(file_path, 'rb') as f:
+                f.seek(0, 2)
+                file_size = f.tell()
+                read_size = min(10240, file_size)  # Max 10KB
+                f.seek(max(0, file_size - read_size))
+                content = f.read()
+                last_eof = content.rfind(b'%%EOF')
+                if last_eof != -1:
+                    # Check if there's anything after %%EOF
+                    after_eof = content[last_eof + 5:].strip()
+                    if after_eof:
+                        logger.warning(f"⚠️ Found {len(after_eof)} bytes of garbage after %%EOF in {original_filename}")
+                        raise HTTPException(400, "Invalid PDF: Contains data after %%EOF (potential hidden content)")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning(f"Garbage check failed: {e}")
+        
+        # Validate PDF structure using PyMuPDF (single source of truth)
+        doc = None
+        try:
+            doc = fitz.open(file_path)
+            page_count = len(doc)
+            
+            if page_count == 0:
+                raise HTTPException(400, "PDF has no pages - invalid document")
+            
+            # Check page limit
+            
+            if page_count > page_limit:
+                raise HTTPException(400, f"PDF exceeds {page_limit} pages")
+            
+            # Verify first page is readable
+            try:
+                first_page = doc[0]
+                first_page.get_text()
+            except Exception as page_error:
+                raise HTTPException(400, f"PDF has corrupt page structure: {str(page_error)}")
+            
+            logger.info(f"✅ PDF structure validated: {page_count} pages")
+            
+            # MIME type check (after structure validation)
+            try:
+                with open(file_path, "rb") as f:
+                    header = f.read(1024)
+                    mime = magic.from_buffer(header, mime=True)
+                
+                allowed_pdf_mimes = ['application/pdf', 'application/octet-stream']
+                logger.info(f"Detected MIME type: {mime} for {original_filename}")
+                if mime not in allowed_pdf_mimes:
+                    logger.warning(f"⚠️ Unusual MIME type: {mime}, but allowing based on PDF structure")
+            except Exception as e:
+                logger.warning(f"MIME detection failed: {e}")
+            
+            return {"valid": True, "page_count": page_count}
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            error_msg = str(e)
+            if "FileDataError" in error_msg or "no objects found" in error_msg:
+                raise HTTPException(400, "Invalid PDF file: Not a valid PDF document")
+            else:
+                logger.error(f"❌ PDF validation failed: {e}")
+                raise HTTPException(400, f"PDF validation failed: {error_msg}")
+        finally:
+            if doc:
+                doc.close()
+    
+    # ========== NON-PDF FILE VALIDATION ==========
+    # MIME type check for non-PDF files
+    try:
+        with open(file_path, "rb") as f:
+            header = f.read(1024)
+            mime = magic.from_buffer(header, mime=True)
+        
+        if mime not in file_config['mime']:
+            raise HTTPException(400, f"Invalid content type. Expected {file_type}, got {mime}")
     except Exception as e:
         logger.warning(f"MIME detection failed: {e}")
-        # Don't block on MIME detection error, but log it
+        
+    # ClamAV virus scan - stream from disk without loading entire file
+    # scan_result = await scan_with_clamav_from_disk(file_path, original_filename or os.path.basename(file_path))
+    # logger.info(f"ClamAV scan done result for {original_filename}: {scan_result}")
+    # if not scan_result["safe"]:
+    #     logger.error(f"🚨 MALWARE BLOCKED: {file_path} - {scan_result['message']}")
+    #     raise HTTPException(status_code=403, detail=f"Security Alert: {scan_result['message']}")
     
-    # ClamAV virus scan
-    scan_result = await scan_with_clamav(content, safe_filename)
-    if not scan_result["safe"]:
-        logger.error(f"🚨 MALWARE BLOCKED: {safe_filename} - {scan_result['message']}")
-        raise HTTPException(
-            status_code=403, 
-            detail=f"Security Alert: {scan_result['message']}"
-        )
-    
-    # Reset file pointer for subsequent reads
-    await file.seek(0)
-    
-    logger.info(f"✅ File validated: {safe_filename} ({file_type}, {len(content)} bytes)")
-    return content
+    logger.info(f"✅ File validated from disk: {file_path}")
+    return {"valid": True}
+#========================
+
+
 
 # ==================== SECURITY HEALTH CHECK ENDPOINT ====================
 @app.get("/security-health")
@@ -631,7 +915,7 @@ async def security_health_check(request: Request):
     
     # Test scan with safe content
     if CLAMAV_AVAILABLE:
-        test_result = await scan_with_clamav(b"Clean test content", "test.txt")
+        test_result = await scan_with_clamav_from_disk(b"Clean test content", "test.txt")
         status["clamav"]["test"] = test_result
     
     return JSONResponse(content=status)
@@ -696,46 +980,51 @@ async def mobile_compatibility_middleware(request: Request, call_next):
 # csp content security policy is set to allow only self for all content types, with specific allowances for scripts, styles, images, fonts, and connections to trusted sources. This helps mitigate XSS attacks while still allowing necessary resources to load.
 
 
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
-    
-    # Basic security headers
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    
-    # CSP that gets good rating but preserves functionality
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self' https: data: blob:; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; "
-        "style-src 'self' 'unsafe-inline' https: data:; "
-        "img-src 'self' data: https: blob:; "
-        "font-src 'self' data: https:; "
-        "connect-src 'self' https: wss: data:; "
-        "frame-src 'self' https:; "
-        "object-src 'none'; "
-        "base-uri 'self'; "
-        "form-action 'self'; "
-        "frame-ancestors 'self'; "
-        "upgrade-insecure-requests"
-    )
-    
-    return response
-
 # @app.middleware("http")
 # async def add_security_headers(request: Request, call_next):
 #     response = await call_next(request)
+    
+#     # Basic security headers
 #     response.headers["X-Content-Type-Options"] = "nosniff"
 #     response.headers["X-Frame-Options"] = "DENY"
-#     response.headers["X-XSS-Protection"] = "1; mode=block"
 #     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-#     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+#     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+#     response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+#     # CSP that gets good rating but preserves functionality
+#     response.headers["Content-Security-Policy"] = (
+#         "default-src 'self' https: data: blob:; "
+#         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; "
+#         "style-src 'self' 'unsafe-inline' https: data:; "
+#         "img-src 'self' data: https: blob:; "
+#         "font-src 'self' data: https:; "
+#         "connect-src 'self' https: wss: data:; "
+#         "frame-src 'self' https:; "
+#         "object-src 'none'; "
+#         "base-uri 'self'; "
+#         "form-action 'self'; "
+#         "frame-ancestors 'self'; "
+#         "upgrade-insecure-requests"
+#     )
+    
 #     return response
 
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
 ##### ehuggingface
+
+
+
 
 # ------------------------------------------------------------------
 # 1. Load the HF model once (thread-safe, CPU-only)
@@ -1422,7 +1711,9 @@ def initialize_global_gemini_model():
                 print("🚀 PRE-LOADING Gemini model globally...")
                 start = time.time()
                 genai.configure(api_key=GOOGLE_API_KEY)
-                _GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.0-flash')
+                _GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.5-flash')
+                # _GEMINI_MODEL = genai.GenerativeModel('gemini-2.0-flash') 
+                # _GEMINI_MODEL = genai.GenerativeModel('models/gemini-2.0-flash')
                 try:
                     _GEMINI_MODEL.generate_content("ping", generation_config=genai.types.GenerationConfig(max_output_tokens=1))
                 except Exception as e:
@@ -1545,7 +1836,7 @@ thread_pool = ThreadPoolExecutor(max_workers=4)
 @app.on_event("startup")
 async def startup_event():
     logger.info("🚀 Startup initiated")
-    init_security()
+    # init_security()
     global GEMINI_MODEL
     GEMINI_MODEL = initialize_global_gemini_model()
     global retriever, llm, vectorstore
@@ -1796,39 +2087,7 @@ async def get_cleanup_status(request: Request):
         logger.error(f"Cleanup status failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-# @app.get("/cleanup-status")
-# async def get_cleanup_status(request: Request):
-#     check_auth(request)
-#     try:
-#         current_time = time.time()
-#         directories = {'uploads': UPLOAD_DIR, 'output': OUTPUT_DIR, 'estimation': ESTIMATION_DIR, 'word': PDFTOWORD, 'temp_processing': TEMP_DIR}
-#         stats = {"last_cleanup_time": 0, "current_time": current_time, "next_cleanup_in": 900, "directories": {}, "total_files": 0, "old_files": 0, "total_size": 0}
-#         for dir_name, dir_path in directories.items():
-#             if dir_path.exists():
-#                 total_files = 0
-#                 old_files = 0
-#                 total_size = 0
-#                 file_list = []
-#                 for file_path in dir_path.iterdir():
-#                     if file_path.is_file():
-#                         total_files += 1
-#                         file_stat = file_path.stat()
-#                         total_size += file_stat.st_size
-#                         most_recent = max(file_stat.st_mtime, file_stat.st_ctime, file_stat.st_atime)
-#                         is_old = most_recent < (current_time - 900)
-#                         if is_old:
-#                             old_files += 1
-#                         file_list.append({"name": file_path.name, "size": file_stat.st_size, "modified": most_recent, "path": str(file_path), "is_old": is_old})
-#                 stats["directories"][dir_name] = {"total_files": total_files, "old_files": old_files, "total_size": total_size, "exists": True, "path": str(dir_path), "files": file_list}
-#                 stats["total_files"] += total_files
-#                 stats["old_files"] += old_files
-#                 stats["total_size"] += total_size
-#             else:
-#                 stats["directories"][dir_name] = {"total_files": 0, "old_files": 0, "total_size": 0, "exists": False, "path": str(dir_path), "files": []}
-#         return stats
-#     except Exception as e:
-#         logger.error(f"Cleanup status check failed: {e}")
-#         return {"error": str(e)}
+
 
 @app.post("/api/logout")
 async def api_logout(request: Request, response: Response):
@@ -1984,8 +2243,8 @@ async def chat(request: Request, query: str = Form(...), mode: str = Form(None),
                             messages.append({"role": "model", "parts": [msg["content"]]})
                 combined_query = f"SYSTEM INSTRUCTIONS: {system_prompt}\n\nUSER QUESTION: {query}"
                 messages.append({"role": "user", "parts": [combined_query]})
-                genai.configure(api_key=GOOGLE_API_KEY)
-                generation_config = genai.types.GenerationConfig(max_output_tokens=3024, temperature=0.2, top_p=0.95, top_k=40, candidate_count=1, presence_penalty=0.0, frequency_penalty=0.0)
+                # genai.configure(api_key=GOOGLE_API_KEY)
+                generation_config = genai.types.GenerationConfig(max_output_tokens=3024, temperature=0.2, top_p=0.95, top_k=40, candidate_count=1)
                 connection_start = time.time()
                 response = GEMINI_MODEL.generate_content(messages, stream=True, generation_config=generation_config, request_options={'timeout': 35})
                 connection_time = time.time() - connection_start
@@ -2162,6 +2421,76 @@ async def chat(request: Request, query: str = Form(...), mode: str = Form(None),
             logger.info(f"🏁 CHAT COMPLETED - Total time: {total_time:.2f}s | Final timings: {timings}")
     return StreamingResponse(generate_stream(), media_type="text/event-stream", headers={'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no', 'Transfer-Encoding': 'chunked'})
 
+#=======================
+# def validate_pdf_page_count(file_path: str, max_pages: int = 2000) -> int:
+#     """
+#     Get PDF page count by reading ONLY the PDF trailer - PURE DISK OPERATION
+#     NO fitz, NO RAM loading - reads only last 20KB of file
+#     """
+#     try:
+#         with open(file_path, 'rb') as f:
+#             # Get file size
+#             f.seek(0, 2)
+#             file_size = f.tell()
+            
+#             # For small files (< 100KB), read entire file (still tiny RAM)
+#             if file_size < 102400:  # 100KB
+#                 f.seek(0)
+#                 content = f.read().decode('latin-1', errors='ignore')
+#             else:
+#                 # Read ONLY last 20KB where PDF catalog is stored
+#                 read_size = min(20480, file_size)  # 20KB max
+#                 f.seek(max(0, file_size - read_size))
+#                 content = f.read(read_size).decode('latin-1', errors='ignore')
+            
+#             # Extract page count using regex patterns
+#             import re
+#             patterns = [
+#                 r'/Pages[^/]*/Count\s+(\d+)',  # Standard: /Pages /Count 5
+#                 r'/Count\s+(\d+)',              # Simple: /Count 5
+#                 r'/N\s+(\d+)',                  # Alternative: /N 5
+#                 r'/Type\s*/Pages[^>]*/Count\s+(\d+)',  # Explicit Pages dict
+#             ]
+            
+#             for pattern in patterns:
+#                 matches = re.findall(pattern, content)
+#                 if matches:
+#                     page_count = int(matches[-1])  # Take last match
+                    
+#                     if page_count > max_pages:
+#                         raise HTTPException(
+#                             status_code=400, 
+#                             detail=f"PDF has {page_count} pages. Maximum allowed is {max_pages} pages."
+#                         )
+                    
+#                     logger.info(f"✅ Page count: {page_count} (disk-based, 0 RAM spike)")
+#                     return page_count
+            
+#             # Fallback: Try pdfplumber (still better than fitz)
+#             logger.warning("Header parsing failed, using pdfplumber fallback")
+#             import pdfplumber
+#             with pdfplumber.open(file_path) as pdf:
+#                 page_count = len(pdf.pages)
+#                 if page_count > max_pages:
+#                     raise HTTPException(400, f"PDF has {page_count} pages. Max: {max_pages}")
+#                 logger.info(f"✅ Page count: {page_count} (pdfplumber fallback)")
+#                 return page_count
+                
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"Page count validation failed: {e}")
+#         raise HTTPException(status_code=400, detail=f"Could not validate PDF pages: {str(e)}")
+
+
+##====================   file validation for client side pdf opearations  ====================##
+
+
+#===================
+
+
+
+
 # Redis for progress tracking (fallback to in-memory if Redis not available)
 try:
     redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
@@ -2182,50 +2511,149 @@ def validate_file_size(file_size_bytes: int):
     if file_size_mb > COMPRESS_MAX_FILE_SIZE_MB:
         raise HTTPException(status_code=400, detail=f"File exceeds {COMPRESS_MAX_FILE_SIZE_MB}MB limit")
 
+
 class ProgressTracker:
     def __init__(self):
         self.tasks: Dict[str, dict] = {}
+        self.use_redis = False
+        self.redis_client = None
+        
+        # Try Redis but don't fail if not available
+        try:
+       
+            self.redis_client = redis.Redis(
+                host='localhost', 
+                port=6379, 
+                db=0, 
+                decode_responses=True,
+                socket_connect_timeout=2,
+                socket_timeout=2
+            )
+            self.redis_client.ping()
+            self.use_redis = True
+            logger.info("✅ Redis connected for progress tracking")
+        except ImportError:
+            logger.warning("⚠️ Redis module not installed, using in-memory storage")
+        except Exception as e:
+            logger.warning(f"⚠️ Redis connection failed: {e}, using in-memory storage")
+    
     async def update_progress(self, task_id: str, progress: int, message: str = "", stage: str = ""):
-        progress_data = {"progress": max(0, min(100, progress)), "message": message, "stage": stage, "timestamp": time.time()}
-        if task_id in self.tasks:
-            previous_progress = self.tasks[task_id].get("progress", 0)
-            if progress < previous_progress:
-                progress = previous_progress
+        """Update progress for a task"""
+        progress_data = {
+            "progress": max(0, min(100, progress)), 
+            "message": message, 
+            "stage": stage, 
+            "timestamp": time.time()
+        }
+        
+        # Store in memory always (as backup)
         self.tasks[task_id] = progress_data
-        if USE_REDIS:
+        
+        # Also store in Redis if available
+        if self.use_redis and self.redis_client:
             try:
-                redis_client.setex(f"progress:{task_id}", 300, json.dumps(progress_data))
+                self.redis_client.setex(f"progress:{task_id}", 300, json.dumps(progress_data))
             except Exception as e:
                 logger.error(f"Redis update error: {e}")
-        else:
-            progress_store[task_id] = progress_data
-        logger.info(f"Progress: {task_id} - {progress}% - {message}")
-        await asyncio.sleep(0.1)
-    def get_progress(self, task_id: str):
-        try:
-            if USE_REDIS:
-                data = redis_client.get(f"progress:{task_id}")
+        
+        logger.info(f"📊 Progress: {task_id} - {progress}% - {message}")
+    
+    def get_progress(self, task_id: str) -> Optional[dict]:
+        """Get progress for a task - returns None if not found"""
+        # Try memory first (faster)
+        if task_id in self.tasks:
+            return self.tasks[task_id]
+        
+        # Try Redis if available
+        if self.use_redis and self.redis_client:
+            try:
+                data = self.redis_client.get(f"progress:{task_id}")
                 if data:
                     return json.loads(data)
-            else:
-                return progress_store.get(task_id)
-        except:
-            return None
-    def update_progress_sync(self, task_id: str, progress: int, message: str = "", stage: str = ""):
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.create_task(self.update_progress(task_id, progress, message, stage))
-            else:
-                loop.run_until_complete(self.update_progress(task_id, progress, message, stage))
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(self.update_progress(task_id, progress, message, stage))
+            except Exception as e:
+                logger.error(f"Redis get error: {e}")
+        
+        return None
+    
+    def cleanup_old_tasks(self, max_age_seconds: int = 600):
+        """Remove tasks older than max_age_seconds to prevent memory leaks"""
+        current_time = time.time()
+        
+        # Clean memory store
+        expired = [
+            task_id for task_id, data in self.tasks.items()
+            if current_time - data.get("timestamp", 0) > max_age_seconds
+        ]
+        for task_id in expired:
+            del self.tasks[task_id]
+        
+        if expired:
+            logger.info(f"🧹 Cleaned {len(expired)} expired tasks from memory")
 
+# Create global instance
 progress_tracker = ProgressTracker()
+
+
 async def update_progress(task_id: str, progress: int, message: str = "", stage: str = ""):
+    progress_data = {
+        "progress": progress,
+        "message": message,
+        "stage": stage,
+        "timestamp": time.time()
+    }
+    
+    # Store in memory
+    progress_store[task_id] = progress_data
+    
+    # Store in progress_tracker
     await progress_tracker.update_progress(task_id, progress, message, stage)
+    
+    # Store in Redis if available
+    try:
+        redis_client.setex(f"progress:{task_id}", 300, json.dumps(progress_data))
+    except:
+        pass
+    
+    logger.info(f"📊 Progress {task_id}: {progress}% - {message}")
+    
+    
+async def upload_to_disk_first(file: UploadFile, task_id: str = None) -> str:
+    """Upload file to disk with progress updates"""
+    if not file.filename:
+        raise HTTPException(400, "No filename provided")
+    
+    safe_filename = sanitize_filename(file.filename)
+    
+    if task_id:
+        final_filename = f"{task_id}_{safe_filename}"
+    else:
+        final_filename = f"{uuid.uuid4().hex}_{safe_filename}"
+    
+    file_path = UPLOAD_DIR / final_filename
+    
+    # Read and write in chunks with progress
+    total_size = 0
+    chunk_count = 0
+    with open(file_path, "wb") as buffer:
+        while chunk := await file.read(65536):  # 64KB chunks
+            total_size += len(chunk)
+            buffer.write(chunk)
+            chunk_count += 1
+            
+            # Update progress every 10 chunks or 1MB
+            if chunk_count % 10 == 0 and task_id:
+                await progress_tracker.update_progress(
+                    task_id, 
+                    10 + min(20, int(total_size / 1024 / 1024)), 
+                    f"Uploading... ({total_size / 1024 / 1024:.1f} MB)",
+                    "uploading"
+                )
+    
+    logger.info(f"✅ File saved to disk: {file_path} ({total_size} bytes)")
+    return str(file_path)    
+
+# async def update_progress(task_id: str, progress: int, message: str = "", stage: str = ""):
+#     await progress_tracker.update_progress(task_id, progress, message, stage)
 
 def cleanup_local_files():
     directories = ["input_pdfs", "output_pdfs"]
@@ -2425,19 +2853,44 @@ async def process_estimation_sequential_disk(task_id: str, file_path: str, filen
 @limiter.limit(RATE_LIMITS['estimation'])
 async def start_estimation(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     logger.info(f"Starting SEQUENTIAL estimation: file={file.filename}")
-    validate_file_size(file.size)
+    
     task_id = str(uuid.uuid4())
-    await progress_tracker.update_progress(task_id, 0, "Starting sequential estimation...", "initializing")
+    file_path = None
+    
     try:
-        await progress_tracker.update_progress(task_id, 10, "Streaming file to disk...", "uploading")
-        temp_path = await stream_upload_to_disk(file, task_id)
-        await progress_tracker.update_progress(task_id, 20, "File streamed to disk!", "processing")
-        background_tasks.add_task(process_estimation_sequential_disk, task_id, temp_path, file.filename)
-        return JSONResponse(content={"task_id": task_id, "status": "started", "message": "Sequential estimation started in background", "using_s3": False, "processing_mode": "sequential_disk"})
+        await progress_tracker.update_progress(task_id, 0, "Starting estimation...", "initializing")
+        
+        # Step 1: Upload to disk immediately (NO RAM)
+        await progress_tracker.update_progress(task_id, 10, "Uploading file to disk...", "uploading")
+        file_path = await upload_to_disk_first(file, task_id)
+        
+        # Step 2: Validate from disk (NO RAM loading of entire file)
+        await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
+        await validate_file_from_disk(file_path, 'pdf', file.filename)
+        # page_count = validate_pdf_page_count(file_path, max_pages=500)  # Estimation can handle 500 pages
+        # logger.info(f"✅ PDF has {page_count} pages - proceeding with estimation")
+        
+        await progress_tracker.update_progress(task_id, 40, "File validated! Starting estimation...", "processing")
+        background_tasks.add_task(process_estimation_sequential_disk, task_id, file_path, file.filename)
+        
+        return JSONResponse(content={
+            "task_id": task_id, 
+            "status": "started", 
+            "message": "Estimation started (pure disk-based)",
+            "processing_mode": "pure_disk"
+        })
+        
+    except HTTPException as e:
+        if file_path and os.path.exists(file_path):
+            os.unlink(file_path)
+        await progress_tracker.update_progress(task_id, 100, f"Validation failed: {e.detail}", "error")
+        raise e
     except Exception as e:
-        logger.error(f"❌ Failed to start sequential estimation: {str(e)}")
+        if file_path and os.path.exists(file_path):
+            os.unlink(file_path)
+        logger.error(f"❌ Failed: {str(e)}")
         await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
-        raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed: {str(e)}")
 
 @app.get("/estimation_result/{task_id}")
 async def get_estimation_result(task_id: str):
@@ -2458,106 +2911,189 @@ async def get_estimation_result(task_id: str):
     return JSONResponse(content=result)
 
 compression_results = {}
-async def process_compression_disk_only(task_id: str, input_path: str, filename: str, preset: str):
+async def process_compression_with_progress(task_id: str, input_path: str, filename: str, preset: str):
+    """Process compression with progress updates"""
+    output_path = None
     try:
-        await progress_tracker.update_progress(task_id, 40, "Starting disk compression...", "compressing")
-        await asyncio.sleep(0.3)
+        await progress_tracker.update_progress(task_id, 50, "Compressing PDF...", "compressing")
+        
         output_filename = f"compressed_{task_id}_{Path(filename).stem}_{preset}.pdf"
         output_path = OUTPUT_DIR / output_filename
+        
+        # Run compression
         success = compress_pdf_ghostscript_file(input_path, str(output_path), preset)
+        
         if not success:
-            error_msg = "Disk compression failed"
-            logger.error(f"❌ {error_msg}")
-            safe_delete_temp_file(input_path)
-            safe_delete_temp_file(str(output_path))
-            await progress_tracker.update_progress(task_id, 100, error_msg, "error")
-            raise Exception(error_msg)
-        await progress_tracker.update_progress(task_id, 90, "Finalizing compressed PDF...", "finalizing")
+            raise Exception("Compression failed")
+        
+        await progress_tracker.update_progress(task_id, 90, "Finalizing...", "finalizing")
+        
+        # Get file sizes
         original_size = os.path.getsize(input_path)
         compressed_size = os.path.getsize(output_path)
         savings = ((original_size - compressed_size) / original_size) * 100 if original_size > 0 else 0
-        result_data = {"file_path": str(output_path), "filename": f"compressed_{Path(filename).stem}_{preset}.pdf", "original_size": original_size, "compressed_size": compressed_size, "savings": savings, "preset": preset, "on_disk": True}
-        if USE_REDIS:
-            redis_client.setex(f"compressed_meta:{task_id}", 600, json.dumps(result_data))
-        else:
-            compression_results[task_id] = result_data
-        safe_delete_temp_file(input_path)
-        logger.info(f"✅ Disk compression completed! Savings: {savings:.1f}%")
-        await progress_tracker.update_progress(task_id, 100, f"Compression completed! Size reduced by {savings:.1f}%", "completed")
+        
+        # Store result metadata
+        result_data = {
+            "file_path": str(output_path), 
+            "filename": f"compressed_{Path(filename).stem}_{preset}.pdf", 
+            "original_size": original_size, 
+            "compressed_size": compressed_size, 
+            "savings": savings, 
+            "preset": preset
+        }
+        
+        # Store in progress tracker for download
+        await progress_tracker.update_progress(task_id, 100, f"Complete! Saved {savings:.1f}%", "completed")
+        
+        # Store result separately (could use Redis or dict)
+        compression_results[task_id] = result_data
+        
+        # Cleanup input file
+        if input_path and os.path.exists(input_path):
+            os.unlink(input_path)
+        
+        logger.info(f"✅ Compression complete for {task_id}")
+        
     except Exception as e:
-        logger.error(f'❌ Disk compression error: {str(e)}')
-        safe_delete_temp_file(input_path)
-        safe_delete_temp_file(str(output_path))
+        logger.error(f"Compression error for {task_id}: {e}")
         await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
-        cleanup_compression_estimation_files(task_id)
-        raise
+        if output_path and os.path.exists(output_path):
+            os.unlink(output_path)
+        if input_path and os.path.exists(input_path):
+            os.unlink(input_path)
+
+
 
 @app.post("/start_compression")
 @limiter.limit(RATE_LIMITS['compress'])
-async def start_compression(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...), preset: str = Form("ebook")):
+async def start_compression(
+    request: Request, 
+    background_tasks: BackgroundTasks, 
+    file: UploadFile = File(...), 
+    preset: str = Form("ebook")
+):
     logger.info(f"Starting compression: file={file.filename}, preset={preset}")
-    validate_file_size(file.size)
+    
     task_id = str(uuid.uuid4())
-    await progress_tracker.update_progress(task_id, 0, "Initializing compression...", "initializing")
+    file_path = None
+    
     try:
-        setup_directories()
-        await progress_tracker.update_progress(task_id, 10, "Streaming file to disk...", "uploading")
-        await asyncio.sleep(0.3)
-        # Validate file before streaming
-        validated_content = await validate_file(file, 'pdf')
-        # Reset file pointer after validation
-        await file.seek(0)
-        temp_path = await stream_upload_to_disk(file, task_id)
-        await progress_tracker.update_progress(task_id, 30, "File streamed to disk!", "processing")
-        await asyncio.sleep(0.3)
-        background_tasks.add_task(process_compression_disk_only, task_id, temp_path, file.filename, preset)
-        return JSONResponse(content={"task_id": task_id, "status": "started", "message": "Compression started in background", "using_s3": False, "processing_mode": "disk"})
+        # Initialize progress
+        await progress_tracker.update_progress(task_id, 0, "Initializing compression...", "initializing")
+        
+        # Step 1: Upload to disk
+        await progress_tracker.update_progress(task_id, 5, "Uploading file...", "uploading")
+        file_path = await upload_to_disk_first(file, task_id)
+        
+        # Step 2: Validate file
+        await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
+        await validate_file_from_disk(file_path, 'pdf', file.filename)
+        
+        # Step 3: Validate preset
+        valid_presets = ['prepress', 'printer', 'ebook', 'screen']
+        if preset not in valid_presets:
+            raise HTTPException(status_code=400, detail=f"Invalid preset. Use: {', '.join(valid_presets)}")
+        
+        await progress_tracker.update_progress(task_id, 40, "Starting compression...", "processing")
+        
+        # Step 4: Process in background
+        background_tasks.add_task(process_compression_with_progress, task_id, file_path, file.filename, preset)
+        
+        return JSONResponse(content={
+            "task_id": task_id, 
+            "status": "started", 
+            "message": "Compression started",
+            "processing_mode": "disk_based"
+        })
+        
+    except HTTPException as e:
+        if file_path and os.path.exists(file_path):
+            os.unlink(file_path)
+        await progress_tracker.update_progress(task_id, 100, f"Validation failed: {e.detail}", "error")
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
     except Exception as e:
-        logger.error(f"❌ Failed to start compression: {str(e)}")
+        if file_path and os.path.exists(file_path):
+            os.unlink(file_path)
+        logger.error(f"❌ Failed: {str(e)}", exc_info=True)
         await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
-        raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
-
+        return JSONResponse(status_code=500, content={"detail": f"Failed: {str(e)}"})
 @app.get("/download_compressed/{task_id}")
 async def download_compressed(task_id: str):
-    try:
-        result_data = None
-        if USE_REDIS:
-            metadata = redis_client.get(f"compressed_meta:{task_id}")
-            if metadata:
-                result_data = json.loads(metadata)
-        else:
-            result_data = compression_results.get(task_id)
-        if not result_data:
-            raise HTTPException(status_code=404, detail="Compressed result not found or expired")
-        filename = result_data["filename"]
-        file_path = result_data["file_path"]
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="Compressed file not found")
-        def file_generator():
-            with open(file_path, "rb") as f:
-                while chunk := f.read(128 * 1024):
-                    yield chunk
-            safe_delete_temp_file(file_path)
-            if USE_REDIS:
-                redis_client.delete(f"compressed_meta:{task_id}")
-            elif task_id in compression_results:
-                del compression_results[task_id]
-            logger.info(f"Cleaned up disk file: {task_id}")
-        return StreamingResponse(file_generator(), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"', "X-Original-Size": str(result_data["original_size"]), "X-Compressed-Size": str(result_data["compressed_size"]), "X-Savings-Percent": f"{result_data['savings']:.1f}", "X-Compression-Level": result_data["preset"]})
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Download error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to download compressed file")
+    """Download compressed file"""
+    result_data = compression_results.get(task_id)
+    
+    if not result_data:
+        raise HTTPException(status_code=404, detail="Compressed result not found")
+    
+    filename = result_data["filename"]
+    file_path = result_data["file_path"]
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Compressed file not found")
+    
+    def file_generator():
+        with open(file_path, "rb") as f:
+            while chunk := f.read(64 * 1024):  # 64KB chunks
+                yield chunk
+        # Clean up after download
+        safe_delete_temp_file(file_path)
+        if task_id in compression_results:
+            del compression_results[task_id]
+        # Clean up progress data
+        if task_id in progress_tracker.tasks:
+            del progress_tracker.tasks[task_id]
+    
+    return StreamingResponse(
+        file_generator(), 
+        media_type="application/pdf", 
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Original-Size": str(result_data["original_size"]),
+            "X-Compressed-Size": str(result_data["compressed_size"]),
+            "X-Savings-Percent": f"{result_data['savings']:.1f}",
+            "X-Compression-Level": result_data["preset"]
+        }
+    )
+
+progress_store: Dict[str, dict] = {}
+
+# Or use Redis for production (recommended)
+
+redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+
+
+# Make sure your update_progress function stores in ALL locations
 
 @app.get("/progress/{task_id}")
-async def get_progress_status(task_id: str):
-    """Get current progress for a task"""
-    progress_data = progress_tracker.get_progress(task_id)
-    if not progress_data:
-        raise HTTPException(status_code=404, detail="Task not found or expired")
+async def get_progress_endpoint(task_id: str):
+    """Get progress for a task - FIXED endpoint"""
+    logger.info(f"🔍 Progress requested for task: {task_id}")
     
-    return JSONResponse(content=progress_data)
+    # Check in progress_tracker first
+    progress = progress_tracker.get_progress(task_id)
+    
+    if progress:
+        logger.info(f"✅ Found progress for {task_id}: {progress.get('progress', 0)}%")
+        return JSONResponse(content=progress)
+    
+    # Also check the global progress_store as fallback
+    if task_id in progress_store:
+        logger.info(f"✅ Found progress in store for {task_id}")
+        return JSONResponse(content=progress_store[task_id])
+    
+    # Check Redis directly
+    try:
+        redis_data = redis_client.get(f"progress:{task_id}")
+        if redis_data:
+            logger.info(f"✅ Found progress in Redis for {task_id}")
+            return JSONResponse(content=json.loads(redis_data))
+    except:
+        pass
+    
+    logger.warning(f"❌ Task {task_id} not found in any storage")
+    raise HTTPException(status_code=404, detail="Task not found")
 @app.post("/stop_operations")
 async def stop_operations():
     try:
@@ -2596,12 +3132,12 @@ async def save_uploaded_file_disk(file: UploadFile, task_id: str) -> Path:
     return file_path
 
 def validate_pdf_pages(file_path: Path) -> int:
+    MAX_PAGES_ESTIMATION = 2000
     try:
-        with open(file_path, "rb") as f:
-            pdf_reader = PdfReader(f)
-            page_count = len(pdf_reader.pages)
-            if page_count > MAX_PAGES:
-                raise HTTPException(status_code=400, detail=f"PDF exceeds {MAX_PAGES} pages limit. Found {page_count} pages.")
+        with pdfplumber.open(file_path) as pdf:
+            page_count = len(pdf.pages)
+            if page_count > MAX_PAGES_ESTIMATION:
+                raise HTTPException(400, f"PDF exceeds {MAX_PAGES_ESTIMATION} pages")
             return page_count
     except Exception as e:
         logger.error(f"PDF validation error: {e}")
@@ -2857,45 +3393,73 @@ def convert_pdf_to_word_local_fallback(pdf_file_path: Path, task_id: str) -> Opt
 @app.post("/convert_pdf_to_word")
 @limiter.limit(RATE_LIMITS['convert'])
 async def convert_pdf_to_word_endpoint(request: Request, file: UploadFile = File(...)):
-    logger.info(f"📥 Received convert to Word request for {file.filename}")
-    if file.size > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE/1024/1024}MB limit")
-    if not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    logger.info(f"📥 Convert to Word: {file.filename}")
+    
     task_id = str(uuid.uuid4())
-    temp_file_path = None
+    file_path = None
+    
     try:
-        validated_content = await validate_file(file, 'pdf')
-        await file.seek(0)
-        temp_file_path = await save_uploaded_file_disk(file, task_id)
-        logger.info(f"💾 File saved to: {temp_file_path}")
-        page_count = validate_pdf_pages(temp_file_path)
-        logger.info(f"📄 PDF validated: {page_count} pages")
-        logger.info("🔄 Starting PDF to Word conversion...")
-        docx_bytes = convert_pdf_to_word_disk_based(temp_file_path, task_id)
+        # Initialize progress
+        await progress_tracker.update_progress(task_id, 0, "Starting PDF to Word conversion...", "initializing")
+        
+        # Step 1: Upload to disk
+        await progress_tracker.update_progress(task_id, 10, "Uploading file...", "uploading")
+        file_path = await upload_to_disk_first(file, task_id)
+        
+        # Step 2: Validate from disk
+        await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
+        await validate_file_from_disk(file_path, 'pdf', file.filename)
+        
+        # Step 3: Validate page count
+        await progress_tracker.update_progress(task_id, 40, "Checking PDF structure...", "processing")
+        # page_count = validate_pdf_pages(Path(file_path))
+        # logger.info(f"📄 PDF validated: {page_count} pages")
+        
+        # Step 4: Convert using disk file
+        await progress_tracker.update_progress(task_id, 50, "Converting to Word format...", "converting")
+        docx_bytes = convert_pdf_to_word_disk_based(Path(file_path), task_id)
+        
         if not docx_bytes:
-            logger.warning("⚠️ Adobe conversion failed, trying fallback...")
-            docx_bytes = convert_pdf_to_word_local_fallback(temp_file_path, task_id)
-
+            await progress_tracker.update_progress(task_id, 70, "Trying fallback conversion...", "fallback")
+            docx_bytes = convert_pdf_to_word_local_fallback(Path(file_path), task_id)
+        
         if not docx_bytes:
-            raise HTTPException(status_code=500, detail="Conversion failed (Adobe + fallback)")
-        # if not docx_bytes:
-        #     raise HTTPException(status_code=500, detail="Conversion failed after all retry attempts")
-        logger.info(f"✅ Conversion successful for task {task_id}")
-        return StreamingResponse(io.BytesIO(docx_bytes), media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers={"Content-Disposition": 'attachment; filename="converted_output.docx"'})
+            raise HTTPException(500, detail="Conversion failed")
+        
+        await progress_tracker.update_progress(task_id, 90, "Preparing download...", "finalizing")
+        
+        # Return response with task_id in headers
+        response = StreamingResponse(
+            io.BytesIO(docx_bytes), 
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": 'attachment; filename="converted_output.docx"',
+                "X-Task-ID": task_id
+            }
+        )
+        
+        await progress_tracker.update_progress(task_id, 100, "Conversion complete!", "completed")
+        return response
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"💥 Unexpected error in endpoint for task {task_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Conversion error: {str(e)}")
+        logger.error(f"Error: {e}")
+        await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
+        raise HTTPException(500, detail=f"Conversion error: {str(e)}")
     finally:
-        logger.info(f"🧹 Final cleanup for task {task_id}")
+        # Cleanup
+        if file_path and os.path.exists(file_path):
+            os.unlink(file_path)
         cleanup_task_files(task_id)
-        cleanup_orphaned_files()
 
 
 def convert_pdf_to_excel_disk_based(pdf_file_path: Path, task_id: str, max_retries: int = 3) -> Optional[bytes]:
+    """
+    Convert PDF to Excel - Reads from disk, minimizes RAM by processing in chunks
+    """
     output_xlsx_path = None
+    
     for attempt in range(max_retries):
         try:
             logger.info(f"🔄 PDF to Excel conversion attempt {attempt + 1}/{max_retries} for task {task_id}")
@@ -2907,96 +3471,133 @@ def convert_pdf_to_excel_disk_based(pdf_file_path: Path, task_id: str, max_retri
             from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_params import ExportPDFParams
             from adobe.pdfservices.operation.pdfjobs.params.export_pdf.export_pdf_target_format import ExportPDFTargetFormat
             from adobe.pdfservices.operation.pdfjobs.result.export_pdf_result import ExportPDFResult
+            
             if not pdf_file_path.exists():
-                logger.error(f"❌ Input file missing for Excel conversion retry: {pdf_file_path}")
+                logger.error(f"❌ Input file missing for Excel conversion: {pdf_file_path}")
                 return None
+            
+            # ✅ Read file from disk (unavoidable for Adobe API)
             with open(pdf_file_path, "rb") as file:
                 input_stream = file.read()
+            
             pdf_services = get_adobe_services()
             input_asset = pdf_services.upload(input_stream=input_stream, mime_type=PDFServicesMediaType.PDF)
+            
+            # Free input_stream ASAP
+            input_stream = None
+            
             export_pdf_params = ExportPDFParams(target_format=ExportPDFTargetFormat.XLSX)
             export_pdf_job = ExportPDFJob(input_asset=input_asset, export_pdf_params=export_pdf_params)
             location = pdf_services.submit(export_pdf_job)
             result = pdf_services.get_job_result(location, ExportPDFResult)
             result_asset: CloudAsset = result.get_result().get_asset()
             stream_asset: StreamAsset = pdf_services.get_content(result_asset)
+            
             output_task_dir = OUTPUT_DIR / task_id
             output_task_dir.mkdir(exist_ok=True)
             output_xlsx_path = output_task_dir / "converted.xlsx"
+            
+            # ✅ Write directly to disk (stream to disk, not RAM)
             with open(output_xlsx_path, "wb") as out_file:
                 out_file.write(stream_asset.get_input_stream())
+            
+            # ✅ Read back for response (unavoidable)
             with open(output_xlsx_path, "rb") as f:
                 xlsx_bytes = f.read()
+            
             logger.info(f"✅ PDF to Excel conversion successful on attempt {attempt + 1}")
             return xlsx_bytes
+            
         except (ServiceApiException, ServiceUsageException, SdkException) as e:
             logger.error(f"❌ Adobe PDF Services Excel error (attempt {attempt + 1}/{max_retries}): {str(e)}")
             if output_xlsx_path and output_xlsx_path.exists():
                 try:
                     output_xlsx_path.unlink()
-                    logger.info(f"🧹 Cleaned failed Excel output file: {output_xlsx_path}")
-                except Exception as cleanup_error:
-                    logger.error(f"❌ Failed to clean Excel output file: {cleanup_error}")
+                except:
+                    pass
             if attempt < max_retries - 1:
                 wait_time = (2 ** attempt) + 1
-                logger.info(f"⏳ Retrying Excel conversion in {wait_time} seconds...")
+                logger.info(f"⏳ Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
                 continue
             else:
-                logger.error("💥 All Excel conversion attempts failed")
                 return None
         except Exception as e:
-            logger.error(f"❌ Unexpected error in PDF to Excel conversion (attempt {attempt + 1}): {str(e)}")
+            logger.error(f"❌ Unexpected error (attempt {attempt + 1}): {str(e)}")
             if output_xlsx_path and output_xlsx_path.exists():
                 try:
                     output_xlsx_path.unlink()
-                    logger.info(f"🧹 Cleaned failed Excel output file: {output_xlsx_path}")
-                except Exception as cleanup_error:
-                    logger.error(f"❌ Failed to clean Excel output file: {cleanup_error}")
+                except:
+                    pass
             if attempt < max_retries - 1:
                 wait_time = (2 ** attempt) + 1
-                logger.info(f"⏳ Retrying Excel conversion in {wait_time} seconds...")
                 time.sleep(wait_time)
                 continue
             else:
-                logger.error("💥 All Excel conversion attempts failed")
                 return None
+    
     return None
-
 @app.post("/convert_pdf_to_excel")
 @limiter.limit(RATE_LIMITS['convert'])
 async def convert_pdf_to_excel_endpoint(request: Request, file: UploadFile = File(...)):
-    logger.info(f"📥 Received convert to Excel request for {file.filename}")
-    if file.size > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE/1024/1024}MB limit")
-    if not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    logger.info(f"📥 Convert to Excel: {file.filename}")
+    
     task_id = str(uuid.uuid4())
-    temp_file_path = None
+    file_path = None
+    
     try:
-        validated_content = await validate_file(file, 'pdf')
-        await file.seek(0)
-        temp_file_path = await save_uploaded_file_disk(file, task_id)
-        logger.info(f"💾 File saved to: {temp_file_path}")
-        page_count = validate_pdf_pages(temp_file_path)
-        logger.info(f"📄 PDF validated: {page_count} pages")
+        # Initialize progress
+        await progress_tracker.update_progress(task_id, 0, "Starting PDF to Excel conversion...", "initializing")
+        
+        # Step 1: Upload to disk
+        await progress_tracker.update_progress(task_id, 10, "Uploading file...", "uploading")
+        file_path = await upload_to_disk_first(file, task_id)
+        
+        # Step 2: Validate from disk
+        await progress_tracker.update_progress(task_id, 30, "Validating file...", "validating")
+        await validate_file_from_disk(file_path, 'pdf', file.filename)
+        
+        # Step 3: Validate page count
+        await progress_tracker.update_progress(task_id, 40, "Checking PDF structure...", "processing")
+        # page_count = validate_pdf_pages(Path(file_path))
+        # logger.info(f"📄 PDF validated: {page_count} pages")
+        
+        # Step 4: Convert using disk file
+        await progress_tracker.update_progress(task_id, 50, "Converting to Excel format...", "converting")
         logger.info("🔄 Starting PDF to Excel conversion...")
-        xlsx_bytes = convert_pdf_to_excel_disk_based(temp_file_path, task_id)
+        xlsx_bytes = convert_pdf_to_excel_disk_based(Path(file_path), task_id)
+        
         if not xlsx_bytes:
             raise HTTPException(status_code=500, detail="Excel conversion failed after all retry attempts")
+        
+        await progress_tracker.update_progress(task_id, 90, "Preparing download...", "finalizing")
         logger.info(f"✅ Excel conversion successful for task {task_id}")
-        return StreamingResponse(io.BytesIO(xlsx_bytes), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="converted_output.xlsx"'})
+        
+        # Return response with task_id in headers
+        response = StreamingResponse(
+            io.BytesIO(xlsx_bytes), 
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": 'attachment; filename="converted_output.xlsx"',
+                "X-Task-ID": task_id
+            }
+        )
+        
+        await progress_tracker.update_progress(task_id, 100, "Conversion complete!", "completed")
+        return response
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"💥 Unexpected error in Excel endpoint for task {task_id}: {str(e)}")
+        logger.error(f"💥 Error: {str(e)}")
+        await progress_tracker.update_progress(task_id, 100, f"Error: {str(e)}", "error")
         raise HTTPException(status_code=500, detail=f"Excel conversion error: {str(e)}")
     finally:
-        logger.info(f"🧹 Final cleanup for Excel task {task_id}")
+        # Cleanup
+        if file_path and os.path.exists(file_path):
+            os.unlink(file_path)
+            logger.info(f"🗑️ Deleted: {file_path}")
         cleanup_task_files(task_id)
-        logger.info(f"🗑️ Excel task {task_id} cleanup completed")
-
-
 
 
 ##########################
@@ -3006,186 +3607,276 @@ async def convert_pdf_to_excel_endpoint(request: Request, file: UploadFile = Fil
 @app.post("/encrypt_pdf")
 @limiter.limit(RATE_LIMITS['convert'])
 async def encrypt_pdf_endpoint(request: Request, file: UploadFile = File(...), password: str = Form(...)):
-    logger.info(f"=== ENCRYPT ENDPOINT CALLED ===")
-    logger.info(f"File: {file.filename}, Size: {file.size} bytes")
-    logger.info(f"Password length: {len(password)}")
-    if file.size and file.size / (1024 * 1024) > 50:
-        logger.error("File size exceeds 50MB limit")
-        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
-    if not password:
-        logger.error("No password provided")
-        raise HTTPException(status_code=400, detail="Password required")
-    s3_key = None
+    """
+    Encrypt PDF - COMPLETELY DISK-BASED
+    - Streams upload directly to disk
+    - Processes page by page from disk
+    - Streams response directly to client
+    - Never loads full PDF into RAM
+    """
+    logger.info(f"🔐 Encrypt PDF (disk-based): {file.filename}")
+    
+    task_id = str(uuid.uuid4())
+    input_path = None
+    output_path = None
+    
     try:
-        validated_content = await validate_file(file, 'pdf')
-        sanitized_content = sanitize_pdf(validated_content)
-        if not sanitized_content:
-            raise HTTPException(status_code=500, detail="PDF sanitization failed")
-        logger.debug("File content read and sanitized")
-        doc = fitz.open(stream=io.BytesIO(sanitized_content), filetype="pdf")
-        logger.debug(f"PDF validation passed: {doc.page_count} pages")
-        doc.close()
-        if USE_S3:
-            logger.debug("Uploading to S3...")
-            s3_key = upload_to_s3(sanitized_content, file.filename)
-        else:
-            logger.debug("Saving locally...")
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(sanitized_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(sanitized_content)
-        logger.debug("Calling encrypt_pdf function...")
-        encrypted_pdf = encrypt_pdf(sanitized_content, password)
-        if not encrypted_pdf:
-            logger.error("encrypt_pdf returned None")
+        # ✅ STEP 1: Stream upload directly to disk (NO RAM)
+        input_path = await upload_to_disk_first(file, task_id)
+        logger.info(f"✅ File saved to disk: {input_path}")
+        
+        # ✅ STEP 2: Validate file from disk (reads only headers)
+        await validate_file_from_disk(input_path, 'pdf', file.filename)
+        # page_count = validate_pdf_page_count(input_path, max_pages=5)  # Encryption is fast, 500 pages is fine
+        # logger.info(f"✅ PDF has {page_count} pages - proceeding with encryption")
+        
+        # ✅ STEP 3: Create output path on disk
+        output_filename = f"encrypted_{task_id}_{sanitize_filename(file.filename)}"
+        output_path = str(OUTPUT_DIR / output_filename)
+        
+        # ✅ STEP 4: Encrypt using streaming (page by page)
+        await progress_tracker.update_progress(task_id, 50, "Encrypting PDF (streaming)...", "encrypting")
+        
+        # Run encryption in thread pool to not block event loop
+        loop = asyncio.get_event_loop()
+        success = await loop.run_in_executor(
+            None, 
+            encrypt_pdf_streaming, 
+            input_path, 
+            output_path, 
+            password
+        )
+        
+        if not success:
             raise HTTPException(status_code=500, detail="Encryption failed")
-        logger.info("Encryption successful, returning response")
-        return StreamingResponse(io.BytesIO(encrypted_pdf), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="encrypted_{file.filename}"'})
+        
+        await progress_tracker.update_progress(task_id, 90, "Encryption complete, preparing download...", "finalizing")
+        
+        # ✅ STEP 5: Stream response directly from disk (NO RAM)
+        def file_stream():
+            try:
+                with open(output_path, "rb") as f:
+                    while chunk := f.read(65536):  # 64KB chunks
+                        yield chunk
+            finally:
+                # Cleanup after streaming completes
+                if output_path and os.path.exists(output_path):
+                    os.unlink(output_path)
+                    logger.info(f"🗑️ Deleted encrypted temp file: {output_path}")
+        
+        response = StreamingResponse(
+            file_stream(),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="encrypted_{file.filename}"',
+                "X-Encryption-Method": "streaming-disk-based",
+                "X-Task-ID": task_id
+            }
+        )
+        
+        await progress_tracker.update_progress(task_id, 100, "Ready to download!", "completed")
+        return response
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in endpoint: {str(e)}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"PDF encryption failed: {str(e)}")
+        logger.error(f"❌ Encryption error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Encryption failed: {str(e)}")
+    
     finally:
-        logger.info("Cleaning up resources...")
-        if s3_key:
-            cleanup_s3_file(s3_key)
-        if not USE_S3:
-            cleanup_local_files()
+        # ✅ STEP 6: Cleanup input file
+        if input_path and os.path.exists(input_path):
+            try:
+                os.unlink(input_path)
+                logger.info(f"🗑️ Deleted input temp file: {input_path}")
+            except Exception as e:
+                logger.error(f"Failed to delete {input_path}: {e}")
+        
+        # Force garbage collection
         gc.collect()
-        logger.info("=== ENCRYPT ENDPOINT COMPLETED ===")
 
 @app.post("/remove_pdf_password")
 @limiter.limit(RATE_LIMITS['convert'])
 async def remove_pdf_password_endpoint(request: Request, file: UploadFile = File(...), password: str = Form(...)):
-    logger.info(f"Received remove password request for {file.filename}")
-    if file.size and file.size / (1024 * 1024) > 50:
-        logger.error(f"File {file.filename} exceeds 50MB limit")
-        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
-    if not password:
-        logger.error("Empty password provided")
-        raise HTTPException(status_code=400, detail="Password cannot be empty")
-    s3_key = None
+    """
+    Remove PDF password - COMPLETELY DISK-BASED
+    - Streams upload directly to disk
+    - Processes page by page from disk
+    - Streams response directly to client
+    - Never loads full PDF into RAM
+    """
+    logger.info(f"🔓 Remove PDF password (disk-based): {file.filename}")
+    
+    task_id = str(uuid.uuid4())
+    input_path = None
+    output_path = None
+    
     try:
-        validated_content = await validate_file(file, 'pdf')
-        sanitized_content = sanitize_pdf(validated_content)
-        if not sanitized_content:
-            raise HTTPException(status_code=500, detail="PDF sanitization failed")
-        doc = fitz.open(stream=io.BytesIO(sanitized_content), filetype="pdf")
-        doc.close()
-        if USE_S3:
-            s3_key = upload_to_s3(sanitized_content, file.filename)
-        else:
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(sanitized_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(sanitized_content)
-        decrypted_pdf = remove_pdf_password(sanitized_content, password)
-        if decrypted_pdf is None:
-            logger.error("remove_pdf_password returned None")
-            raise HTTPException(status_code=500, detail="Password removal failed")
-        try:
-            test_doc = fitz.open(stream=decrypted_pdf, filetype="pdf")
-            test_doc.close()
-        except Exception as e:
-            logger.error(f"Output PDF validation failed: {e}")
-            raise HTTPException(status_code=500, detail="Output PDF is invalid")
-        logger.info(f"Returning decrypted PDF for {file.filename}")
-        return StreamingResponse(io.BytesIO(decrypted_pdf), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="decrypted_{file.filename}"'})
-    except ValueError as e:
-        logger.error(f"Password removal error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except RuntimeError as e:
-        logger.error(f"Password removal error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # ✅ STEP 1: Stream upload directly to disk (NO RAM)
+        input_path = await upload_to_disk_first(file, task_id)
+        logger.info(f"✅ File saved to disk: {input_path}")
+        
+        # ✅ STEP 2: Validate file from disk (reads only headers)
+        await validate_file_from_disk(input_path, 'pdf', file.filename)
+        # page_count = validate_pdf_page_count(input_path, max_pages=500)
+        # logger.info(f"✅ PDF has {page_count} pages - proceeding with password removal")
+        
+        # ✅ STEP 3: Create output path on disk
+        output_filename = f"decrypted_{task_id}_{sanitize_filename(file.filename)}"
+        output_path = str(OUTPUT_DIR / output_filename)
+        
+        # ✅ STEP 4: Decrypt using streaming (page by page)
+        await progress_tracker.update_progress(task_id, 50, "Removing password (streaming)...", "decrypting")
+        
+        # Run decryption in thread pool
+        loop = asyncio.get_event_loop()
+        success = await loop.run_in_executor(
+            None, 
+            decrypt_pdf_streaming, 
+            input_path, 
+            output_path, 
+            password
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Password removal failed - wrong password or corrupted file")
+        
+        await progress_tracker.update_progress(task_id, 90, "Password removed, preparing download...", "finalizing")
+        
+        # ✅ STEP 5: Stream response directly from disk (NO RAM)
+        def file_stream():
+            try:
+                with open(output_path, "rb") as f:
+                    while chunk := f.read(65536):  # 64KB chunks
+                        yield chunk
+            finally:
+                # Cleanup after streaming completes
+                if output_path and os.path.exists(output_path):
+                    os.unlink(output_path)
+                    logger.info(f"🗑️ Deleted decrypted temp file: {output_path}")
+        
+        response = StreamingResponse(
+            file_stream(),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="decrypted_{file.filename}"',
+                "X-Decryption-Method": "streaming-disk-based",
+                "X-Task-ID": task_id
+            }
+        )
+        
+        await progress_tracker.update_progress(task_id, 100, "Ready to download!", "completed")
+        return response
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in endpoint: {str(e)}", exc_info=True)
+        logger.error(f"❌ Decryption error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Password removal failed: {str(e)}")
+    
     finally:
-        logger.info(f"S3 cleanup: {'Running' if s3_key else 'Skipping (no S3 key)'}")
-        if s3_key:
-            cleanup_s3_file(s3_key)
-        logger.info(f"Local cleanup: {'Running' if not USE_S3 else 'Skipping (USE_S3=True)'}")
-        if not USE_S3:
-            cleanup_local_files()
+        # ✅ STEP 6: Cleanup input file
+        if input_path and os.path.exists(input_path):
+            try:
+                os.unlink(input_path)
+                logger.info(f"🗑️ Deleted input temp file: {input_path}")
+            except Exception as e:
+                logger.error(f"Failed to delete {input_path}: {e}")
+        
+        # Force garbage collection
         gc.collect()
 
-# COMPLETE REPLACEMENT for remove_background_endpoint
+
+#================================== Client side pdf validation endpoint (for testing) =============================
+
+
+#==========================================================
+
+
+
+#### remove image background endpoint (disk-based)
 @app.post("/remove_background")
 @limiter.limit(RATE_LIMITS['upload'])
 async def remove_background_endpoint(request: Request, file: UploadFile = File(...)):
     logger.info(f"Received remove background request for {file.filename}")
     
-    MAX_FILE_SIZE_MB = 20
-    
-    if file.size and file.size / (1024 * 1024) > MAX_FILE_SIZE_MB:
-        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_FILE_SIZE_MB}MB limit")
+    task_id = str(uuid.uuid4())
+    file_path = None
+    temp_output_path = None
     
     try:
-        # Flexible content type check
-        is_valid_image = False
+        # Step 1: Upload to disk immediately (NO RAM storage)
+        file_path = await upload_to_disk_first(file, task_id)
+        logger.info(f"✅ File saved to disk: {file_path}")
         
-        # Check by content type
-        if file.content_type and file.content_type.startswith("image/"):
-            is_valid_image = True
+        # Step 2: Validate from disk (NO RAM loading of entire file)
+        await validate_file_from_disk(file_path, 'image', file.filename)
+        logger.info(f"✅ File validation passed from disk")
         
-        # Check by extension
-        if not is_valid_image and file.filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp')):
-            is_valid_image = True
+        # Step 3: Process image with memory-efficient streaming
+        logger.info("Processing image for background removal (memory efficient)")
         
-        if not is_valid_image:
-            raise HTTPException(status_code=400, detail="Uploaded file must be an image (JPG, PNG, GIF, WEBP, BMP)")
+        # Use PIL for lazy loading and dimension validation
+        from PIL import Image
+        import numpy as np
         
-        # Read file content
-        file_content = await file.read()
+        # Validate dimensions without loading full image
+        with Image.open(file_path) as img:
+            width, height = img.size
+            if width > 5000 or height > 5000:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Image dimensions too large: {width}x{height} (max 5000x5000 pixels)"
+                )
+            logger.info(f"✅ Image dimensions: {width}x{height}")
+            img_format = img.format
+            img_mode = img.mode
         
-        if not file_content:
-            raise HTTPException(status_code=400, detail="Empty image file")
+        # Step 4: Process in chunks using disk-based approach
+        # rembg works with bytes, but we'll read in chunks and reconstruct
+        # For large images, we'll process tiles if needed
         
-        # Try to validate as image with PIL
-        try:
-            import PIL.Image
-            image = PIL.Image.open(io.BytesIO(file_content))
+        file_size = os.path.getsize(file_path)
+        
+        if file_size > 10 * 1024 * 1024:  # > 10MB, use tile processing
+            logger.info(f"Large image ({file_size/1024/1024:.1f}MB), using tile processing")
+            processed_image = await process_large_image_tiled(file_path, width, height)
+        else:
+            # For smaller images, read entire file (unavoidable for rembg)
+            with open(file_path, "rb") as f:
+                file_content = f.read()
             
-            # Check dimensions
-            if image.size[0] > 5000 or image.size[1] > 5000:
-                raise HTTPException(status_code=400, detail="Image dimensions too large (max 5000x5000 pixels)")
-            
-            image.verify()
-            
-        except Exception as e:
-            # If PIL fails but file has image extension, try anyway
-            logger.warning(f"PIL validation failed but continuing: {e}")
-        
-        # Save locally if not using S3
-        if not USE_S3:
-            local_path = os.path.join("input_pdfs", f"{hashlib.md5(file_content).hexdigest()}_{file.filename}")
-            os.makedirs("input_pdfs", exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(file_content)
-        
-        logger.info("Processing image for background removal")
-        processed_image = remove_background_rembg(file_content)
+            # Process with rembg
+            processed_image = remove_background_rembg(file_content)
         
         if not processed_image or not processed_image.getvalue():
             raise HTTPException(status_code=500, detail="Failed to process image")
         
-        # Verify output is valid image
+        # Step 5: Verify output is valid image
         try:
-            output_image = PIL.Image.open(processed_image)
-            output_image.verify()
+            import PIL.Image
             processed_image.seek(0)
+            output_img = PIL.Image.open(processed_image)
+            output_img.verify()
+            processed_image.seek(0)
+            logger.info("✅ Output image verification passed")
         except Exception as e:
             logger.warning(f"Output image verification warning: {e}")
             processed_image.seek(0)
         
+        # Step 6: Return processed image with streaming
+        output_filename = f"processed_{os.path.splitext(file.filename)[0]}.png"
+        
         return StreamingResponse(
             content=processed_image,
             media_type="image/png",
-            headers={"Content-Disposition": f"attachment; filename=processed_{os.path.splitext(file.filename)[0]}.png"}
+            headers={
+                "Content-Disposition": f'attachment; filename="{output_filename}"',
+                "X-Original-Size": str(file_size),
+                "X-Processed-Size": str(processed_image.getbuffer().nbytes),
+                "X-Task-ID": task_id,
+                "X-Processing-Method": "memory-efficient"
+            }
         )
         
     except HTTPException:
@@ -3196,13 +3887,106 @@ async def remove_background_endpoint(request: Request, file: UploadFile = File(.
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+    
     finally:
-        logger.info("No S3 cleanup needed (in-memory processing)")
-        if not USE_S3:
-            cleanup_local_files()
+        # Cleanup: Delete the temporary file from disk
+        if file_path and os.path.exists(file_path):
+            try:
+                os.unlink(file_path)
+                logger.info(f"✅ Deleted temp file: {file_path}")
+            except Exception as e:
+                logger.error(f"Failed to delete temp file {file_path}: {e}")
+        
+        if temp_output_path and os.path.exists(temp_output_path):
+            try:
+                os.unlink(temp_output_path)
+                logger.info(f"✅ Deleted temp output: {temp_output_path}")
+            except Exception as e:
+                logger.error(f"Failed to delete temp output: {e}")
+        
+        # Force garbage collection
         gc.collect()
+        logger.info("✅ Background removal endpoint cleanup completed")
 
+async def process_large_image_tiled(image_path: str, width: int, height: int, tile_size: int = 1024) -> io.BytesIO:
+    """
+    Process large images in tiles to reduce memory usage
+    """
+    from PIL import Image
+    import numpy as np
+    from rembg import remove
+    
+    try:
+        # Open image with lazy loading
+        with Image.open(image_path) as img:
+            # Convert to RGBA if needed
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+            
+            # If image is manageable, process whole
+            if width * height < 5000 * 5000:  # < 25 megapixels
+                img_bytes = io.BytesIO()
+                img.save(img_bytes, format='PNG')
+                img_bytes.seek(0)
+                result = remove(img_bytes.getvalue())
+                return io.BytesIO(result)
+            
+            # For very large images, process in tiles
+            logger.info(f"Processing {width}x{height} image in {tile_size}x{tile_size} tiles")
+            
+            # Create output image
+            output_img = Image.new('RGBA', (width, height))
+            
+            # Process tiles
+            for x in range(0, width, tile_size):
+                for y in range(0, height, tile_size):
+                    # Calculate tile boundaries
+                    x_end = min(x + tile_size, width)
+                    y_end = min(y + tile_size, height)
+                    
+                    # Extract tile
+                    tile = img.crop((x, y, x_end, y_end))
+                    
+                    # Process tile with rembg
+                    tile_bytes = io.BytesIO()
+                    tile.save(tile_bytes, format='PNG')
+                    tile_bytes.seek(0)
+                    
+                    processed_tile_bytes = remove(tile_bytes.getvalue())
+                    processed_tile = Image.open(io.BytesIO(processed_tile_bytes))
+                    
+                    # Paste back
+                    output_img.paste(processed_tile, (x, y))
+                    
+                    logger.debug(f"Processed tile: {x}-{x_end}, {y}-{y_end}")
+                    
+                    # Force garbage collection after each tile
+                    gc.collect()
+            
+            # Save output
+            output_bytes = io.BytesIO()
+            output_img.save(output_bytes, format='PNG', optimize=True)
+            output_bytes.seek(0)
+            
+            return output_bytes
+            
+    except Exception as e:
+        logger.error(f"Tile processing failed: {e}")
+        # Fallback to regular processing
+        with open(image_path, "rb") as f:
+            content = f.read()
+        result = remove(content)
+        return io.BytesIO(result)
 
+def remove_background_rembg(image_bytes):
+    """Original rembg function (kept for compatibility)"""
+    try:
+        from rembg import remove
+        output = remove(image_bytes)
+        return io.BytesIO(output)
+    except Exception as e:
+        logger.error(f"Background removal failed: {str(e)}")
+        raise ValueError(f"Background removal failed: {str(e)}")
 
 
 
@@ -3294,38 +4078,71 @@ async def delete_video(video_id: str, payload: Dict = Body(...)):
 @app.post("/upload-video")
 @limiter.limit(RATE_LIMITS['upload'])
 async def upload_video(request: Request, video_file: UploadFile = File(...), password: str = Form(...), description: str = Form(...)):
+    task_id = str(uuid.uuid4())
+    file_path = None
+    
     try:
         if password != CORRECT_PASSWORD_HASH:
             raise HTTPException(status_code=401, detail="Incorrect password")
-        validated_content = await validate_file(video_file, 'video')
+        
         description = sanitize_input(description, max_length=500, allow_html=False)
-        video_filename = video_file.filename
-        allowed_extensions = (".mp4", ".webm", ".ogg", ".mkv", ".avi", ".mov")
-        if not video_filename.lower().endswith(allowed_extensions):
-            raise HTTPException(status_code=400, detail=f"Only {', '.join(ext.upper() for ext in allowed_extensions)} videos are supported")
+        
+        # Step 1: Upload to disk immediately
+        file_path = await upload_to_disk_first(video_file, task_id)
+        
+        # Step 2: Validate from disk
+        await validate_file_from_disk(file_path, 'video', video_file.filename)
+        
+        # Step 3: Read from disk for S3 upload (unavoidable)
+        with open(file_path, "rb") as f:
+            validated_content = f.read()
+        
+        # Step 4: Upload to S3
         file_hash = hashlib.md5(validated_content).hexdigest()
-        s3_key = f"{S3_PREFIX}{file_hash}_{video_filename}"
-        s3_client.put_object(Bucket=BUCKET_NAME, Key=s3_key, Body=validated_content, Metadata={'description': description}, ContentType=video_file.content_type or 'video/mp4')
-        logger.info(f"Uploaded video to S3: {s3_key}")
+        s3_key = f"{S3_PREFIX}{file_hash}_{video_file.filename}"
+        
+        s3_client.put_object(
+            Bucket=BUCKET_NAME, 
+            Key=s3_key, 
+            Body=validated_content,
+            Metadata={'description': description},
+            ContentType=video_file.content_type or 'video/mp4'
+        )
+        
+        # Update metadata
         video_metadata = load_video_metadata()
         video_id = s3_key[len(S3_PREFIX):]
-        video_metadata[video_id] = {"description": description, "original_filename": video_filename, "uploaded_at": datetime.now().isoformat(), "size": len(validated_content)}
+        video_metadata[video_id] = {
+            "description": description,
+            "original_filename": video_file.filename,
+            "uploaded_at": datetime.now().isoformat(),
+            "size": len(validated_content)
+        }
         save_video_metadata(video_metadata)
-        logger.info(f"Updated metadata for: {video_id}")
-        return JSONResponse(content={"message": "Video uploaded successfully", "name": video_filename, "id": video_id, "description": description, "metadata_updated": True})
+        
+        return JSONResponse(content={
+            "message": "Video uploaded successfully",
+            "name": video_file.filename,
+            "id": video_id,
+            "description": description
+        })
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error uploading video: {e}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+    finally:
+        if file_path and os.path.exists(file_path):
+            os.unlink(file_path)
 
-def remove_background_rembg(image_bytes):
-    try:
-        output = remove(image_bytes)
-        return io.BytesIO(output)
-    except Exception as e:
-        logger.error(f"Background removal failed: {str(e)}")
-        raise ValueError(f"Background removal failed: {str(e)}")
+# def remove_background_rembg(image_bytes):
+#     try:
+#         output = remove(image_bytes)
+#         return io.BytesIO(output)
+#     except Exception as e:
+#         logger.error(f"Background removal failed: {str(e)}")
+#         raise ValueError(f"Background removal failed: {str(e)}")
 
 # Razorpay payment endpoints (unchanged except rate limiting)
 client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))

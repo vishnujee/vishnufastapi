@@ -152,15 +152,15 @@
     <div class="container">
         <div class="card">
             <div class="card-header text-white">
-                <h3 class="mb-0"><i class="fas fa-shield-alt me-2"></i> P2P Secure Transfer</h3>
-                <small class="text-white-50">SHA-256 · Streaming · Stable single-channel mode</small>
+                <h3 class="mb-0"><i class="fas fa-shield-alt me-2"></i> P2P File Transfer</h3>
+                <small class="text-white-50">Secure Transfer- No server-Only device to device</small>
             </div>
 
             <div class="card-body p-4">
                 <div class="row g-4">
                     <div class="col-md-6">
                         <div class="form-group mb-3">
-                            <label class="fw-semibold"><i class="fas fa-user-astronaut"></i> Your name:</label>
+                            <label class="fw-semibold"><i class="fas fa-user-astronaut"></i> Your Device:</label>
                             <input type="text" id="client-id" class="form-control rounded-pill">
                         </div>
 
@@ -267,8 +267,8 @@
             <strong>📌 Tips for best transfer speed:</strong>
             <ul style="font-size: 14px;" class="mb-0 mt-2">
                 <li>📶 Both devices must be on the <strong>same WiFi network or mobile hotspot</strong></li>
-                <li>🔋 Keep screens <strong>ON</strong> during transfer — locked devices will fail</li>
-                <li>⚡ For huge files (&gt;1 GB), desktop browsers handle better than mobile</li>
+                <li>🔋 Keep screens <strong>ON</strong> during transfer Otherwise locked devices will fail</li>
+                <li>⚡ Wifi will give the best transfer speeds</li>
             </ul>
         </div>
     </div>
@@ -294,21 +294,40 @@
         //     channelOpenWaitMs: 30000,
         //     backpressureWaitMs: 10000
         // };
+        // const CONFIG = {
+        //     chunkSize: 128 * 1024,                 // 256KB (4x increase)
+        //     maxBufferedAmount: 2 * 1024 * 1024,    // 4MB (4x increase)
+        //     bufferedAmountLowThreshold: 512 * 1024,  // 1MB resume
+        //     heartbeatInterval: 25000,
+        //     progressUpdateInterval: 150,
+        //     metadataAckTimeout: 15000,
+        //     verificationTimeoutBase: 60000,
+        //     maxInflightChunks: 4096,               // 4096 chunks (2x increase)
+        //     flowControlAckEvery: 128,              // ACK every 128 chunks
+        //     drainTimeoutMs: 120000,
+        //     channelOpenWaitMs: 30000,
+        //     backpressureWaitMs: 10000
+        // };
+
         const CONFIG = {
-            chunkSize: 128 * 1024,                 // 256KB (4x increase)
-            maxBufferedAmount: 2 * 1024 * 1024,    // 4MB (4x increase)
-            bufferedAmountLowThreshold: 512 * 1024,  // 1MB resume
+            chunkSize: 128 * 1024,  // Keep same ✅
+
+            // Slightly more conservative for very old phones:
+            maxBufferedAmount: 6 * 1024 * 1024,     // 6MB (instead of 8MB)
+            bufferedAmountLowThreshold: 1.5 * 1024 * 1024,  // 1.5MB
+
+            maxInflightChunks: 4096,  // Back to 4096 for old devices
+            flowControlAckEvery: 256,  // Keep same
+
+            // Rest same
             heartbeatInterval: 25000,
             progressUpdateInterval: 150,
             metadataAckTimeout: 15000,
             verificationTimeoutBase: 60000,
-            maxInflightChunks: 4096,               // 4096 chunks (2x increase)
-            flowControlAckEvery: 128,              // ACK every 128 chunks
             drainTimeoutMs: 120000,
             channelOpenWaitMs: 30000,
             backpressureWaitMs: 10000
         };
-
         const RTC_CONFIG = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
