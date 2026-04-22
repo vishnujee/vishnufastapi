@@ -3074,9 +3074,25 @@ async def chat(
                 yield f"data: {json.dumps({'chunk': '🧠 GENERATING RESPONSE....', 'status': 'generating', 'prominent': True})}\n\n"
 
                 def build_optimized_prompt(query, processed_docs, conversation_history):
+                    # prompt_parts = [
+                    #     """You are Vishnu AI Assistant — a friendly but funny assistant.\n\n**CORE BEHAVIOR:**\n- Provide accurate, clear, **human-like answers in a better representation** with professional tone\n- Never mention 'documents', 'context', 'references' or similar\n- For non-Vishnu questions: humorously suggest Tone Selector\n- Add light Indian humor naturally (like 'as easy as making Maggi')\n- Keep humor after main answer, on new line with emoji\n\n**TABLE RULES:**\n- Create tables ONLY for naturally tabular data\n- Use proper Markdown table syntax\n- Max 4 columns, wrap long text\n- If user says 'no table' or 'point-wise', use bullet/numbered lists instead\n\n**CRITICAL TABLE COMPLETENESS (MANDATORY):**\n- When the source contains a table (work experience, projects, list of companies, durations, etc.), reproduce EVERY row from the source in full.\n- NEVER truncate, summarize, skip, or combine rows.\n- NEVER use ellipses (\"...\"), \"and so on\", \"etc.\", or \"(more rows omitted)\" inside or after a table.\n- If the source table has N rows, your output table must also have exactly N rows.\n- If the \"Key Responsibilities\" or any cell in the source is very long, shorten that CELL to one concise line — but still include the row.\n- Keep intro prose before the table to 1–2 short sentences. Put the humor line AFTER the table, never inside it.\n- Finish the closing pipe of the last row before adding any commentary."""
+                    # ]
                     prompt_parts = [
-                        """You are Vishnu AI Assistant — a friendly but funny assistant.\n\n**CORE BEHAVIOR:**\n- Provide accurate, clear, **human-like answers in a better representation** with professional tone\n- Never mention 'documents', 'context', 'references' or similar\n- For non-Vishnu questions: humorously suggest Tone Selector\n- Add light Indian humor naturally (like 'as easy as making Maggi')\n- Keep humor after main answer, on new line with emoji\n\n**TABLE RULES:**\n- Create tables ONLY for naturally tabular data\n- Use proper Markdown table syntax\n- Max 4 columns, wrap long text\n- If user says 'no table' or 'point-wise', use bullet/numbered lists instead\n\n**CRITICAL TABLE COMPLETENESS (MANDATORY):**\n- When the source contains a table (work experience, projects, list of companies, durations, etc.), reproduce EVERY row from the source in full.\n- NEVER truncate, summarize, skip, or combine rows.\n- NEVER use ellipses (\"...\"), \"and so on\", \"etc.\", or \"(more rows omitted)\" inside or after a table.\n- If the source table has N rows, your output table must also have exactly N rows.\n- If the \"Key Responsibilities\" or any cell in the source is very long, shorten that CELL to one concise line — but still include the row.\n- Keep intro prose before the table to 1–2 short sentences. Put the humor line AFTER the table, never inside it.\n- Finish the closing pipe of the last row before adding any commentary."""
-                    ]
+                    "You are Vishnu AI Assistant - friendly and helpful.",
+                    "",
+                    "Rules:",
+                    "1. Answer accurately in simple English",
+                    "2. Never mention 'documents', 'context', or 'references'",
+                    "3. Add light Indian humor at the end only",
+                    "4. For work experience, use bullet points (•), not tables",
+                    "5. Include ALL information: company, duration,Project Name, Project Description/role",
+                    "6. Never skip or shorten the list",
+                    "",
+                    "Example:",
+                    "• *TATA Power* (Feb 2026 - Present): Team Lead - Enforcement Department",
+                    "",
+                    "CONTEXT:",
+                ]
                     for role, content in conversation_history:
                         if role == "user":
                             prompt_parts.append(f"USER: {content}")
@@ -3115,7 +3131,7 @@ async def chat(
                     yield f"data: {json.dumps({'chunk': '⚠️ Using general knowledge...', 'status': 'fallback'})}\n\n"
                 processing_start = time.time()
                 final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
-                processed_docs = post_process_retrieved_docs(final_docs, query)[:3]
+                processed_docs = post_process_retrieved_docs(final_docs, query)
                 processing_end = time.time()
                 timings["processing_time"] = processing_end - processing_start
                 logger.info(
