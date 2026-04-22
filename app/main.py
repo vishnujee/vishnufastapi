@@ -3074,8 +3074,11 @@ async def chat(
                 yield f"data: {json.dumps({'chunk': '🧠 GENERATING RESPONSE....', 'status': 'generating', 'prominent': True})}\n\n"
 
                 def build_optimized_prompt(query, processed_docs, conversation_history):
+                    # prompt_parts = [
+                    #     """You are Vishnu AI Assistant — a friendly but funny assistant.\n\n**CORE BEHAVIOR:**\n- Provide accurate, clear, **human-like answers in a better representation** with professional tone\n- Never mention 'documents', 'context', 'references' or similar\n- For non-Vishnu questions: humorously suggest Tone Selector\n- Add light Indian humor naturally (like 'as easy as making Maggi')\n- Keep humor after main answer, on new line with emoji\n\n**TABLE RULES:**\n- Create tables ONLY for naturally tabular data\n- Use proper Markdown table syntax\n- Max 4 columns, wrap long text\n- If user says 'no table' or 'point-wise', use bullet/numbered lists instead\n\n**CRITICAL TABLE COMPLETENESS (MANDATORY):**\n- When the source contains a table (work experience, projects, list of companies, durations, etc.), reproduce EVERY row from the source in full.\n- NEVER truncate, summarize, skip, or combine rows.\n- NEVER use ellipses (\"...\"), \"and so on\", \"etc.\", or \"(more rows omitted)\" inside or after a table.\n- If the source table has N rows, your output table must also have exactly N rows.\n- If the \"Key Responsibilities\" or any cell in the source is very long, shorten that CELL to one concise line — but still include the row.\n- Keep intro prose before the table to 1–2 short sentences. Put the humor line AFTER the table, never inside it.\n- Finish the closing pipe of the last row before adding any commentary."""
+                    # ]
                     prompt_parts = [
-                        """You are Vishnu AI Assistant — a friendly but funny assistant.\n\n**CORE BEHAVIOR:**\n- Provide accurate, clear, **human-like answers in a better representation** with professional tone\n- Never mention 'documents', 'context', 'references' or similar\n- For non-Vishnu questions: humorously suggest Tone Selector\n- Add light Indian humor naturally (like 'as easy as making Maggi')\n- Keep humor after main answer, on new line with emoji\n\n**TABLE RULES:**\n- Create tables ONLY for naturally tabular data\n- Use proper Markdown table syntax\n- Max 4 columns, wrap long text\n- If user says 'no table' or 'point-wise', use bullet/numbered lists instead\n\n**CRITICAL TABLE COMPLETENESS (MANDATORY):**\n- When the source contains a table (work experience, projects, list of companies, durations, etc.), reproduce EVERY row from the source in full.\n- NEVER truncate, summarize, skip, or combine rows.\n- NEVER use ellipses (\"...\"), \"and so on\", \"etc.\", or \"(more rows omitted)\" inside or after a table.\n- If the source table has N rows, your output table must also have exactly N rows.\n- If the \"Key Responsibilities\" or any cell in the source is very long, shorten that CELL to one concise line — but still include the row.\n- Keep intro prose before the table to 1–2 short sentences. Put the humor line AFTER the table, never inside it.\n- Finish the closing pipe of the last row before adding any commentary."""
+                        """You are Vishnu AI Assistant — a friendly but funny assistant.\n\n**CORE BEHAVIOR:**\n- Provide accurate, clear, **human-like answers in a better representation** with professional tone\n- Never mention 'documents', 'context', 'references' or similar\n- For non-Vishnu questions: humorously suggest Tone Selector\n- Add light Indian humor naturally (like 'as easy as making Maggi')\n- Keep humor after main answer, on new line with emoji\n\n**WORK EXPERIENCE FORMAT (CRITICAL):**\n- For work experience, job history, project list, or company queries → ALWAYS use **bullet points or numbered lists**, NOT tables\n- This prevents formatting issues and ensures complete information is displayed\n- Example format:\n  • **Company Name** (Duration): Project/Position - Key responsibilities\n- Only use tables for non-work related data (like comparison data, statistics, etc.)\n\n**CRITICAL RULES:**\n- NEVER create markdown tables for work experience or project lists\n- Use point-wise format with bullet points (•) or numbers (1., 2., 3.)\n- Include ALL information: company, duration, project name, responsibilities\n- Keep each point concise but complete\n- Put humor line at the end, never inside the list"""
                     ]
                     for role, content in conversation_history:
                         if role == "user":
@@ -3109,6 +3112,16 @@ async def chat(
                     logger.info(
                         f"✅ RETRIEVAL COMPLETE - Documents: {len(raw_docs)} | Time: {timings['retrieval_time']:.2f}s"
                     )
+                    logger.info(f"\n{'='*80}")
+                    logger.info(f"📋 ALL {len(raw_docs)} RETRIEVED DOCUMENTS:")
+                    logger.info(f"{'='*80}")
+                    for idx, doc in enumerate(raw_docs, 1):
+                        source = doc.metadata.get('source', 'unknown')
+                        # Check if it's the table document (3.pdf)
+                        is_table = "3.pdf" in source
+                        logger.info(f"{idx}. Source: {source} {'✅ TABLE' if is_table else ''}")
+                        logger.info(f"   Preview: {doc.page_content[:100]}...")
+                    logger.info(f"{'='*80}\n")
                 except Exception as e:
                     logger.error(f"❌ RETRIEVAL FAILED: {e}")
                     raw_docs = []
@@ -3116,7 +3129,7 @@ async def chat(
                 processing_start = time.time()
                 final_docs = ensure_tabular_inclusion(raw_docs, query, min_tabular=2)
                 processed_docs = post_process_retrieved_docs(final_docs, query)
-                processed_docs=processed_docs[:5]  # SAFETY CAP: max 5 docs after processing, to prevent prompt bloat
+                processed_docs = processed_docs[:5]
                 processing_end = time.time()
                 timings["processing_time"] = processing_end - processing_start
                 logger.info(
@@ -3141,94 +3154,22 @@ async def chat(
                         connection_start = time.time()
 
                         # ================================================
-                        # FIX: Cost-aware dynamic token budgeting.
-                        # Different query types need different output sizes.
-                        # We set max_output_tokens based on the query and
-                        # also hard-abort streaming the moment output
-                        # exceeds a matching character cap (≈ 4 chars/token).
-                        # This prevents the 200k-char runaway that blew
-                        # through API budget on the "tell about him" query.
+                        # FIX: Cost-aware output budgeting.
+                        # A fixed output cap of 2600 tokens (~10,400 chars)
+                        # is applied to every query. This is enough for the
+                        # full 13-row work-experience table plus intro and
+                        # outro, and prevents runaway repetition loops from
+                        # burning API budget on garbage.
                         # ================================================
 
-                        # Classify the query to pick the right output budget.
-                        _q = query.lower().strip()
-                        _is_tabular_query = any(
-                            kw in _q
-                            for kw in [
-                                "job experience",
-                                "work experience",
-                                "job experince",
-                                "work experince",
-                                "work profile",
-                                "all projects",
-                                "list of projects",
-                                "all companies",
-                                "list companies",
-                                "entire career",
-                                "full career",
-                                "complete career",
-                                "job history",
-                                "work history",
-                            ]
-                        )
-                        _is_broad_query = any(
-                            kw in _q
-                            for kw in [
-                                "tell about",
-                                "tell me about",
-                                "about vishnu",
-                                "about him",
-                                "who is vishnu",
-                                "introduce",
-                                "overview",
-                                "summary",
-                                "background",
-                                "biography",
-                                "profile",
-                            ]
-                        )
-                        if _is_tabular_query:
-                            # 13 rows * ~200 tokens/row = 2600
-                            _max_tokens = 2600
-                            _char_cap = 10400
-                        elif _is_broad_query:
-                            _max_tokens = 2600
-                            _char_cap = 10400
-                        elif len(_q) < 30:  # short question like "joined kei?"
-                            _max_tokens = 2600
-                            _char_cap = 10400
-                        else:
-                            _max_tokens = 2600
-                            _char_cap = 10400
+                        # Fixed output budget for every query.
+                        _max_tokens = 4000
+                        _char_cap = 16000  # hard abort above this
                         logger.info(
-                            f"💰 BUDGET - query_type={'tabular' if _is_tabular_query else 'broad' if _is_broad_query else 'short' if len(_q)<30 else 'default'} max_tokens={_max_tokens} char_cap={_char_cap}"
+                            f"💰 BUDGET - max_tokens={_max_tokens} char_cap={_char_cap}"
                         )
 
-                        def _looks_like_runaway(full_text: str, tail_text: str):
-                            """Return (is_bad, reason).
-
-                            Catches the three real failure modes:
-                              1. Total chars > char_cap (query-specific).
-                              2. 200+ consecutive non-space chars.
-                              3. 500+ consecutive whitespace chars.
-                            """
-                            if not full_text:
-                                return (False, "")
-                            if len(full_text) > _char_cap:
-                                return (True, f"length={len(full_text)}>{_char_cap}")
-                            if not tail_text:
-                                return (False, "")
-                            m = re.search(r"([^\s])\1{199,}", tail_text)
-                            if m:
-                                return (True, f"run_of_{m.group(1)!r}")
-                            m = re.search(r"\s{500,}", tail_text)
-                            if m:
-                                return (True, "run_of_whitespace")
-                            return (False, "")
-
-                        def _stream_gemini(
-                            temp: float, max_tokens: int, extra_instruction: str = ""
-                        ):
+                        def _stream_gemini(temp: float, max_tokens: int):
                             """Return a (response_iterator, connect_time) tuple."""
                             cfg = genai.types.GenerationConfig(
                                 max_output_tokens=max_tokens,
@@ -3237,34 +3178,56 @@ async def chat(
                                 top_k=40,
                                 candidate_count=1,
                             )
-                            prompt_to_send = optimized_prompt
-                            if extra_instruction:
-                                prompt_to_send = (
-                                    optimized_prompt
-                                    + "\n\nSTRICT RULE: "
-                                    + extra_instruction
-                                )
                             t0 = time.time()
                             resp = GEMINI_MODEL.generate_content(
-                                prompt_to_send,
+                                optimized_prompt,
                                 stream=True,
                                 generation_config=cfg,
                                 request_options={"timeout": 45},
                             )
                             return resp, time.time() - t0
 
-                        # ------------ Attempt 1: live streaming ------------
+                        # ------------ Live streaming ------------
+                        # NOTE: With max_output_tokens=2600 enforced at the API
+                        # level, Gemini cannot produce a runaway exceeding that
+                        # cap regardless of behavior. We previously had a
+                        # runaway detector + retry loop, but it produced too
+                        # many false positives on legitimate markdown tables
+                        # (long separator rows are normal) and ended up killing
+                        # good responses. The token cap alone is sufficient
+                        # protection now.
                         attempt1_start = time.time()
-                        response_iter, connect_t = _stream_gemini(
-                            temp=0.1, max_tokens=_max_tokens
-                        )
+                        # LOG FINAL DOCUMENTS BEING SENT TO LLM
+                        logger.info(f"\n{'='*80}")
+                        logger.info(f"📄 FINAL DOCUMENTS SENT TO LLM for query: '{query[:100]}'")
+                        logger.info(f"{'='*80}")
+
+                        for idx, doc in enumerate(processed_docs, 1):
+                            logger.info(f"\n--- DOCUMENT {idx} ---")
+                            logger.info(f"Source: {doc.metadata.get('source', 'unknown')}")
+                            logger.info(f"Page: {doc.metadata.get('page_num', 'N/A')}")
+                            logger.info(f"Content Preview (first 500 chars):")
+                            logger.info(f"{doc.page_content[:500]}")
+                            logger.info(f"{'─'*50}")
+
+                        # Also log the full optimized prompt
+                        logger.info(f"\n{'='*80}")
+                        logger.info(f"📝 FULL PROMPT SENT TO LLM:")
+                        logger.info(f"{'='*80}")
+                        logger.info(optimized_prompt[:2000])  # First 2000 chars
+                        logger.info(f"... [truncated] ...")
+                        logger.info(f"Total prompt length: {len(optimized_prompt)} chars")
+                        logger.info(f"{'='*80}\n")
+
+                        # THEN call the LLM
+                        response_iter, connect_t = _stream_gemini(temp=0.1, max_tokens=_max_tokens)
+                        # response_iter, connect_t = _stream_gemini(
+                        #     temp=0.1, max_tokens=_max_tokens
+                        # )
                         connection_time = connect_t
                         full_response = ""
                         chunk_count = 0
                         total_chars = 0
-                        runaway_detected = False
-                        runaway_reason = ""
-                        CHECK_WINDOW = 4000
 
                         for chunk in response_iter:
                             if not chunk.text:
@@ -3276,77 +3239,10 @@ async def chat(
                             # Stream to client immediately (typewriter UX)
                             data = json.dumps({"chunk": chunk_text, "done": False})
                             yield f"data: {data}\n\n"
-                            # Runaway check on EVERY chunk so we abort fast
-                            tail = full_response[-CHECK_WINDOW:]
-                            is_bad, reason = _looks_like_runaway(
-                                full_response, tail
-                            )
-                            if is_bad:
-                                runaway_detected = True
-                                runaway_reason = reason
-                                break
 
                         logger.info(
-                            f"🎲 Attempt 1: {len(full_response)} chars in {time.time()-attempt1_start:.2f}s"
+                            f"🎲 Generation: {len(full_response)} chars in {time.time()-attempt1_start:.2f}s"
                         )
-
-                        if runaway_detected:
-                            logger.warning(
-                                f"⚠️ RUNAWAY DETECTED MID-STREAM ({runaway_reason}) — aborting and retrying"
-                            )
-                            # Tell the client to discard what was shown and
-                            # prepare for a fresh response.
-                            yield f"data: {json.dumps({'reset': True, 'chunk': '', 'status': 'regenerating'})}\n\n"
-                            yield f"data: {json.dumps({'chunk': '🔁 Let me try that again...', 'status': 'thinking', 'prominent': True})}\n\n"
-                            await asyncio.sleep(0.05)
-
-                            # ---------- Attempt 2: stricter retry ----------
-                            attempt2_start = time.time()
-                            retry_iter, _ = _stream_gemini(
-                                temp=0.05,
-                                max_tokens=_max_tokens,
-                                extra_instruction=(
-                                    "Do NOT repeat any character more than 5 times in a row. "
-                                    "In markdown tables, each separator cell must be exactly ':---' "
-                                    "with only 3 dashes. Produce the answer once, then stop immediately. "
-                                    f"Total response must be under {_char_cap} characters."
-                                ),
-                            )
-                            full_response = ""
-                            chunk_count = 0
-                            total_chars = 0
-                            retry_runaway = False
-                            for chunk in retry_iter:
-                                if not chunk.text:
-                                    continue
-                                chunk_text = chunk.text
-                                full_response += chunk_text
-                                chunk_count += 1
-                                total_chars += len(chunk_text)
-                                data = json.dumps({"chunk": chunk_text, "done": False})
-                                yield f"data: {data}\n\n"
-                                tail = full_response[-CHECK_WINDOW:]
-                                is_bad2, _ = _looks_like_runaway(
-                                    full_response, tail
-                                )
-                                if is_bad2:
-                                    retry_runaway = True
-                                    break
-                            logger.info(
-                                f"🎲 Attempt 2 (retry): {len(full_response)} chars in {time.time()-attempt2_start:.2f}s"
-                            )
-                            if retry_runaway:
-                                logger.error(
-                                    "❌ Retry also went runaway — sending safe fallback"
-                                )
-                                yield f"data: {json.dumps({'reset': True, 'chunk': '', 'status': 'fallback'})}\n\n"
-                                fallback = (
-                                    "I had trouble formatting the full answer this time. "
-                                    "Please ask again — it usually works on the next try."
-                                )
-                                full_response = fallback
-                                yield f"data: {json.dumps({'chunk': fallback, 'done': False})}\n\n"
-
                         actual_generation_time = time.time() - connection_start
                         logger.info(
                             f"Connection: {connection_time:.2f}s, Generation: {actual_generation_time:.2f}s"
