@@ -186,11 +186,11 @@
                             <div id="failed-files-list" class="mt-2" style="max-height: 150px; overflow-y: auto;"></div>
                         </div>
 
-                        <div class="form-check form-switch mt-3" style="display: none;">
+                        <!-- <div class="form-check form-switch mt-3">
                             <input class="form-check-input" type="checkbox" id="debug-toggle">
                             <label class="form-check-label small" for="debug-toggle">Show debug log</label>
                         </div>
-                        <div id="debug-panel" class="debug-panel" style="display:none;"></div>
+                        <div id="debug-panel" class="debug-panel" style="display:none;"></div> -->
                     </div>
 
                     <div class="col-md-6" id="peers-container" style="display:none;">
@@ -351,23 +351,35 @@
         };
 
         // ─── Debug log (user-visible via toggle) ───
+        // const dbg = {
+        //     log: (msg, level = 'info') => {
+        //         const panel = document.getElementById('debug-panel');
+        //         const line = document.createElement('div');
+        //         line.className = 'dbg-' + level;
+        //         line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        //         panel.appendChild(line);
+        //         panel.scrollTop = panel.scrollHeight;
+        //         while (panel.children.length > 300) panel.removeChild(panel.firstChild);
+        //         const fn = level === 'err' ? console.error : level === 'warn' ? console.warn : console.log;
+        //         fn(msg);
+        //     },
+        //     info: (m) => dbg.log(m, 'info'),
+        //     warn: (m) => dbg.log(m, 'warn'),
+        //     err: (m) => dbg.log(m, 'err')
+        // };
+
+
+        const IS_PRODUCTION = true;
         const dbg = {
             log: (msg, level = 'info') => {
-                const panel = document.getElementById('debug-panel');
-                const line = document.createElement('div');
-                line.className = 'dbg-' + level;
-                line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-                panel.appendChild(line);
-                panel.scrollTop = panel.scrollHeight;
-                while (panel.children.length > 300) panel.removeChild(panel.firstChild);
+                if (IS_PRODUCTION && level !== 'err') return; // Only show errors in prod
                 const fn = level === 'err' ? console.error : level === 'warn' ? console.warn : console.log;
-                fn(msg);
+                fn(`[${new Date().toLocaleTimeString()}] ${msg}`);
             },
             info: (m) => dbg.log(m, 'info'),
             warn: (m) => dbg.log(m, 'warn'),
             err: (m) => dbg.log(m, 'err')
         };
-
         // ─── Streaming SHA-256 ───
         class Sha256Streaming {
             constructor() {
@@ -1474,9 +1486,9 @@
             document.getElementById('batch-report').style.display = 'none';
         });
 
-        document.getElementById('debug-toggle').addEventListener('change', (e) => {
-            document.getElementById('debug-panel').style.display = e.target.checked ? 'block' : 'none';
-        });
+        // document.getElementById('debug-toggle').addEventListener('change', (e) => {
+        //     document.getElementById('debug-panel').style.display = e.target.checked ? 'block' : 'none';
+        // });
 
         window.addEventListener('beforeunload', (e) => {
             if (STATE.transfer.sendingActive) {
