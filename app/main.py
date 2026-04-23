@@ -1452,11 +1452,18 @@ def extract_text_with_tables(pdf_bytes):
                         ):
                             table_title = line
                             break
+                # tables = page.extract_tables() or []
                 tables = page.extract_tables() or []
-                for table in tables:
+                for table_idx, table in enumerate(tables):
                     cleaned_table = []
                     header_row = None
                     title_row = None
+                    
+                    logger.info(f"\n{'='*60}")
+                    logger.info(f"📊 RAW TABLE {table_idx+1} on Page {i}")
+                    logger.info(f"{'='*60}")
+                    
+                    
                     for row in table:
                         row = [
                             "" if cell is None else str(cell).strip() for cell in row
@@ -1514,17 +1521,48 @@ def extract_text_with_tables(pdf_bytes):
                         # whitespace sequences so the embedded table is
                         # compact and Gemini can restate it within the
                         # output-token budget.
+                        # def _clean_cell(v):
+                        #     s = "" if v is None else str(v)
+                        #     s = s.replace("\r", " ").replace("\n", " ")
+                        #     # Kill runs of the same non-space char >= 6 times
+                        #     s = re.sub(r"(\S)\1{5,}", r"\1", s)
+                        #     # Kill repeated word patterns like " If If If ..."
+                        #     s = re.sub(
+                        #         r"(\b\w{1,4}\b)(?:\s+\1){3,}", r"\1", s
+                        #     )
+                        #     # Collapse whitespace
+                        #     s = re.sub(r"\s{2,}", " ", s).strip()
+                        #     return s
                         def _clean_cell(v):
                             s = "" if v is None else str(v)
+                            
+                            # Step 1: Replace newlines with spaces FIRST (pdfplumber's wrapped lines)
                             s = s.replace("\r", " ").replace("\n", " ")
-                            # Kill runs of the same non-space char >= 6 times
-                            s = re.sub(r"(\S)\1{5,}", r"\1", s)
-                            # Kill repeated word patterns like " If If If ..."
+                            
+                            # Step 2: REPAIR split year fragments BEFORE collapsing whitespace
+                            # Pattern: "202 - Present 6" → "2026 - Present"
+                            # Pattern: "201 ... 5" at end → "2015 ..." 
+                            # This catches: 3-digit year + text + trailing single digit
                             s = re.sub(
-                                r"(\b\w{1,4}\b)(?:\s+\1){3,}", r"\1", s
+                                r'(\b(?:19|20)\d{2})\s+(\d)\b',  # "2026" already complete + stray digit
+                                r'\1',  # drop the stray
+                                s
                             )
-                            # Collapse whitespace
+                            s = re.sub(
+                                r'(\b(?:19|20)\d)\s+([- ]+\s*\w+(?:\s+\w+)*?)\s+(\d)\b',
+                                r'\1\3 \2',  # "202 - Present 6" → "2026 - Present"
+                                s
+                            )
+                            
+                            # Step 3: NOW remove repeated separator runs (was your old step 2)
+                            s = re.sub(r"([\-:|])\1{5,}", r"\1\1", s)
+                            
+                            # Step 4: Remove repeated short words ("If If If")
+                            s = re.sub(r"(\b\w{1,4}\b)(?:\s+\1){3,}", r"\1", s)
+                            
+                            # Step 5: Collapse whitespace LAST
                             s = re.sub(r"\s{2,}", " ", s).strip()
+                            
                             return s
 
                         cleaned_table = [
@@ -3088,9 +3126,6 @@ async def chat(
                     "5. Include ALL information: company, duration,Project Name, Project Description/role",
                     "6. Never skip or shorten the list",
                     "",
-                    "Example:",
-                    "• *TATA Power* (Feb 2026 - Present): Team Lead - Enforcement Department",
-                    "",
                     "CONTEXT:",
                 ]
                     for role, content in conversation_history:
@@ -3125,6 +3160,18 @@ async def chat(
                     logger.info(
                         f"✅ RETRIEVAL COMPLETE - Documents: {len(raw_docs)} | Time: {timings['retrieval_time']:.2f}s"
                     )
+                    logger.info(f"\n{'='*80}")
+                    logger.info(f"📚 RETRIEVED DOCUMENTS FROM CHROMADB ({len(raw_docs)} docs)")
+                    logger.info(f"{'='*80}")
+                    for idx, doc in enumerate(raw_docs, 1):
+                        logger.info(f"\n--- DOCUMENT #{idx} ---")
+                        logger.info(f"Source: {doc.metadata.get('source', 'Unknown')}")
+                        logger.info(f"Page: {doc.metadata.get('page_num', 'N/A')}")
+                        logger.info(f"Score: {doc.metadata.get('score', 'N/A')}")
+                        logger.info(f"Content Type: {doc.metadata.get('content_type', 'N/A')}")
+                        logger.info(f"Content Preview (first 500 chars):\n{doc.page_content}")
+                        logger.info(f"Content Length: {len(doc.page_content)} chars")
+                        logger.info("-" * 40)
                 except Exception as e:
                     logger.error(f"❌ RETRIEVAL FAILED: {e}")
                     raw_docs = []
@@ -3137,6 +3184,18 @@ async def chat(
                 logger.info(
                     f"✅ PROCESSING COMPLETE - Final docs: {len(processed_docs)} | Time: {timings['processing_time']:.2f}s"
                 )
+                logger.info(f"\n{'='*80}")
+                logger.info(f"🎯 FINAL DOCUMENTS SENT TO LLM ({len(processed_docs)} docs)")
+                logger.info(f"{'='*80}")
+                for idx, doc in enumerate(processed_docs, 1):
+                    logger.info(f"\n--- FINAL DOCUMENT #{idx} ---")
+                    logger.info(f"Source: {doc.metadata.get('source', 'Unknown')}")
+                    logger.info(f"Page: {doc.metadata.get('page_num', 'N/A')}")
+                    logger.info(f"Priority: {doc.metadata.get('priority', 'normal')}")
+                    logger.info(f"Content Type: {doc.metadata.get('content_type', 'N/A')}")
+                    logger.info(f"FULL CONTENT:\n{doc.page_content}")
+                    logger.info(f"Content Length: {len(doc.page_content)} chars")
+                    logger.info("-" * 40)
                 if not processed_docs:
                     logger.warning("⚠️ NO DOCUMENTS FOUND - Using fallback response")
                     fallback_msg = "I couldn't find specific information about that in my knowledge base. Is there anything else I can help you with?"
