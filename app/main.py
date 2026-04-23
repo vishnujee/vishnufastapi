@@ -3263,17 +3263,17 @@ async def chat(
                         )
                         if _is_tabular_query:
                             # 13 rows * ~200 tokens/row = 2600
-                            _max_tokens = 2600
-                            _char_cap = 10400
+                            _max_tokens = 4096
+                            _char_cap = 16000  # 4 chars/token * 4096 tokens
                         elif _is_broad_query:
-                            _max_tokens = 2600
-                            _char_cap = 10400
+                            _max_tokens = 4096
+                            _char_cap = 16000
                         elif len(_q) < 30:  # short question like "joined kei?"
-                            _max_tokens = 2600
-                            _char_cap = 10400
+                            _max_tokens = 4096
+                            _char_cap = 16000
                         else:
-                            _max_tokens = 2600
-                            _char_cap = 10400
+                            _max_tokens = 4096
+                            _char_cap = 16000
                         logger.info(
                             f"💰 BUDGET - query_type={'tabular' if _is_tabular_query else 'broad' if _is_broad_query else 'short' if len(_q)<30 else 'default'} max_tokens={_max_tokens} char_cap={_char_cap}"
                         )
@@ -3444,6 +3444,7 @@ async def chat(
                             }
                         )
                         yield f"data: {completion_data}\n\n"
+                        log_llm_response(query, full_response, mode, timings, 0)
                     except asyncio.TimeoutError:
                         logger.error("⏰ GENERATION TIMEOUT")
                         error_msg = "I'm taking too long to generate a response. Please try again!"
