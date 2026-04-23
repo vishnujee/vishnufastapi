@@ -1698,7 +1698,7 @@ def _normalize_retrieved_content(content: str) -> str:
     #    truncate it. Legitimate prose lines are never this long; this only
     #    catches residual table-separator garbage.
     lines = content.split("\n")
-    lines = [(ln[:2000] + " …") if len(ln) > 2000 else ln for ln in lines]
+    lines = [(ln[:20000] + " …") if len(ln) > 20000 else ln for ln in lines]
     content = "\n".join(lines)
 
     return content
